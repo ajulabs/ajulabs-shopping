@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-
+import { Ionicons } from '@expo/vector-icons';
+ 
 export default function ConsumerLayout() {
   return (
     <Tabs
@@ -17,36 +18,77 @@ export default function ConsumerLayout() {
           paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: '600',
+          letterSpacing: 0.1,
         },
       }}
     >
       <Tabs.Screen
         name="chat"
-        options={{ title: 'Aju', tabBarIcon: ({ color }) => <TabIcon emoji="🤖" color={color} /> }}
+        options={{
+          title: 'Aju',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'chatbubble' : 'chatbubble-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
         name="vitrines"
-        options={{ title: 'Lojas', tabBarIcon: ({ color }) => <TabIcon emoji="🛍️" color={color} /> }}
+        options={{
+          title: 'Vitrines',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'storefront' : 'storefront-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
         name="carrinho"
-        options={{ title: 'Carrinho', tabBarIcon: ({ color }) => <TabIcon emoji="🛒" color={color} /> }}
+        options={{
+          title: 'Carrinho',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'cart' : 'cart-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
         name="pedidos"
-        options={{ title: 'Pedidos', tabBarIcon: ({ color }) => <TabIcon emoji="📦" color={color} /> }}
+        options={{
+          title: 'Pedidos',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'receipt' : 'receipt-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
         name="perfil"
-        options={{ title: 'Perfil', tabBarIcon: ({ color }) => <TabIcon emoji="👤" color={color} /> }}
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'person' : 'person-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
       />
     </Tabs>
   );
-}
-
-function TabIcon({ emoji, color }: { emoji: string; color: string }) {
-  const { Text } = require('react-native');
-  return <Text style={{ fontSize: 22 }}>{emoji}</Text>;
 }
