@@ -101,10 +101,28 @@ export interface Pedido {
 
 export type RemetenteMensagem = 'usuario' | 'aju';
 
+export interface ProdutoCard {
+  id: string;
+  nome: string;
+  loja: string;
+  preco: number;
+  precoOriginal?: number;
+  tempoEntrega: string;
+  imagemUrl: string;
+}
+
+export interface RespostaAju {
+  texto: string;
+  produtos?: ProdutoCard[];
+  sugestoes?: string[];
+}
+
+
 export interface MensagemChat {
   id: string;
   remetente: RemetenteMensagem;
   conteudo: string;
+  resposta?: RespostaAju;
   criadaEm: string;
 }
 
