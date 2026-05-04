@@ -5,6 +5,8 @@ import {
 } from '../mock/mock-data';
 import { Loja, Produto, Pedido, StatusPedido } from '../types';
 
+export { matchAju } from "./consumer/aju";
+
 // Simula delay de rede para parecer uma API real
 const delay = (ms = 600) => new Promise(res => setTimeout(res, ms));
 
