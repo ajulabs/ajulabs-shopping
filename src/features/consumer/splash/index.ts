@@ -1,0 +1,1 @@
+export { SplashConsumer } from './ui/SplashConsumer';

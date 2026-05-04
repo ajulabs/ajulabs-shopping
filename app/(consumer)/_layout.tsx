@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ConsumerLayout() {
   return (
     <Tabs
+      initialRouteName='chat'
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#F2760F',
