@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "AjuLabs Entregador",
+    "slug": "ajulabs-entregador",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "bundleIdentifier": "com.ajulabs.entregador" },
+    "android": { "package": "com.ajulabs.entregador" },
+    "plugins": ["expo-router"],
+    "scheme": "ajulabs-entregador"
+  }
+}

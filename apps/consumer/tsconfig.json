@@ -1,0 +1,12 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "types": ["node"],
+    "paths": {
+      "@ajulabs/types": ["../../packages/types/src"],
+      "@ajulabs/theme": ["../../packages/theme/src"],
+      "@ajulabs/api-client": ["../../packages/api-client/src"]
+    }
+  }
+}
