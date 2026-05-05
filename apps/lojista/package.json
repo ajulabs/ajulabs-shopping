@@ -13,7 +13,6 @@
     "@ajulabs/theme": "workspace:*",
     "@ajulabs/types": "workspace:*",
     "@expo/vector-icons": "^15.0.3",
-    "expo": "~54.0.33",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -26,8 +25,10 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
+    "@types/node": "^25.6.0",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
+    "expo": "~54.0.33",
     "typescript": "~5.9.2"
   },
   "private": true
