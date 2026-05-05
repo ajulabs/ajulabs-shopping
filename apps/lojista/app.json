@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "AjuLabs Lojista",
+    "slug": "ajulabs-lojista",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "bundleIdentifier": "com.ajulabs.lojista" },
+    "android": { "package": "com.ajulabs.lojista" },
+    "plugins": ["expo-router"],
+    "scheme": "ajulabs-lojista"
+  }
+}
