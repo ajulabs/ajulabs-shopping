@@ -112,6 +112,19 @@ export default function ConsumerLayout() {
         name="vitrine/[id]"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="checkout"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="tracking/[id]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
+    
   );
 }
