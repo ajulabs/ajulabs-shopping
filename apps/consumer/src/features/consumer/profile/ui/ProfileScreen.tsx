@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { ProfileHeader } from './ProfileHeader';
 import { ProfileMenu } from './ProfileMenu';
+import { useAuthStore } from '../../../../store';
 
 export function ProfileScreen() {
   const router = useRouter();
@@ -50,6 +51,8 @@ export function ProfileScreen() {
     },
   ];
 
+  const logout = useAuthStore(s => s.logout);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -72,7 +75,7 @@ export function ProfileScreen() {
           style={styles.logoutBtn}
           onPress={() => Alert.alert('Sair', 'Tem certeza que deseja sair?', [
             { text: 'Cancelar', style: 'cancel' },
-            { text: 'Sair', style: 'destructive', onPress: () => {} },
+            { text: 'Sair', style: 'destructive', onPress: () => logout() },
           ])}
           activeOpacity={0.7}
         >

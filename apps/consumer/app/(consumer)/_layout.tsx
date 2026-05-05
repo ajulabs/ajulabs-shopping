@@ -3,7 +3,8 @@ import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCartStore, calcularQuantidadeItens } from '../../src/store';
+import { useCartStore, calcularQuantidadeItens, useAuthStore } from '../../src/store';
+
 
 export default function ConsumerLayout() {
   const itensPorLoja = useCartStore(s => s.itensPorLoja);

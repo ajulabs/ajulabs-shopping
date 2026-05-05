@@ -1,13 +1,12 @@
-import { View } from 'react-native';
-import { router } from 'expo-router';
-import { SplashConsumer } from '../src/features/consumer/splash';
+import { Redirect } from 'expo-router';
+import { useAuthStore } from '../src/store';
 
 export default function Index() {
-  return (
-    <View style={{ flex: 1, backgroundColor: '#000933' }}>
-      <SplashConsumer
-        onDone={() => router.replace('/(consumer)/chat')}
-      />
-    </View>
-  );
+  const isLoggedIn = useAuthStore(s => s.isLoggedIn);
+
+  if (isLoggedIn) {
+    return <Redirect href="/(consumer)/chat" />;
+  }
+
+  return <Redirect href="/(auth)/login" />;
 }
