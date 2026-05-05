@@ -1,12 +1,5 @@
-import { View, Text } from 'react-native';
-import { colors } from '@ajulabs/theme';
+import { VendasDashboard } from '../../src/features/lojista/vendas';
 
 export default function VendasScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.n50 }}>
-      <Text style={{ fontSize: 32 }}>📊</Text>
-      <Text style={{ fontSize: 16, color: colors.n800, fontWeight: '600', marginTop: 8 }}>Vendas</Text>
-      <Text style={{ fontSize: 13, color: colors.n500, marginTop: 4 }}>Em desenvolvimento</Text>
-    </View>
-  );
+  return <VendasDashboard />;
 }

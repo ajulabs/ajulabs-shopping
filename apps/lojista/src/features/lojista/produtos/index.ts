@@ -1,0 +1,1 @@
+export { NovoProduto } from './ui/NovoProduto';

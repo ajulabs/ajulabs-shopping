@@ -8,7 +8,16 @@
     "newArchEnabled": true,
     "ios": { "bundleIdentifier": "com.ajulabs.lojista" },
     "android": { "package": "com.ajulabs.lojista" },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir acesso às fotos para atualizar imagem da loja",
+          "cameraPermission": "Permitir acesso à câmera para fotografar a loja"
+        }
+      ]
+    ],
     "scheme": "ajulabs-lojista"
   }
 }

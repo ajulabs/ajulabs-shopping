@@ -1,0 +1,353 @@
+// src/features/lojista/vendas/ui/VendasDashboard.tsx
+import { useState, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, ScrollView,
+  StyleSheet, Pressable,
+} from 'react-native';
+import { colors } from '../../../../theme';
+
+// ─── Tipos ────────────────────────────────────────────────────
+type Period = 'dia' | 'semana' | 'mes';
+
+interface PeriodData {
+  label: string;
+  valor: string;
+  pedidos: string;
+  ticket: string;
+  topProduto: string;
+  trend: string;
+  pedidosTrend: string;
+  ticketTrend: string;
+  bars: number[];
+}
+
+interface InsightItem {
+  rank: number;
+  nome: string;
+  buscas: number;
+  pct: string;
+}
+
+interface VendasDashboardProps {
+  dark?: boolean;
+  nomeLoja?: string;
+}
+
+// ─── Dados mock ───────────────────────────────────────────────
+const PERIOD_DATA: Record<Period, PeriodData> = {
+  dia: {
+    label: 'VENDAS · HOJE',
+    valor: 'R$ 480',
+    pedidos: '8',
+    ticket: 'R$ 60',
+    topProduto: 'Tênis Runner Preto',
+    trend: '+5% vs. ontem',
+    pedidosTrend: '+8%',
+    ticketTrend: '+3%',
+    bars: [0, 0, 0, 0, 0, 0, 480],
+  },
+  semana: {
+    label: 'VENDAS · SEMANA',
+    valor: 'R$ 5.980',
+    pedidos: '42',
+    ticket: 'R$ 142',
+    topProduto: 'Tênis Runner Preto',
+    trend: '+18% vs. semana anterior',
+    pedidosTrend: '+12%',
+    ticketTrend: '+6%',
+    bars: [420, 680, 550, 890, 1100, 1300, 980],
+  },
+  mes: {
+    label: 'VENDAS · MÊS',
+    valor: 'R$ 24.320',
+    pedidos: '186',
+    ticket: 'R$ 131',
+    topProduto: 'Chuteira Society',
+    trend: '+15% vs. mês anterior',
+    pedidosTrend: '+9%',
+    ticketTrend: '+4%',
+    bars: [2800, 3100, 2600, 3900, 4200, 4800, 2920],
+  },
+};
+
+const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+const INSIGHTS: InsightItem[] = [
+  { rank: 1, nome: 'Chinelo slide masculino', buscas: 142, pct: '+38%' },
+  { rank: 2, nome: 'Tênis branco infantil',   buscas: 87,  pct: '+22%' },
+  { rank: 3, nome: 'Bota coturno feminina',   buscas: 64,  pct: '+18%' },
+];
+
+// ─── Gráfico de barras customizado ───────────────────────────
+function BarChart({ bars }: { bars: number[] }) {
+  const max = Math.max(...bars, 1);
+  return (
+    <View style={chartStyles.container}>
+      <View style={chartStyles.barsRow}>
+        {bars.map((val, i) => {
+          const isToday = i === bars.length - 1;
+          const heightPct = val > 0 ? (val / max) * 100 : 2;
+          return (
+            <View key={i} style={chartStyles.barCol}>
+              <View style={chartStyles.barWrapper}>
+                <View style={[
+                  chartStyles.bar,
+                  {
+                    height: `${heightPct}%`,
+                    backgroundColor: isToday ? colors.orange : colors.orange100,
+                  },
+                ]} />
+              </View>
+              <Text style={[chartStyles.barLabel, isToday && { color: colors.orange600, fontWeight: '700' }]}>
+                {WEEKDAYS[i]}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ─── Card de métrica ──────────────────────────────────────────
+function MetricCard({
+  icon, label, value, trend, dark,
+}: {
+  icon: string; label: string; value: string; trend: string; dark: boolean;
+}) {
+  const textColor = dark ? colors.n0    : colors.navy;
+  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const surface   = dark ? '#111638'    : colors.n0;
+  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+
+  return (
+    <View style={[styles.metricCard, { backgroundColor: surface, borderColor: border }]}>
+      <View style={styles.metricHeader}>
+        <View style={styles.metricIcon}>
+          <Text style={{ fontSize: 14 }}>{icon}</Text>
+        </View>
+        <Text style={styles.metricTrend}>{trend}</Text>
+      </View>
+      <Text style={[styles.metricLabel, { color: subColor }]}>{label}</Text>
+      <Text style={[styles.metricValue, { color: textColor }]}>{value}</Text>
+    </View>
+  );
+}
+
+// ─── Tela principal ───────────────────────────────────────────
+export function VendasDashboard({
+  dark = false,
+  nomeLoja = 'Loja do Chico — Calçados',
+}: VendasDashboardProps) {
+  const [period, setPeriod] = useState<Period>('semana');
+  const data = PERIOD_DATA[period];
+
+  const textColor = dark ? colors.n0    : colors.navy;
+  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const bgMain    = dark ? '#0B0F22'    : colors.n50;
+  const surface   = dark ? '#111638'    : colors.n0;
+  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+
+  const PERIODS: { key: Period; label: string }[] = [
+    { key: 'dia',    label: 'Hoje' },
+    { key: 'semana', label: 'Semana' },
+    { key: 'mes',    label: 'Mês' },
+  ];
+
+  return (
+    <View style={[styles.container, { backgroundColor: bgMain }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
+        <Text style={[styles.headerTitle, { color: textColor }]}>Dashboard</Text>
+        <Text style={[styles.headerSub, { color: subColor }]}>{nomeLoja}</Text>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+
+        {/* Abas de período */}
+        <View style={[styles.periodTabs, { backgroundColor: surface, borderColor: border }]}>
+          {PERIODS.map(p => (
+            <Pressable
+              key={p.key}
+              onPress={() => setPeriod(p.key)}
+              style={[
+                styles.periodTab,
+                period === p.key && { backgroundColor: colors.navy },
+              ]}
+            >
+              <Text style={[
+                styles.periodTabText,
+                period === p.key ? { color: '#fff' } : { color: subColor },
+              ]}>
+                {p.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Hero card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroDeco}>
+            <Text style={styles.heroDecoText}>$</Text>
+          </View>
+          <Text style={styles.heroLabel}>{data.label}</Text>
+          <Text style={styles.heroValue}>{data.valor}</Text>
+          <Text style={styles.heroTrend}>↑ {data.trend}</Text>
+        </View>
+
+        {/* Métricas */}
+        <View style={styles.metricsGrid}>
+          <MetricCard
+            icon="📋"
+            label="PEDIDOS"
+            value={data.pedidos}
+            trend={data.pedidosTrend}
+            dark={dark}
+          />
+          <MetricCard
+            icon="💰"
+            label="TICKET MÉDIO"
+            value={data.ticket}
+            trend={data.ticketTrend}
+            dark={dark}
+          />
+        </View>
+
+        {/* Produto mais vendido */}
+        <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+          <Text style={[styles.cardLabel, { color: subColor }]}>PRODUTO MAIS VENDIDO</Text>
+          <Text style={[styles.cardValue, { color: textColor }]}>{data.topProduto}</Text>
+        </View>
+
+        {/* Gráfico de barras */}
+        <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+          <View style={styles.chartHeader}>
+            <Text style={[styles.chartTitle, { color: textColor }]}>Vendas · últimos 7 dias</Text>
+            <Text style={[styles.chartUnit, { color: subColor }]}>R$</Text>
+          </View>
+          <BarChart bars={data.bars} />
+        </View>
+
+        {/* Insight IA */}
+        <View style={styles.insightCard}>
+          <View style={styles.insightBadge}>
+            <Text style={styles.insightBadgeText}>✨ Insight IA</Text>
+          </View>
+          <Text style={styles.insightTitle}>
+            O que seus clientes buscam que você não tem
+          </Text>
+          <Text style={styles.insightSub}>
+            Demanda reprimida nas últimas 4 semanas · Centro de Aracaju
+          </Text>
+          {INSIGHTS.map((item, i) => (
+            <View key={item.rank} style={[
+              styles.insightItem,
+              i > 0 && { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
+            ]}>
+              <View style={styles.insightNum}>
+                <Text style={styles.insightNumText}>{item.rank}</Text>
+              </View>
+              <View style={styles.insightInfo}>
+                <Text style={styles.insightName}>{item.nome}</Text>
+                <Text style={styles.insightDetail}>
+                  {item.buscas} buscas ·{' '}
+                  <Text style={{ color: colors.mint }}>{item.pct}</Text>
+                </Text>
+              </View>
+              <Text style={styles.insightChevron}>›</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ height: 24 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Estilos do gráfico ───────────────────────────────────────
+const chartStyles = StyleSheet.create({
+  container:   { height: 130 },
+  barsRow:     { flexDirection: 'row', alignItems: 'flex-end', height: '100%', gap: 4 },
+  barCol:      { flex: 1, alignItems: 'center', height: '100%' },
+  barWrapper:  { flex: 1, width: '100%', justifyContent: 'flex-end' },
+  bar:         { width: '100%', borderRadius: 6, minHeight: 4 },
+  barLabel:    { fontSize: 10, color: '#6B7390', fontWeight: '500', marginTop: 4 },
+});
+
+// ─── Estilos principais ───────────────────────────────────────
+const styles = StyleSheet.create({
+  container:        { flex: 1 },
+
+  // Header
+  header:           { padding: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  headerTitle:      { fontWeight: '700', fontSize: 20, letterSpacing: -0.4 },
+  headerSub:        { fontSize: 12, marginTop: 2 },
+
+  // Content
+  content:          { padding: 14, gap: 12 },
+
+  // Period tabs
+  periodTabs:       { flexDirection: 'row', borderRadius: 12, borderWidth: 1,
+                      padding: 4, gap: 4 },
+  periodTab:        { flex: 1, paddingVertical: 8, borderRadius: 8,
+                      alignItems: 'center' },
+  periodTabText:    { fontSize: 13, fontWeight: '600' },
+
+  // Hero
+  heroCard:         { backgroundColor: colors.orange, borderRadius: 16,
+                      padding: 18, overflow: 'hidden', position: 'relative' },
+  heroDeco:         { position: 'absolute', right: -10, top: '50%',
+                      marginTop: -40 },
+  heroDecoText:     { fontSize: 80, color: 'rgba(255,255,255,0.1)', fontWeight: '700' },
+  heroLabel:        { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.8)',
+                      letterSpacing: 0.5 },
+  heroValue:        { fontSize: 36, fontWeight: '700', color: '#fff',
+                      letterSpacing: -1, marginTop: 4 },
+  heroTrend:        { fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 6 },
+
+  // Metrics grid
+  metricsGrid:      { flexDirection: 'row', gap: 10 },
+  metricCard:       { flex: 1, borderRadius: 14, borderWidth: 1, padding: 14 },
+  metricHeader:     { flexDirection: 'row', justifyContent: 'space-between',
+                      alignItems: 'center', marginBottom: 8 },
+  metricIcon:       { width: 30, height: 30, borderRadius: 8,
+                      backgroundColor: colors.orange100,
+                      alignItems: 'center', justifyContent: 'center' },
+  metricTrend:      { fontSize: 11, fontWeight: '600', color: '#046C2E' },
+  metricLabel:      { fontSize: 11, fontWeight: '600',
+                      textTransform: 'uppercase', letterSpacing: 0.4 },
+  metricValue:      { fontSize: 22, fontWeight: '700', marginTop: 2 },
+
+  // Card genérico
+  card:             { borderRadius: 14, borderWidth: 1, padding: 14 },
+  cardLabel:        { fontSize: 11, fontWeight: '600',
+                      textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  cardValue:        { fontSize: 17, fontWeight: '700' },
+
+  // Chart
+  chartHeader:      { flexDirection: 'row', justifyContent: 'space-between',
+                      alignItems: 'baseline', marginBottom: 14 },
+  chartTitle:       { fontSize: 15, fontWeight: '600' },
+  chartUnit:        { fontSize: 11 },
+
+  // Insight
+  insightCard:      { backgroundColor: colors.navy, borderRadius: 16, padding: 16 },
+  insightBadge:     { alignSelf: 'flex-start', backgroundColor: 'rgba(242,118,15,0.25)',
+                      paddingHorizontal: 10, paddingVertical: 4,
+                      borderRadius: 99, marginBottom: 10 },
+  insightBadgeText: { color: '#FFA05C', fontSize: 11, fontWeight: '600' },
+  insightTitle:     { fontSize: 16, fontWeight: '700', color: '#fff', lineHeight: 22 },
+  insightSub:       { fontSize: 11, color: 'rgba(255,255,255,0.55)',
+                      marginTop: 4, marginBottom: 4 },
+  insightItem:      { flexDirection: 'row', alignItems: 'center',
+                      gap: 10, paddingVertical: 10 },
+  insightNum:       { width: 24, height: 24, borderRadius: 7,
+                      backgroundColor: 'rgba(242,118,15,0.2)',
+                      alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  insightNumText:   { color: '#FFA05C', fontSize: 12, fontWeight: '700' },
+  insightInfo:      { flex: 1 },
+  insightName:      { fontSize: 13, fontWeight: '600', color: '#fff' },
+  insightDetail:    { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 1 },
+  insightChevron:   { fontSize: 18, color: 'rgba(255,255,255,0.3)' },
+});
