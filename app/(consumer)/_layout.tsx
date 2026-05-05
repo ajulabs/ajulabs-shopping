@@ -1,8 +1,17 @@
+// app/(consumer)/_layout.tsx
+import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
- 
+import { useCartStore, calcularQuantidadeItens } from '../../src/store';
+
 export default function ConsumerLayout() {
+  const itensPorLoja = useCartStore(s => s.itensPorLoja);
+  const quantidadeItens = useMemo(
+    () => calcularQuantidadeItens(itensPorLoja),
+    [itensPorLoja]
+  );
+
   return (
     <Tabs
       initialRouteName='chat'
@@ -55,6 +64,15 @@ export default function ConsumerLayout() {
         name="carrinho"
         options={{
           title: 'Carrinho',
+          tabBarBadge: quantidadeItens > 0 ? quantidadeItens : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#F2760F',
+            color: '#FFFFFF',
+            fontSize: 10,
+            fontWeight: '700',
+            minWidth: 18,
+            height: 18,
+          },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'cart' : 'cart-outline'}
@@ -89,12 +107,6 @@ export default function ConsumerLayout() {
             />
           ),
         }}
-      />
-      
-
-    <Tabs.Screen
-        name="vitrine/[id]"
-        options={{ href: null }}
       />
     </Tabs>
   );

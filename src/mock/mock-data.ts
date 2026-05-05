@@ -9,6 +9,8 @@ export const CATEGORIAS: Categoria[] = [
   { id: 'farmacia', nome: 'Farmácia', emoji: '💊' },
   { id: 'doce', nome: 'Doces', emoji: '🍰' },
   { id: 'bebida', nome: 'Bebidas', emoji: '🥤' },
+  { id: 'calcados', nome: 'Calçados', emoji: '👟' },
+  { id: 'eletronico', nome: 'Eletrônicos', emoji: '🎧' },
 ];
 
 // ─── Lojas ────────────────────────────────────────────────────
@@ -116,6 +118,46 @@ export const LOJAS: Loja[] = [
     taxaEntrega: 6.99,
     aberta: false,
   },
+  {
+    id: 'loja-006',
+    nome: 'Loja do Chico',
+    descricao: 'Calçados masculinos e femininos com entrega rápida',
+    categoria: 'calcados',
+    imagem: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80',
+    endereco: {
+      rua: 'Av. Hermes Fontes',
+      numero: '789',
+      bairro: 'Suíssa',
+      cidade: 'Aracaju',
+      cep: '49050-105',
+    },
+    avaliacao: 4.7,
+    totalAvaliacoes: 156,
+    tempoEntregaMin: 25,
+    tempoEntregaMax: 40,
+    taxaEntrega: 8.90,
+    aberta: true,
+  },
+  {
+    id: 'loja-007',
+    nome: 'EletroPonto',
+    descricao: 'Eletrônicos e acessórios — frete grátis acima de R$ 200',
+    categoria: 'eletronico',
+    imagem: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600&q=80',
+    endereco: {
+      rua: 'Rua Laranjeiras',
+      numero: '321',
+      bairro: 'Centro',
+      cidade: 'Aracaju',
+      cep: '49010-200',
+    },
+    avaliacao: 4.6,
+    totalAvaliacoes: 89,
+    tempoEntregaMin: 20,
+    tempoEntregaMax: 35,
+    taxaEntrega: 0,
+    aberta: true,
+  },
 ];
 
 // ─── Produtos ─────────────────────────────────────────────────
@@ -179,6 +221,18 @@ export const PRODUTOS: Produto[] = [
     nome: 'Bolo de Tapioca', descricao: 'Bolo úmido de tapioca com coco ralado fresco',
     preco: 28.00, imagem: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=400&q=80',
     categoria: 'doce', disponivel: true, destaque: true,
+  },
+  {
+    id: 'prod-010', lojaId: 'loja-006',
+    nome: 'Tênis Runner Preto', descricao: 'Tênis esportivo com amortecimento e solado emborrachado',
+    preco: 189.90, imagem: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80',
+    categoria: 'calcados', disponivel: true, destaque: true,
+  },
+  {
+    id: 'prod-011', lojaId: 'loja-007',
+    nome: 'Fone Bluetooth JLX 9', descricao: 'Headphone over-ear com 30h de bateria e cancelamento de ruído',
+    preco: 249.00, imagem: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80',
+    categoria: 'eletronico', disponivel: true, destaque: true,
   },
 ];
 

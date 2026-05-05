@@ -1,0 +1,134 @@
+// src/store/cartStore.ts
+import { create } from 'zustand';
+import { Produto, ItemCarrinho } from '../types';
+import { getLojaById } from '../mock/mock-data';
+
+export interface GrupoLoja {
+  lojaId: string;
+  lojaNome: string;
+  tempoEntregaMin: number;
+  tempoEntregaMax: number;
+  taxaEntrega: number;
+  itens: ItemCarrinho[];
+  subtotal: number;
+}
+
+interface CartState {
+  itensPorLoja: Record<string, ItemCarrinho[]>;
+
+  adicionar: (produto: Produto) => void;
+  remover: (produtoId: string) => void;
+  aumentar: (produtoId: string) => void;
+  diminuir: (produtoId: string) => void;
+  limparLoja: (lojaId: string) => void;
+  limparTudo: () => void;
+}
+
+export const useCartStore = create<CartState>((set, get) => ({
+  itensPorLoja: {},
+
+  adicionar: (produto) => {
+    const { itensPorLoja } = get();
+    const itensAtuais = itensPorLoja[produto.lojaId] ?? [];
+    const existente = itensAtuais.find(i => i.produto.id === produto.id);
+
+    const novosItens = existente
+      ? itensAtuais.map(i =>
+          i.produto.id === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i
+        )
+      : [...itensAtuais, { produto, quantidade: 1 }];
+
+    set({
+      itensPorLoja: { ...itensPorLoja, [produto.lojaId]: novosItens },
+    });
+  },
+
+  remover: (produtoId) => {
+    const { itensPorLoja } = get();
+    const novo: Record<string, ItemCarrinho[]> = {};
+    for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
+      const filtrados = itens.filter(i => i.produto.id !== produtoId);
+      if (filtrados.length > 0) novo[lojaId] = filtrados;
+    }
+    set({ itensPorLoja: novo });
+  },
+
+  aumentar: (produtoId) => {
+    const { itensPorLoja } = get();
+    const novo: Record<string, ItemCarrinho[]> = {};
+    for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
+      novo[lojaId] = itens.map(i =>
+        i.produto.id === produtoId ? { ...i, quantidade: i.quantidade + 1 } : i
+      );
+    }
+    set({ itensPorLoja: novo });
+  },
+
+  diminuir: (produtoId) => {
+    const { itensPorLoja } = get();
+    let alvo: ItemCarrinho | undefined;
+    for (const itens of Object.values(itensPorLoja)) {
+      alvo = itens.find(i => i.produto.id === produtoId);
+      if (alvo) break;
+    }
+    if (!alvo) return;
+
+    if (alvo.quantidade <= 1) {
+      get().remover(produtoId);
+      return;
+    }
+
+    const novo: Record<string, ItemCarrinho[]> = {};
+    for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
+      novo[lojaId] = itens.map(i =>
+        i.produto.id === produtoId ? { ...i, quantidade: i.quantidade - 1 } : i
+      );
+    }
+    set({ itensPorLoja: novo });
+  },
+
+  limparLoja: (lojaId) => {
+    const { itensPorLoja } = get();
+    const { [lojaId]: _, ...resto } = itensPorLoja;
+    set({ itensPorLoja: resto });
+  },
+
+  limparTudo: () => set({ itensPorLoja: {} }),
+}));
+
+// ─── Helpers fora do store ─────────────────────────────────────
+// São funções puras que recebem o estado e calculam o derivado.
+// Use-as dentro de useMemo no componente, nunca como retorno de seletor.
+
+export function calcularGrupos(
+  itensPorLoja: Record<string, ItemCarrinho[]>
+): GrupoLoja[] {
+  const grupos: GrupoLoja[] = [];
+  for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
+    const loja = getLojaById(lojaId);
+    if (!loja || itens.length === 0) continue;
+    const subtotal = itens.reduce(
+      (acc, i) => acc + i.produto.preco * i.quantidade, 0
+    );
+    grupos.push({
+      lojaId: loja.id,
+      lojaNome: loja.nome,
+      tempoEntregaMin: loja.tempoEntregaMin,
+      tempoEntregaMax: loja.tempoEntregaMax,
+      taxaEntrega: loja.taxaEntrega,
+      itens,
+      subtotal,
+    });
+  }
+  return grupos;
+}
+
+export function calcularQuantidadeItens(
+  itensPorLoja: Record<string, ItemCarrinho[]>
+): number {
+  let total = 0;
+  for (const itens of Object.values(itensPorLoja)) {
+    for (const item of itens) total += item.quantidade;
+  }
+  return total;
+}
