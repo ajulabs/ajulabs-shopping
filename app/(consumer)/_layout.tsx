@@ -1,8 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
- 
+import { useCarrinhoStore } from '../../src/features/consumer/cart';
+
 export default function ConsumerLayout() {
+  const totalItens = useCarrinhoStore((s) => s.totalItens());
+
   return (
     <Tabs
       initialRouteName='chat'
@@ -55,6 +58,17 @@ export default function ConsumerLayout() {
         name="carrinho"
         options={{
           title: 'Carrinho',
+          tabBarBadge: totalItens > 0 ? totalItens : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#F2760F',
+            color: '#FFFFFF',
+            fontSize: 10,
+            fontWeight: '700',
+            minWidth: 18,
+            height: 18,
+            lineHeight: 14,
+            paddingHorizontal: 4,
+          },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'cart' : 'cart-outline'}
