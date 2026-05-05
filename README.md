@@ -12,7 +12,7 @@ Marketplace local de Aracaju conectando consumidores e lojistas com entrega ráp
 - **Zustand** — estado global
 - **TanStack Query** — cache e sincronização de dados
 - **React Hook Form + Zod** — formulários e validação
-- **Claude API (Anthropic)** — assistente de compras Aju
+- **Openai API** — assistente de compras Aju
 
 ---
 
@@ -170,12 +170,8 @@ cp .env.example .env
 ### Variáveis de ambiente
 
 ```bash
-# Papel do dev durante desenvolvimento — define qual fluxo renderizar
-# Valores aceitos: 'consumer' | 'lojista'
-EXPO_PUBLIC_DEV_ROLE=consumer
-
-# Chave da Claude API (assistente Aju)
-ANTHROPIC_API_KEY=sua_chave_aqui
+# Chave da openai API (assistente Aju)
+EXPO_PUBLIC_OPENAI_API_KEY="chave aqui"
 ```
 
 > O arquivo `.env` **nunca é commitado**. O `.env.example` é o template — edite o `.env` localmente.
