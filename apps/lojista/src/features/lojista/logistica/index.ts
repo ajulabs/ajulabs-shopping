@@ -1,0 +1,1 @@
+export { LogisticaScreen } from './ui/LogisticaScreen';

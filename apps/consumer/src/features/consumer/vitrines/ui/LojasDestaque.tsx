@@ -1,27 +1,15 @@
 // src/features/consumer/vitrines/ui/LojasDestaque.tsx
-import { useMemo, useState, useRef, useCallback } from 'react';
-import {
-  View, Text, FlatList, StyleSheet, Dimensions,
-  NativeScrollEvent, NativeSyntheticEvent,
-} from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { LOJAS } from '@ajulabs/api-client';
 import { Loja } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { LojaDestaqueCard } from './LojaDestaqueCard';
 
-interface LojasDestaqueProps {
+interface Props {
   onAbrirVitrine: (id: string) => void;
   dark?: boolean;
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_GAP = 12;
-const SIDE_PADDING = 16;
-const CARD_WIDTH = Math.round(SCREEN_WIDTH * 0.72);
-const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
-
-// Score combinando nota + número de avaliações.
-// Lojas com poucas avaliações ficam ancoradas em 4.5 (média global de prior).
 function calcularScore(loja: Loja): number {
   const PRIOR_AVALIACOES = 50;
   const PRIOR_NOTA = 4.5;
@@ -31,15 +19,12 @@ function calcularScore(loja: Loja): number {
   );
 }
 
-export function LojasDestaque({ onAbrirVitrine, dark = false }: LojasDestaqueProps) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const flatListRef = useRef<FlatList<Loja>>(null);
-
+export function LojasDestaque({ onAbrirVitrine, dark = false }: Props) {
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const dotInactive = dark ? 'rgba(255,255,255,0.2)' : colors.n200;
+  const surface   = dark ? colors.surfDark : colors.n0;
+  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
-  // Top 3 lojas abertas, ordenadas por score
   const destaques = useMemo(() => {
     return LOJAS
       .filter(l => l.aberta)
@@ -49,70 +34,73 @@ export function LojasDestaque({ onAbrirVitrine, dark = false }: LojasDestaquePro
       .map(({ loja }) => loja);
   }, []);
 
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / SNAP_INTERVAL);
-    setActiveIndex(index);
-  }, []);
-
   if (destaques.length === 0) return null;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={[styles.titulo, { color: textColor }]}>⭐ Destaques de Aracaju</Text>
-        <Text style={[styles.subtitulo, { color: subColor }]}>
-          As mais bem avaliadas
-        </Text>
-      </View>
+    <View style={s.container}>
+      <Text style={[s.titulo, { color: textColor }]}>⭐ Destaques</Text>
 
-      <FlatList
-        ref={flatListRef}
-        data={destaques}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <LojaDestaqueCard
-            loja={item}
-            width={CARD_WIDTH}
-            onPress={onAbrirVitrine}
-            dark={dark}
-          />
-        )}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={SNAP_INTERVAL}
-        decelerationRate="fast"
-        contentContainerStyle={styles.lista}
-        ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        {destaques.map(loja => (
+          <TouchableOpacity
+            key={loja.id}
+            style={[s.card, { backgroundColor: surface, borderColor: border }]}
+            onPress={() => onAbrirVitrine(loja.id)}
+            activeOpacity={0.88}
+          >
+            {/* Imagem */}
+            <Image source={{ uri: loja.imagem }} style={s.img} />
+            <View style={s.imgOverlay} />
+            <View style={s.badgeDestaque}>
+              <Text style={s.badgeText}>⭐ Destaque</Text>
+            </View>
 
-      <View style={styles.dots}>
-        {destaques.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              {
-                backgroundColor: i === activeIndex ? colors.orange : dotInactive,
-                width: i === activeIndex ? 22 : 6,
-              },
-            ]}
-          />
+            {/* Info */}
+            <View style={s.info}>
+              <Text style={[s.nome, { color: textColor }]} numberOfLines={1}>{loja.nome}</Text>
+              <Text style={[s.desc, { color: subColor }]} numberOfLines={1}>
+                {loja.descricao}
+              </Text>
+              <View style={s.row}>
+                <Text style={s.rating}>★ {loja.avaliacao.toFixed(1)}</Text>
+                <Text style={[s.sub, { color: subColor }]}>· {loja.tempoEntregaMin}–{loja.tempoEntregaMax} min</Text>
+              </View>
+              <TouchableOpacity
+                style={s.btnVer}
+                onPress={() => onAbrirVitrine(loja.id)}
+                activeOpacity={0.85}
+              >
+                <Text style={s.btnVerText}>Ver loja</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container:  { paddingTop: 16, paddingBottom: 8 },
-  header:     { paddingHorizontal: 16, marginBottom: 12 },
-  titulo:     { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
-  subtitulo:  { fontSize: 12, marginTop: 2 },
-  lista:      { paddingHorizontal: SIDE_PADDING },
-  dots:       { flexDirection: 'row', justifyContent: 'center',
-                gap: 6, marginTop: 12, alignItems: 'center' },
-  dot:        { height: 6, borderRadius: 3 },
+const CARD_WIDTH = 200;
+
+const s = StyleSheet.create({
+  container: { paddingTop: 16, paddingBottom: 4 },
+  titulo:    { fontSize: 15, fontWeight: '700', letterSpacing: -0.2, paddingHorizontal: 16, marginBottom: 12 },
+  scroll:    { paddingHorizontal: 16, gap: 12 },
+  card:      { width: CARD_WIDTH, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  img:       { width: '100%', height: 110 },
+  imgOverlay:{ position: 'absolute', top: 0, left: 0, right: 0, height: 110,
+               backgroundColor: 'rgba(0,9,51,0.18)' },
+  badgeDestaque: { position: 'absolute', top: 10, left: 10,
+                   backgroundColor: colors.orange,
+                   paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  info:      { padding: 10 },
+  nome:      { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.2 },
+  desc:      { fontSize: 11, marginTop: 2, color: '#9099B3' },
+  row:       { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+  rating:    { fontSize: 12, fontWeight: '700', color: colors.orange },
+  sub:       { fontSize: 11 },
+  btnVer:    { marginTop: 10, backgroundColor: colors.orange,
+               borderRadius: 10, paddingVertical: 7, alignItems: 'center' },
+  btnVerText:{ fontSize: 12.5, fontWeight: '700', color: '#fff' },
 });

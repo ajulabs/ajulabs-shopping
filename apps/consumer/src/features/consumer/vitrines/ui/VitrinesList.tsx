@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { LOJAS } from '@ajulabs/api-client';
 import { colors } from '@ajulabs/theme';
 import { LojaCard } from './LojaCard';
+import { LojasDestaque } from './LojasDestaque';
+import { CategoriasBar, CATEGORIAS } from './CategoriasBar';
 
 interface VitrinasListProps {
   dark?: boolean;
@@ -12,6 +14,7 @@ interface VitrinasListProps {
 
 export function VitrinesList({ dark = false }: VitrinasListProps) {
   const [busca, setBusca] = useState('');
+  const [categoria, setCategoria] = useState('todos');
   const router = useRouter();
 
   const textColor = dark ? colors.n0 : colors.navy;
@@ -20,10 +23,12 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
   const surface   = dark ? colors.surfDark : colors.n0;
   const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
-  const lojasFiltradas = LOJAS.filter(l =>
-    l.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    l.endereco.bairro.toLowerCase().includes(busca.toLowerCase())
-  );
+  const lojasFiltradas = LOJAS.filter(l => {
+    const buscaOk = l.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      l.endereco.bairro.toLowerCase().includes(busca.toLowerCase());
+    const categoriaOk = categoria === 'todos' || l.categoria === categoria;
+    return buscaOk && categoriaOk;
+  });
 
   const handleAbrirVitrine = useCallback((id: string) => {
     router.push(`/(consumer)/vitrine/${id}`);
@@ -58,10 +63,29 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
         data={lojasFiltradas}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <LojaCard loja={item} onPress={handleAbrirVitrine} dark={dark} />
+          <View style={{ paddingHorizontal: 16 }}>
+            <LojaCard loja={item} onPress={handleAbrirVitrine} dark={dark} />
+          </View>
         )}
-        contentContainerStyle={styles.lista}
+        contentContainerStyle={{ paddingBottom: 32, gap: 12 }}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            <CategoriasBar
+              categoriaSelecionada={categoria}
+              onSelecionar={setCategoria}
+              dark={dark}
+            />
+            {categoria === 'todos' && (
+              <LojasDestaque onAbrirVitrine={handleAbrirVitrine} dark={dark} />
+            )}
+            {lojasFiltradas.length > 0 && (
+              <Text style={[styles.secaoTitulo, { color: textColor }]}>
+                {categoria === 'todos' ? 'Todas as lojas' : CATEGORIAS.find(c => c.id === categoria)?.label}
+              </Text>
+            )}
+          </>
+        }
         ListEmptyComponent={
           <Text style={[styles.vazio, { color: subColor }]}>Nenhuma loja encontrada.</Text>
         }
@@ -71,14 +95,14 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1 },
-  header:       { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 1 },
-  titulo:       { fontWeight: '700', fontSize: 22, letterSpacing: -0.3 },
-  subtitulo:    { fontSize: 13, marginTop: 4 },
-  buscaWrapper: { flexDirection: 'row', alignItems: 'center', gap: 10,
-                  borderWidth: 1, borderRadius: 14,
-                  paddingHorizontal: 14, paddingVertical: 10, marginTop: 14 },
-  buscaInput:   { flex: 1, fontSize: 14, padding: 0 },
-  lista:        { padding: 16, gap: 12 },
-  vazio:        { textAlign: 'center', marginTop: 40, fontSize: 14 },
+  container:   { flex: 1 },
+  header:      { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 1 },
+  titulo:      { fontWeight: '700', fontSize: 22, letterSpacing: -0.3 },
+  subtitulo:   { fontSize: 13, marginTop: 4 },
+  buscaWrapper:{ flexDirection: 'row', alignItems: 'center', gap: 10,
+                 borderWidth: 1, borderRadius: 14,
+                 paddingHorizontal: 14, paddingVertical: 10, marginTop: 14 },
+  buscaInput:  { flex: 1, fontSize: 14, padding: 0 },
+  secaoTitulo: { fontSize: 14, fontWeight: '700', marginBottom: 4, marginTop: 8, paddingHorizontal: 16 },
+  vazio:       { textAlign: 'center', marginTop: 40, fontSize: 14 },
 });
