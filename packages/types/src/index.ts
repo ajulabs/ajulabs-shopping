@@ -130,3 +130,25 @@ export interface MensagemChat {
 
 export type TabConsumer = 'chat' | 'vitrines' | 'carrinho' | 'pedidos' | 'perfil';
 export type TabLojista = 'pedidos' | 'produtos' | 'dashboard';
+
+// ─── Checkout ─────────────────────────────────────────────────
+
+export interface EnderecoSalvo {
+  id: string;
+  apelido: string;
+  rua: string;
+  bairro: string;
+  cep: string;
+  padrao: boolean;
+}
+
+export type MetodoPagamento = 'pix' | 'cartao';
+
+export interface ResumoCheckout {
+  subtotal: number;
+  frete: number;
+  desconto: number;
+  total: number;
+  metodoPagamento: MetodoPagamento;
+  enderecoId: string;
+}

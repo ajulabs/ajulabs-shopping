@@ -129,10 +129,7 @@ export function CartScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.btnFinalizar}
-          onPress={() => {
-            // TODO: ligar no checkout no próximo PR
-            // router.push('/(consumer)/checkout');
-          }}
+          onPress={() => router.push('/(consumer)/checkout')}
           activeOpacity={0.9}
         >
           <Text style={styles.btnFinalizarTxt}>Finalizar pedido  ›</Text>
