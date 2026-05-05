@@ -104,6 +104,12 @@ export default function ConsumerLayout() {
           ),
         }}
       />
+      
+
+    <Tabs.Screen
+        name="vitrine/[id]"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }
