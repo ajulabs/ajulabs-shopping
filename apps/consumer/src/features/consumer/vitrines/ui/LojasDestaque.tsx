@@ -4,9 +4,9 @@ import {
   View, Text, FlatList, StyleSheet, Dimensions,
   NativeScrollEvent, NativeSyntheticEvent,
 } from 'react-native';
-import { LOJAS } from '../../../../mock/mock-data';
-import { Loja } from '../../../../types';
-import { colors } from '../../../../theme';
+import { LOJAS } from '@ajulabs/api-client';
+import { Loja } from '@ajulabs/types';
+import { colors } from '@ajulabs/theme';
 import { LojaDestaqueCard } from './LojaDestaqueCard';
 
 interface LojasDestaqueProps {

@@ -2,8 +2,8 @@
 import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getLojaById, getProdutosByLoja } from '../../../../mock/mock-data';
-import { colors } from '../../../../theme';
+import { getLojaById, getProdutosByLoja } from '@ajulabs/api-client';
+import { colors } from '@ajulabs/theme';
 import { ProdutoCard } from './ProdutoCard';
 import { useCartStore } from '../../../../store';
 

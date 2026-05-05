@@ -1,7 +1,7 @@
 // src/features/consumer/cart/ui/CartLojaGrupo.tsx
 import { View, Text, StyleSheet } from 'react-native';
 import { GrupoLoja } from '../../../../store';
-import { colors } from '../../../../theme';
+import { colors } from '@ajulabs/theme';
 import { CartItemRow } from './CartItemRow';
 
 interface Props {

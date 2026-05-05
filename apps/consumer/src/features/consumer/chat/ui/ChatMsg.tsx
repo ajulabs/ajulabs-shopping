@@ -1,7 +1,7 @@
 // src/features/consumer/chat/ui/ChatMsg.tsx
 
 import { useRef, useEffect } from 'react';
-import { MensagemChat } from '../../../../types';
+import { MensagemChat } from '@ajulabs/types';
 import {
   View,
   Text,

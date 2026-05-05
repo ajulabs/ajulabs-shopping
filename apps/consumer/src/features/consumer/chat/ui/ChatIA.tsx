@@ -1,10 +1,10 @@
 // src/features/consumer/chat/ui/ChatIA.tsx
 import { useState } from 'react';
 import { ShoppingCart } from 'lucide-react-native';
-import { MensagemChat } from '../../../../types';
+import { MensagemChat } from '@ajulabs/types';
 import { ChatMsg } from './ChatMsg';
 import { ChatInput } from './ChatInput';
-import { matchAju } from '../../../../services';
+import { matchAju } from '@ajulabs/api-client';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 
 

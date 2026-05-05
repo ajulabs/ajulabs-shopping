@@ -1,8 +1,8 @@
 // src/features/consumer/cart/ui/CartItemRow.tsx
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { ItemCarrinho } from '../../../../types';
-import { colors } from '../../../../theme';
+import { ItemCarrinho } from '@ajulabs/types';
+import { colors } from '@ajulabs/theme';
 
 interface Props {
   item: ItemCarrinho;

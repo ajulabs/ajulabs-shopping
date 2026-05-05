@@ -1,5 +1,4 @@
-import { Loja, Produto, Pedido, Usuario, Categoria } from '../types';
-
+import { Loja, Produto, Pedido, Usuario, Categoria } from '@ajulabs/types';
 // ─── Categorias ───────────────────────────────────────────────
 
 export const CATEGORIAS: Categoria[] = [

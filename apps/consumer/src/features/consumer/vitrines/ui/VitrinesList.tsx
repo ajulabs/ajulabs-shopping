@@ -2,8 +2,8 @@
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TextInput, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LOJAS } from '../../../../mock/mock-data';
-import { colors } from '../../../../theme';
+import { LOJAS } from '@ajulabs/api-client';
+import { colors } from '@ajulabs/theme';
 import { LojaCard } from './LojaCard';
 
 interface VitrinasListProps {

@@ -7,7 +7,7 @@ import {
   calcularGrupos,
   calcularQuantidadeItens,
 } from '../../../../store';
-import { colors } from '../../../../theme';
+import { colors } from '@ajulabs/theme';
 import { CartLojaGrupo } from './CartLojaGrupo';
 
 export function CartScreen() {

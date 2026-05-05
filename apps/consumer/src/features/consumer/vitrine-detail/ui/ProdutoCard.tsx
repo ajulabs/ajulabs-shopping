@@ -1,8 +1,8 @@
 // src/features/consumer/vitrine-detail/ui/ProdutoCard.tsx
 import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Produto } from '../../../../types';
-import { colors } from '../../../../theme';
+import { Produto } from '@ajulabs/types';
+import { colors } from '@ajulabs/theme';
 
 interface ProdutoCardProps {
   produto: Produto;

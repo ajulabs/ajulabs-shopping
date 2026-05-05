@@ -1,15 +1,18 @@
 {
-  "name": "ajulabs-shopping-frontend",
+  "name": "consumer",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.92.0",
+    "@ajulabs/api-client": "workspace:*",
+    "@ajulabs/theme": "workspace:*",
+    "@ajulabs/types": "workspace:*",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^5.2.2",
@@ -47,9 +50,6 @@
     "@types/node": "^25.6.0",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
-    "eslint": "^10.3.0",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.3",
     "typescript": "~5.9.2"
   },
   "private": true

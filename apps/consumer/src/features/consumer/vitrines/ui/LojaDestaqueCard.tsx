@@ -1,8 +1,8 @@
 // src/features/consumer/vitrines/ui/LojaDestaqueCard.tsx
 import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Loja } from '../../../../types';
-import { colors } from '../../../../theme';
+import { Loja } from '@ajulabs/types';
+import { colors } from '@ajulabs/theme';
 
 interface LojaDestaqueCardProps {
   loja: Loja;

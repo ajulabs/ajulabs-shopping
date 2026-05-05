@@ -3,8 +3,7 @@ import {
   getProdutosByLoja, getLojaById,
   getLojasAbertas, getLojasByCategoria,
 } from '../mock/mock-data';
-import { Loja, Produto, Pedido, StatusPedido } from '../types';
-
+import { Loja, Produto, Pedido, StatusPedido } from '@ajulabs/types';
 export { matchAju } from "./consumer/aju";
 
 // Simula delay de rede para parecer uma API real

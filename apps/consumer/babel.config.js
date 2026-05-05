@@ -6,12 +6,16 @@ module.exports = function (api) {
       [
         'module-resolver',
         {
-          root: ['.'],
+          root: ['./'],
           alias: {
-            '@': '.',
+            '@': './',
+            '@ajulabs/types': '../../packages/types/src',
+            '@ajulabs/theme': '../../packages/theme/src',
+            '@ajulabs/api-client': '../../packages/api-client/src',
           },
         },
       ],
+      'react-native-reanimated/plugin',
     ],
   };
 };

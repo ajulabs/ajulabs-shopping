@@ -1,7 +1,7 @@
 // src/store/cartStore.ts
 import { create } from 'zustand';
-import { Produto, ItemCarrinho } from '../types';
-import { getLojaById } from '../mock/mock-data';
+import { Produto, ItemCarrinho } from '@ajulabs/types';
+import { getLojaById } from '@ajulabs/api-client';
 
 export interface GrupoLoja {
   lojaId: string;

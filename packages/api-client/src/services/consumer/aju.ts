@@ -1,5 +1,5 @@
 // src/services/consumer/aju.ts
-import { MensagemChat, RespostaAju } from "../../types";
+import { MensagemChat, RespostaAju } from "@ajulabs/types";
 
 const SYSTEM_PROMPT = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 Responda SEMPRE com um JSON válido, sem markdown, sem explicações fora do JSON.
