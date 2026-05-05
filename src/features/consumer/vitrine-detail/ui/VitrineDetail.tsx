@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable 
 import { useRouter } from 'expo-router';
 import { getLojaById, getProdutosByLoja } from '../../../../mock/mock-data';
 import { colors } from '../../../../theme';
+import { useCarrinhoStore } from '../../cart';
 import { ProdutoCard } from './ProdutoCard';
 
 interface VitrineDetailProps {
@@ -29,6 +30,7 @@ function BannerImg({ uri, nome }: { uri: string; nome: string }) {
 export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const router = useRouter();
   const [catSelecionada, setCatSelecionada] = useState('Todos');
+  const adicionarItem = useCarrinhoStore((s) => s.adicionarItem);
 
   const loja = getLojaById(lojaId);
   const produtos = loja ? getProdutosByLoja(loja.id) : [];
@@ -55,10 +57,12 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
     ? produtos
     : produtos.filter(p => p.categoria === catSelecionada);
 
-  const handleAddToCart = useCallback((_id: string) => {
-    // Dev 3 vai conectar com o cartStore
-    router.push('/(consumer)/carrinho');
-  }, [router]);
+  const handleAddToCart = useCallback((id: string) => {
+    const produto = produtos.find((p) => p.id === id);
+    if (produto) {
+      adicionarItem(produto);
+    }
+  }, [produtos, adicionarItem]);
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
