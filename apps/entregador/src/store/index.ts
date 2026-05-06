@@ -1,0 +1,1 @@
+export { useAuthEntregadorStore } from './authStore';

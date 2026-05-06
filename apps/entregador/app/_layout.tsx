@@ -1,9 +1,16 @@
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import { useAuthEntregadorStore } from '../src/store';
 
 export default function RootLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-    </Stack>
-  );
+  const router = useRouter();
+  const isLoggedIn = useAuthEntregadorStore(s => s.isLoggedIn);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.replace('/(auth)/login');
+    }
+  }, [isLoggedIn]);
+
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
