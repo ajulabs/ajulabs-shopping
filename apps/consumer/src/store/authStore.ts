@@ -7,18 +7,23 @@ interface AuthState {
   userId: string | null;
   codigoVerificado: boolean;
 
+  login: (cpf: string) => void;
   enviarCodigo: (telefone: string) => Promise<void>;
   verificarCodigo: (codigo: string) => Promise<boolean>;
   registrarNome: (nome: string) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   isLoggedIn: false,
   telefone: null,
   nome: null,
   userId: null,
   codigoVerificado: false,
+
+  login: (cpf: string) => {
+    set({ isLoggedIn: true, userId: 'user-001', nome: 'Usuário' });
+  },
 
   enviarCodigo: async (telefone: string) => {
     await new Promise(r => setTimeout(r, 1000));
@@ -28,7 +33,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   verificarCodigo: async (codigo: string) => {
     await new Promise(r => setTimeout(r, 800));
     if (codigo.length === 4) {
-      // NÃO seta isLoggedIn aqui — espera o nome
       set({ codigoVerificado: true, userId: 'user-001' });
       return true;
     }
@@ -36,7 +40,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   registrarNome: (nome: string) => {
-    // Agora sim: tem nome → está logado
     set({ nome, isLoggedIn: true });
   },
 

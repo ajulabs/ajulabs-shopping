@@ -1,5 +1,5 @@
-import { LoginLojista } from '../../src/features/lojista/auth/ui/LoginLojista';
+import { LoginScreen } from '../../src/features/consumer/auth/ui/LoginScreen';
 
-export default function LoginScreen() {
-  return <LoginLojista />;
+export default function LoginScreen_() {
+  return <LoginScreen />;
 }

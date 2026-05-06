@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../../store';
 
 export function ProfileScreen() {
   const router = useRouter();
+  const logout = useAuthStore(s => s.logout);
 
   const menuPrincipal = [
     {
@@ -51,7 +52,18 @@ export function ProfileScreen() {
     },
   ];
 
-  const logout = useAuthStore(s => s.logout);
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Tem certeza que deseja sair?')) {
+        logout();
+      }
+    } else {
+      Alert.alert('Sair', 'Tem certeza que deseja sair?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: () => logout() },
+      ]);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -73,10 +85,7 @@ export function ProfileScreen() {
         {/* Sair */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={() => Alert.alert('Sair', 'Tem certeza que deseja sair?', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Sair', style: 'destructive', onPress: () => logout() },
-          ])}
+          onPress={handleLogout}
           activeOpacity={0.7}
         >
           <Ionicons name="log-out-outline" size={17} color="#A32D2D" />

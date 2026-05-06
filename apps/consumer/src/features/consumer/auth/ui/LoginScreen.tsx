@@ -1,119 +1,340 @@
-import { useState } from 'react';
+// src/features/consumer/auth/ui/LoginScreen.tsx
+import { useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, TouchableOpacity, TextInput, StyleSheet,
+  ActivityIndicator, Modal, Pressable, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
 
-export function LoginScreen() {
-  const router = useRouter();
-  const enviarCodigo = useAuthStore(s => s.enviarCodigo);
-  const [telefone, setTelefone] = useState('');
+interface LoginScreenProps {
+  onLoginSuccess?: () => void;
+}
+
+type RecoveryStep = 'form' | 'success';
+
+function formatCPF(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  return digits
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1-$2');
+}
+
+function Field({
+  label, value, onChange, placeholder,
+  secureTextEntry = false,
+  keyboardType = 'default',
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address' | 'numeric';
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={[styles.fieldInput, focused && styles.fieldInputFocused]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.n600}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize="none"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+    </View>
+  );
+}
+
+function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [step, setStep]       = useState<RecoveryStep>('form');
+  const [cpf, setCpf]         = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
 
-  function formatarTelefone(raw: string): string {
-    const nums = raw.replace(/\D/g, '').slice(0, 11);
-    if (nums.length <= 2) return `(${nums}`;
-    if (nums.length <= 7) return `(${nums.slice(0, 2)}) ${nums.slice(2)}`;
-    return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
-  }
+  const handleClose = useCallback(() => {
+    setStep('form');
+    setCpf('');
+    setError('');
+    onClose();
+  }, [onClose]);
 
-  const telefoneRaw = telefone.replace(/\D/g, '');
-  const valido = telefoneRaw.length === 11;
+  const validate = useCallback(() => {
+    if (cpf.replace(/\D/g, '').length !== 11) {
+      setError('CPF inválido — deve ter 11 dígitos.');
+      return false;
+    }
+    return true;
+  }, [cpf]);
 
-  async function handleEnviar() {
-    if (!valido) return;
+  const handleEnviar = useCallback(async () => {
+    if (!validate()) return;
     setLoading(true);
-    await enviarCodigo(telefoneRaw);
-    setLoading(false);
-    router.push('/(auth)/verify');
-  }
+    try {
+      // TODO: buscar email pelo CPF na API e enviar token de recuperação
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setStep('success');
+    } catch {
+      setError('Erro ao enviar. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  }, [validate]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.logoBox}>
-          <Text style={styles.logoEmoji}>🛒</Text>
-          <Text style={styles.logoText}>AjuLabs</Text>
-          <Text style={styles.logoSub}>Shopping Digital</Text>
-        </View>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <Pressable style={styles.modalOverlay} onPress={handleClose}>
+        <Pressable style={styles.modalSheet} onPress={e => e.stopPropagation()}>
+          <View style={styles.modalHandle} />
 
-        {/* Título */}
-        <Text style={styles.titulo}>Entrar com telefone</Text>
-        <Text style={styles.descricao}>
-          Vamos te enviar um código SMS para confirmar seu número
-        </Text>
+          {step === 'form' && (
+            <>
+              <Text style={styles.modalTitle}>Recuperar senha</Text>
+              <Text style={styles.modalSub}>
+                Informe seu CPF cadastrado. Enviaremos o código de verificação para o email associado à sua conta.
+              </Text>
 
-        {/* Input telefone */}
-        <View style={styles.inputBox}>
-          <Text style={styles.prefix}>+55</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="(79) 99999-1234"
-            placeholderTextColor={colors.n300}
-            keyboardType="phone-pad"
-            value={telefone}
-            onChangeText={(t) => setTelefone(formatarTelefone(t))}
-            maxLength={16}
-          />
-        </View>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>CPF</Text>
+                <TextInput
+                  style={[styles.fieldInput, error ? styles.fieldInputError : undefined]}
+                  value={cpf}
+                  onChangeText={v => { setCpf(formatCPF(v)); setError(''); }}
+                  placeholder="000.000.000-00"
+                  placeholderTextColor={colors.n600}
+                  keyboardType="numeric"
+                />
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              </View>
 
-        {/* CTA */}
-        <TouchableOpacity
-          style={[styles.btn, !valido && styles.btnDisabled]}
-          onPress={handleEnviar}
-          activeOpacity={0.9}
-          disabled={!valido || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.btnTxt}>Enviar código SMS</Text>
+              <TouchableOpacity
+                style={[styles.modalBtn, loading && { opacity: 0.7 }]}
+                onPress={handleEnviar}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.modalBtnText}>Enviar código</Text>
+                }
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={handleClose} activeOpacity={0.8}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            </>
           )}
+
+          {step === 'success' && (
+            <>
+              <View style={styles.successIconWrap}>
+                <Text style={styles.successIcon}>✓</Text>
+              </View>
+              <Text style={styles.successTitle}>Código enviado!</Text>
+              <Text style={styles.successSub}>
+                Enviamos um código de verificação para o email cadastrado no CPF{'\n'}
+                <Text style={styles.successCpf}>{cpf}</Text>
+                {'\n\n'}Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
+              </Text>
+
+              <View style={styles.successBanner}>
+                <Text style={styles.successBannerIcon}>✓</Text>
+                <Text style={styles.successBannerText}>Código enviado com sucesso!</Text>
+              </View>
+
+              <TouchableOpacity style={styles.modalBtn} onPress={handleClose} activeOpacity={0.85}>
+                <Text style={styles.modalBtnText}>Voltar ao login</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+  const router = useRouter();
+  const login = useAuthStore(s => s.login);
+  const [cpf, setCpf]               = useState('');
+  const [senha, setSenha]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [error, setError]           = useState('');
+
+  const handleLogin = useCallback(async () => {
+    if (!cpf.trim() || !senha.trim()) {
+      setError('Preencha todos os campos.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      login(cpf);
+      onLoginSuccess?.();
+    } catch {
+      setError('CPF ou senha incorretos. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  }, [cpf, senha, login, onLoginSuccess]);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.top}>
+        <View style={styles.logoWrap}>
+          <Text style={styles.logoText}>A</Text>
+        </View>
+        <Text style={styles.topTitle}>AjuLabs Shopping</Text>
+        <Text style={styles.topSub}>Seu shopping digital em Aracaju.</Text>
+      </View>
+
+      <ScrollView
+        style={styles.card}
+        contentContainerStyle={styles.cardContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.cardTitle}>Entrar</Text>
+        <Text style={styles.cardSub}>Use seu CPF cadastrado</Text>
+
+        <Field
+          label="CPF"
+          value={cpf}
+          onChange={v => { setCpf(formatCPF(v)); setError(''); }}
+          placeholder="000.000.000-00"
+          keyboardType="numeric"
+        />
+        <Field
+          label="SENHA"
+          value={senha}
+          onChange={v => { setSenha(v); setError(''); }}
+          placeholder="••••••••"
+          secureTextEntry
+        />
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <TouchableOpacity
+          style={styles.forgotRow}
+          onPress={() => setShowRecovery(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.forgotText}>Esqueci minha senha</Text>
         </TouchableOpacity>
 
-        {/* Termos */}
-        <Text style={styles.termos}>
-          Ao continuar, você aceita nossos{' '}
-          <Text style={styles.link}>Termos de Uso</Text> e{' '}
-          <Text style={styles.link}>Política de Privacidade</Text>
-        </Text>
+        <TouchableOpacity
+          style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+          onPress={handleLogin}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.submitBtnText}>Entrar</Text>
+          }
+        </TouchableOpacity>
+
+        <View style={styles.registerRow}>
+          <Text style={styles.registerText}>Primeira vez? </Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)/register')} activeOpacity={0.8}>
+            <Text style={styles.registerLink}>Criar conta</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>by <Text style={styles.footerBrand}>AjuLabs</Text></Text>
       </View>
-    </KeyboardAvoidingView>
+
+      <RecoveryModal
+        visible={showRecovery}
+        onClose={() => setShowRecovery(false)}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: '#FAFBFE' },
-  content:    { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  container:           { flex: 1, backgroundColor: colors.navy },
 
-  logoBox:    { alignItems: 'center', marginBottom: 32 },
-  logoEmoji:  { fontSize: 48 },
-  logoText:   { fontSize: 28, fontWeight: '800', color: colors.navy, marginTop: 8, letterSpacing: -0.5 },
-  logoSub:    { fontSize: 13, color: colors.n600, marginTop: 2 },
+  top:                 { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
+  logoWrap:            { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.orange,
+                         alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  logoText:            { fontSize: 28, fontWeight: '800', color: '#fff' },
+  topTitle:            { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  topSub:              { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
 
-  titulo:     { fontSize: 20, fontWeight: '700', color: colors.navy, marginBottom: 6 },
-  descricao:  { fontSize: 13, color: colors.n600, lineHeight: 18, marginBottom: 20 },
+  card:                { backgroundColor: colors.n0, borderRadius: 24,
+                         borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  cardContent:         { padding: 28, paddingBottom: 0 },
+  cardTitle:           { fontSize: 20, fontWeight: '700', color: colors.navy },
+  cardSub:             { fontSize: 13, color: colors.n600, marginTop: 4, marginBottom: 22 },
 
-  inputBox:   { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.n0,
-                borderRadius: 14, borderWidth: 1.5, borderColor: colors.n200,
-                paddingHorizontal: 14, height: 52 },
-  prefix:     { fontSize: 15, fontWeight: '600', color: colors.navy, marginRight: 8 },
-  input:      { flex: 1, fontSize: 16, color: colors.navy, fontWeight: '500' },
+  field:               { marginBottom: 14 },
+  fieldLabel:          { fontSize: 11, fontWeight: '700', color: colors.n600,
+                         textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5 },
+  fieldInput:          { height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: colors.n200,
+                         backgroundColor: colors.n50, paddingHorizontal: 14,
+                         fontSize: 14, color: colors.navy },
+  fieldInputFocused:   { borderColor: colors.orange },
+  fieldInputError:     { borderColor: '#E24B4A' },
+  errorText:           { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
 
-  btn:        { backgroundColor: colors.orange, height: 52, borderRadius: 14,
-                alignItems: 'center', justifyContent: 'center', marginTop: 16,
-                shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
-  btnDisabled:{ opacity: 0.5 },
-  btnTxt:     { color: '#fff', fontSize: 15, fontWeight: '700' },
+  forgotRow:           { alignSelf: 'flex-end', marginTop: -4, marginBottom: 16 },
+  forgotText:          { fontSize: 13, color: colors.orange600, fontWeight: '600' },
 
-  termos:     { fontSize: 11, color: colors.n500, textAlign: 'center', marginTop: 16, lineHeight: 16 },
-  link:       { color: colors.orange, fontWeight: '600' },
+  submitBtn:           { height: 50, borderRadius: 14, backgroundColor: colors.orange,
+                         alignItems: 'center', justifyContent: 'center' },
+  submitBtnText:       { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  registerRow:         { flexDirection: 'row', justifyContent: 'center',
+                         alignItems: 'center', marginTop: 16 },
+  registerText:        { fontSize: 13, color: colors.n600 },
+  registerLink:        { fontSize: 13, fontWeight: '600', color: colors.orange600 },
+
+  footer:              { paddingVertical: 16, alignItems: 'center', backgroundColor: colors.navy },
+  footerText:          { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  footerBrand:         { color: 'rgba(255,255,255,0.65)', fontWeight: '600' },
+
+  modalOverlay:        { flex: 1, backgroundColor: 'rgba(0,9,51,0.7)', justifyContent: 'flex-end' },
+  modalSheet:          { backgroundColor: colors.n0, borderRadius: 24,
+                         borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+                         padding: 28, paddingBottom: 40 },
+  modalHandle:         { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.n200,
+                         alignSelf: 'center', marginBottom: 20 },
+  modalTitle:          { fontSize: 20, fontWeight: '700', color: colors.navy, marginBottom: 6 },
+  modalSub:            { fontSize: 13, color: colors.n600, marginBottom: 20, lineHeight: 19 },
+
+  modalBtn:            { height: 50, borderRadius: 14, backgroundColor: colors.orange,
+                         alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  modalBtnText:        { fontSize: 15, fontWeight: '700', color: '#fff' },
+  modalCancelBtn:      { height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: colors.n200,
+                         alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  modalCancelText:     { fontSize: 14, fontWeight: '600', color: colors.n600 },
+
+  successIconWrap:     { width: 72, height: 72, borderRadius: 36,
+                         backgroundColor: 'rgba(57,255,137,0.15)',
+                         alignItems: 'center', justifyContent: 'center',
+                         alignSelf: 'center', marginBottom: 16 },
+  successIcon:         { fontSize: 32, color: '#046C2E' },
+  successTitle:        { fontSize: 20, fontWeight: '700', color: colors.navy,
+                         textAlign: 'center', marginBottom: 10 },
+  successSub:          { fontSize: 13, color: colors.n600, textAlign: 'center',
+                         lineHeight: 20, marginBottom: 16 },
+  successCpf:          { fontWeight: '700', color: colors.navy },
+  successBanner:       { flexDirection: 'row', alignItems: 'center', gap: 8,
+                         backgroundColor: 'rgba(57,255,137,0.15)',
+                         borderWidth: 1, borderColor: 'rgba(4,108,46,0.3)',
+                         borderRadius: 12, padding: 12, marginBottom: 16 },
+  successBannerIcon:   { fontSize: 16, color: '#046C2E', fontWeight: '700' },
+  successBannerText:   { fontSize: 13, fontWeight: '600', color: '#046C2E' },
 });
