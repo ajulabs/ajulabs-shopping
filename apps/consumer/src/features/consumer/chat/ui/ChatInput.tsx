@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   Animated,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { Mic, MicOff } from 'lucide-react-native';
+import { Mic, MicOff, Send } from 'lucide-react-native';
 import { Audio } from 'expo-av';
+import { TranscricaoService } from '@ajulabs/api-client';
 
 const PLACEHOLDERS = [
   'Tênis preto até R$200...',
@@ -30,10 +32,10 @@ export function ChatInput({ onSend, disabled }: Props) {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [gravando, setGravando] = useState(false);
+  const [transcrevendo, setTranscrevendo] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const recordingRef = useRef<Audio.Recording | null>(null);
 
-  // Placeholder rotativo
   useEffect(() => {
     if (isFocused) return;
     const interval = setInterval(() => {
@@ -67,7 +69,7 @@ export function ChatInput({ onSend, disabled }: Props) {
     try {
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
-        Alert.alert('Permissão negada', 'Precisamos de acesso ao microfone.');
+        Alert.alert('Permissão negada', 'Precisamos de acesso ao microfone para gravar sua mensagem.');
         return;
       }
 
@@ -83,26 +85,48 @@ export function ChatInput({ onSend, disabled }: Props) {
       recordingRef.current = recording;
       setGravando(true);
     } catch (e) {
+      console.error('Erro ao gravar:', e);
       Alert.alert('Erro', 'Não foi possível iniciar a gravação.');
     }
   }
 
   async function pararGravacao() {
     try {
+      if (!recordingRef.current) return;
+
       setGravando(false);
-      await recordingRef.current?.stopAndUnloadAsync();
-      const uri = recordingRef.current?.getURI();
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
       recordingRef.current = null;
 
-      if (uri) {
-        // Por enquanto preenche o input com placeholder de voz
-        // Quando integrar Whisper/Speech-to-text, processa o uri aqui
-        setValue('🎤 Áudio gravado — transcrição em breve');
+      if (!uri) {
+        Alert.alert('Erro', 'Não foi possível salvar o áudio.');
+        return;
       }
+
+      setTranscrevendo(true);
+      try {
+        const texto = await TranscricaoService.transcrever(uri);
+        setValue(texto);
+      } catch (error) {
+        console.error('Erro na transcrição:', error);
+        Alert.alert(
+          'Erro ao transcrever',
+          'Não consegui entender o áudio. Tente falar novamente ou digite sua mensagem.'
+        );
+      } finally {
+        setTranscrevendo(false);
+      }
+
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível parar a gravação.');
+      console.error('Erro ao parar gravação:', e);
+      Alert.alert('Erro', 'Não foi possível processar o áudio.');
+      setTranscrevendo(false);
     }
   }
+
+  const isProcessing = gravando || transcrevendo;
+  const canSend = value.trim() && !disabled && !isProcessing;
 
   return (
     <View style={{
@@ -119,11 +143,10 @@ export function ChatInput({ onSend, disabled }: Props) {
       shadowOpacity: 0.08,
       shadowRadius: 4,
       elevation: 2,
-      borderWidth: gravando ? 2 : 0,
-      borderColor: gravando ? '#f97316' : 'transparent',
+      borderWidth: isProcessing ? 2 : 0,
+      borderColor: isProcessing ? '#f97316' : 'transparent',
     }}>
 
-      {/* Placeholder animado */}
       {!value && !isFocused && (
         <Animated.Text style={{
           position: 'absolute',
@@ -133,7 +156,12 @@ export function ChatInput({ onSend, disabled }: Props) {
           fontSize: 15,
           pointerEvents: 'none',
         }}>
-          {gravando ? '🎤 Gravando...' : PLACEHOLDERS[placeholderIndex]}
+          {gravando 
+            ? ' Gravando...' 
+            : transcrevendo 
+            ? ' Transcrevendo...'
+            : PLACEHOLDERS[placeholderIndex]
+          }
         </Animated.Text>
       )}
 
@@ -145,24 +173,37 @@ export function ChatInput({ onSend, disabled }: Props) {
         onBlur={() => setIsFocused(false)}
         onSubmitEditing={handleSend}
         returnKeyType="send"
-        editable={!disabled && !gravando}
+        editable={!disabled && !isProcessing}
         placeholder=""
       />
 
       <TouchableOpacity
-        onPress={gravando ? handleMicPress : (value.trim() ? handleSend : handleMicPress)}
-        disabled={disabled}
+        onPress={canSend ? handleSend : handleMicPress}
+        disabled={disabled || transcrevendo}
         style={{
           marginLeft: 8,
-          backgroundColor: gravando ? '#fff7ed' : 'transparent',
+          backgroundColor: canSend 
+            ? '#f97316' 
+            : gravando 
+            ? '#fff7ed' 
+            : 'transparent',
           borderRadius: 20,
-          padding: 4,
+          padding: 8,
+          width: 38,
+          height: 38,
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        {gravando
-          ? <MicOff size={22} color="#f97316" />
-          : <Mic size={22} color="#f97316" />
-        }
+        {transcrevendo ? (
+          <ActivityIndicator size="small" color="#f97316" />
+        ) : canSend ? (
+          <Send size={20} color="#fff" />
+        ) : gravando ? (
+          <MicOff size={22} color="#f97316" />
+        ) : (
+          <Mic size={22} color="#f97316" />
+        )}
       </TouchableOpacity>
 
     </View>
