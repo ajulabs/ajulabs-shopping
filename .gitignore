@@ -21,4 +21,3 @@ yarn-error.*
 *.tsbuildinfo
 /ios
 /android
-pnpm-lock.yaml
