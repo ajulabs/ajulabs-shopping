@@ -1,0 +1,116 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
+import { prisma } from '../utils/prisma';
+
+const router = Router();
+
+// GET /lojas - Listar todas (público)
+router.get('/', async (req, res) => {
+  try {
+    const { categoria } = req.query;
+
+    const lojas = await prisma.loja.findMany({
+      where: categoria ? { categoria: categoria as string } : undefined,
+      include: {
+        endereco: true,
+        _count: { select: { produtos: true } },
+      },
+      orderBy: { avaliacao: 'desc' },
+    });
+
+    res.json({ lojas });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar lojas' });
+  }
+});
+
+// GET /lojas/:id - Detalhes (público)
+router.get('/:id', async (req, res) => {
+  try {
+    const loja = await prisma.loja.findUnique({
+      where: { id: req.params.id },
+      include: {
+        endereco: true,
+        horarios: true,
+        produtos: {
+          where: { disponivel: true },
+          orderBy: [{ destaque: 'desc' }, { nome: 'asc' }],
+        },
+      },
+    });
+
+    if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
+
+    res.json({ loja });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar loja' });
+  }
+});
+
+// POST /lojas - Criar loja (lojista autenticado)
+const criarLojaSchema = z.object({
+  nome: z.string().min(2),
+  descricao: z.string(),
+  categoria: z.string(),
+  telefone: z.string(),
+  tempoEntregaMin: z.number().positive(),
+  tempoEntregaMax: z.number().positive(),
+  taxaEntrega: z.number().nonnegative(),
+  endereco: z.object({
+    rua: z.string(),
+    numero: z.string(),
+    bairro: z.string(),
+    cep: z.string(),
+    cidade: z.string(),
+    complemento: z.string().optional(),
+  }),
+});
+
+router.post('/', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const dados = criarLojaSchema.parse(req.body);
+
+    const loja = await prisma.loja.create({
+      data: {
+        lojistaId: req.user!.id,
+        nome: dados.nome,
+        descricao: dados.descricao,
+        categoria: dados.categoria,
+        telefone: dados.telefone,
+        tempoEntregaMin: dados.tempoEntregaMin,
+        tempoEntregaMax: dados.tempoEntregaMax,
+        taxaEntrega: dados.taxaEntrega,
+        endereco: { create: dados.endereco },
+      },
+      include: { endereco: true },
+    });
+
+    res.status(201).json({ loja });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    res.status(500).json({ error: 'Erro ao criar loja' });
+  }
+});
+
+// PUT /lojas/:id - Atualizar loja (lojista autenticado)
+router.put('/:id', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const loja = await prisma.loja.findUnique({ where: { id: req.params.id } });
+
+    if (!loja || loja.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const atualizada = await prisma.loja.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+
+    res.json({ loja: atualizada });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar loja' });
+  }
+});
+
+export default router;
