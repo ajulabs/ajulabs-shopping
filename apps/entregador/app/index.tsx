@@ -1,13 +1,3 @@
-import { Redirect } from 'expo-router';
-import { useAuthEntregadorStore } from '../src/store';
-import { CourierApp } from '../src/CourierApp';
+import { CourierApp } from './CourierApp';
 
-export default function Index() {
-  const isLoggedIn = useAuthEntregadorStore(s => s.isLoggedIn);
-
-  if (!isLoggedIn) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  return <CourierApp />;
-}
+export default CourierApp;
