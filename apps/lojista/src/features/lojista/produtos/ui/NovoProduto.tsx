@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, ActivityIndicator, Alert,
+  StyleSheet, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -167,14 +167,16 @@ function AnalyzingStage() {
 }
 
 function EditStage({
-  data, onChange, onPublicar, saving = false,
+  data, onChange, onPublicar, saving = false, imageUri,
 }: {
   data: ProductData;
   onChange: (key: keyof ProductData, value: string | string[]) => void;
   onPublicar: () => void;
   saving?: boolean;
+  imageUri: string | null;
 }) {
   const [newTag, setNewTag] = useState('');
+  const [imgLoading, setImgLoading] = useState(true);
 
   const addTag = useCallback(() => {
     if (!newTag.trim()) return;
@@ -188,8 +190,25 @@ function EditStage({
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.editContent}>
+      {imageUri && (
+        <View style={styles.productImageWrap}>
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.productImage}
+            resizeMode="cover"
+            onLoadEnd={() => setImgLoading(false)}
+            onError={() => setImgLoading(false)}
+          />
+          {imgLoading && (
+            <View style={styles.productImageOverlay}>
+              <ActivityIndicator color={colors.orange} size="large" />
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.iaBadgeSmall}>
-        <Text style={styles.iaBadgeSmallText}>Preenchido pela Aju IA — revise e publique</Text>
+        <Text style={styles.iaBadgeSmallText}>✦ Preenchido pela Aju IA</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -345,23 +364,32 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
 
   const stepIndex = stage === 'capture' ? 0 : stage === 'analyzing' ? 1 : 2;
 
-  const handleCapture = useCallback((uri: string) => {
+  const handleVoltar = useCallback(() => {
+    setStage('capture');
+    setImageUri(null);
+    setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [] });
+  }, []);
+
+  const handleCapture = useCallback(async (uri: string) => {
     setImageUri(uri);
     setStage('analyzing');
-    // TODO: substituir por chamada real à API de análise de imagem
-    setTimeout(() => {
+    try {
+      const data = await LojistaService.analisarImagem(token!, uri);
       setProductData({
-        nome: 'Tênis Casual Branco — Napa',
-        categoria: 'Calçados',
-        descricao: 'Tênis casual em napa sintética branca com solado emborrachado e detalhes em couro. Confortável para o dia a dia.',
-        tags: ['branco', 'casual', 'masculino', 'napa', 'calçados'],
-        preco: '149,90',
-        estoque: '8',
-        variacoes: ['40', '41', '42'],
+        nome: data.nome ?? '',
+        categoria: data.categoria ?? '',
+        descricao: data.descricao ?? '',
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        preco: data.preco ?? '',
+        estoque: data.estoque ?? '',
+        variacoes: [],
       });
+    } catch {
+      Alert.alert('Aviso', 'Não foi possível analisar a imagem. Preencha os dados manualmente.');
+    } finally {
       setStage('edit');
-    }, 2500);
-  }, []);
+    }
+  }, [token]);
 
   const handleChange = useCallback((key: keyof ProductData, value: string | string[]) => {
     setProductData(prev => ({ ...prev, [key]: value }));
@@ -406,12 +434,23 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
     }
   }, [token, lojaId, productData, imageUri, onPublicar]);
 
+  const isEdit = stage === 'edit';
+
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
       <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
+        {isEdit && (
+          <TouchableOpacity style={styles.backBtn} onPress={handleVoltar} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={22} color={textColor} />
+          </TouchableOpacity>
+        )}
         <View style={styles.headerInfo}>
-          <Text style={[styles.headerTitle, { color: textColor }]}>Adicionar produto</Text>
-          <Text style={[styles.headerSub, { color: subColor }]}>Foto + IA = cadastro em 20s</Text>
+          <Text style={[styles.headerTitle, { color: textColor }]}>
+            {isEdit ? 'Revisar e publicar' : 'Adicionar produto'}
+          </Text>
+          <Text style={[styles.headerSub, { color: subColor }]}>
+            {isEdit ? 'IA preencheu pra você — só ajustar' : 'Foto + IA = cadastro em 20s'}
+          </Text>
         </View>
       </View>
 
@@ -431,6 +470,7 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
           onChange={handleChange}
           onPublicar={handlePublicar}
           saving={saving}
+          imageUri={imageUri}
         />
       )}
     </View>
@@ -439,10 +479,19 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
 
 const styles = StyleSheet.create({
   container:          { flex: 1 },
-  header:             { padding: 14, paddingHorizontal: 16, borderBottomWidth: 1 },
+  header:             { flexDirection: 'row', alignItems: 'center', gap: 10,
+                        paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1 },
+  backBtn:            { width: 34, height: 34, borderRadius: 17,
+                        backgroundColor: 'rgba(0,0,0,0.06)',
+                        alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   headerInfo:         { flex: 1 },
   headerTitle:        { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
   headerSub:          { fontSize: 12, color: '#6B7390', marginTop: 1 },
+  productImageWrap:   { width: '100%', height: 200, borderRadius: 14, marginBottom: 4,
+                        backgroundColor: '#F0F1F5', overflow: 'hidden' },
+  productImage:       { width: '100%', height: '100%' },
+  productImageOverlay:{ ...StyleSheet.absoluteFillObject, alignItems: 'center',
+                        justifyContent: 'center', backgroundColor: 'rgba(240,241,245,0.7)' },
   stepperWrapper:     { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
   stepperRow:         { flexDirection: 'row', alignItems: 'flex-start' },
   stepItem:           { flex: 1, alignItems: 'center' },
