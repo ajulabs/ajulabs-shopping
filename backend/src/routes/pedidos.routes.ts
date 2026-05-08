@@ -26,7 +26,15 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
     });
 
     if (produtos.length !== dados.itens.length) {
-      return res.status(400).json({ error: 'Um ou mais produtos inválidos' });
+      return res.status(400).json({ error: 'Um ou mais produtos não encontrados' });
+    }
+
+    const indisponiveis = produtos.filter(p => !p.disponivel);
+    if (indisponiveis.length > 0) {
+      return res.status(400).json({
+        error: 'Produtos indisponíveis',
+        produtos: indisponiveis.map(p => ({ id: p.id, nome: p.nome })),
+      });
     }
 
     const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
@@ -68,6 +76,15 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
         },
       },
       include: { itens: true, loja: true, historico: true },
+    });
+
+    await prisma.pagamento.create({
+      data: {
+        pedidoId: pedido.id,
+        metodo: dados.metodoPagamento,
+        valor: total,
+        status: 'pendente',
+      },
     });
 
     res.status(201).json({ pedido });
