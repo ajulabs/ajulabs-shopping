@@ -15,7 +15,19 @@ import { useAuthEntregadorStore } from '../../auth/model/store';
 const brl = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+function buildWeekdayLabels(dailyData: any[] | null): string[] {
+  if (dailyData) {
+    return dailyData.slice(-7).map((d: any) => {
+      if (!d.dia && !d.data) return '–';
+      const date = new Date(d.dia ?? d.data);
+      return WEEKDAY_LABELS[date.getDay()];
+    });
+  }
+  const today = new Date().getDay();
+  return Array.from({ length: 7 }, (_, i) => WEEKDAY_LABELS[(today - 6 + i + 7) % 7]);
+}
 
 function Stars({ value }: { value: number }) {
   return (
@@ -51,7 +63,11 @@ export function EarningsScreen() {
 
   const ganhoSemana = Number(ganhos?.semana?.total ?? 0);
   const corridasSemana = Number(ganhos?.semana?.corridas ?? 0);
-  const SALES_7D = [0, 0, 0, 0, 0, 0, ganhoSemana];
+  const dailyData: any[] | null = ganhos?.porDia ?? ganhos?.dias ?? null;
+  const SALES_7D = dailyData
+    ? dailyData.slice(-7).map((d: any) => Number(d.total ?? d.ganho ?? 0))
+    : [0, 0, 0, 0, 0, 0, ganhoSemana];
+  const weekLabels = buildWeekdayLabels(dailyData);
   const max = Math.max(...SALES_7D, 1);
   const totalSemana = ganhoSemana;
 
@@ -109,7 +125,7 @@ export function EarningsScreen() {
                     <View style={[s.chartBar, { height: `${h}%` as any, backgroundColor: isToday ? '#F2760F' : '#E4E7F1' }]} />
                   </View>
                   <Text style={[s.chartDay, { color: isToday ? '#F2760F' : '#9099B3', fontWeight: isToday ? '700' : '500' }]}>
-                    {WEEKDAYS[i]}
+                    {weekLabels[i]}
                   </Text>
                 </View>
               );

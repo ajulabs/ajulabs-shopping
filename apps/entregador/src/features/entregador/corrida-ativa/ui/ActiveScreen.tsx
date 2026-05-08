@@ -159,8 +159,8 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             iconColor="#000933"
             primary={ride.loja.nome}
             secondary={`${ride.loja.endereco} · ${ride.loja.bairro}`}
-            eta="4 min"
-            distance="1,2 km"
+            eta={ride.duracao > 0 ? `${Math.round(ride.duracao * 0.4)} min` : '–'}
+            distance={ride.distancia > 0 ? `${(ride.distancia * 0.4).toFixed(1)} km` : '–'}
             cta="Cheguei na loja"
             onCta={advance}
           />
@@ -192,9 +192,9 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             icon="home"
             iconColor="#209CEF"
             primary={`${ride.cliente.nome} · ${ride.cliente.bairro}`}
-            secondary={`${ride.cliente.endereco} · ${ride.cliente.complemento}`}
-            eta="8 min"
-            distance="3,0 km"
+            secondary={`${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`}
+            eta={ride.duracao > 0 ? `${Math.round(ride.duracao * 0.6)} min` : '–'}
+            distance={ride.distancia > 0 ? `${(ride.distancia * 0.6).toFixed(1)} km` : '–'}
             cta="Cheguei no destino"
             onCta={advance}
           />

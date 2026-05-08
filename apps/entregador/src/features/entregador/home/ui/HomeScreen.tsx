@@ -32,13 +32,13 @@ function mapCorridaToRide(raw: any): RideData {
       bairro: raw.loja?.endereco?.bairro ?? '–',
     },
     cliente: {
-      nome: 'Cliente',
+      nome: raw.consumidor?.nome ?? raw.cliente?.nome ?? 'Cliente',
       endereco: raw.enderecoEntrega ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}` : '–',
       bairro: raw.enderecoEntrega?.bairro ?? '–',
     },
     ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
-    distancia: 0,
-    duracao: 20,
+    distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
+    duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
     codigo: raw.id.slice(-4).toUpperCase(),
   };
 }

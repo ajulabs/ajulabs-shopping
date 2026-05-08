@@ -261,6 +261,21 @@ export const LojistaService = {
     return produto;
   },
 
+  analisarImagem: async (token: string, imageUri: string): Promise<any> => {
+    const formData = new FormData();
+    formData.append('imagem', { uri: imageUri, type: 'image/jpeg', name: 'produto.jpg' } as any);
+    const res = await fetch(`${API_URL}/lojista/produtos/analisar`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao analisar imagem');
+    }
+    return res.json();
+  },
+
   buscarEntregas: async (
     lojaId: string,
     token: string,

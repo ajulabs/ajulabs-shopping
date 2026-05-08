@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import OpenAI from 'openai';
+import multer from 'multer';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const uploadImagem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -243,6 +248,54 @@ router.get('/produtos', authMiddleware, authLojista, async (req: AuthRequest, re
     res.json({ produtos });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+// POST /lojista/produtos/analisar - Analisar imagem com GPT-4o Vision
+router.post('/produtos/analisar', authMiddleware, authLojista, uploadImagem.single('imagem'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Imagem ausente' });
+
+    const base64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'image/jpeg';
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: 500,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'low' },
+            },
+            {
+              type: 'text',
+              text: `Analise esta imagem de produto para um marketplace local de Aracaju, Sergipe.
+Responda APENAS com JSON válido, sem markdown.
+
+Formato obrigatório:
+{
+  "nome": "nome comercial do produto (máx 60 caracteres)",
+  "categoria": "uma de: Alimentos, Bebidas, Roupas, Calçados, Eletrônicos, Farmácia, Mercado, Outros",
+  "descricao": "descrição atraente em 1-2 frases (máx 150 caracteres)",
+  "tags": ["tag1", "tag2", "tag3"],
+  "preco": "preço sugerido em reais como string com vírgula, ex: 49,90",
+  "estoque": "quantidade inicial sugerida como string, ex: 10"
+}`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? '{}';
+    res.json(JSON.parse(raw));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao analisar imagem' });
   }
 });
 
