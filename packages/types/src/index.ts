@@ -103,6 +103,7 @@ export type RemetenteMensagem = 'usuario' | 'aju';
 
 export interface ProdutoCard {
   id: string;
+  lojaId: string;
   nome: string;
   loja: string;
   preco: number;

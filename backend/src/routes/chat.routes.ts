@@ -2,12 +2,13 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import OpenAI, { toFile } from 'openai';
 import multer from 'multer';
+import { prisma } from '../utils/prisma';
 
 const router = Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM_PROMPT = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
+const SYSTEM_PROMPT_BASE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 Responda SEMPRE com um JSON válido, sem markdown, sem explicações fora do JSON.
 
 Formato obrigatório:
@@ -15,13 +16,13 @@ Formato obrigatório:
   "texto": "mensagem curta e animada em português, com sotaque sergipano",
   "produtos": [
     {
-      "id": "1",
+      "id": "uuid-real-do-produto",
       "nome": "Nome do Produto",
       "loja": "Nome da Loja — Categoria",
       "preco": 189.90,
-      "precoOriginal": 249.90,
+      "precoOriginal": null,
       "tempoEntrega": "25–40 min",
-      "imagemUrl": ""
+      "imagemUrl": "url-real-ou-vazio"
     }
   ],
   "sugestoes": ["mais barato", "só masculino", "outra cor"]
@@ -29,10 +30,56 @@ Formato obrigatório:
 
 Regras:
 - "produtos" só aparece quando o usuário pede algo específico para comprar
+- Use APENAS lojas e produtos da lista abaixo — nunca invente lojas ou produtos
+- Use o "id" real do produto exatamente como listado abaixo
 - Máximo 3 produtos por resposta
 - Nunca mencione Amazon, iFood ou Shopee
-- Só sugira lojas de Aracaju
-- "sugestoes" são chips que refinam a busca, máximo 3`;
+- "sugestoes" são chips que refinam a busca, máximo 3
+- Se não houver produtos compatíveis no catálogo, diga isso honestamente`;
+
+async function buildSystemPrompt(): Promise<string> {
+  const lojas = await prisma.loja.findMany({
+    where: { aberta: true },
+    select: {
+      nome: true,
+      categoria: true,
+      tempoEntregaMin: true,
+      tempoEntregaMax: true,
+      taxaEntrega: true,
+      avaliacao: true,
+      produtos: {
+        where: { disponivel: true },
+        select: {
+          id: true,
+          lojaId: true,
+          nome: true,
+          preco: true,
+          categoria: true,
+          imagemUrl: true,
+          tags: true,
+        },
+        take: 30,
+      },
+    },
+  });
+
+  if (lojas.length === 0) {
+    return `${SYSTEM_PROMPT_BASE}\n\n=== CATÁLOGO ===\nNenhuma loja disponível no momento.`;
+  }
+
+  const catalogo = lojas.map(loja => {
+    const entrega = `${loja.tempoEntregaMin}–${loja.tempoEntregaMax} min`;
+    const taxa = Number(loja.taxaEntrega) === 0 ? 'grátis' : `R$ ${Number(loja.taxaEntrega).toFixed(2)}`;
+    const header = `🏪 ${loja.nome} | ${loja.categoria} | entrega: ${entrega} | taxa: ${taxa} | ⭐ ${loja.avaliacao}`;
+    const itens = loja.produtos.map(p => {
+      const tags = p.tags.length ? ` [${p.tags.join(', ')}]` : '';
+      return `  • id:${p.id} | ${p.nome} | R$ ${Number(p.preco).toFixed(2)} | ${p.categoria}${tags} | img:${p.imagemUrl || ''}`;
+    }).join('\n');
+    return itens ? `${header}\n${itens}` : `${header}\n  (sem produtos disponíveis)`;
+  }).join('\n\n');
+
+  return `${SYSTEM_PROMPT_BASE}\n\n=== CATÁLOGO REAL DO MARKETPLACE ===\n${catalogo}`;
+}
 
 const mensagemSchema = z.object({
   texto: z.string().min(1).max(1000),
@@ -42,13 +89,66 @@ const mensagemSchema = z.object({
   })).default([]),
 });
 
+type ProdutoChat = {
+  id: string;
+  lojaId: string;
+  nome: string;
+  loja: string;
+  preco: number;
+  precoOriginal: number | null;
+  tempoEntrega: string;
+  imagemUrl: string;
+};
+
+async function buscarProdutosReais(ids: string[], texto: string): Promise<ProdutoChat[]> {
+  const include = {
+    loja: { select: { nome: true, categoria: true, tempoEntregaMin: true, tempoEntregaMax: true } },
+  };
+
+  // Primeiro tenta pelos IDs que a IA retornou
+  let produtos = await prisma.produto.findMany({
+    where: { id: { in: ids }, disponivel: true },
+    include,
+    take: 3,
+  });
+
+  // Se a IA inventou IDs (não achou nenhum real), busca por nome/categoria no banco
+  if (produtos.length === 0) {
+    produtos = await prisma.produto.findMany({
+      where: {
+        disponivel: true,
+        OR: [
+          { nome: { contains: texto, mode: 'insensitive' } },
+          { categoria: { contains: texto, mode: 'insensitive' } },
+          { descricao: { contains: texto, mode: 'insensitive' } },
+        ],
+      },
+      include,
+      take: 3,
+    });
+  }
+
+  return produtos.map(p => ({
+    id: p.id,
+    lojaId: p.lojaId,
+    nome: p.nome,
+    loja: `${p.loja.nome}${p.loja.categoria ? ` — ${p.loja.categoria}` : ''}`,
+    preco: Number(p.preco),
+    precoOriginal: null,
+    tempoEntrega: `${p.loja.tempoEntregaMin}–${p.loja.tempoEntregaMax} min`,
+    imagemUrl: p.imagemUrl ?? '',
+  }));
+}
+
 // POST /chat/mensagem
 router.post('/mensagem', async (req: Request, res: Response) => {
   try {
     const { texto, historico } = mensagemSchema.parse(req.body);
 
+    const systemPrompt = await buildSystemPrompt();
+
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...historico.map(m => ({
         role: m.remetente === 'usuario' ? 'user' : 'assistant',
         content: m.conteudo,
@@ -58,13 +158,21 @@ router.post('/mensagem', async (req: Request, res: Response) => {
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      max_tokens: 600,
+      max_tokens: 800,
       response_format: { type: 'json_object' },
       messages,
     });
 
     const raw = completion.choices[0]?.message?.content ?? '{}';
-    res.json(JSON.parse(raw));
+    const resposta = JSON.parse(raw);
+
+    // Validação server-side: substituir produtos pela versão real do banco
+    if (Array.isArray(resposta.produtos) && resposta.produtos.length > 0) {
+      const ids = resposta.produtos.map((p: any) => String(p.id ?? '')).filter(Boolean);
+      resposta.produtos = await buscarProdutosReais(ids, texto);
+    }
+
+    res.json(resposta);
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     console.error(error);

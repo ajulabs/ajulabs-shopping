@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { MensagemChat } from '@ajulabs/types';
+import { MensagemChat, ProdutoCard, Loja } from '@ajulabs/types';
 import {
   View,
   Text,
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useCartStore } from '../../cart/model/store';
 
 interface Props {
   mensagens: MensagemChat[];
@@ -18,10 +20,43 @@ interface Props {
 
 export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props) {
   const flatRef = useRef<FlatList>(null);
+  const adicionar = useCartStore(s => s.adicionar);
+  const cachearLoja = useCartStore(s => s.cachearLoja);
+  const router = useRouter();
 
   useEffect(() => {
     setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
   }, [mensagens, carregando]);
+
+  const handleAdicionar = (card: ProdutoCard) => {
+    const [minStr, maxStr] = card.tempoEntrega.replace(' min', '').split('–');
+    const loja: Loja = {
+      id: card.lojaId,
+      nome: card.loja.split(' — ')[0],
+      descricao: '',
+      categoria: '',
+      imagem: '',
+      endereco: { rua: '', numero: '', bairro: '', cidade: 'Aracaju', cep: '' },
+      avaliacao: 0,
+      totalAvaliacoes: 0,
+      tempoEntregaMin: parseInt(minStr) || 30,
+      tempoEntregaMax: parseInt(maxStr) || 60,
+      taxaEntrega: 0,
+      aberta: true,
+    };
+    cachearLoja(loja);
+    adicionar({
+      id: card.id,
+      lojaId: card.lojaId,
+      nome: card.nome,
+      descricao: '',
+      preco: card.preco,
+      imagem: card.imagemUrl,
+      categoria: '',
+      disponivel: true,
+    });
+    router.push('/(consumer)/carrinho');
+  };
 
   const renderItem = ({ item: msg }: { item: MensagemChat }) => {
     const isAju = msg.remetente === 'aju';
@@ -127,13 +162,17 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                       </Text>
                     )}
                   </View>
-                  <TouchableOpacity style={{
-                    marginTop: 8,
-                    backgroundColor: '#111827',
-                    borderRadius: 8,
-                    paddingVertical: 7,
-                    alignItems: 'center',
-                  }}>
+                  <TouchableOpacity
+                    onPress={() => handleAdicionar(produto)}
+                    activeOpacity={0.8}
+                    style={{
+                      marginTop: 8,
+                      backgroundColor: '#111827',
+                      borderRadius: 8,
+                      paddingVertical: 7,
+                      alignItems: 'center',
+                    }}
+                  >
                     <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>+ Adicionar</Text>
                   </TouchableOpacity>
                 </View>
