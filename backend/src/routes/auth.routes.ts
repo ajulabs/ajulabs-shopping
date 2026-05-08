@@ -58,15 +58,16 @@ router.post('/usuario/registrar', async (req, res) => {
 
 router.post('/usuario/login', async (req, res) => {
   try {
-    const { telefone, senha } = z.object({
-      telefone: z.string(),
+    const { cpf, senha } = z.object({
+      cpf: z.string(),
       senha: z.string(),
     }).parse(req.body);
 
-    const usuario = await prisma.usuario.findUnique({ where: { telefone } });
+    const cpfRaw = cpf.replace(/\D/g, '');
+    const usuario = await prisma.usuario.findUnique({ where: { cpf: cpfRaw } });
 
     if (!usuario || !(await compararSenha(senha, usuario.senhaHash))) {
-      return res.status(401).json({ error: 'Telefone ou senha inválidos' });
+      return res.status(401).json({ error: 'CPF ou senha inválidos' });
     }
 
     const token = gerarToken({ id: usuario.id, tipo: 'usuario' });

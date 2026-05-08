@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
+import { useAuthStore } from '../../../../store';
 import { formatCPF } from '../lib/formatCPF';
 import { Field } from './components/Field';
 
@@ -22,6 +23,7 @@ function formatTelefone(value: string): string {
 
 export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const router = useRouter();
+  const registrar = useAuthStore(s => s.registrar);
   const [nome, setNome]           = useState('');
   const [cpf, setCpf]             = useState('');
   const [telefone, setTelefone]   = useState('');
@@ -56,15 +58,16 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
     if (!validate()) return;
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await registrar({ nome, cpf, telefone, email, senha });
       onCadastroSuccess?.();
       router.replace('/(consumer)/chat');
-    } catch {
-      setErrors({ geral: 'Erro ao criar conta. Tente novamente.' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao criar conta. Tente novamente.';
+      setErrors({ geral: msg });
     } finally {
       setLoading(false);
     }
-  }, [validate, onCadastroSuccess, router]);
+  }, [validate, registrar, nome, cpf, telefone, email, senha, onCadastroSuccess, router]);
 
   return (
     <View style={styles.container}>

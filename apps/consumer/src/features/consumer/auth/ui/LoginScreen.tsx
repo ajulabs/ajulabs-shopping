@@ -31,11 +31,15 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setError('');
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      login(cpf);
+      await login(cpf, senha);
       onLoginSuccess?.();
-    } catch {
-      setError('CPF ou senha incorretos. Tente novamente.');
+    } catch (err) {
+      const msg = err instanceof Error
+        ? err.message
+        : typeof err === 'string'
+        ? err
+        : 'CPF ou senha incorretos. Tente novamente.';
+      setError(msg);
     } finally {
       setLoading(false);
     }

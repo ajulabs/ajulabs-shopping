@@ -1,13 +1,26 @@
 import { create } from 'zustand';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/';
+
+interface DadosRegistro {
+  nome: string;
+  cpf: string;
+  telefone: string;
+  email: string;
+  senha: string;
+}
+
 interface AuthState {
   isLoggedIn: boolean;
+  token: string | null;
   telefone: string | null;
+  email: string | null;
   nome: string | null;
   userId: string | null;
   codigoVerificado: boolean;
 
-  login: (cpf: string) => void;
+  login: (cpf: string, senha: string) => Promise<void>;
+  registrar: (dados: DadosRegistro) => Promise<void>;
   enviarCodigo: (telefone: string) => Promise<void>;
   verificarCodigo: (codigo: string) => Promise<boolean>;
   registrarNome: (nome: string) => void;
@@ -16,13 +29,71 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   isLoggedIn: false,
+  token: null,
   telefone: null,
+  email: null,
   nome: null,
   userId: null,
   codigoVerificado: false,
 
-  login: (cpf: string) => {
-    set({ isLoggedIn: true, userId: 'user-001', nome: 'Usuário' });
+  login: async (cpf: string, senha: string) => {
+    const res = await fetch(`${API_URL}auth/usuario/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpf, senha }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      let errorMsg = 'CPF ou senha inválidos';
+      if (typeof data.error === 'string') {
+        errorMsg = data.error;
+      }
+      throw new Error(errorMsg);
+    }
+
+    const { token, usuario } = await res.json();
+    set({
+      isLoggedIn: true,
+      token,
+      userId: usuario.id,
+      nome: usuario.nome,
+      telefone: usuario.telefone,
+      email: usuario.email,
+    });
+  },
+
+  registrar: async (dados: DadosRegistro) => {
+    const cpfRaw = dados.cpf.replace(/\D/g, '');
+    const telefoneRaw = `+55${dados.telefone.replace(/\D/g, '')}`;
+
+    const res = await fetch(`${API_URL}auth/usuario/registrar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: dados.nome,
+        cpf: cpfRaw,
+        telefone: telefoneRaw,
+        email: dados.email,
+        senha: dados.senha,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const errorMsg = typeof data.error === 'string' ? data.error : 'Erro ao criar conta';
+      throw new Error(errorMsg);
+    }
+
+    const { token, usuario } = await res.json();
+    set({
+      isLoggedIn: true,
+      token,
+      userId: usuario.id,
+      nome: usuario.nome,
+      telefone: usuario.telefone,
+      email: usuario.email,
+    });
   },
 
   enviarCodigo: async (telefone: string) => {
@@ -46,7 +117,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     set({
       isLoggedIn: false,
+      token: null,
       telefone: null,
+      email: null,
       nome: null,
       userId: null,
       codigoVerificado: false,
