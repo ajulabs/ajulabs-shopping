@@ -11,6 +11,7 @@ import avaliacoesRoutes from './routes/avaliacoes.routes';
 import perfilRoutes from './routes/perfil.routes';
 import enderecosRoutes from './routes/enderecos.routes';
 import entregadorRoutes from './routes/entregador.routes';
+import lojistaRoutes from './routes/lojista.routes';
 import { initSocket } from './utils/socket';
 
 dotenv.config();
@@ -39,6 +40,7 @@ app.get('/', (req, res) => {
       perfil: '/perfil',
       enderecos: '/enderecos',
       entregador: '/entregador',
+      lojista: '/lojista',
     },
   });
 });
@@ -52,6 +54,7 @@ app.use('/avaliacoes', avaliacoesRoutes);
 app.use('/perfil', perfilRoutes);
 app.use('/enderecos', enderecosRoutes);
 app.use('/entregador', entregadorRoutes);
+app.use('/lojista', lojistaRoutes);
 
 // 404
 app.use((req, res) => {

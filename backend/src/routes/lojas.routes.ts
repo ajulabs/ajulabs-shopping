@@ -48,6 +48,42 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /lojas/:id/produtos - Produtos da loja com paginação e filtros (público)
+router.get('/:id/produtos', async (req, res) => {
+  try {
+    const lojaId = req.params.id;
+
+    const loja = await prisma.loja.findUnique({ where: { id: lojaId } });
+    if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const categoria = req.query.categoria as string | undefined;
+    const apenasDisponiveis = req.query.disponivel !== 'false';
+
+    const where = {
+      lojaId,
+      ...(apenasDisponiveis && { disponivel: true }),
+      ...(categoria && { categoria }),
+    };
+
+    const [produtos, total] = await Promise.all([
+      prisma.produto.findMany({
+        where,
+        include: { variacoes: true },
+        orderBy: [{ destaque: 'desc' }, { nome: 'asc' }],
+        take: limit,
+        skip: offset,
+      }),
+      prisma.produto.count({ where }),
+    ]);
+
+    res.json({ produtos, total, limit, offset });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
 // POST /lojas - Criar loja (lojista autenticado)
 const criarLojaSchema = z.object({
   nome: z.string().min(2),
