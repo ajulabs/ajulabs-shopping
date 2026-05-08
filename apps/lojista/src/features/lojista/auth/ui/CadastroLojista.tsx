@@ -2,10 +2,11 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, Alert, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '../../../../theme';
+import { useAuthLojistaStore } from '../model/store';
 
 interface CadastroLojistaProps {
   onCadastroSuccess?: () => void;
@@ -76,7 +77,9 @@ function Field({
 // ─── Tela principal ───────────────────────────────────────────
 export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const router = useRouter();
+  const registrar = useAuthLojistaStore(s => s.registrar);
   const [loading, setLoading] = useState(false);
+  const [errorGeral, setErrorGeral] = useState('');
   const [form, setForm] = useState<FormData>({
     cnpj: '',
     nomeLoja: '',
@@ -105,21 +108,28 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const handleCadastro = useCallback(async () => {
     const erro = validateForm();
     if (erro) {
-      Alert.alert('Atenção', erro);
+      setErrorGeral(erro);
       return;
     }
+    setErrorGeral('');
     setLoading(true);
     try {
-      // TODO: conectar com authStore / API
-      await new Promise(resolve => setTimeout(resolve, 1500)); // simula chamada
+      await registrar({
+        cnpj: form.cnpj,
+        nomeResponsavel: form.nomeLoja,
+        telefone: form.telefone,
+        email: form.email,
+        senha: form.senha,
+      });
       onCadastroSuccess?.();
       router.replace('/(lojista)/pedidos');
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível criar sua conta. Tente novamente.');
+      const msg = e instanceof Error ? e.message : 'Não foi possível criar sua conta. Tente novamente.';
+      setErrorGeral(msg);
     } finally {
       setLoading(false);
     }
-  }, [form, validateForm, onCadastroSuccess, router]);
+  }, [form, validateForm, registrar, onCadastroSuccess, router]);
 
   return (
     <View style={styles.container}>
@@ -194,6 +204,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           {' '}da AjuLabs.
         </Text>
 
+        {errorGeral ? <Text style={styles.errorGeral}>{errorGeral}</Text> : null}
+
         {/* Botão cadastrar */}
         <TouchableOpacity
           style={[styles.submitBtn, loading && { opacity: 0.7 }]}
@@ -255,6 +267,9 @@ const styles = StyleSheet.create({
   terms:              { fontSize: 12, color: colors.n600, textAlign: 'center',
                         marginVertical: 14, lineHeight: 18 },
   termsLink:          { color: colors.orange600, fontWeight: '600' },
+
+  errorGeral:         { fontSize: 13, color: '#E24B4A', textAlign: 'center',
+                        marginBottom: 10, fontWeight: '500' },
 
   // Submit
   submitBtn:          { height: 50, borderRadius: 14, backgroundColor: colors.orange,
