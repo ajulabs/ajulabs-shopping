@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { USUARIO_MOCK } from '@ajulabs/api-client';
+import { useAuthStore } from '../../../../store';
 
 function getIniciais(nome: string): string {
   return nome
@@ -13,8 +13,9 @@ function getIniciais(nome: string): string {
 }
 
 export function ProfileHeader() {
-  const user = USUARIO_MOCK;
-  const iniciais = getIniciais(user.nome);
+  const nome = useAuthStore(s => s.nome) ?? 'Usuário';
+  const email = useAuthStore(s => s.email) ?? '';
+  const iniciais = getIniciais(nome);
 
   return (
     <View style={styles.card}>
@@ -23,12 +24,12 @@ export function ProfileHeader() {
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={styles.nome}>{user.nome}</Text>
-        <Text style={styles.email}>{user.email}</Text>
+        <Text style={styles.nome}>{nome}</Text>
+        {!!email && <Text style={styles.email}>{email}</Text>}
         <View style={styles.badgeRow}>
           <View style={styles.badge}>
             <Ionicons name="flash" size={11} color={colors.orange600} />
-            <Text style={styles.badgeTxt}>Cliente desde 2024</Text>
+            <Text style={styles.badgeTxt}>Cliente AjuLabs</Text>
           </View>
         </View>
       </View>

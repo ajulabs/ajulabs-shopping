@@ -36,6 +36,7 @@ router.get('/lojas/:id/pedidos', authMiddleware, authLojista, async (req: AuthRe
           itens: true,
           historico: { orderBy: { criadoEm: 'asc' } },
           enderecoEntrega: true,
+          entregador: { select: { nome: true, telefone: true, veiculo: { select: { placa: true, modelo: true } } } },
         },
         orderBy: { criadoEm: 'desc' },
         skip: (Number(page) - 1) * Number(limit),
@@ -162,13 +163,63 @@ router.get('/lojas/:id/dashboard', authMiddleware, authLojista, async (req: Auth
   }
 });
 
+const lojaUpdateSchema = z.object({
+  nome: z.string().min(2).optional(),
+  descricao: z.string().optional(),
+  categoria: z.string().optional(),
+  telefone: z.string().optional(),
+  aceitaAgendamento: z.boolean().optional(),
+  antecedenciaMinima: z.number().int().nonnegative().optional(),
+});
+
+// GET /lojista/lojas/:id - Detalhes da loja (incluindo campos privados)
+router.get('/lojas/:id', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const loja = await verificarDonoLoja(req.params.id, req.user!.id);
+    if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+
+    const lojaDetalhes = await prisma.loja.findUnique({
+      where: { id: req.params.id },
+      include: {
+        endereco: true,
+        horarios: { orderBy: { diaSemana: 'asc' } },
+      },
+    });
+
+    res.json({ loja: lojaDetalhes });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar loja' });
+  }
+});
+
+// PATCH /lojista/lojas/:id - Atualizar dados da loja
+router.patch('/lojas/:id', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const loja = await verificarDonoLoja(req.params.id, req.user!.id);
+    if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+
+    const dados = lojaUpdateSchema.parse(req.body);
+
+    const lojaAtualizada = await prisma.loja.update({
+      where: { id: req.params.id },
+      data: dados,
+      include: { endereco: true },
+    });
+
+    res.json({ loja: lojaAtualizada });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    res.status(500).json({ error: 'Erro ao atualizar loja' });
+  }
+});
+
 const produtoSchema = z.object({
   lojaId: z.string().uuid(),
   nome: z.string().min(2),
   descricao: z.string(),
   preco: z.number().positive(),
   estoque: z.number().int().nonnegative(),
-  imagemUrl: z.string().url(),
+  imagemUrl: z.string().optional().default(''),
   categoria: z.string(),
   tags: z.array(z.string()).default([]),
   destaque: z.boolean().default(false),

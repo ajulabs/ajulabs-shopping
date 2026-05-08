@@ -5,7 +5,9 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
+import { useAuthLojistaStore } from '../../auth/model/store';
 
 type Stage = 'capture' | 'analyzing' | 'edit';
 
@@ -165,11 +167,12 @@ function AnalyzingStage() {
 }
 
 function EditStage({
-  data, onChange, onPublicar,
+  data, onChange, onPublicar, saving = false,
 }: {
   data: ProductData;
   onChange: (key: keyof ProductData, value: string | string[]) => void;
   onPublicar: () => void;
+  saving?: boolean;
 }) {
   const [newTag, setNewTag] = useState('');
 
@@ -299,8 +302,17 @@ function EditStage({
         </View>
       </View>
 
-      <TouchableOpacity style={styles.publishBtn} onPress={onPublicar} activeOpacity={0.85}>
-        <Text style={styles.publishBtnText}>Publicar produto</Text>
+      <TouchableOpacity
+        style={[styles.publishBtn, saving && { opacity: 0.7 }]}
+        onPress={onPublicar}
+        activeOpacity={0.85}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.publishBtnText}>Publicar produto</Text>
+        )}
       </TouchableOpacity>
 
       <View style={{ height: 24 }} />
@@ -309,7 +321,11 @@ function EditStage({
 }
 
 export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
+  const token = useAuthLojistaStore(s => s.token);
+  const lojaId = useAuthLojistaStore(s => s.lojaId);
+
   const [stage, setStage] = useState<Stage>('capture');
+  const [saving, setSaving] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [productData, setProductData] = useState<ProductData>({
     nome: '',
@@ -351,17 +367,44 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
     setProductData(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const handlePublicar = useCallback(() => {
-    // TODO: conectar com store/service para salvar o produto
-    onPublicar?.(productData);
-    Alert.alert('Produto publicado!', `"${productData.nome}" foi adicionado à sua vitrine.`);
-    setStage('capture');
-    setImageUri(null);
-    setProductData({
-      nome: '', categoria: '', descricao: '',
-      tags: [], preco: '', estoque: '', variacoes: [],
-    });
-  }, [productData, onPublicar]);
+  const handlePublicar = useCallback(async () => {
+    if (!token || !lojaId) {
+      Alert.alert('Erro', 'Sessão inválida. Faça login novamente.');
+      return;
+    }
+    const preco = parseFloat(productData.preco.replace(',', '.'));
+    const estoque = parseInt(productData.estoque, 10);
+    if (isNaN(preco) || preco <= 0) {
+      Alert.alert('Erro', 'Informe um preço válido.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await LojistaService.criarProduto(token, {
+        lojaId,
+        nome: productData.nome,
+        descricao: productData.descricao,
+        preco,
+        estoque: isNaN(estoque) ? 0 : estoque,
+        categoria: productData.categoria,
+        tags: productData.tags,
+        imagemUrl: imageUri ?? '',
+      });
+      onPublicar?.(productData);
+      Alert.alert('Produto publicado!', `"${productData.nome}" foi adicionado à sua vitrine.`);
+      setStage('capture');
+      setImageUri(null);
+      setProductData({
+        nome: '', categoria: '', descricao: '',
+        tags: [], preco: '', estoque: '', variacoes: [],
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro ao publicar produto.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setSaving(false);
+    }
+  }, [token, lojaId, productData, imageUri, onPublicar]);
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
@@ -387,6 +430,7 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
           data={productData}
           onChange={handleChange}
           onPublicar={handlePublicar}
+          saving={saving}
         />
       )}
     </View>

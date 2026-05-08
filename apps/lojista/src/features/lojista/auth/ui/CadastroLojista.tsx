@@ -4,6 +4,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../model/store';
@@ -55,21 +56,29 @@ function Field({
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
 }) {
   const [focused, setFocused] = useState(false);
+  const [shown, setShown] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[styles.fieldInput, focused && styles.fieldInputFocused]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.n600}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize="none"
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
+      <View style={[styles.inputRow, focused && styles.inputRowFocused]}>
+        <TextInput
+          style={styles.inputInner}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={colors.n600}
+          secureTextEntry={secureTextEntry && !shown}
+          keyboardType={keyboardType}
+          autoCapitalize="none"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+        {secureTextEntry && (
+          <TouchableOpacity onPress={() => setShown(s => !s)} hitSlop={10} style={styles.eyeBtn}>
+            <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.n600} />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -258,6 +267,12 @@ const styles = StyleSheet.create({
   field:              { marginBottom: 12 },
   fieldLabel:         { fontSize: 11, fontWeight: '700', color: colors.n600,
                         textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5 },
+  inputRow:           { height: 46, borderRadius: 12, borderWidth: 1.5,
+                        borderColor: colors.n200, backgroundColor: colors.n50,
+                        flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  inputRowFocused:    { borderColor: colors.orange },
+  inputInner:         { flex: 1, fontSize: 14, color: colors.navy },
+  eyeBtn:             { paddingLeft: 8 },
   fieldInput:         { height: 46, borderRadius: 12, borderWidth: 1.5,
                         borderColor: colors.n200, backgroundColor: colors.n50,
                         paddingHorizontal: 14, fontSize: 14, color: colors.navy },

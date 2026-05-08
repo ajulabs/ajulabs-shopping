@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,11 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-const COURIER = {
-  nome: 'Carlos Mendes',
-  initials: 'CM',
-  transporte: 'Moto Honda CG 160',
-  placa: 'ABC-1234',
-  rating: 4.9,
-  entregas: 1248,
-  aceitacao: 96,
-  tempoMedio: 22,
-  badges: ['Top Entregador', 'Sem Atrasos', '1000 Entregas', 'Cliente 5★'],
-};
+import { EntregadorService } from '@ajulabs/api-client';
+import { useAuthEntregadorStore } from '../../auth/model/store';
 
 function Stars({ value }: { value: number }) {
   return (
@@ -41,13 +32,37 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onLogout }: ProfileScreenProps) {
+  const token = useAuthEntregadorStore(s => s.token);
+  const nomeStore = useAuthEntregadorStore(s => s.nome);
+
+  const [loading, setLoading] = useState(true);
+  const [perfil, setPerfil] = useState<any>(null);
+  const [ganhos, setGanhos] = useState<any>(null);
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    Promise.all([
+      EntregadorService.buscarPerfil(token),
+      EntregadorService.buscarGanhos(token),
+    ]).then(([p, g]) => {
+      setPerfil(p);
+      setGanhos(g);
+    }).finally(() => setLoading(false));
+  }, [token]);
+
   const menuItems = [
-    { icon: 'document-text', label: 'Documentos', extra: 'Verificado', extraColor: '#039855' },
+    { icon: 'document-text', label: 'Documentos', extra: perfil?.onboarding?.documentosAprovados ? 'Verificado' : undefined, extraColor: '#039855' },
     { icon: 'wallet', label: 'Dados bancários' },
     { icon: 'notifications', label: 'Notificações' },
     { icon: 'shield-checkmark', label: 'Segurança' },
     { icon: 'help-circle', label: 'Ajuda e suporte' },
   ] as const;
+
+  const nome = perfil?.entregador?.nome ?? nomeStore ?? 'Entregador';
+  const initials = nome.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const veiculo = perfil?.entregador?.veiculo;
+  const veiculoStr = veiculo ? `${veiculo.modelo} · ${veiculo.placa}` : 'Veículo não cadastrado';
+  const totalEntregas = ganhos?.allTime?.corridas ?? 0;
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -59,54 +74,41 @@ export function ProfileScreen({ onLogout }: ProfileScreenProps) {
         <View style={s.hero}>
           <View style={s.heroRow}>
             <View style={s.avatar}>
-              <Text style={s.avatarText}>{COURIER.initials}</Text>
+              <Text style={s.avatarText}>{initials}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={s.heroName}>{COURIER.nome}</Text>
+              <Text style={s.heroName}>{nome}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
                 <Ionicons name="car-sport" size={12} color="rgba(255,255,255,0.7)" />
-                <Text style={s.heroTransporte}>{COURIER.transporte} · {COURIER.placa}</Text>
+                <Text style={s.heroTransporte}>{veiculoStr}</Text>
               </View>
             </View>
           </View>
 
-          <View style={s.statsBox}>
-            <View style={s.statCol}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="star" size={18} color="#F2760F" />
-                <Text style={s.statVal}>{COURIER.rating}</Text>
+          {loading ? (
+            <View style={[s.statsBox, { justifyContent: 'center', paddingVertical: 20 }]}>
+              <ActivityIndicator color="#F2760F" />
+            </View>
+          ) : (
+            <View style={s.statsBox}>
+              <View style={s.statCol}>
+                <Text style={s.statVal}>{totalEntregas}</Text>
+                <Text style={s.statLabel}>Entregas</Text>
               </View>
-              <Text style={s.statLabel}>{COURIER.entregas} entregas</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={s.statCol}>
-              <Text style={s.statVal}>{COURIER.aceitacao}%</Text>
-              <Text style={s.statLabel}>Aceitação</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={s.statCol}>
-              <Text style={s.statVal}>{COURIER.tempoMedio}m</Text>
-              <Text style={s.statLabel}>Tempo médio</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Conquistas</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.badgesRow}
-          >
-            {COURIER.badges.map((b) => (
-              <View key={b} style={s.badgeCard}>
-                <View style={s.badgeIcon}>
-                  <Ionicons name="trophy" size={20} color="#F2760F" />
-                </View>
-                <Text style={s.badgeLabel}>{b}</Text>
+              <View style={s.statDivider} />
+              <View style={s.statCol}>
+                <Text style={s.statVal}>{ganhos?.semana?.corridas ?? 0}</Text>
+                <Text style={s.statLabel}>Esta semana</Text>
               </View>
-            ))}
-          </ScrollView>
+              <View style={s.statDivider} />
+              <View style={s.statCol}>
+                <Text style={s.statVal}>
+                  {ganhos?.allTime?.total ? `R$${Number(ganhos.allTime.total).toFixed(0)}` : 'R$0'}
+                </Text>
+                <Text style={s.statLabel}>Total ganho</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={s.menuCard}>
@@ -177,30 +179,9 @@ const s = StyleSheet.create({
   statVal: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', lineHeight: 26 },
   statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 2, textAlign: 'center' },
   statDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.15)' },
-  section: { padding: 16, paddingBottom: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#000933', marginBottom: 12 },
-  badgesRow: { gap: 10, paddingRight: 4 },
-  badgeCard: {
-    width: 110,
-    padding: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badgeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FEF0E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeLabel: { fontSize: 11, fontWeight: '600', color: '#000933', textAlign: 'center', lineHeight: 14 },
   menuCard: {
     marginHorizontal: 16,
+    marginTop: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,

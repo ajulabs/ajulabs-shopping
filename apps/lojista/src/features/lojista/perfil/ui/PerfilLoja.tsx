@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, Switch, Alert,
+  StyleSheet, Switch, Alert, ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
+import { useAuthLojistaStore } from '../../auth/model/store';
 
 interface HorarioDia {
   dia: string;
@@ -140,19 +142,50 @@ function StoreAvatar({ nome, size = 56 }: { nome: string; size?: number }) {
 }
 
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
+  const token = useAuthLojistaStore(s => s.token);
+  const lojaId = useAuthLojistaStore(s => s.lojaId);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [horarios, setHorarios] = useState<HorarioDia[]>(HORARIOS_INICIAIS);
   const [loja, setLoja] = useState<LojaData>({
-    nome: 'Loja do Chico — Calçados',
-    categoria: 'Calçados',
-    descricao: 'Os melhores calçados de Aracaju com entrega rápida.',
-    telefone: '(79) 9 9999-0000',
-    rua: 'Av. Beira Mar, 1280',
-    bairro: 'Atalaia',
-    cep: '49.037-580',
-    cidade: 'Aracaju — SE',
-    aceitaAgendamento: true,
-    antecedenciaMinima: '2 horas',
+    nome: '',
+    categoria: '',
+    descricao: '',
+    telefone: '',
+    rua: '',
+    bairro: '',
+    cep: '',
+    cidade: '',
+    aceitaAgendamento: false,
+    antecedenciaMinima: '120',
   });
+
+  useEffect(() => {
+    if (!token || !lojaId) { setLoading(false); return; }
+    LojistaService.buscarLojaDetalhes(lojaId, token).then(raw => {
+      if (!raw) return;
+      setLoja({
+        nome: raw.nome ?? '',
+        categoria: raw.categoria ?? '',
+        descricao: raw.descricao ?? '',
+        telefone: raw.telefone ?? '',
+        rua: raw.endereco ? `${raw.endereco.rua}${raw.endereco.numero ? ', ' + raw.endereco.numero : ''}` : '',
+        bairro: raw.endereco?.bairro ?? '',
+        cep: raw.endereco?.cep ?? '',
+        cidade: raw.endereco?.cidade ?? '',
+        aceitaAgendamento: raw.aceitaAgendamento ?? false,
+        antecedenciaMinima: String(raw.antecedenciaMinima ?? 120),
+      });
+      if (raw.horarios && raw.horarios.length > 0) {
+        setHorarios(prev => prev.map((h, i) => {
+          const backHorario = raw.horarios.find((bh: any) => bh.diaSemana === i);
+          if (!backHorario) return h;
+          return { ...h, ativo: backHorario.ativo, abertura: backHorario.abertura, fechamento: backHorario.fechamento };
+        }));
+      }
+    }).finally(() => setLoading(false));
+  }, [token, lojaId]);
 
   const textColor = dark ? colors.n0    : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
@@ -175,7 +208,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
       aspect: [3, 1],
     });
     if (!result.canceled) {
-      // TODO: conectar com store/service para salvar o banner
+      Alert.alert('Em breve', 'Upload de banner será implementado em breve.');
     }
   }, []);
 
@@ -186,14 +219,33 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
       aspect: [1, 1],
     });
     if (!result.canceled) {
-      // TODO: conectar com store/service para salvar o avatar
+      Alert.alert('Em breve', 'Upload de logo será implementado em breve.');
     }
   }, []);
 
-  const handleSalvar = useCallback(() => {
-    // TODO: conectar com store/service para salvar as alterações
-    Alert.alert('Salvo!', 'As informações da loja foram atualizadas.');
-  }, [loja, horarios]);
+  const handleSalvar = useCallback(async () => {
+    if (!token || !lojaId) {
+      Alert.alert('Erro', 'Sessão inválida.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await LojistaService.atualizarLoja(lojaId, token, {
+        nome: loja.nome,
+        descricao: loja.descricao,
+        categoria: loja.categoria,
+        telefone: loja.telefone,
+        aceitaAgendamento: loja.aceitaAgendamento,
+        antecedenciaMinima: parseInt(loja.antecedenciaMinima, 10) || 120,
+      });
+      Alert.alert('Salvo!', 'As informações da loja foram atualizadas.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setSaving(false);
+    }
+  }, [token, lojaId, loja]);
 
   const hoje = new Date();
   const diaSemana = hoje.getDay();
@@ -203,6 +255,14 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const [aH, aM] = (horarioHoje?.abertura || '00:00').split(':').map(Number);
   const [fH, fM] = (horarioHoje?.fechamento || '00:00').split(':').map(Number);
   const abertaAgora = horarioHoje?.ativo && agoraMin >= aH * 60 + aM && agoraMin < fH * 60 + fM;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: bgMain, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.orange} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
@@ -220,7 +280,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
               <Ionicons name="pencil" size={12} color="#fff" />
             </TouchableOpacity>
             <View style={styles.avatarWrap}>
-              <StoreAvatar nome={loja.nome} size={58} />
+              <StoreAvatar nome={loja.nome || 'Loja'} size={58} />
               <TouchableOpacity style={styles.avatarEditBtn} onPress={handlePickAvatar} activeOpacity={0.8}>
                 <Ionicons name="camera-outline" size={10} color="#fff" />
               </TouchableOpacity>
@@ -228,7 +288,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           </View>
           <View style={styles.storeInfo}>
             <Text style={[styles.storeName, { color: textColor }]}>{loja.nome}</Text>
-            <Text style={[styles.storeCat, { color: subColor }]}>{loja.categoria} · {loja.bairro}, Aracaju</Text>
+            <Text style={[styles.storeCat, { color: subColor }]}>{loja.categoria} · {loja.bairro}</Text>
             <View style={styles.statusRow}>
               <View style={[styles.statusDot, { backgroundColor: abertaAgora ? '#046C2E' : colors.n600 }]} />
               <Text style={[styles.statusText, { color: abertaAgora ? '#046C2E' : colors.n600 }]}>
@@ -294,20 +354,31 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           {loja.aceitaAgendamento && (
             <View style={[styles.agendRow, { borderTopWidth: 1, borderTopColor: border }]}>
               <View style={styles.agendInfo}>
-                <Text style={[styles.agendTitle, { color: textColor }]}>Antecedência mínima</Text>
-                <Text style={[styles.agendSub, { color: subColor }]}>Tempo mínimo para agendar</Text>
+                <Text style={[styles.agendTitle, { color: textColor }]}>Antecedência mínima (minutos)</Text>
+                <Text style={[styles.agendSub, { color: subColor }]}>Ex: 60 = 1 hora, 120 = 2 horas</Text>
               </View>
               <TextInput
                 style={[styles.antecedenciaInput, { borderColor: border, color: textColor, backgroundColor: colors.n50 }]}
                 value={loja.antecedenciaMinima}
                 onChangeText={v => updateLoja('antecedenciaMinima', v)}
+                keyboardType="numeric"
+                placeholder="120"
               />
             </View>
           )}
         </View>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSalvar} activeOpacity={0.85}>
-          <Text style={styles.saveBtnText}>Salvar alterações</Text>
+        <TouchableOpacity
+          style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+          onPress={handleSalvar}
+          activeOpacity={0.85}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveBtnText}>Salvar alterações</Text>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 24 }} />

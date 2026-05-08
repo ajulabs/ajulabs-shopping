@@ -34,19 +34,27 @@ function Input({
   placeholder?: string; secureTextEntry?: boolean; keyboardType?: KB;
 }) {
   const [focused, setFocused] = useState(false);
+  const [shown, setShown] = useState(false);
   return (
-    <TextInput
-      value={value}
-      onChangeText={onChange}
-      placeholder={placeholder}
-      placeholderTextColor="#9099B3"
-      secureTextEntry={secureTextEntry}
-      keyboardType={keyboardType}
-      autoCapitalize="none"
-      style={[s.input, focused && s.inputFocused]}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-    />
+    <View style={[s.input, focused && s.inputFocused]}>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor="#9099B3"
+        secureTextEntry={secureTextEntry && !shown}
+        keyboardType={keyboardType}
+        autoCapitalize="none"
+        style={s.inputInner}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+      {secureTextEntry && (
+        <TouchableOpacity onPress={() => setShown(v => !v)} hitSlop={10} style={s.eyeBtn}>
+          <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9099B3" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -385,8 +393,10 @@ const s = StyleSheet.create({
   field:      { marginBottom: 14 },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: '#2A3156', marginBottom: 6 },
   fieldError: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
-  input:      { padding: 13, borderRadius: 12, borderWidth: 1.5, borderColor: '#E4E7F1', backgroundColor: '#F6F7FB', fontSize: 15, color: '#000933' },
+  input:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, borderColor: '#E4E7F1', backgroundColor: '#F6F7FB' },
+  inputInner:   { flex: 1, fontSize: 15, color: '#000933' },
   inputFocused: { borderColor: '#F2760F' },
+  eyeBtn:       { paddingLeft: 8 },
 
   photoBtn:     { width: 110, height: 110, borderRadius: 55, borderWidth: 2, borderColor: '#F2760F', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', backgroundColor: '#FEF0E3', marginBottom: 20, gap: 4 },
   photoBtnText: { fontSize: 11, color: '#F2760F', fontWeight: '600' },

@@ -202,6 +202,85 @@ export const LojistaService = {
     if (!res.ok) return null;
     return res.json();
   },
+
+  buscarLojaDetalhes: async (lojaId: string, token: string): Promise<any | null> => {
+    const res = await fetch(`${API_URL}/lojista/lojas/${lojaId}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { loja } = await res.json();
+    return loja;
+  },
+
+  atualizarLoja: async (
+    lojaId: string,
+    token: string,
+    dados: {
+      nome?: string;
+      descricao?: string;
+      categoria?: string;
+      telefone?: string;
+      aceitaAgendamento?: boolean;
+      antecedenciaMinima?: number;
+    },
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/lojas/${lojaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar loja');
+    }
+  },
+
+  criarProduto: async (
+    token: string,
+    dados: {
+      lojaId: string;
+      nome: string;
+      descricao: string;
+      preco: number;
+      estoque: number;
+      categoria: string;
+      tags: string[];
+      imagemUrl?: string;
+    },
+  ): Promise<any> => {
+    const res = await fetch(`${API_URL}/lojista/produtos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ ...dados, imagemUrl: dados.imagemUrl ?? '' }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao criar produto');
+    }
+    const { produto } = await res.json();
+    return produto;
+  },
+
+  buscarEntregas: async (
+    lojaId: string,
+    token: string,
+  ): Promise<{ emAndamento: any[]; concluidas: any[] }> => {
+    const [andamento, concluidas] = await Promise.all([
+      (async () => {
+        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=saiu_entrega&limit=10`, { headers: authHeader(token) });
+        if (!r.ok) return [];
+        const { pedidos } = await r.json();
+        return pedidos ?? [];
+      })(),
+      (async () => {
+        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=entregue&limit=20`, { headers: authHeader(token) });
+        if (!r.ok) return [];
+        const { pedidos } = await r.json();
+        return pedidos ?? [];
+      })(),
+    ]);
+    return { emAndamento: andamento, concluidas };
+  },
 };
 
 export const EntregadorService = {
@@ -252,6 +331,14 @@ export const EntregadorService = {
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
       body: JSON.stringify({ status }),
     });
+  },
+
+  buscarPerfil: async (token: string): Promise<any | null> => {
+    const res = await fetch(`${API_URL}/entregador/perfil`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    return res.json();
   },
 
   buscarGanhos: async (token: string): Promise<any> => {
