@@ -12,7 +12,12 @@ export async function uploadImagemProduto(
   const ext = mimeType.split('/')[1] || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  await supabase.storage.createBucket('produtos', { public: true }).catch(() => {});
+  const { error: bucketError } = await supabase.storage.createBucket('produtos', { public: true });
+  if (bucketError && bucketError.message.includes('already exists')) {
+    await supabase.storage.updateBucket('produtos', { public: true });
+  } else if (bucketError) {
+    throw bucketError;
+  }
 
   const { error } = await supabase.storage
     .from('produtos')

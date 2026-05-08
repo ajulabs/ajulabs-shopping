@@ -1,5 +1,5 @@
-import { NovoProduto } from '../../src/features/lojista/produtos';
+import { ProdutosScreen } from '../../src/features/lojista/produtos';
 
-export default function ProdutosScreen() {
-  return <NovoProduto />;
+export default function ProdutosPage() {
+  return <ProdutosScreen />;
 }

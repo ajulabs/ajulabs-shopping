@@ -24,6 +24,7 @@ interface ProductData {
 interface NovoProdutoProps {
   dark?: boolean;
   onPublicar?: (data: ProductData) => void;
+  onVoltar?: () => void;
 }
 
 const STEPS = ['Foto', 'IA analisa', 'Revisar', 'Publicar'];
@@ -339,7 +340,7 @@ function EditStage({
   );
 }
 
-export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
+export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoProps) {
   const token = useAuthLojistaStore(s => s.token);
   const lojaId = useAuthLojistaStore(s => s.lojaId);
 
@@ -419,13 +420,19 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
         imageUri: imageUri ?? undefined,
       });
       onPublicar?.(productData);
-      Alert.alert('Produto publicado!', `"${productData.nome}" foi adicionado à sua vitrine.`);
-      setStage('capture');
-      setImageUri(null);
-      setProductData({
-        nome: '', categoria: '', descricao: '',
-        tags: [], preco: '', estoque: '', variacoes: [],
-      });
+      Alert.alert('Produto publicado!', `"${productData.nome}" foi adicionado à sua vitrine.`, [
+        {
+          text: 'OK', onPress: () => {
+            if (onVoltar) {
+              onVoltar();
+            } else {
+              setStage('capture');
+              setImageUri(null);
+              setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [] });
+            }
+          },
+        },
+      ]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao publicar produto.';
       Alert.alert('Erro', msg);
@@ -439,8 +446,8 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
       <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
-        {isEdit && (
-          <TouchableOpacity style={styles.backBtn} onPress={handleVoltar} activeOpacity={0.7}>
+        {(isEdit || onVoltar) && (
+          <TouchableOpacity style={styles.backBtn} onPress={isEdit ? handleVoltar : onVoltar} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={22} color={textColor} />
           </TouchableOpacity>
         )}

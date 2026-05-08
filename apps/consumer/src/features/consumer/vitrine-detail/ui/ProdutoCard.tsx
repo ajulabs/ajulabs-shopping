@@ -11,7 +11,7 @@ interface ProdutoCardProps {
 
 function ProductImg({ uri, alt }: { uri: string; alt: string }) {
   const [error, setError] = useState(false);
-  if (error) {
+  if (error || !uri) {
     return (
       <View style={styles.imgFallback}>
         <Text style={styles.imgFallbackText}>{alt.charAt(0)}</Text>
