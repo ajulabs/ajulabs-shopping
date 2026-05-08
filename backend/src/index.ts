@@ -1,7 +1,7 @@
+import 'dotenv/config';
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import lojasRoutes from './routes/lojas.routes';
 import produtosRoutes from './routes/produtos.routes';
@@ -13,8 +13,6 @@ import enderecosRoutes from './routes/enderecos.routes';
 import entregadorRoutes from './routes/entregador.routes';
 import lojistaRoutes from './routes/lojista.routes';
 import { initSocket } from './utils/socket';
-
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
