@@ -9,6 +9,7 @@ import chatRoutes from './routes/chat.routes';
 import avaliacoesRoutes from './routes/avaliacoes.routes';
 import perfilRoutes from './routes/perfil.routes';
 import enderecosRoutes from './routes/enderecos.routes';
+import entregadorRoutes from './routes/entregador.routes';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.get('/', (req, res) => {
       avaliacoes: '/avaliacoes',
       perfil: '/perfil',
       enderecos: '/enderecos',
+      entregador: '/entregador',
     },
   });
 });
@@ -45,6 +47,7 @@ app.use('/chat', chatRoutes);
 app.use('/avaliacoes', avaliacoesRoutes);
 app.use('/perfil', perfilRoutes);
 app.use('/enderecos', enderecosRoutes);
+app.use('/entregador', entregadorRoutes);
 
 // 404
 app.use((req, res) => {
