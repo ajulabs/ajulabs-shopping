@@ -45,6 +45,7 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const cachearLoja = useCartStore(s => s.cachearLoja);
+  const adicionar = useCartStore(s => s.adicionar);
 
   useEffect(() => {
     Promise.all([
@@ -88,8 +89,6 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const produtosFiltrados = catSelecionada === 'Todos'
     ? produtos
     : produtos.filter(p => p.categoria === catSelecionada);
-
-  const adicionar = useCartStore(s => s.adicionar);
 
   const handleAddToCart = useCallback((produtoId: string) => {
     const produto = produtos.find(p => p.id === produtoId);
