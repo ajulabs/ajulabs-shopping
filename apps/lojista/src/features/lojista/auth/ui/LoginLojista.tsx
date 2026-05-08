@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
+import { useAuthLojistaStore } from '../model/store';
 
 interface LoginLojistaProps {
   onLoginSuccess?: () => void;
@@ -186,6 +187,7 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
 export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
   const router = useRouter();
+  const login = useAuthLojistaStore(s => s.login);
   const [cnpj, setCnpj]             = useState('');
   const [senha, setSenha]           = useState('');
   const [loading, setLoading]       = useState(false);
@@ -200,16 +202,16 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
     setError('');
     setLoading(true);
     try {
-      // TODO: conectar com authStore / API
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await login(cnpj, senha);
       onLoginSuccess?.();
       router.replace('/(lojista)/pedidos');
-    } catch {
-      setError('CNPJ ou senha incorretos. Tente novamente.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'CNPJ ou senha incorretos. Tente novamente.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [cnpj, senha, onLoginSuccess, router]);
+  }, [cnpj, senha, login, onLoginSuccess, router]);
 
   return (
     <View style={styles.container}>

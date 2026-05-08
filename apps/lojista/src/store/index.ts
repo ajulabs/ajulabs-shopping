@@ -1,1 +1,1 @@
-// State is managed within each feature's model/ segment
+export { useAuthLojistaStore } from '../features/lojista/auth/model/store';

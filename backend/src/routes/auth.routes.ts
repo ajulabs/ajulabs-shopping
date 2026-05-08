@@ -185,15 +185,16 @@ router.post('/lojista/registrar', async (req, res) => {
 
 router.post('/lojista/login', async (req, res) => {
   try {
-    const { email, senha } = z.object({
-      email: z.string().email(),
+    const { cnpj, senha } = z.object({
+      cnpj: z.string(),
       senha: z.string(),
     }).parse(req.body);
 
-    const lojista = await prisma.lojista.findUnique({ where: { email } });
+    const cnpjRaw = cnpj.replace(/\D/g, '');
+    const lojista = await prisma.lojista.findUnique({ where: { cnpj: cnpjRaw } });
 
     if (!lojista || !(await compararSenha(senha, lojista.senhaHash))) {
-      return res.status(401).json({ error: 'Email ou senha inválidos' });
+      return res.status(401).json({ error: 'CNPJ ou senha inválidos' });
     }
 
     const token = gerarToken({ id: lojista.id, tipo: 'lojista' });
