@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import multer from 'multer';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+import { uploadImagemProduto } from '../utils/supabase';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const uploadImagem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -248,6 +249,18 @@ const produtoSchema = z.object({
   destaque: z.boolean().default(false),
 });
 
+const produtoFormSchema = z.object({
+  lojaId: z.string().uuid(),
+  nome: z.string().min(2),
+  descricao: z.string(),
+  preco: z.string().transform(v => parseFloat(v)).pipe(z.number().positive()),
+  estoque: z.string().transform(v => parseInt(v, 10)).pipe(z.number().int().nonnegative()),
+  categoria: z.string(),
+  tags: z.string().optional().transform(v => {
+    try { return JSON.parse(v ?? '[]'); } catch { return []; }
+  }).pipe(z.array(z.string())),
+});
+
 // GET /lojista/produtos - Listar produtos da loja
 router.get('/produtos', authMiddleware, authLojista, async (req: AuthRequest, res) => {
   try {
@@ -317,15 +330,26 @@ Formato obrigatório:
   }
 });
 
-// POST /lojista/produtos - Criar produto
-router.post('/produtos', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+// POST /lojista/produtos - Criar produto (multipart: imagem + dados)
+router.post('/produtos', authMiddleware, authLojista, uploadImagem.single('imagem'), async (req: AuthRequest, res) => {
   try {
-    const dados = produtoSchema.parse(req.body);
+    const dados = produtoFormSchema.parse(req.body);
 
     const loja = await verificarDonoLoja(dados.lojaId, req.user!.id);
     if (!loja) return res.status(403).json({ error: 'Acesso negado a esta loja' });
 
-    const produto = await prisma.produto.create({ data: dados });
+    let imagemUrl = '';
+    if (req.file) {
+      try {
+        imagemUrl = await uploadImagemProduto(req.file.buffer, req.file.mimetype);
+      } catch {
+        // Continua sem imagem se o upload falhar
+      }
+    }
+
+    const produto = await prisma.produto.create({
+      data: { ...dados, imagemUrl },
+    });
 
     res.status(201).json({ produto });
   } catch (error) {

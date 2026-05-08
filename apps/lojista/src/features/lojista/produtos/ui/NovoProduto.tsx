@@ -416,7 +416,7 @@ export function NovoProduto({ dark = false, onPublicar }: NovoProdutoProps) {
         estoque: isNaN(estoque) ? 0 : estoque,
         categoria: productData.categoria,
         tags: productData.tags,
-        imagemUrl: imageUri ?? '',
+        imageUri: imageUri ?? undefined,
       });
       onPublicar?.(productData);
       Alert.alert('Produto publicado!', `"${productData.nome}" foi adicionado à sua vitrine.`);

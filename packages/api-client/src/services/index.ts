@@ -252,13 +252,24 @@ export const LojistaService = {
       estoque: number;
       categoria: string;
       tags: string[];
-      imagemUrl?: string;
+      imageUri?: string;
     },
   ): Promise<any> => {
+    const formData = new FormData();
+    formData.append('lojaId', dados.lojaId);
+    formData.append('nome', dados.nome);
+    formData.append('descricao', dados.descricao);
+    formData.append('preco', String(dados.preco));
+    formData.append('estoque', String(dados.estoque));
+    formData.append('categoria', dados.categoria);
+    formData.append('tags', JSON.stringify(dados.tags));
+    if (dados.imageUri) {
+      formData.append('imagem', { uri: dados.imageUri, type: 'image/jpeg', name: 'produto.jpg' } as any);
+    }
     const res = await fetch(`${API_URL}/lojista/produtos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify({ ...dados, imagemUrl: dados.imagemUrl ?? '' }),
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
