@@ -50,7 +50,7 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   useEffect(() => {
     Promise.all([
       LojaService.buscarPorId(lojaId),
-      ProdutoService.listarPorLoja(lojaId),
+      ProdutoService.listarPorLoja(lojaId).catch(() => [] as Produto[]),
     ]).then(([l, p]) => {
       if (l) {
         setLoja(l);
@@ -59,6 +59,11 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
       setProdutos(p);
     }).finally(() => setLoading(false));
   }, [lojaId]);
+
+  const handleAddToCart = useCallback((produtoId: string) => {
+    const produto = produtos.find(p => p.id === produtoId);
+    if (produto) adicionar(produto);
+  }, [produtos, adicionar]);
 
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
@@ -89,11 +94,6 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const produtosFiltrados = catSelecionada === 'Todos'
     ? produtos
     : produtos.filter(p => p.categoria === catSelecionada);
-
-  const handleAddToCart = useCallback((produtoId: string) => {
-    const produto = produtos.find(p => p.id === produtoId);
-    if (produto) adicionar(produto);
-  }, [produtos, adicionar]);
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
