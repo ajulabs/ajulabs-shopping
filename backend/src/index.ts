@@ -1,3 +1,4 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -10,6 +11,7 @@ import avaliacoesRoutes from './routes/avaliacoes.routes';
 import perfilRoutes from './routes/perfil.routes';
 import enderecosRoutes from './routes/enderecos.routes';
 import entregadorRoutes from './routes/entregador.routes';
+import { criarWebSocketServer } from './routes/websocket';
 
 dotenv.config();
 
@@ -60,6 +62,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-app.listen(PORT, () => {
+const httpServer = http.createServer(app);
+criarWebSocketServer(httpServer);
+
+httpServer.listen(PORT, () => {
   console.log(`\n🚀 AjuLabs API rodando em http://localhost:${PORT}\n`);
 });
