@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, StatusBar, SafeAreaView,
+  StyleSheet, Animated, StatusBar, SafeAreaView, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Order, OrderStatus, PEDIDOS_MOCK, STATUS_META, FLOW } from '../data';
+import { LojistaService } from '@ajulabs/api-client';
+import { useAuthLojistaStore } from '../../../auth/model/store';
+import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
 
@@ -12,12 +14,53 @@ const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 
 type Screen = 'list' | 'detail' | 'delivery';
 
+function mapPedidoToOrder(raw: any): Order {
+  const status: OrderStatus = ORDER_STATUS_MAP[raw.status as string] ?? 'preparando';
+  const total = Number(raw.total ?? 0);
+  const hora = raw.criadoEm
+    ? new Date(raw.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : '--:--';
+  return {
+    id: `#${raw.id.slice(-6).toUpperCase()}`,
+    _id: raw.id,
+    status,
+    cliente: raw.consumidor?.nome ?? 'Cliente',
+    endereco: raw.enderecoEntrega
+      ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}\n${raw.enderecoEntrega.bairro}, ${raw.enderecoEntrega.cidade}`
+      : '',
+    distancia: '–',
+    hora,
+    total,
+    itens: (raw.itens ?? []).map((it: any) => ({
+      nome: it.nomeSnapshot ?? it.nome ?? '',
+      qtd: it.quantidade ?? 1,
+      preco: Number(it.precoUnitario ?? 0),
+    })),
+  };
+}
+
 export function PedidosScreen() {
-  const [orders, setOrders] = useState<Order[]>(PEDIDOS_MOCK);
+  const token = useAuthLojistaStore(s => s.token);
+  const lojaId = useAuthLojistaStore(s => s.lojaId);
+  const lojaNome = useAuthLojistaStore(s => s.lojaNome);
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'todos' | OrderStatus>('todos');
   const [screen, setScreen] = useState<Screen>('list');
   const [selected, setSelected] = useState<Order | null>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  const fetchPedidos = useCallback(async () => {
+    if (!lojaId || !token) { setLoading(false); return; }
+    try {
+      const raw = await LojistaService.listarPedidos(lojaId, token);
+      setOrders(raw.map(mapPedidoToOrder));
+    } catch {}
+    setLoading(false);
+  }, [lojaId, token]);
+
+  useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
 
   useEffect(() => {
     Animated.loop(
@@ -28,14 +71,25 @@ export function PedidosScreen() {
     ).start();
   }, []);
 
-  const advance = (id: string) => {
+  const advance = useCallback(async (id: string) => {
+    const order = orders.find(o => o.id === id);
+    if (!order || !token) return;
+
     setOrders(os => os.map(o => {
       if (o.id !== id) return o;
       const idx = FLOW.indexOf(o.status);
       const next = FLOW[idx + 1];
       return next ? { ...o, status: next } : o;
     }));
-  };
+
+    if (order._id) {
+      try {
+        await LojistaService.avancarStatus(order._id, token);
+      } catch {
+        fetchPedidos();
+      }
+    }
+  }, [orders, token, fetchPedidos]);
 
   const novos = orders.filter(o => o.status === 'novo').length;
   const list = filter === 'todos' ? orders : orders.filter(o => o.status === filter);
@@ -53,7 +107,6 @@ export function PedidosScreen() {
     outputRange: ['#DE6708', '#FFD0A8'],
   });
 
-  // Navegação entre telas
   if (screen === 'detail' && selected) {
     const currentOrder = orders.find(o => o.id === selected.id)!;
     return (
@@ -82,17 +135,15 @@ export function PedidosScreen() {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Header */}
       <View style={s.header}>
         <View style={s.headerTop}>
           <View>
-            <Text style={s.headerSub}>Loja do Chico — Calçados</Text>
+            <Text style={s.headerSub}>{lojaNome ?? 'Minha Loja'}</Text>
             <Text style={s.headerTitle}>Pedidos hoje</Text>
           </View>
-          <View style={s.onlineBadge}>
-            <View style={s.onlineDot} />
-            <Text style={s.onlineText}>ONLINE</Text>
-          </View>
+          <TouchableOpacity onPress={fetchPedidos} style={s.refreshBtn} activeOpacity={0.7}>
+            <Ionicons name="refresh" size={18} color="#9099B3" />
+          </TouchableOpacity>
         </View>
 
         {novos > 0 && (
@@ -107,7 +158,6 @@ export function PedidosScreen() {
           </Animated.View>
         )}
 
-        {/* Filtros */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll}>
           {filters.map(f => {
             const count = f.id === 'todos' ? orders.length : orders.filter(o => o.status === f.id).length;
@@ -124,64 +174,69 @@ export function PedidosScreen() {
         </ScrollView>
       </View>
 
-      {/* Lista */}
-      <ScrollView style={s.list} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        {list.length === 0 && (
-          <Text style={s.empty}>Nenhum pedido nesse filtro agora.</Text>
-        )}
-        {list.map(o => {
-          const meta = STATUS_META[o.status];
-          const isNew = o.status === 'novo';
-          return (
-            <TouchableOpacity key={o.id} onPress={() => { setSelected(o); setScreen('detail'); }} activeOpacity={0.85}>
-              <Animated.View style={[s.card, isNew && { borderColor, borderWidth: 2 }]}>
-                <View style={s.cardTop}>
-                  <View>
-                    <Text style={s.orderId}>{o.id}</Text>
-                    <Text style={s.orderMeta}>{o.hora} · {o.cliente} · {o.distancia}</Text>
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#DE6708" />
+        </View>
+      ) : (
+        <ScrollView style={s.list} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          {list.length === 0 && (
+            <Text style={s.empty}>Nenhum pedido nesse filtro agora.</Text>
+          )}
+          {list.map(o => {
+            const meta = STATUS_META[o.status];
+            const isNew = o.status === 'novo';
+            return (
+              <TouchableOpacity key={o.id} onPress={() => { setSelected(o); setScreen('detail'); }} activeOpacity={0.85}>
+                <Animated.View style={[s.card, isNew && { borderColor, borderWidth: 2 }]}>
+                  <View style={s.cardTop}>
+                    <View>
+                      <Text style={s.orderId}>{o.id}</Text>
+                      <Text style={s.orderMeta}>{o.hora} · {o.cliente} · {o.distancia}</Text>
+                    </View>
+                    <View style={[s.badge, { backgroundColor: meta.bg }]}>
+                      <Text style={[s.badgeText, { color: meta.color }]}>{meta.label}</Text>
+                    </View>
                   </View>
-                  <View style={[s.badge, { backgroundColor: meta.bg }]}>
-                    <Text style={[s.badgeText, { color: meta.color }]}>{meta.label}</Text>
-                  </View>
-                </View>
 
-                {o.itens.map((it, i) => (
-                  <View key={i} style={s.itemRow}>
-                    <Text style={s.itemName}><Text style={s.itemQty}>{it.qtd}×</Text> {it.nome}</Text>
-                    <Text style={s.itemPrice}>{brl(it.preco * it.qtd)}</Text>
-                  </View>
-                ))}
+                  {o.itens.map((it, i) => (
+                    <View key={i} style={s.itemRow}>
+                      <Text style={s.itemName}><Text style={s.itemQty}>{it.qtd}×</Text> {it.nome}</Text>
+                      <Text style={s.itemPrice}>{brl(it.preco * it.qtd)}</Text>
+                    </View>
+                  ))}
 
-                {o.obs && (
-                  <View style={s.obs}>
-                    <Text style={s.obsText}><Text style={{ fontWeight: '700' }}>Obs:</Text> {o.obs}</Text>
-                  </View>
-                )}
-
-                <View style={s.cardBottom}>
-                  <Text style={s.total}>{brl(o.total)}</Text>
-                  {meta.next && (
-                    <TouchableOpacity
-                      style={[s.actionBtn, { backgroundColor: isNew ? '#DE6708' : '#000933' }]}
-                      onPress={(e) => { advance(o.id); }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={s.actionBtnText}>{meta.next}</Text>
-                      <Ionicons name="chevron-forward" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  )}
-                  {!meta.next && (
-                    <View style={s.dispatched}>
-                      <Ionicons name="bicycle" size={14} color="#046C2E" />
-                      <Text style={s.dispatchedText}>{o.motoboy || 'Com motoboy'}</Text>
+                  {o.obs && (
+                    <View style={s.obs}>
+                      <Text style={s.obsText}><Text style={{ fontWeight: '700' }}>Obs:</Text> {o.obs}</Text>
                     </View>
                   )}
-                </View>
-              </Animated.View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+
+                  <View style={s.cardBottom}>
+                    <Text style={s.total}>{brl(o.total)}</Text>
+                    {meta.next && (
+                      <TouchableOpacity
+                        style={[s.actionBtn, { backgroundColor: isNew ? '#DE6708' : '#000933' }]}
+                        onPress={() => advance(o.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={s.actionBtnText}>{meta.next}</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    )}
+                    {!meta.next && (
+                      <View style={s.dispatched}>
+                        <Ionicons name="bicycle" size={14} color="#046C2E" />
+                        <Text style={s.dispatchedText}>{o.motoboy ?? 'Despachado'}</Text>
+                      </View>
+                    )}
+                  </View>
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -192,9 +247,7 @@ const s = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerSub: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#000933', marginTop: 2 },
-  onlineBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(57,255,137,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99 },
-  onlineDot: { width: 7, height: 7, borderRadius: 99, backgroundColor: '#39FF89' },
-  onlineText: { fontSize: 11, fontWeight: '700', color: '#046C2E' },
+  refreshBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0F1F7', alignItems: 'center', justifyContent: 'center' },
   alertBanner: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: '#DE6708', flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2 },
   alertIcon: { width: 32, height: 32, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   alertTitle: { fontSize: 13, fontWeight: '600', color: '#fff' },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { EntregadorService } from '@ajulabs/api-client';
+import { useAuthEntregadorStore } from '../../auth/model/store';
 
 const brl = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -25,7 +27,7 @@ const STAGE_LABEL: Record<Stage, string> = {
 interface ActiveRide {
   id: string;
   loja: { nome: string; endereco: string; bairro: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento: string };
+  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
   ganho: number;
   distancia: number;
   duracao: number;
@@ -90,14 +92,22 @@ function StageCard({
 }
 
 export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
+  const token = useAuthEntregadorStore(s => s.token);
   const [stage, setStage] = useState<Stage>('to-store');
   const idx = STAGES.indexOf(stage);
 
-  const advance = () => {
+  const advance = useCallback(async () => {
     const next = STAGES[idx + 1];
-    if (next) setStage(next);
-    else onFinish();
-  };
+    if (!next) { onFinish(); return; }
+
+    if (next === 'to-customer' && token) {
+      await EntregadorService.atualizarStatusCorrida(token, ride.id, 'saiu_entrega').catch(() => {});
+    } else if (next === 'delivered' && token) {
+      await EntregadorService.atualizarStatusCorrida(token, ride.id, 'entregue').catch(() => {});
+    }
+
+    setStage(next);
+  }, [idx, token, ride.id, onFinish]);
 
   return (
     <SafeAreaView style={s.safeArea}>

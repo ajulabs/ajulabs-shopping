@@ -231,6 +231,11 @@ router.post('/lojista/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
+    const loja = await prisma.loja.findFirst({
+      where: { lojistaId: lojista.id },
+      select: { id: true, nome: true },
+    });
+
     const tokenPayload = { id: lojista.id, tipo: 'lojista' as const };
     const token = gerarToken(tokenPayload);
     const refreshToken = gerarRefreshToken(tokenPayload);
@@ -238,7 +243,7 @@ router.post('/lojista/login', async (req, res) => {
     res.json({
       token,
       refreshToken,
-      lojista: { id: lojista.id, nomeResponsavel: lojista.nomeResponsavel, email: lojista.email, cnpj: lojista.cnpj },
+      lojista: { id: lojista.id, nomeResponsavel: lojista.nomeResponsavel, email: lojista.email, cnpj: lojista.cnpj, lojaId: loja?.id ?? null, lojaNome: loja?.nome ?? null },
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });

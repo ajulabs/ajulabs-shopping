@@ -1,86 +1,296 @@
-import {
-  LOJAS, PRODUTOS, PEDIDOS_MOCK,
-  getProdutosByLoja, getLojaById,
-  getLojasAbertas, getLojasByCategoria,
-} from '../mock/mock-data';
-import { Loja, Produto, Pedido, StatusPedido } from '@ajulabs/types';
+import { Loja, Produto, Pedido, EnderecoSalvo } from '@ajulabs/types';
 export { matchAju } from "./consumer/aju";
 
 declare const process: { env: Record<string, string | undefined> };
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
+function authHeader(token: string) {
+  return { Authorization: `Bearer ${token}` };
+}
 
-const delay = (ms = 600) => new Promise(res => setTimeout(res, ms));
+function mapLoja(raw: any): Loja {
+  return {
+    id: raw.id,
+    nome: raw.nome,
+    descricao: raw.descricao,
+    categoria: raw.categoria,
+    imagem: raw.logoUrl ?? raw.bannerUrl ?? '',
+    logo: raw.logoUrl ?? undefined,
+    endereco: raw.endereco ?? { rua: '', numero: '', bairro: '', cidade: '', cep: '' },
+    avaliacao: Number(raw.avaliacao ?? 0),
+    totalAvaliacoes: raw.totalAvaliacoes ?? 0,
+    tempoEntregaMin: raw.tempoEntregaMin ?? 0,
+    tempoEntregaMax: raw.tempoEntregaMax ?? 0,
+    taxaEntrega: Number(raw.taxaEntrega ?? 0),
+    aberta: raw.aberta ?? true,
+    destaque: raw.destaque ?? false,
+  };
+}
 
+function mapProduto(raw: any): Produto {
+  return {
+    id: raw.id,
+    lojaId: raw.lojaId,
+    nome: raw.nome,
+    descricao: raw.descricao,
+    preco: Number(raw.preco ?? 0),
+    imagem: raw.imagemUrl ?? '',
+    categoria: raw.categoria ?? '',
+    disponivel: raw.disponivel ?? true,
+    destaque: raw.destaque ?? false,
+  };
+}
+
+function mapPedido(raw: any): Pedido {
+  return {
+    id: raw.id,
+    lojaId: raw.lojaId,
+    lojaNome: raw.loja?.nome ?? '',
+    consumidorId: raw.consumidorId,
+    itens: (raw.itens ?? []).map((item: any) => ({
+      produto: {
+        id: item.produtoId,
+        lojaId: raw.lojaId,
+        nome: item.nomeSnapshot,
+        descricao: '',
+        preco: Number(item.precoUnitario ?? 0),
+        imagem: '',
+        categoria: '',
+        disponivel: true,
+      },
+      quantidade: item.quantidade,
+      precoUnitario: Number(item.precoUnitario ?? 0),
+    })),
+    status: raw.status,
+    enderecoEntrega: raw.enderecoEntrega ?? { rua: '', numero: '', bairro: '', cidade: '', cep: '' },
+    subtotal: Number(raw.subtotal ?? 0),
+    taxaEntrega: Number(raw.taxaEntrega ?? 0),
+    total: Number(raw.total ?? 0),
+    criadoEm: raw.criadoEm,
+    atualizadoEm: raw.atualizadoEm,
+    estimativaEntrega: raw.estimativaEntrega ?? undefined,
+  };
+}
 
 export const LojaService = {
   listar: async (): Promise<Loja[]> => {
-    await delay();
-    return getLojasAbertas();
+    const res = await fetch(`${API_URL}/lojas`);
+    if (!res.ok) throw new Error('Erro ao buscar lojas');
+    const { lojas } = await res.json();
+    return lojas.map(mapLoja);
   },
 
   buscarPorCategoria: async (categoria: string): Promise<Loja[]> => {
-    await delay(400);
-    return getLojasByCategoria(categoria);
+    const res = await fetch(`${API_URL}/lojas?categoria=${encodeURIComponent(categoria)}`);
+    if (!res.ok) throw new Error('Erro ao buscar lojas');
+    const { lojas } = await res.json();
+    return lojas.map(mapLoja);
   },
 
   buscarPorId: async (id: string): Promise<Loja | null> => {
-    await delay(300);
-    return getLojaById(id) ?? null;
+    const res = await fetch(`${API_URL}/lojas/${id}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return mapLoja(data.loja ?? data);
   },
 
   buscar: async (termo: string): Promise<Loja[]> => {
-    await delay(400);
+    const res = await fetch(`${API_URL}/lojas`);
+    if (!res.ok) throw new Error('Erro ao buscar lojas');
+    const { lojas } = await res.json();
     const t = termo.toLowerCase();
-    return LOJAS.filter(l =>
-      l.nome.toLowerCase().includes(t) ||
-      l.descricao.toLowerCase().includes(t) ||
-      l.categoria.toLowerCase().includes(t)
-    );
+    return lojas
+      .filter((l: any) =>
+        l.nome?.toLowerCase().includes(t) ||
+        l.descricao?.toLowerCase().includes(t) ||
+        l.categoria?.toLowerCase().includes(t)
+      )
+      .map(mapLoja);
   },
 };
-
-
 
 export const ProdutoService = {
   listarPorLoja: async (lojaId: string): Promise<Produto[]> => {
-    await delay(400);
-    return getProdutosByLoja(lojaId);
+    const res = await fetch(`${API_URL}/lojas/${lojaId}/produtos`);
+    if (!res.ok) throw new Error('Erro ao buscar produtos');
+    const data = await res.json();
+    const lista = data.produtos ?? data;
+    return lista.map(mapProduto);
   },
 
   buscarDestaqesPorLoja: async (lojaId: string): Promise<Produto[]> => {
-    await delay(300);
-    return getProdutosByLoja(lojaId).filter(p => p.destaque);
+    const res = await fetch(`${API_URL}/lojas/${lojaId}/produtos`);
+    if (!res.ok) throw new Error('Erro ao buscar produtos');
+    const data = await res.json();
+    const lista = data.produtos ?? data;
+    return lista.filter((p: any) => p.destaque).map(mapProduto);
   },
 };
-
-
 
 export const PedidoService = {
-  listar: async (): Promise<Pedido[]> => {
-    await delay(500);
-    return PEDIDOS_MOCK;
+  listar: async (token: string): Promise<Pedido[]> => {
+    const res = await fetch(`${API_URL}/pedidos`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) throw new Error('Erro ao buscar pedidos');
+    const { pedidos } = await res.json();
+    return pedidos.map(mapPedido);
   },
 
-  buscarPorId: async (id: string): Promise<Pedido | null> => {
-    await delay(300);
-    return PEDIDOS_MOCK.find(p => p.id === id) ?? null;
+  buscarPorId: async (id: string, token: string): Promise<Pedido | null> => {
+    const res = await fetch(`${API_URL}/pedidos/${id}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { pedido } = await res.json();
+    return mapPedido(pedido);
   },
 
-  atualizarStatus: async (id: string, status: StatusPedido): Promise<Pedido | null> => {
-    await delay(400);
-    const pedido = PEDIDOS_MOCK.find(p => p.id === id);
-    if (!pedido) return null;
-    pedido.status = status;
-    pedido.atualizadoEm = new Date().toISOString();
-    return pedido;
+  criar: async (
+    token: string,
+    dados: {
+      lojaId: string;
+      enderecoEntregaId: string;
+      metodoPagamento: 'pix' | 'cartao';
+      itens: { produtoId: string; quantidade: number }[];
+      obs?: string;
+    }
+  ): Promise<Pedido> => {
+    const res = await fetch(`${API_URL}/pedidos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao criar pedido');
+    }
+    const { pedido } = await res.json();
+    return mapPedido(pedido);
   },
 };
 
+export const LojistaService = {
+  listarPedidos: async (
+    lojaId: string,
+    token: string,
+    status?: string,
+  ): Promise<any[]> => {
+    const url = status
+      ? `${API_URL}/lojista/lojas/${lojaId}/pedidos?status=${encodeURIComponent(status)}`
+      : `${API_URL}/lojista/lojas/${lojaId}/pedidos`;
+    const res = await fetch(url, { headers: authHeader(token) });
+    if (!res.ok) return [];
+    const { pedidos } = await res.json();
+    return pedidos ?? [];
+  },
 
+  avancarStatus: async (pedidoId: string, token: string): Promise<void> => {
+    await fetch(`${API_URL}/lojista/pedidos/${pedidoId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    });
+  },
+
+  buscarDashboard: async (
+    lojaId: string,
+    token: string,
+  ): Promise<{ hoje: any; mes: any } | null> => {
+    const res = await fetch(`${API_URL}/lojista/lojas/${lojaId}/dashboard`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  },
+};
+
+export const EntregadorService = {
+  atualizarOnline: async (token: string, online: boolean): Promise<void> => {
+    await fetch(`${API_URL}/entregador/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ online }),
+    });
+  },
+
+  buscarCorridasDisponiveis: async (token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/entregador/corridas/disponivel`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { corridas } = await res.json();
+    return corridas ?? [];
+  },
+
+  aceitarCorrida: async (token: string, pedidoId: string): Promise<any> => {
+    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/aceitar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Corrida não disponível');
+    }
+    const { pedido } = await res.json();
+    return pedido;
+  },
+
+  rejeitarCorrida: async (token: string, pedidoId: string): Promise<void> => {
+    await fetch(`${API_URL}/entregador/corridas/${pedidoId}/rejeitar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    });
+  },
+
+  atualizarStatusCorrida: async (
+    token: string,
+    pedidoId: string,
+    status: 'saiu_entrega' | 'entregue',
+  ): Promise<void> => {
+    await fetch(`${API_URL}/entregador/corridas/${pedidoId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  buscarGanhos: async (token: string): Promise<any> => {
+    const res = await fetch(`${API_URL}/entregador/ganhos`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  },
+
+  listarEntregas: async (token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/entregador/entregas`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { entregas } = await res.json();
+    return entregas ?? [];
+  },
+};
+
+export const EnderecoService = {
+  listar: async (token: string): Promise<EnderecoSalvo[]> => {
+    const res = await fetch(`${API_URL}/enderecos`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { enderecos } = await res.json();
+    return (enderecos ?? []).map((e: any): EnderecoSalvo => ({
+      id: e.id,
+      apelido: e.apelido ?? 'Endereço',
+      rua: e.numero ? `${e.rua}, ${e.numero}` : e.rua,
+      bairro: e.cidade ? `${e.bairro}, ${e.cidade}` : e.bairro,
+      cep: e.cep,
+      padrao: e.padrao ?? false,
+    }));
+  },
+};
 
 export const TranscricaoService = {
-
   transcrever: async (audioUri: string): Promise<string> => {
     const formData = new FormData();
     formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'audio.m4a' } as any);

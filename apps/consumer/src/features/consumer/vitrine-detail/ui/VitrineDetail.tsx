@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable } from 'react-native';
+import { useState, useCallback, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getLojaById, getProdutosByLoja } from '@ajulabs/api-client';
+import { LojaService, ProdutoService } from '@ajulabs/api-client';
+import { Loja, Produto } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { ProdutoCard } from './ProdutoCard';
 import { useCartStore } from '../../../../store';
@@ -40,15 +41,37 @@ function BannerImg({ uri }: { uri: string }) {
 export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const router = useRouter();
   const [catSelecionada, setCatSelecionada] = useState('Todos');
+  const [loja, setLoja] = useState<Loja | null>(null);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const cachearLoja = useCartStore(s => s.cachearLoja);
 
-  const loja = getLojaById(lojaId);
-  const produtos = loja ? getProdutosByLoja(loja.id) : [];
+  useEffect(() => {
+    Promise.all([
+      LojaService.buscarPorId(lojaId),
+      ProdutoService.listarPorLoja(lojaId),
+    ]).then(([l, p]) => {
+      if (l) {
+        setLoja(l);
+        cachearLoja(l);
+      }
+      setProdutos(p);
+    }).finally(() => setLoading(false));
+  }, [lojaId]);
 
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
   const bgMain    = dark ? colors.bgDark : '#FAFBFE';
   const surface   = dark ? colors.surfDark : colors.n0;
   const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: bgMain, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.orange} />
+      </View>
+    );
+  }
 
   if (!loja) {
     return (

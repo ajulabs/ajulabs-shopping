@@ -1,27 +1,10 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-
-const ENDERECOS_MOCK: EnderecoSalvo[] = [
-  {
-    id: 'addr-1',
-    apelido: 'Casa',
-    rua: 'R. Laranjeiras, 412',
-    bairro: 'Atalaia, Aracaju',
-    cep: '49.035-110',
-    padrao: true,
-  },
-  {
-    id: 'addr-2',
-    apelido: 'Trabalho',
-    rua: 'Av. Beira Mar, 1280',
-    bairro: 'Atalaia, Aracaju',
-    cep: '49.037-580',
-    padrao: false,
-  },
-];
+import { EnderecoService } from '@ajulabs/api-client';
+import { useAuthStore } from '../../../../store';
 
 interface Props {
   enderecoId: string;
@@ -29,48 +12,83 @@ interface Props {
 }
 
 export function StepEndereco({ enderecoId, onSelect }: Props) {
+  const token = useAuthStore(s => s.token);
+  const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    EnderecoService.listar(token)
+      .then(data => {
+        setEnderecos(data);
+        if (data.length > 0) {
+          const padrao = data.find(e => e.padrao) ?? data[0];
+          onSelect(padrao.id);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  if (loading) {
+    return (
+      <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+        <ActivityIndicator size="large" color={colors.orange} />
+      </View>
+    );
+  }
+
   return (
     <View>
       <Text style={styles.titulo}>Onde a gente entrega?</Text>
 
-      {ENDERECOS_MOCK.map((addr) => {
-        const selected = addr.id === enderecoId;
-        return (
-          <TouchableOpacity
-            key={addr.id}
-            style={[styles.card, selected && styles.cardSelected]}
-            onPress={() => onSelect(addr.id)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.iconBox, selected && styles.iconBoxSelected]}>
-              <Ionicons
-                name="location"
-                size={18}
-                color={selected ? '#fff' : colors.navy}
-              />
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.apelido}>{addr.apelido}</Text>
-                {addr.padrao && (
-                  <View style={styles.badgePadrao}>
-                    <Text style={styles.badgePadraoTxt}>Padrão</Text>
-                  </View>
-                )}
+      {enderecos.length === 0 ? (
+        <View style={styles.vazio}>
+          <Ionicons name="location-outline" size={32} color={colors.n400} />
+          <Text style={styles.vazioTxt}>Nenhum endereço cadastrado</Text>
+        </View>
+      ) : (
+        enderecos.map((addr) => {
+          const selected = addr.id === enderecoId;
+          return (
+            <TouchableOpacity
+              key={addr.id}
+              style={[styles.card, selected && styles.cardSelected]}
+              onPress={() => onSelect(addr.id)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.iconBox, selected && styles.iconBoxSelected]}>
+                <Ionicons
+                  name="location"
+                  size={18}
+                  color={selected ? '#fff' : colors.navy}
+                />
               </View>
-              <Text style={styles.rua}>{addr.rua}</Text>
-              <Text style={styles.bairro}>{addr.bairro} · {addr.cep}</Text>
-            </View>
 
-            {selected && (
-              <View style={styles.check}>
-                <Ionicons name="checkmark" size={12} color="#fff" />
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.apelido}>{addr.apelido}</Text>
+                  {addr.padrao && (
+                    <View style={styles.badgePadrao}>
+                      <Text style={styles.badgePadraoTxt}>Padrão</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.rua}>{addr.rua}</Text>
+                <Text style={styles.bairro}>{addr.bairro} · {addr.cep}</Text>
               </View>
-            )}
-          </TouchableOpacity>
-        );
-      })}
+
+              {selected && (
+                <View style={styles.check}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })
+      )}
 
       <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
         <Ionicons name="add" size={18} color={colors.n500} />
@@ -82,6 +100,8 @@ export function StepEndereco({ enderecoId, onSelect }: Props) {
 
 const styles = StyleSheet.create({
   titulo:         { fontSize: 17, fontWeight: '700', color: colors.navy, marginBottom: 12 },
+  vazio:          { alignItems: 'center', paddingVertical: 32, gap: 8 },
+  vazioTxt:       { fontSize: 14, color: colors.n500 },
   card:           { flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 14,
                     backgroundColor: colors.n0, borderRadius: 14, marginBottom: 10,
                     borderWidth: 1.5, borderColor: colors.n200 },

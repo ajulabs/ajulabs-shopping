@@ -14,10 +14,11 @@ export function CartScreen() {
   const router = useRouter();
 
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
+  const lojasCache = useCartStore(s => s.lojasCache);
   const aumentar = useCartStore(s => s.aumentar);
   const diminuir = useCartStore(s => s.diminuir);
 
-  const grupos = useMemo(() => calcularGrupos(itensPorLoja), [itensPorLoja]);
+  const grupos = useMemo(() => calcularGrupos(itensPorLoja, lojasCache), [itensPorLoja, lojasCache]);
   const quantidadeItens = useMemo(
     () => calcularQuantidadeItens(itensPorLoja),
     [itensPorLoja]

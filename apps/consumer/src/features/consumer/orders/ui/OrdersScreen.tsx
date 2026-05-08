@@ -4,19 +4,25 @@ import { useRouter } from 'expo-router';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
+import { useAuthStore } from '../../../../store';
 import { PedidoCard } from './PedidoCard';
 
 export function OrdersScreen() {
   const router = useRouter();
+  const token = useAuthStore(s => s.token);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    PedidoService.listar().then(data => {
-      setPedidos(data);
+    if (!token) {
       setLoading(false);
-    });
-  }, []);
+      return;
+    }
+    PedidoService.listar(token)
+      .then(data => setPedidos(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
 
   const ativos = pedidos.filter(p => !['entregue', 'cancelado'].includes(p.status));
   const historico = pedidos.filter(p => ['entregue', 'cancelado'].includes(p.status));

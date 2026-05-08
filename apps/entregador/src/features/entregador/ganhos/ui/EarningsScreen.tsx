@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,28 +6,16 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { EntregadorService } from '@ajulabs/api-client';
+import { useAuthEntregadorStore } from '../../auth/model/store';
 
 const brl = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-const SALES_7D = [120, 85, 210, 175, 90, 310, 187.5];
-
-const COURIER_TODAY = {
-  ganho: 187.5,
-  corridas: 12,
-  horasOnline: 4.5,
-  meta: { feitas: 12, alvo: 20, bonus: 50 },
-};
-
-const COURIER_HISTORY = [
-  { id: 'c1', trajeto: 'Caju & Cia → Suíssa', data: 'Hoje, 14h32', valor: 18.9, rating: 5 },
-  { id: 'c2', trajeto: 'Burguer do Bairro → Atalaia', data: 'Hoje, 13h10', valor: 14.5, rating: 5 },
-  { id: 'c3', trajeto: 'Farmácia Sergipe → Jardins', data: 'Hoje, 11h47', valor: 12.0, rating: 4 },
-  { id: 'c4', trajeto: 'Doceria Marisol → Centro', data: 'Ontem, 18h22', valor: 22.0, rating: 5 },
-];
 
 function Stars({ value }: { value: number }) {
   return (
@@ -45,8 +33,35 @@ function Stars({ value }: { value: number }) {
 }
 
 export function EarningsScreen() {
-  const max = Math.max(...SALES_7D);
-  const totalSemana = SALES_7D.reduce((a, b) => a + b, 0);
+  const token = useAuthEntregadorStore(s => s.token);
+  const [ganhos, setGanhos] = useState<any>(null);
+  const [entregas, setEntregas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    Promise.all([
+      EntregadorService.buscarGanhos(token).catch(() => null),
+      EntregadorService.listarEntregas(token).catch(() => []),
+    ]).then(([g, e]) => {
+      setGanhos(g);
+      setEntregas(e ?? []);
+    }).finally(() => setLoading(false));
+  }, [token]);
+
+  const ganhoSemana = Number(ganhos?.semana?.total ?? 0);
+  const corridasSemana = Number(ganhos?.semana?.corridas ?? 0);
+  const SALES_7D = [0, 0, 0, 0, 0, 0, ganhoSemana];
+  const max = Math.max(...SALES_7D, 1);
+  const totalSemana = ganhoSemana;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[s.safeArea, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#F2760F" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -55,34 +70,27 @@ export function EarningsScreen() {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={s.header}>
           <Text style={s.headerTitle}>Ganhos</Text>
           <Text style={s.headerSub}>Acompanhe seu desempenho</Text>
         </View>
 
-        {/* Card principal */}
         <View style={s.heroCard}>
           <View style={s.heroTop}>
-            <Text style={s.heroLabel}>Saldo disponível</Text>
-            <View style={s.trendBadge}>
-              <Text style={s.trendText}>+12% vs ontem</Text>
-            </View>
+            <Text style={s.heroLabel}>Esta semana</Text>
           </View>
-          <Text style={s.heroAmount}>{brl(COURIER_TODAY.ganho)}</Text>
+          <Text style={s.heroAmount}>{brl(ganhoSemana)}</Text>
+          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>
+            {corridasSemana} corridas
+          </Text>
           <View style={s.heroBtns}>
             <TouchableOpacity style={s.heroBtn} activeOpacity={0.85}>
               <Ionicons name="flash" size={15} color="#FFFFFF" />
               <Text style={s.heroBtnText}>Sacar via Pix</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.heroBtnOutline} activeOpacity={0.85}>
-              <Ionicons name="wallet" size={15} color="#FFFFFF" />
-              <Text style={s.heroBtnText}>Transferir</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Gráfico 7 dias */}
         <View style={s.card}>
           <View style={s.cardHeader}>
             <Text style={s.cardTitle}>Últimos 7 dias</Text>
@@ -90,7 +98,7 @@ export function EarningsScreen() {
           </View>
           <View style={s.chart}>
             {SALES_7D.map((v, i) => {
-              const h = (v / max) * 100;
+              const h = max > 0 ? (v / max) * 100 : 2;
               const isToday = i === SALES_7D.length - 1;
               return (
                 <View key={i} style={s.chartCol}>
@@ -98,22 +106,9 @@ export function EarningsScreen() {
                     {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)}
                   </Text>
                   <View style={s.chartBarTrack}>
-                    <View
-                      style={[
-                        s.chartBar,
-                        {
-                          height: `${h}%` as any,
-                          backgroundColor: isToday ? '#F2760F' : '#E4E7F1',
-                        },
-                      ]}
-                    />
+                    <View style={[s.chartBar, { height: `${h}%` as any, backgroundColor: isToday ? '#F2760F' : '#E4E7F1' }]} />
                   </View>
-                  <Text
-                    style={[
-                      s.chartDay,
-                      { color: isToday ? '#F2760F' : '#9099B3', fontWeight: isToday ? '700' : '500' },
-                    ]}
-                  >
+                  <Text style={[s.chartDay, { color: isToday ? '#F2760F' : '#9099B3', fontWeight: isToday ? '700' : '500' }]}>
                     {WEEKDAYS[i]}
                   </Text>
                 </View>
@@ -122,58 +117,38 @@ export function EarningsScreen() {
           </View>
         </View>
 
-        {/* Meta da semana */}
-        <View style={s.card}>
-          <View style={s.metaRow}>
-            <View style={s.metaIcon}>
-              <Ionicons name="trophy" size={22} color="#F2760F" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.metaTitle}>Meta da semana</Text>
-              <Text style={s.metaSub}>
-                {COURIER_TODAY.meta.alvo - COURIER_TODAY.meta.feitas} corridas pra ganhar bônus de R${' '}
-                {COURIER_TODAY.meta.bonus}
-              </Text>
-              <View style={s.metaTrack}>
-                <View
-                  style={[
-                    s.metaFill,
-                    {
-                      width: `${(COURIER_TODAY.meta.feitas / COURIER_TODAY.meta.alvo) * 100}%` as any,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Histórico de corridas */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle}>Corridas recentes</Text>
-          <TouchableOpacity>
-            <Text style={s.sectionLink}>Ver tudo</Text>
-          </TouchableOpacity>
         </View>
 
-        {COURIER_HISTORY.map((c) => (
-          <View key={c.id} style={s.historyRow}>
-            <View style={s.historyIcon}>
-              <Ionicons name="swap-horizontal" size={17} color="#9099B3" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.historyTrajeto} numberOfLines={1}>
-                {c.trajeto}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <Text style={s.historyData}>{c.data}</Text>
-                <Text style={s.historyDot}>·</Text>
-                <Stars value={c.rating} />
-              </View>
-            </View>
-            <Text style={s.historyValor}>{brl(c.valor)}</Text>
+        {entregas.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+            <Text style={{ fontSize: 13, color: '#9099B3' }}>Nenhuma entrega ainda</Text>
           </View>
-        ))}
+        ) : (
+          entregas.slice(0, 10).map((e: any) => {
+            const loja = e.pedido?.loja?.nome ?? '–';
+            const bairro = e.pedido?.enderecoEntrega?.bairro ?? '–';
+            const valor = Number(e.valorRecebido ?? 0) + Number(e.bonus ?? 0);
+            const data = e.criadoEm
+              ? new Date(e.criadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+              : '–';
+            return (
+              <View key={e.id} style={s.historyRow}>
+                <View style={s.historyIcon}>
+                  <Ionicons name="swap-horizontal" size={17} color="#9099B3" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.historyTrajeto} numberOfLines={1}>
+                    {loja} → {bairro}
+                  </Text>
+                  <Text style={s.historyData}>{data}</Text>
+                </View>
+                <Text style={s.historyValor}>{brl(valor)}</Text>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );

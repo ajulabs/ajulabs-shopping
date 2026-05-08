@@ -14,6 +14,8 @@ interface AuthLojistaState {
   isLoggedIn: boolean;
   token: string | null;
   lojistaId: string | null;
+  lojaId: string | null;
+  lojaNome: string | null;
   nomeResponsavel: string | null;
   email: string | null;
 
@@ -26,6 +28,8 @@ export const useAuthLojistaStore = create<AuthLojistaState>((set) => ({
   isLoggedIn: false,
   token: null,
   lojistaId: null,
+  lojaId: null,
+  lojaNome: null,
   nomeResponsavel: null,
   email: null,
 
@@ -47,6 +51,8 @@ export const useAuthLojistaStore = create<AuthLojistaState>((set) => ({
       isLoggedIn: true,
       token,
       lojistaId: lojista.id,
+      lojaId: lojista.lojaId ?? null,
+      lojaNome: lojista.lojaNome ?? null,
       nomeResponsavel: lojista.nomeResponsavel,
       email: lojista.email,
     });
@@ -89,6 +95,8 @@ export const useAuthLojistaStore = create<AuthLojistaState>((set) => ({
       isLoggedIn: false,
       token: null,
       lojistaId: null,
+      lojaId: null,
+      lojaNome: null,
       nomeResponsavel: null,
       email: null,
     });

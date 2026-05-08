@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Produto, ItemCarrinho } from '@ajulabs/types';
+import { Produto, Loja, ItemCarrinho } from '@ajulabs/types';
 import { getLojaById } from '@ajulabs/api-client';
 
 export interface GrupoLoja {
@@ -14,6 +14,7 @@ export interface GrupoLoja {
 
 interface CartState {
   itensPorLoja: Record<string, ItemCarrinho[]>;
+  lojasCache: Record<string, Loja>;
 
   adicionar: (produto: Produto) => void;
   remover: (produtoId: string) => void;
@@ -21,10 +22,12 @@ interface CartState {
   diminuir: (produtoId: string) => void;
   limparLoja: (lojaId: string) => void;
   limparTudo: () => void;
+  cachearLoja: (loja: Loja) => void;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
   itensPorLoja: {},
+  lojasCache: {},
 
   adicionar: (produto) => {
     const { itensPorLoja } = get();
@@ -93,14 +96,18 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   limparTudo: () => set({ itensPorLoja: {} }),
+
+  cachearLoja: (loja: Loja) =>
+    set(s => ({ lojasCache: { ...s.lojasCache, [loja.id]: loja } })),
 }));
 
 export function calcularGrupos(
-  itensPorLoja: Record<string, ItemCarrinho[]>
+  itensPorLoja: Record<string, ItemCarrinho[]>,
+  lojasCache: Record<string, Loja> = {},
 ): GrupoLoja[] {
   const grupos: GrupoLoja[] = [];
   for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
-    const loja = getLojaById(lojaId);
+    const loja = lojasCache[lojaId] ?? getLojaById(lojaId);
     if (!loja || itens.length === 0) continue;
     const subtotal = itens.reduce(
       (acc, i) => acc + i.produto.preco * i.quantidade, 0

@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LOJAS } from '@ajulabs/api-client';
 import { Loja } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 
 interface Props {
+  lojas: Loja[];
   onAbrirVitrine: (id: string) => void;
   dark?: boolean;
 }
@@ -19,20 +19,20 @@ function calcularScore(loja: Loja): number {
   );
 }
 
-export function LojasDestaque({ onAbrirVitrine, dark = false }: Props) {
+export function LojasDestaque({ lojas, onAbrirVitrine, dark = false }: Props) {
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
   const surface   = dark ? colors.surfDark : colors.n0;
   const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
   const destaques = useMemo(() => {
-    return LOJAS
+    return lojas
       .filter(l => l.aberta)
       .map(l => ({ loja: l, score: calcularScore(l) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
       .map(({ loja }) => loja);
-  }, []);
+  }, [lojas]);
 
   if (destaques.length === 0) return null;
 

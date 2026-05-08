@@ -11,7 +11,7 @@ import { useAuthEntregadorStore } from '../src/store';
 interface ActiveRide {
   id: string;
   loja: { nome: string; endereco: string; bairro: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento: string };
+  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
   ganho: number;
   distancia: number;
   duracao: number;

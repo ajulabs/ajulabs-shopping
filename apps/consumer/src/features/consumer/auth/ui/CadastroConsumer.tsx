@@ -46,8 +46,12 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
       errs.telefone = 'Telefone inválido.';
     if (!email.includes('@') || !email.includes('.'))
       errs.email = 'Email inválido.';
-    if (senha.length < 6)
-      errs.senha = 'A senha deve ter pelo menos 6 caracteres.';
+    if (senha.length < 8)
+      errs.senha = 'A senha deve ter pelo menos 8 caracteres.';
+    else if (!/[A-Z]/.test(senha))
+      errs.senha = 'A senha deve conter pelo menos 1 letra maiúscula.';
+    else if (!/[0-9]/.test(senha))
+      errs.senha = 'A senha deve conter pelo menos 1 número.';
     if (senha !== confirmar)
       errs.confirmar = 'As senhas não coincidem.';
     setErrors(errs);
@@ -127,7 +131,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           label="SENHA"
           value={senha}
           onChange={v => { setSenha(v); clearError('senha'); }}
-          placeholder="Mínimo 6 caracteres"
+          placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
           secureTextEntry
           error={errors.senha}
         />

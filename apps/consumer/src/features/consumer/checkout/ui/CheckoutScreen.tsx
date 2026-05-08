@@ -1,11 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { MetodoPagamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
+import { PedidoService } from '@ajulabs/api-client';
 import {
   useCartStore,
+  useAuthStore,
   calcularGrupos,
 } from '../../../../store';
 import { StepEndereco } from './StepEndereco';
@@ -14,36 +16,34 @@ import { StepConfirmacao } from './StepConfirmacao';
 
 const STEP_TITLES = ['Endereço', 'Pagamento', 'Confirmação'];
 
-function gerarCodigoPedido(): string {
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `#SD-${num}`;
-}
-
 export function CheckoutScreen() {
   const router = useRouter();
 
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
+  const lojasCache = useCartStore(s => s.lojasCache);
   const limparTudo = useCartStore(s => s.limparTudo);
-  const grupos = useMemo(() => calcularGrupos(itensPorLoja), [itensPorLoja]);
+  const token = useAuthStore(s => s.token);
+  const grupos = useMemo(() => calcularGrupos(itensPorLoja, lojasCache), [itensPorLoja, lojasCache]);
 
   const subtotal = useMemo(() => grupos.reduce((a, g) => a + g.subtotal, 0), [grupos]);
   const frete = useMemo(() => grupos.reduce((a, g) => a + g.taxaEntrega, 0), [grupos]);
 
   const [step, setStep] = useState(0);
-  const [enderecoId, setEnderecoId] = useState('addr-1');
+  const [enderecoId, setEnderecoId] = useState('');
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento>('pix');
-  const [codigoPedido] = useState(gerarCodigoPedido);
+  const [placing, setPlacing] = useState(false);
+  const [pedidoIds, setPedidoIds] = useState<string[]>([]);
 
   const desconto = metodoPagamento === 'pix' ? (subtotal + frete) * 0.05 : 0;
   const total = subtotal + frete - desconto;
   const numLojas = grupos.length;
 
   const tempoMin = useMemo(
-    () => Math.min(...grupos.map(g => g.tempoEntregaMin)),
+    () => grupos.length > 0 ? Math.min(...grupos.map(g => g.tempoEntregaMin)) : 0,
     [grupos]
   );
   const tempoMax = useMemo(
-    () => Math.max(...grupos.map(g => g.tempoEntregaMax)),
+    () => grupos.length > 0 ? Math.max(...grupos.map(g => g.tempoEntregaMax)) : 0,
     [grupos]
   );
 
@@ -57,10 +57,44 @@ export function CheckoutScreen() {
     }
   }, [step, router]);
 
-  const handleNext = useCallback(() => {
-    if (step === 1) limparTudo();
-    setStep(s => s + 1);
-  }, [step, limparTudo]);
+  const handleNext = useCallback(async () => {
+    if (step === 1) {
+      if (!token) {
+        Alert.alert('Erro', 'Faça login para continuar.');
+        return;
+      }
+      if (!enderecoId) {
+        Alert.alert('Endereço', 'Selecione um endereço de entrega.');
+        return;
+      }
+      setPlacing(true);
+      try {
+        const ids: string[] = [];
+        for (const grupo of grupos) {
+          const pedido = await PedidoService.criar(token, {
+            lojaId: grupo.lojaId,
+            enderecoEntregaId: enderecoId,
+            metodoPagamento,
+            itens: grupo.itens.map(i => ({
+              produtoId: i.produto.id,
+              quantidade: i.quantidade,
+            })),
+          });
+          ids.push(pedido.id);
+        }
+        setPedidoIds(ids);
+        limparTudo();
+        setStep(s => s + 1);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Erro ao criar pedido.';
+        Alert.alert('Erro', msg);
+      } finally {
+        setPlacing(false);
+      }
+    } else {
+      setStep(s => s + 1);
+    }
+  }, [step, token, enderecoId, grupos, metodoPagamento, limparTudo]);
 
   const handleAcompanhar = useCallback(() => {
     router.push('/(consumer)/pedidos');
@@ -114,7 +148,7 @@ export function CheckoutScreen() {
         )}
         {step === 2 && (
           <StepConfirmacao
-            codigoPedido={codigoPedido}
+            codigoPedido={pedidoIds[0] ? `#${pedidoIds[0].slice(-6).toUpperCase()}` : '#SD-0000'}
             tempoMin={tempoMin}
             tempoMax={tempoMax}
             numLojas={numLojas}
@@ -126,11 +160,22 @@ export function CheckoutScreen() {
 
       {step < 2 && (
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.btnContinuar} onPress={handleNext} activeOpacity={0.9}>
-            <Text style={styles.btnContinuarTxt}>
-              {step === 0 ? `Continuar · ${fmt(subtotal + frete)}` : `Pagar ${fmt(total)}`}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.n0} />
+          <TouchableOpacity
+            style={[styles.btnContinuar, placing && { opacity: 0.7 }]}
+            onPress={handleNext}
+            activeOpacity={0.9}
+            disabled={placing}
+          >
+            {placing ? (
+              <ActivityIndicator color={colors.n0} />
+            ) : (
+              <>
+                <Text style={styles.btnContinuarTxt}>
+                  {step === 0 ? `Continuar · ${fmt(subtotal + frete)}` : `Pagar ${fmt(total)}`}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.n0} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}
