@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
-import { useAuthLojistaStore } from '../../../auth/model/store';
+import { useAuthLojistaStore } from '../../../../store';
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
