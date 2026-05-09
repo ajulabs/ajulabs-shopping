@@ -5,9 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  Image,
+  TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
@@ -21,7 +25,7 @@ const STAGE_LABEL: Record<Stage, string> = {
   'to-store': 'A caminho da loja',
   'at-store': 'Coletando pedido',
   'to-customer': 'A caminho do cliente',
-  delivered: 'Entregando',
+  delivered: 'Confirmando entrega',
 };
 
 interface ActiveRide {
@@ -96,18 +100,60 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
   const [stage, setStage] = useState<Stage>('to-store');
   const idx = STAGES.indexOf(stage);
 
-  const advance = useCallback(async () => {
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [loadingRetirada, setLoadingRetirada] = useState(false);
+  const [codigoEntrega, setCodigoEntrega] = useState('');
+  const [loadingEntrega, setLoadingEntrega] = useState(false);
+
+  const advanceStage = useCallback(() => {
     const next = STAGES[idx + 1];
-    if (!next) { onFinish(); return; }
+    if (next) setStage(next);
+  }, [idx]);
 
-    if (next === 'to-customer' && token) {
-      await EntregadorService.atualizarStatusCorrida(token, ride.id, 'saiu_entrega').catch(() => {});
-    } else if (next === 'delivered' && token) {
-      await EntregadorService.atualizarStatusCorrida(token, ride.id, 'entregue').catch(() => {});
+  const handleTakePhoto = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão necessária', 'Permita o acesso à câmera para tirar a foto do produto.');
+      return;
     }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsEditing: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  }, []);
 
-    setStage(next);
-  }, [idx, token, ride.id, onFinish]);
+  const handleConfirmarRetirada = useCallback(async (uri: string) => {
+    if (!token) return;
+    setLoadingRetirada(true);
+    try {
+      await EntregadorService.confirmarRetirada(token, ride.id, uri);
+      setStage('to-customer');
+    } catch {
+      Alert.alert('Erro', 'Não foi possível confirmar a retirada. Tente novamente.');
+    } finally {
+      setLoadingRetirada(false);
+    }
+  }, [token, ride.id]);
+
+  const handleConfirmarEntrega = useCallback(async () => {
+    if (!token || codigoEntrega.length < 4) return;
+    setLoadingEntrega(true);
+    try {
+      await EntregadorService.confirmarEntrega(token, ride.id, codigoEntrega);
+      onFinish();
+    } catch (err: any) {
+      const msg = err?.message?.includes('incorreto')
+        ? 'Código incorreto. Peça ao cliente para verificar.'
+        : 'Erro ao confirmar. Tente novamente.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setLoadingEntrega(false);
+    }
+  }, [token, ride.id, codigoEntrega, onFinish]);
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -162,27 +208,51 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             eta={ride.duracao > 0 ? `${Math.round(ride.duracao * 0.4)} min` : '–'}
             distance={ride.distancia > 0 ? `${(ride.distancia * 0.4).toFixed(1)} km` : '–'}
             cta="Cheguei na loja"
-            onCta={advance}
+            onCta={advanceStage}
           />
         )}
 
         {stage === 'at-store' && (
           <View>
-            <Text style={s.codeLabel}>Código de retirada</Text>
-            <View style={s.codeRow}>
-              {ride.codigo.split('').map((d, i) => (
-                <View key={i} style={s.codeDigit}>
-                  <Text style={s.codeDigitText}>{d}</Text>
-                </View>
-              ))}
-            </View>
+            <Text style={s.codeLabel}>Foto do produto</Text>
+
+            {!photoUri ? (
+              <TouchableOpacity style={s.photoBtn} onPress={handleTakePhoto} activeOpacity={0.8}>
+                <Ionicons name="camera" size={28} color="#F2760F" />
+                <Text style={s.photoBtnText}>Tirar foto do produto</Text>
+                <Text style={s.photoBtnSub}>Obrigatório para confirmar a retirada</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={s.photoPreview}>
+                <Image source={{ uri: photoUri }} style={s.photoImage} resizeMode="cover" />
+                <TouchableOpacity style={s.photoRetake} onPress={handleTakePhoto} activeOpacity={0.8}>
+                  <Ionicons name="refresh" size={14} color="#fff" />
+                  <Text style={s.photoRetakeTxt}>Tirar outra</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={s.codeHint}>
               <Text style={s.codeHintText}>
-                Mostre esse código ao lojista <Text style={{ fontWeight: '700' }}>{ride.loja.nome}</Text> pra confirmar a retirada.
+                Tire uma foto do pedido antes de sair de{' '}
+                <Text style={{ fontWeight: '700' }}>{ride.loja.nome}</Text>.
               </Text>
             </View>
-            <TouchableOpacity style={s.ctaBtn} onPress={advance} activeOpacity={0.85}>
-              <Text style={s.ctaBtnText}>Confirmar coleta</Text>
+
+            <TouchableOpacity
+              style={[s.ctaBtn, (!photoUri || loadingRetirada) && { opacity: 0.5 }]}
+              onPress={photoUri ? () => handleConfirmarRetirada(photoUri) : undefined}
+              disabled={!photoUri || loadingRetirada}
+              activeOpacity={0.85}
+            >
+              {loadingRetirada ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={s.ctaBtnText}>Confirmar retirada</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -196,36 +266,42 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             eta={ride.duracao > 0 ? `${Math.round(ride.duracao * 0.6)} min` : '–'}
             distance={ride.distancia > 0 ? `${(ride.distancia * 0.6).toFixed(1)} km` : '–'}
             cta="Cheguei no destino"
-            onCta={advance}
+            onCta={advanceStage}
           />
         )}
 
         {stage === 'delivered' && (
-          <View style={{ alignItems: 'center' }}>
-            <View style={s.successCircle}>
-              <Ionicons name="checkmark" size={32} color="#002B12" />
+          <View>
+            <Text style={s.codeLabel}>Código de entrega</Text>
+            <View style={[s.codeHint, { flexDirection: 'row', gap: 8, alignItems: 'flex-start' }]}>
+              <Ionicons name="information-circle-outline" size={16} color="#F2760F" style={{ marginTop: 1 }} />
+              <Text style={[s.codeHintText, { flex: 1 }]}>
+                Peça ao cliente o código de 4 dígitos exibido no aplicativo dele e digite abaixo.
+              </Text>
             </View>
-            <Text style={s.successTitle}>Entrega confirmada!</Text>
-            <Text style={s.successSub}>
-              Tire uma foto do pacote entregue ou peça o código
-            </Text>
-            <View style={s.deliverOptions}>
-              <TouchableOpacity style={s.deliverBtn} activeOpacity={0.8}>
-                <Ionicons name="camera" size={22} color="#F2760F" />
-                <Text style={s.deliverBtnText}>Foto do pacote</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.deliverBtn, { backgroundColor: 'rgba(32,156,239,0.12)' }]} activeOpacity={0.8}>
-                <Ionicons name="document-text" size={22} color="#209CEF" />
-                <Text style={[s.deliverBtnText, { color: '#209CEF' }]}>Código do cliente</Text>
-              </TouchableOpacity>
-            </View>
+            <TextInput
+              style={s.codeInput}
+              placeholder="0000"
+              placeholderTextColor="#9099B3"
+              keyboardType="numeric"
+              maxLength={4}
+              value={codigoEntrega}
+              onChangeText={setCodigoEntrega}
+            />
             <TouchableOpacity
-              style={[s.ctaBtn, { marginTop: 12, width: '100%' }]}
-              onPress={onFinish}
+              style={[s.ctaBtn, { marginTop: 12 }, (codigoEntrega.length < 4 || loadingEntrega) && { opacity: 0.5 }]}
+              onPress={codigoEntrega.length === 4 ? handleConfirmarEntrega : undefined}
+              disabled={codigoEntrega.length < 4 || loadingEntrega}
               activeOpacity={0.85}
             >
-              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-              <Text style={s.ctaBtnText}>Finalizar entrega · {brl(ride.ganho)}</Text>
+              {loadingEntrega ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  <Text style={s.ctaBtnText}>Confirmar entrega · {brl(ride.ganho)}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -249,7 +325,6 @@ const s = StyleSheet.create({
     right: 14,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: '10px 12px' as any,
     paddingHorizontal: 12,
     paddingVertical: 10,
     shadowColor: '#000',
@@ -345,21 +420,6 @@ const s = StyleSheet.create({
   },
   ctaBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   codeLabel: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  codeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  codeDigit: {
-    flex: 1,
-    aspectRatio: 0.9,
-    backgroundColor: '#F2760F',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F2760F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  codeDigitText: { fontSize: 32, fontWeight: '800', color: '#FFFFFF' },
   codeHint: {
     padding: 12,
     backgroundColor: '#F6F7FB',
@@ -367,25 +427,51 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   codeHintText: { fontSize: 12.5, color: '#000933', lineHeight: 18 },
-  successCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#39FF89',
+  photoBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-  },
-  successTitle: { fontSize: 20, fontWeight: '700', color: '#000933', marginBottom: 6 },
-  successSub: { fontSize: 13, color: '#9099B3', textAlign: 'center', marginBottom: 16 },
-  deliverOptions: { flexDirection: 'row', gap: 10, width: '100%' },
-  deliverBtn: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
+    gap: 8,
+    padding: 24,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#F2760F',
     backgroundColor: '#FEF0E3',
-    alignItems: 'center',
-    gap: 6,
+    marginBottom: 12,
   },
-  deliverBtnText: { fontSize: 12, fontWeight: '600', color: '#F2760F' },
+  photoBtnText: { fontSize: 14, fontWeight: '700', color: '#F2760F' },
+  photoBtnSub: { fontSize: 11, color: '#9099B3' },
+  photoPreview: {
+    height: 160,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  photoImage: { width: '100%', height: '100%' },
+  photoRetake: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 99,
+  },
+  photoRetakeTxt: { fontSize: 11, color: '#fff', fontWeight: '600' },
+  codeInput: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#000933',
+    textAlign: 'center',
+    letterSpacing: 12,
+    backgroundColor: '#F6F7FB',
+    borderRadius: 14,
+    paddingVertical: 16,
+    borderWidth: 2,
+    borderColor: '#E4E7F1',
+  },
 });

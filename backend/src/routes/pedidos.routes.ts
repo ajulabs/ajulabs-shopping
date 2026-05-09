@@ -49,6 +49,8 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
     const desconto = dados.metodoPagamento === 'pix' ? subtotal * 0.05 : 0;
     const total = subtotal + taxaEntrega - desconto;
 
+    const codigoEntrega = String(Math.floor(1000 + Math.random() * 9000));
+
     const pedido = await prisma.pedido.create({
       data: {
         consumidorId: req.user!.id,
@@ -56,6 +58,7 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
         enderecoEntregaId: dados.enderecoEntregaId,
         metodoPagamento: dados.metodoPagamento,
         obs: dados.obs,
+        codigoEntrega,
         subtotal,
         taxaEntrega,
         desconto,

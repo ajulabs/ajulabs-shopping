@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { EnderecoService } from '@ajulabs/api-client';
@@ -12,25 +13,26 @@ interface Props {
 }
 
 export function StepEndereco({ enderecoId, onSelect }: Props) {
+  const router = useRouter();
   const token = useAuthStore(s => s.token);
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+  const carregarEnderecos = useCallback(() => {
+    if (!token) { setLoading(false); return; }
+    setLoading(true);
     EnderecoService.listar(token)
       .then(data => {
         setEnderecos(data);
-        if (data.length > 0) {
+        if (data.length > 0 && !enderecoId) {
           const padrao = data.find(e => e.padrao) ?? data[0];
           onSelect(padrao.id);
         }
       })
       .finally(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => { carregarEnderecos(); }, [token]);
 
   if (loading) {
     return (
@@ -90,9 +92,18 @@ export function StepEndereco({ enderecoId, onSelect }: Props) {
         })
       )}
 
-      <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.addBtn}
+        activeOpacity={0.7}
+        onPress={() => router.push('/(consumer)/enderecos')}
+      >
         <Ionicons name="add" size={18} color={colors.n500} />
         <Text style={styles.addTxt}>Adicionar novo endereço</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.reloadBtn} onPress={carregarEnderecos} activeOpacity={0.7}>
+        <Ionicons name="refresh" size={14} color={colors.n500} />
+        <Text style={styles.reloadTxt}>Atualizar lista</Text>
       </TouchableOpacity>
     </View>
   );
@@ -121,4 +132,7 @@ const styles = StyleSheet.create({
                     borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed',
                     borderColor: colors.n200 },
   addTxt:         { fontSize: 13, fontWeight: '500', color: colors.n500 },
+  reloadBtn:      { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center',
+                    paddingVertical: 8, marginTop: 8 },
+  reloadTxt:      { fontSize: 12, color: colors.n500 },
 });

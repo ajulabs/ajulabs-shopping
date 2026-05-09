@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
+import { useAuthStore } from '../../../../store';
 import { TrackingTimeline } from './TrackingTimeline';
 
 const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
@@ -15,15 +16,26 @@ interface Props {
 
 export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
+  const token = useAuthStore(s => s.token);
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    PedidoService.buscarPorId(pedidoId).then(data => {
+    if (!token) { setLoading(false); return; }
+
+    PedidoService.buscarPorId(pedidoId, token).then(data => {
       setPedido(data);
       setLoading(false);
-    });
-  }, [pedidoId]);
+    }).catch(() => setLoading(false));
+
+    const interval = setInterval(() => {
+      PedidoService.buscarPorId(pedidoId, token)
+        .then(data => { if (data) setPedido(data); })
+        .catch(() => {});
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [pedidoId, token]);
 
   if (loading || !pedido) {
     return (
@@ -83,6 +95,26 @@ export function TrackingScreen({ pedidoId }: Props) {
             <TrackingTimeline status={pedido.status} />
           </View>
         </View>
+
+        {/* Código de entrega — aparece só quando motoboy saiu para entrega */}
+        {pedido.status === 'saiu_entrega' && pedido.codigoEntrega && (
+          <View style={styles.codigoCard}>
+            <View style={styles.codigoHeader}>
+              <Ionicons name="key-outline" size={16} color={colors.orange} />
+              <Text style={styles.codigoTitulo}>Código para o entregador</Text>
+            </View>
+            <View style={styles.codigoDigitos}>
+              {pedido.codigoEntrega.split('').map((d, i) => (
+                <View key={i} style={styles.codigoDigito}>
+                  <Text style={styles.codigoDigitoTxt}>{d}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.codigoHint}>
+              Diga este código ao entregador para confirmar a entrega
+            </Text>
+          </View>
+        )}
 
         {/* Resumo do pedido */}
         <View style={styles.resumoCard}>
@@ -145,6 +177,18 @@ const styles = StyleSheet.create({
                     alignItems: 'center', justifyContent: 'center' },
   lojaNome:       { fontSize: 14, fontWeight: '700', color: colors.navy },
   lojaDesc:       { fontSize: 12, color: colors.n600, marginTop: 1 },
+
+  codigoCard:     { backgroundColor: colors.n0, borderRadius: 14, padding: 16, marginBottom: 12,
+                    borderWidth: 2, borderColor: colors.orange },
+  codigoHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  codigoTitulo:   { fontSize: 13, fontWeight: '700', color: colors.navy },
+  codigoDigitos:  { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 12 },
+  codigoDigito:   { width: 56, height: 64, borderRadius: 14, backgroundColor: colors.orange,
+                    alignItems: 'center', justifyContent: 'center',
+                    shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  codigoDigitoTxt:{ fontSize: 30, fontWeight: '900', color: '#fff' },
+  codigoHint:     { fontSize: 12, color: colors.n600, textAlign: 'center' },
 
   resumoCard:     { backgroundColor: colors.n0, borderRadius: 14, padding: 14, marginBottom: 12,
                     borderWidth: 1, borderColor: colors.n200 },

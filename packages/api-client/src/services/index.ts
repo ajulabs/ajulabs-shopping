@@ -69,6 +69,7 @@ function mapPedido(raw: any): Pedido {
     criadoEm: raw.criadoEm,
     atualizadoEm: raw.atualizadoEm,
     estimativaEntrega: raw.estimativaEntrega ?? undefined,
+    codigoEntrega: raw.codigoEntrega ?? undefined,
     entregador: raw.entregador
       ? ({
           id: raw.entregador.id,
@@ -617,6 +618,32 @@ export const EntregadorService = {
       throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar solicitação');
     }
     return res.json();
+  },
+
+  confirmarRetirada: async (token: string, pedidoId: string, fotoUri: string): Promise<void> => {
+    const form = new FormData();
+    form.append('foto', { uri: fotoUri, type: 'image/jpeg', name: 'retirada.jpg' } as any);
+    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/confirmar-retirada`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao confirmar retirada');
+    }
+  },
+
+  confirmarEntrega: async (token: string, pedidoId: string, codigo: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/confirmar-entrega`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ codigo }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Código incorreto');
+    }
   },
 };
 

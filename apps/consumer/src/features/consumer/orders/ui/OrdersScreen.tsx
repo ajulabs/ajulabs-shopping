@@ -22,6 +22,14 @@ export function OrdersScreen() {
       .then(data => setPedidos(data))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    const interval = setInterval(() => {
+      PedidoService.listar(token)
+        .then(data => setPedidos(data))
+        .catch(() => {});
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [token]);
 
   const ativos = pedidos.filter(p => !['entregue', 'cancelado'].includes(p.status));

@@ -270,7 +270,7 @@ router.get('/corridas/disponivel', async (req: AuthRequest, res: Response) => {
     }
 
     const corridas = await prisma.pedido.findMany({
-      where: { status: 'confirmado', entregadorId: null },
+      where: { status: 'pronto', entregadorId: null },
       include: {
         loja: {
           select: {
@@ -308,7 +308,7 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
     const entregadorId = req.user!.id;
 
     const pedido = await prisma.pedido.findFirst({
-      where: { id: pedidoId, status: 'confirmado', entregadorId: null },
+      where: { id: pedidoId, status: 'pronto', entregadorId: null },
     });
 
     if (!pedido) {
@@ -317,7 +317,7 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
 
     const pedidoAtualizado = await prisma.pedido.update({
       where: { id: pedidoId },
-      data: { entregadorId, status: 'preparando' },
+      data: { entregadorId },
       include: {
         loja: { select: { id: true, nome: true, telefone: true } },
         enderecoEntrega: true,
@@ -325,17 +325,9 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
       },
     });
 
-    await prisma.historicoStatusPedido.create({
-      data: { pedidoId, status: 'preparando' },
-    });
-
     try {
       const io = getIo();
       io.to('entregadores').emit('corrida:aceita', { pedidoId, entregadorId });
-      io.to(`usuario:${pedido.consumidorId}`).emit('pedido:status', {
-        pedidoId,
-        status: 'preparando',
-      });
     } catch {}
 
     res.json({ pedido: pedidoAtualizado });
@@ -359,9 +351,102 @@ router.post('/corridas/:pedidoId/rejeitar', async (_req: AuthRequest, res: Respo
 // ========================================
 
 const TRANSICOES_VALIDAS: Record<string, string> = {
-  preparando: 'saiu_entrega',
   saiu_entrega: 'entregue',
 };
+
+// ========================================
+// POST /entregador/corridas/:pedidoId/confirmar-retirada
+// Entregador tira foto do produto e confirma retirada (pronto → saiu_entrega)
+// ========================================
+
+router.post('/corridas/:pedidoId/confirmar-retirada', upload.single('foto'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { pedidoId } = req.params;
+    const entregadorId = req.user!.id;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Foto do produto obrigatória' });
+    }
+
+    const pedido = await prisma.pedido.findFirst({
+      where: { id: pedidoId, entregadorId, status: 'pronto' },
+    });
+
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido não encontrado ou status inválido' });
+    }
+
+    await prisma.pedido.update({
+      where: { id: pedidoId },
+      data: { status: 'saiu_entrega' },
+    });
+
+    await prisma.historicoStatusPedido.create({
+      data: { pedidoId, status: 'saiu_entrega' },
+    });
+
+    try {
+      const io = getIo();
+      io.to(`usuario:${pedido.consumidorId}`).emit('pedido:status', { pedidoId, status: 'saiu_entrega' });
+    } catch {}
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao confirmar retirada' });
+  }
+});
+
+// ========================================
+// POST /entregador/corridas/:pedidoId/confirmar-entrega
+// Consumer diz o código → entregador digita → saiu_entrega → entregue
+// ========================================
+
+router.post('/corridas/:pedidoId/confirmar-entrega', async (req: AuthRequest, res: Response) => {
+  try {
+    const { pedidoId } = req.params;
+    const entregadorId = req.user!.id;
+    const { codigo } = z.object({ codigo: z.string().min(1) }).parse(req.body);
+
+    const pedido = await prisma.pedido.findFirst({
+      where: { id: pedidoId, entregadorId, status: 'saiu_entrega' },
+    });
+
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido não encontrado ou status inválido' });
+    }
+
+    if (pedido.codigoEntrega !== codigo) {
+      return res.status(400).json({ error: 'Código incorreto' });
+    }
+
+    await prisma.pedido.update({
+      where: { id: pedidoId },
+      data: { status: 'entregue' },
+    });
+
+    await prisma.historicoStatusPedido.create({
+      data: { pedidoId, status: 'entregue' },
+    });
+
+    await prisma.entregaRealizada.upsert({
+      where: { pedidoId },
+      create: { entregadorId, pedidoId, valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
+      update: { valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
+    });
+
+    try {
+      const io = getIo();
+      io.to(`usuario:${pedido.consumidorId}`).emit('pedido:status', { pedidoId, status: 'entregue' });
+    } catch {}
+
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao confirmar entrega' });
+  }
+});
 
 router.patch('/corridas/:pedidoId/status', async (req: AuthRequest, res: Response) => {
   try {
@@ -454,7 +539,7 @@ router.get('/ganhos', async (req: AuthRequest, res: Response) => {
         _count: true,
       }),
       prisma.pedido.count({
-        where: { entregadorId, status: { in: ['preparando', 'saiu_entrega'] } },
+        where: { entregadorId, status: { in: ['pronto', 'saiu_entrega'] } },
       }),
     ]);
 

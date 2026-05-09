@@ -14,8 +14,8 @@ const router = Router();
 const STATUS_PROGRESSAO: Partial<Record<string, string>> = {
   aguardando: 'confirmado',
   confirmado: 'preparando',
-  preparando: 'saiu_entrega',
-  saiu_entrega: 'entregue',
+  preparando: 'pronto',
+  // pronto em diante é responsabilidade do entregador
 };
 
 async function verificarDonoLoja(lojaId: string, lojistaId: string) {

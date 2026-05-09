@@ -71,6 +71,7 @@ export type StatusPedido =
   | 'aguardando'
   | 'confirmado'
   | 'preparando'
+  | 'pronto'
   | 'saiu_entrega'
   | 'entregue'
   | 'cancelado';
@@ -102,6 +103,7 @@ export interface Pedido {
   criadoEm: string;
   atualizadoEm: string;
   estimativaEntrega?: string;
+  codigoEntrega?: string;
   entregador?: EntregadorResumo | null;
 }
 

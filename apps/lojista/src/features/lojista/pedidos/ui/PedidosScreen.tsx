@@ -60,7 +60,11 @@ export function PedidosScreen() {
     setLoading(false);
   }, [lojaId, token]);
 
-  useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
+  useEffect(() => {
+    fetchPedidos();
+    const interval = setInterval(fetchPedidos, 30000);
+    return () => clearInterval(interval);
+  }, [fetchPedidos]);
 
   useEffect(() => {
     Animated.loop(
@@ -224,7 +228,13 @@ export function PedidosScreen() {
                         <Ionicons name="chevron-forward" size={14} color="#fff" />
                       </TouchableOpacity>
                     )}
-                    {!meta.next && (
+                    {!meta.next && o.status === 'pronto' && (
+                      <View style={s.dispatched}>
+                        <Ionicons name="time-outline" size={14} color="#7C3AED" />
+                        <Text style={[s.dispatchedText, { color: '#7C3AED' }]}>Aguardando motoboy</Text>
+                      </View>
+                    )}
+                    {!meta.next && o.status === 'despachado' && (
                       <View style={s.dispatched}>
                         <Ionicons name="bicycle" size={14} color="#046C2E" />
                         <Text style={s.dispatchedText}>{o.motoboy ?? 'Despachado'}</Text>
