@@ -88,27 +88,15 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
     if (!validate()) return;
     setLoading(true);
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/';
-      const res = await fetch(`${API_URL}auth/lojista/recuperar-senha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cnpj: cnpj.replace(/\D/g, ''),
-          email,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao enviar. Tente novamente.');
-      }
+      // TODO: conectar com API para enviar token de recuperação
+      await new Promise(resolve => setTimeout(resolve, 1500));
       setStep('success');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar. Tente novamente.';
-      setErrors({ email: msg });
+    } catch {
+      setErrors({ email: 'Erro ao enviar. Tente novamente.' });
     } finally {
       setLoading(false);
     }
-  }, [validate, cnpj, email]);
+  }, [validate]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>

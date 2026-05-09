@@ -113,7 +113,7 @@ function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
       </Text>
       <View style={{ alignItems: 'center', maxWidth: 280, marginBottom: 28, gap: 4 }}>
         <Text style={{ fontSize: 14, color: '#9099B3', textAlign: 'center', lineHeight: 21 }}>
-          Analisamos seus dados em até 24 horas. Você receberá uma notificação quando seu cadastro for aprovado.
+          Análise em até 24h. Como essa é uma demo, já liberamos tudo — bora começar a rodar
         </Text>
         <Ionicons name="car-sport" size={18} color="#9099B3" />
       </View>

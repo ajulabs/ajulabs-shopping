@@ -7,7 +7,6 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
@@ -132,8 +131,7 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
-  const token  = useAuthEntregadorStore(s => s.token);
-  const insets = useSafeAreaInsets();
+  const token = useAuthEntregadorStore(s => s.token);
   const [online, setOnline] = useState(false);
   const [offer, setOffer] = useState<RideData | null>(null);
   const [countdown, setCountdown] = useState(15);
@@ -208,7 +206,7 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
         <Text style={s.mapSub}>Mapa — Aracaju, SE</Text>
       </View>
 
-      <View style={[s.topBar, { top: Math.max(insets.top + 8, 60) }]}>
+      <View style={s.topBar}>
         <TouchableOpacity
           style={[s.onlineToggle, { backgroundColor: online ? '#39FF89' : '#FFFFFF' }]}
           onPress={() => toggleOnline(!online)}
@@ -294,7 +292,7 @@ const s = StyleSheet.create({
   offlineIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   offlineTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
   offlineSub: { fontSize: 13, color: 'rgba(255,255,255,0.65)', textAlign: 'center', maxWidth: 240 },
-  summaryCard: { position: 'absolute', bottom: 24, left: 14, right: 14, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.35, shadowRadius: 32, elevation: 12 },
+  summaryCard: { position: 'absolute', bottom: 14, left: 14, right: 14, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.35, shadowRadius: 32, elevation: 12 },
   summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   summaryLabel: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(57,255,137,0.15)', borderRadius: 99 },
