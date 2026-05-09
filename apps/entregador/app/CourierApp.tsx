@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../src/features/entregador/home';
-import { ActiveScreen } from '../src/features/entregador/corrida-ativa';
+import { ActiveScreen, type Stage } from '../src/features/entregador/corrida-ativa';
+import { EntregasAndamentoScreen, type ActiveRideWithStage } from '../src/features/entregador/andamento/ui/EntregasAndamentoScreen';
 import { EarningsScreen } from '../src/features/entregador/ganhos';
 import { ProfileScreen } from '../src/features/entregador/perfil';
 import { DadosBancariosScreen } from '../src/features/entregador/perfil/ui/DadosBancariosScreen';
@@ -13,21 +14,20 @@ import { VeiculoScreen } from '../src/features/entregador/perfil/ui/VeiculoScree
 import { OnboardingScreen } from '../src/features/entregador/onboarding';
 import { useAuthEntregadorStore } from '../src/store';
 
-interface ActiveRide {
-  id: string;
-  loja: { nome: string; endereco: string; bairro: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
-  ganho: number;
-  distancia: number;
-  duracao: number;
-  codigo: string;
-}
+type Tab = 'home' | 'entregas' | 'ganhos' | 'perfil';
 
-type Tab = 'home' | 'ganhos' | 'perfil';
-
-function CourierNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+function CourierNav({
+  tab,
+  onChange,
+  activeCount,
+}: {
+  tab: Tab;
+  onChange: (t: Tab) => void;
+  activeCount: number;
+}) {
   const items = [
     { id: 'home' as Tab, icon: 'map', label: 'Corridas' },
+    { id: 'entregas' as Tab, icon: 'bicycle', label: 'Entregas' },
     { id: 'ganhos' as Tab, icon: 'wallet', label: 'Ganhos' },
     { id: 'perfil' as Tab, icon: 'person', label: 'Perfil' },
   ] as const;
@@ -36,6 +36,7 @@ function CourierNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void })
     <View style={nav.bar}>
       {items.map((it) => {
         const active = tab === it.id;
+        const showBadge = it.id === 'entregas' && activeCount > 0;
         return (
           <TouchableOpacity
             key={it.id}
@@ -49,6 +50,11 @@ function CourierNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void })
                 size={22}
                 color={active ? '#F2760F' : '#9099B3'}
               />
+              {showBadge && (
+                <View style={nav.badge}>
+                  <Text style={nav.badgeText}>{activeCount}</Text>
+                </View>
+              )}
             </View>
             <Text style={[nav.label, active && { color: '#F2760F', fontWeight: '600' }]}>
               {it.label}
@@ -69,43 +75,46 @@ const nav = StyleSheet.create({
     paddingVertical: 8,
     paddingBottom: 10,
   },
-  item: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-  },
+  item: { flex: 1, alignItems: 'center', gap: 3 },
   iconWrap: {
-    padding: '4px 12px' as any,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 99,
+    position: 'relative',
   },
-  label: {
-    fontSize: 10.5,
-    fontWeight: '500',
-    color: '#9099B3',
-    letterSpacing: 0.1,
+  label: { fontSize: 10.5, fontWeight: '500', color: '#9099B3', letterSpacing: 0.1 },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#F2760F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
+  badgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
 });
 
-type Screen = 'onboarding' | 'approval' | 'main' | 'active' | 'documentos' | 'veiculo' | 'dados-bancarios' | 'notificacoes' | 'seguranca';
+type Screen =
+  | 'onboarding'
+  | 'approval'
+  | 'main'
+  | 'active'
+  | 'documentos'
+  | 'veiculo'
+  | 'dados-bancarios'
+  | 'notificacoes'
+  | 'seguranca';
 
 function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', padding: 30 }}
     >
-      <View
-        style={{
-          width: 100,
-          height: 100,
-          borderRadius: 50,
-          backgroundColor: '#39FF89',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 20,
-        }}
-      >
+      <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#39FF89', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
         <Ionicons name="checkmark" size={48} color="#002B12" />
       </View>
       <Text style={{ fontSize: 26, fontWeight: '800', color: '#000933', marginBottom: 10, textAlign: 'center' }}>
@@ -131,9 +140,45 @@ function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
 export function CourierApp() {
   const needsOnboarding = useAuthEntregadorStore(s => s.needsOnboarding);
   const logout = useAuthEntregadorStore(s => s.logout);
+
   const [screen, setScreen] = useState<Screen>(needsOnboarding ? 'onboarding' : 'main');
   const [tab, setTab] = useState<Tab>('home');
-  const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
+
+  // Múltiplas entregas (máx 2)
+  const [activeRides, setActiveRides] = useState<ActiveRideWithStage[]>([]);
+  const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
+
+  const selectedRide = activeRides.find(r => r.id === selectedRideId) ?? null;
+
+  const handleAcceptRide = (ride: Omit<ActiveRideWithStage, 'stage'>) => {
+    if (activeRides.length >= 2) return;
+    const newRide: ActiveRideWithStage = { ...ride, stage: 'to-store' };
+    setActiveRides(prev => [...prev, newRide]);
+    setSelectedRideId(newRide.id);
+    setScreen('active');
+  };
+
+  const handleActiveBack = (currentStage: Stage) => {
+    setActiveRides(prev =>
+      prev.map(r => r.id === selectedRideId ? { ...r, stage: currentStage } : r)
+    );
+    setSelectedRideId(null);
+    setScreen('main');
+    setTab('entregas');
+  };
+
+  const handleActiveFinish = () => {
+    const remaining = activeRides.filter(r => r.id !== selectedRideId);
+    setActiveRides(remaining);
+    setSelectedRideId(null);
+    setScreen('main');
+    setTab(remaining.length > 0 ? 'entregas' : 'ganhos');
+  };
+
+  const handleSelectRide = (ride: ActiveRideWithStage) => {
+    setSelectedRideId(ride.id);
+    setScreen('active');
+  };
 
   if (screen === 'onboarding') {
     return (
@@ -146,39 +191,20 @@ export function CourierApp() {
     );
   }
 
-  if (screen === 'approval') {
-    return <ApprovalScreen onContinue={() => setScreen('main')} />;
-  }
+  if (screen === 'approval') return <ApprovalScreen onContinue={() => setScreen('main')} />;
+  if (screen === 'documentos') return <DocumentosScreen onBack={() => setScreen('main')} />;
+  if (screen === 'dados-bancarios') return <DadosBancariosScreen onBack={() => setScreen('main')} />;
+  if (screen === 'notificacoes') return <NotificacoesScreen onBack={() => setScreen('main')} />;
+  if (screen === 'seguranca') return <SegurancaScreen onBack={() => setScreen('main')} />;
+  if (screen === 'veiculo') return <VeiculoScreen onBack={() => setScreen('main')} />;
 
-  if (screen === 'documentos') {
-    return <DocumentosScreen onBack={() => setScreen('main')} />;
-  }
-
-  if (screen === 'dados-bancarios') {
-    return <DadosBancariosScreen onBack={() => setScreen('main')} />;
-  }
-
-  if (screen === 'notificacoes') {
-    return <NotificacoesScreen onBack={() => setScreen('main')} />;
-  }
-
-  if (screen === 'seguranca') {
-    return <SegurancaScreen onBack={() => setScreen('main')} />;
-  }
-
-  if (screen === 'veiculo') {
-    return <VeiculoScreen onBack={() => setScreen('main')} />;
-  }
-
-  if (screen === 'active' && activeRide) {
+  if (screen === 'active' && selectedRide) {
     return (
       <ActiveScreen
-        ride={activeRide}
-        onFinish={() => {
-          setActiveRide(null);
-          setScreen('main');
-          setTab('ganhos');
-        }}
+        ride={selectedRide}
+        initialStage={selectedRide.stage}
+        onBack={handleActiveBack}
+        onFinish={handleActiveFinish}
       />
     );
   }
@@ -187,17 +213,20 @@ export function CourierApp() {
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, overflow: 'hidden' }}>
         {tab === 'home' && (
-          <HomeScreen
-            onAcceptRide={(ride) => {
-              setActiveRide(ride);
-              setScreen('active');
-            }}
+          <HomeScreen onAcceptRide={handleAcceptRide} activeRidesCount={activeRides.length} />
+        )}
+        {tab === 'entregas' && (
+          <EntregasAndamentoScreen
+            rides={activeRides}
+            onSelectRide={handleSelectRide}
           />
         )}
         {tab === 'ganhos' && <EarningsScreen />}
-        {tab === 'perfil' && <ProfileScreen onLogout={logout} onNavigate={(dest) => setScreen(dest)} />}
+        {tab === 'perfil' && (
+          <ProfileScreen onLogout={logout} onNavigate={(dest) => setScreen(dest)} />
+        )}
       </View>
-      <CourierNav tab={tab} onChange={setTab} />
+      <CourierNav tab={tab} onChange={setTab} activeCount={activeRides.length} />
     </View>
   );
 }

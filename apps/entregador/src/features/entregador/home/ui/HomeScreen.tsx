@@ -130,9 +130,10 @@ function OfferSheet({
 
 interface HomeScreenProps {
   onAcceptRide: (ride: RideData) => void;
+  activeRidesCount?: number;
 }
 
-export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
+export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenProps) {
   const token = useAuthEntregadorStore(s => s.token);
   const [online, setOnline] = useState(false);
   const [offer, setOffer] = useState<RideData | null>(null);
@@ -153,15 +154,18 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
   }, [token]);
 
   const buscarCorridas = useCallback(async () => {
-    if (!token || !online) return;
-    const corridas = await EntregadorService.buscarCorridasDisponiveis(token).catch(() => []);
+    if (!token || !online || activeRidesCount >= 2) return;
+    const corridas = await EntregadorService.buscarCorridasDisponiveis(token).catch((err) => {
+      console.error('[HomeScreen] buscarCorridasDisponiveis error:', err);
+      return [];
+    });
     const rides = corridas.map(mapCorridaToRide);
     setWaitingRides(rides);
     if (rides.length > 0 && !offer) {
       setOffer(rides[0]);
       setCountdown(15);
     }
-  }, [token, online, offer]);
+  }, [token, online, offer, activeRidesCount]);
 
   const toggleOnline = useCallback(async (value: boolean) => {
     setOnline(value);
@@ -201,7 +205,8 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
       setOffer(null);
       setWaitingRides([]);
       onAcceptRide(rideAccepted);
-    } catch {
+    } catch (err) {
+      console.error('[HomeScreen] aceitarCorrida (offerSheet) error:', err);
       setOffer(null);
     }
   }, [offer, token, onAcceptRide]);
@@ -215,7 +220,8 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
       setOffer(null);
       setWaitingRides([]);
       onAcceptRide(rideAccepted);
-    } catch {
+    } catch (err) {
+      console.error('[HomeScreen] aceitarCorrida (waiting) error:', err);
       setAcceptingId(null);
     }
   }, [token, onAcceptRide]);
@@ -260,7 +266,16 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
         </TouchableOpacity>
       )}
 
-      {online && !offer && (
+      {online && activeRidesCount >= 2 && (
+        <View style={s.limitBanner}>
+          <Ionicons name="lock-closed" size={16} color="#fff" />
+          <Text style={s.limitBannerText}>
+            Limite atingido · Finalize uma entrega para receber novas corridas
+          </Text>
+        </View>
+      )}
+
+      {online && !offer && activeRidesCount < 2 && (
         <View style={s.bottomPanel}>
           <View style={s.summarySection}>
             <View style={s.summaryHeader}>
@@ -372,6 +387,8 @@ const s = StyleSheet.create({
   offlineIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   offlineTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
   offlineSub: { fontSize: 13, color: 'rgba(255,255,255,0.65)', textAlign: 'center', maxWidth: 240 },
+  limitBanner: { position: 'absolute', bottom: 14, left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 14, backgroundColor: '#B34D00' },
+  limitBannerText: { fontSize: 12.5, fontWeight: '600', color: '#fff', flex: 1 },
   bottomPanel: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '65%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 16 },
   summarySection: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#F0F1F7' },
   summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

@@ -252,6 +252,41 @@ router.patch('/status', async (req: AuthRequest, res: Response) => {
 });
 
 // ========================================
+// GET /entregador/corridas/ativas
+// Entregas em andamento do entregador (pronto ou saiu_entrega com seu id)
+// ========================================
+
+router.get('/corridas/ativas', async (req: AuthRequest, res: Response) => {
+  try {
+    const entregadorId = req.user!.id;
+
+    const corridas = await prisma.pedido.findMany({
+      where: {
+        entregadorId,
+        status: { in: ['pronto', 'saiu_entrega'] },
+      },
+      include: {
+        loja: {
+          select: {
+            id: true,
+            nome: true,
+            endereco: { select: { rua: true, numero: true, bairro: true, cidade: true } },
+          },
+        },
+        enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true } },
+        itens: { select: { quantidade: true, nomeSnapshot: true, precoUnitario: true } },
+      },
+      orderBy: { criadoEm: 'asc' },
+    });
+
+    res.json({ corridas });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar corridas ativas' });
+  }
+});
+
+// ========================================
 // GET /entregador/corridas/disponivel
 // Pedidos confirmados sem entregador, para entregador online
 // ========================================
@@ -266,6 +301,14 @@ router.get('/corridas/disponivel', async (req: AuthRequest, res: Response) => {
     });
 
     if (!entregador?.online) {
+      return res.json({ corridas: [] });
+    }
+
+    const ativasCount = await prisma.pedido.count({
+      where: { entregadorId, status: { in: ['pronto', 'saiu_entrega'] } },
+    });
+
+    if (ativasCount >= 2) {
       return res.json({ corridas: [] });
     }
 
@@ -306,6 +349,14 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
   try {
     const { pedidoId } = req.params;
     const entregadorId = req.user!.id;
+
+    const ativasCount = await prisma.pedido.count({
+      where: { entregadorId, status: { in: ['pronto', 'saiu_entrega'] } },
+    });
+
+    if (ativasCount >= 2) {
+      return res.status(409).json({ error: 'Limite de 2 entregas simultâneas atingido' });
+    }
 
     const pedido = await prisma.pedido.findFirst({
       where: { id: pedidoId, status: 'pronto', entregadorId: null },

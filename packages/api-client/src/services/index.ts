@@ -195,10 +195,16 @@ export const LojistaService = {
   },
 
   avancarStatus: async (pedidoId: string, token: string): Promise<void> => {
-    await fetch(`${API_URL}/lojista/pedidos/${pedidoId}/status`, {
+    const res = await fetch(`${API_URL}/lojista/pedidos/${pedidoId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = typeof err.error === 'string' ? err.error : 'Erro ao avançar status';
+      console.error(`[LojistaService] avancarStatus ${pedidoId} → ${res.status}: ${msg}`);
+      throw new Error(msg);
+    }
   },
 
   buscarDashboard: async (
@@ -423,6 +429,18 @@ export const EntregadorService = {
     return corridas ?? [];
   },
 
+  buscarCorridasAtivas: async (token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/entregador/corridas/ativas`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) {
+      console.error(`[EntregadorService] buscarCorridasAtivas → ${res.status}`);
+      return [];
+    }
+    const { corridas } = await res.json();
+    return corridas ?? [];
+  },
+
   aceitarCorrida: async (token: string, pedidoId: string): Promise<any> => {
     const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/aceitar`, {
       method: 'POST',
@@ -430,7 +448,9 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Corrida não disponível');
+      const msg = typeof err.error === 'string' ? err.error : 'Corrida não disponível';
+      console.error(`[EntregadorService] aceitarCorrida ${pedidoId} → ${res.status}: ${msg}`);
+      throw new Error(msg);
     }
     const { pedido } = await res.json();
     return pedido;
@@ -628,7 +648,9 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao confirmar retirada');
+      const msg = typeof err.error === 'string' ? err.error : 'Erro ao confirmar retirada';
+      console.error(`[EntregadorService] confirmarRetirada ${pedidoId} → ${res.status}: ${msg}`);
+      throw new Error(msg);
     }
   },
 
@@ -640,7 +662,9 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Código incorreto');
+      const msg = typeof err.error === 'string' ? err.error : 'Código incorreto';
+      console.error(`[EntregadorService] confirmarEntrega ${pedidoId} → ${res.status}: ${msg}`);
+      throw new Error(msg);
     }
   },
 };

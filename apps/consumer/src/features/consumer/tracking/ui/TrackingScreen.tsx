@@ -111,7 +111,7 @@ export function TrackingScreen({ pedidoId }: Props) {
               ))}
             </View>
             <Text style={styles.codigoHint}>
-              Diga este código ao entregador para confirmar a entrega
+              Informe os 4 últimos dígitos do seu telefone ao entregador para confirmar a entrega
             </Text>
           </View>
         )}

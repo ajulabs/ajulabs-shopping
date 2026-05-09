@@ -49,7 +49,12 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
     const desconto = dados.metodoPagamento === 'pix' ? subtotal * 0.05 : 0;
     const total = subtotal + taxaEntrega - desconto;
 
-    const codigoEntrega = String(Math.floor(1000 + Math.random() * 9000));
+    const consumidor = await prisma.usuario.findUnique({
+      where: { id: req.user!.id },
+      select: { telefone: true },
+    });
+    const digits = (consumidor?.telefone ?? '').replace(/\D/g, '');
+    const codigoEntrega = digits.length >= 4 ? digits.slice(-4) : String(Math.floor(1000 + Math.random() * 9000));
 
     const pedido = await prisma.pedido.create({
       data: {

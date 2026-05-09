@@ -60,7 +60,9 @@ export function PedidosScreen() {
     try {
       const raw = await LojistaService.listarPedidos(lojaId, token);
       setOrders(raw.map(mapPedidoToOrder));
-    } catch {}
+    } catch (err) {
+      console.error('[PedidosScreen] fetchPedidos error:', err);
+    }
     setLoading(false);
   }, [lojaId, token]);
 
@@ -93,7 +95,8 @@ export function PedidosScreen() {
     if (order._id) {
       try {
         await LojistaService.avancarStatus(order._id, token);
-      } catch {
+      } catch (err) {
+        console.error('[PedidosScreen] avancarStatus error:', err);
         fetchPedidos();
       }
     }

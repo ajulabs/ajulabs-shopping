@@ -18,8 +18,8 @@ import { useAuthEntregadorStore } from '../../auth/model/store';
 const brl = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const STAGES = ['to-store', 'at-store', 'to-customer', 'delivered'] as const;
-type Stage = typeof STAGES[number];
+export const STAGES = ['to-store', 'at-store', 'to-customer', 'delivered'] as const;
+export type Stage = typeof STAGES[number];
 
 const STAGE_LABEL: Record<Stage, string> = {
   'to-store': 'A caminho da loja',
@@ -40,7 +40,9 @@ interface ActiveRide {
 
 interface ActiveScreenProps {
   ride: ActiveRide;
+  initialStage?: Stage;
   onFinish: () => void;
+  onBack?: (currentStage: Stage) => void;
 }
 
 function StageCard({
@@ -95,9 +97,9 @@ function StageCard({
   );
 }
 
-export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
+export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScreenProps) {
   const token = useAuthEntregadorStore(s => s.token);
-  const [stage, setStage] = useState<Stage>('to-store');
+  const [stage, setStage] = useState<Stage>(initialStage ?? 'to-store');
   const idx = STAGES.indexOf(stage);
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -132,7 +134,8 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
     try {
       await EntregadorService.confirmarRetirada(token, ride.id);
       setStage('to-customer');
-    } catch {
+    } catch (err) {
+      console.error('[ActiveScreen] confirmarRetirada error:', err);
       Alert.alert('Erro', 'Não foi possível confirmar a retirada. Tente novamente.');
     } finally {
       setLoadingRetirada(false);
@@ -146,6 +149,7 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
       await EntregadorService.confirmarEntrega(token, ride.id, codigoEntrega);
       onFinish();
     } catch (err: any) {
+      console.error('[ActiveScreen] confirmarEntrega error:', err);
       const msg = err?.message?.includes('incorreto')
         ? 'Código incorreto. Peça ao cliente para verificar.'
         : 'Erro ao confirmar. Tente novamente.';
@@ -162,6 +166,12 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
           <Ionicons name="map" size={80} color="#FFFFFF" />
         </View>
       </View>
+
+      {onBack && (
+        <TouchableOpacity style={s.backBtn} onPress={() => onBack(stage)} activeOpacity={0.8}>
+          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <View style={s.progressCard}>
         <View style={s.progressBars}>
@@ -276,7 +286,7 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             <View style={[s.codeHint, { flexDirection: 'row', gap: 8, alignItems: 'flex-start' }]}>
               <Ionicons name="information-circle-outline" size={16} color="#F2760F" style={{ marginTop: 1 }} />
               <Text style={[s.codeHintText, { flex: 1 }]}>
-                Peça ao cliente o código de 4 dígitos exibido no aplicativo dele e digite abaixo.
+                Peça ao cliente os 4 últimos dígitos do telefone cadastrado e digite abaixo.
               </Text>
             </View>
             <TextInput
@@ -312,6 +322,7 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B0F22' },
+  backBtn: { position: 'absolute', top: 60, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
   mapBg: {
     flex: 1,
     alignItems: 'center',
