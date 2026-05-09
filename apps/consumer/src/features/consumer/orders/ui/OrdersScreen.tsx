@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
@@ -12,17 +13,19 @@ export function OrdersScreen() {
   const token = useAuthStore(s => s.token);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(false);
 
-  useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+  const carregarPedidos = useCallback(() => {
+    if (!token) { setLoading(false); return; }
+    setLoading(true);
+    setErro(false);
     PedidoService.listar(token)
       .then(data => setPedidos(data))
-      .catch(() => {})
+      .catch(() => setErro(true))
       .finally(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => { carregarPedidos(); }, [carregarPedidos]);
 
   const ativos = pedidos.filter(p => !['entregue', 'cancelado'].includes(p.status));
   const historico = pedidos.filter(p => ['entregue', 'cancelado'].includes(p.status));
@@ -35,6 +38,19 @@ export function OrdersScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.orange} />
+      </View>
+    );
+  }
+
+  if (erro) {
+    return (
+      <View style={[styles.container, styles.vazio]}>
+        <Ionicons name="wifi-outline" size={48} color={colors.n500} />
+        <Text style={styles.vazioTitulo}>Erro ao carregar pedidos</Text>
+        <Text style={styles.vazioTxt}>Verifique sua conexão e tente novamente.</Text>
+        <TouchableOpacity style={styles.vazioBtn} onPress={carregarPedidos} activeOpacity={0.85}>
+          <Text style={styles.vazioBtnTxt}>Tentar novamente</Text>
+        </TouchableOpacity>
       </View>
     );
   }
