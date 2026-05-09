@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, Switch, Alert, ActivityIndicator,
+  StyleSheet, Switch, Alert, ActivityIndicator, Image,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,12 @@ const HORARIOS_INICIAIS: HorarioDia[] = [
   { dia: 'Sábado',        abreviacao: 'Sáb', ativo: true,  abertura: '09:00', fechamento: '14:00' },
   { dia: 'Domingo',       abreviacao: 'Dom', ativo: false, abertura: '--:--', fechamento: '--:--' },
 ];
+
+function formatarHora(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
 
 function FormField({
   label, value, onChange, placeholder, multiline = false,
@@ -92,42 +99,47 @@ function HorarioRow({
 
   return (
     <View style={styles.dayRow}>
-      <Text style={[styles.dayName, { color: textColor }]}>{horario.abreviacao}</Text>
-      <Switch
-        value={horario.ativo}
-        onValueChange={v => onChange({ ...horario, ativo: v,
-          abertura: v ? '08:00' : '--:--',
-          fechamento: v ? '18:00' : '--:--',
-        })}
-        trackColor={{ false: colors.n200, true: '#046C2E' }}
-        thumbColor="#fff"
-        style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
-      />
-      <TextInput
-        style={[
-          styles.timeInput,
-          { backgroundColor: inputBg, borderColor: border, color: textColor },
-          !horario.ativo && { opacity: 0.4 },
-        ]}
-        value={horario.abertura}
-        onChangeText={v => onChange({ ...horario, abertura: v })}
-        editable={horario.ativo}
-        keyboardType="numbers-and-punctuation"
-        maxLength={5}
-      />
-      <Text style={[styles.timeSep, { color: subColor }]}>–</Text>
-      <TextInput
-        style={[
-          styles.timeInput,
-          { backgroundColor: inputBg, borderColor: border, color: textColor },
-          !horario.ativo && { opacity: 0.4 },
-        ]}
-        value={horario.fechamento}
-        onChangeText={v => onChange({ ...horario, fechamento: v })}
-        editable={horario.ativo}
-        keyboardType="numbers-and-punctuation"
-        maxLength={5}
-      />
+      {/* Linha 1: dia + switch */}
+      <View style={styles.dayTopRow}>
+        <Text style={[styles.dayName, { color: textColor }]}>{horario.abreviacao}</Text>
+        <Switch
+          value={horario.ativo}
+          onValueChange={v => onChange({
+            ...horario, ativo: v,
+            abertura:   v ? '08:00' : '--:--',
+            fechamento: v ? '18:00' : '--:--',
+          })}
+          trackColor={{ false: colors.n200, true: '#046C2E' }}
+          thumbColor="#fff"
+          style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
+        />
+      </View>
+      {/* Linha 2: inputs de horário */}
+      <View style={[styles.dayTimeRow, !horario.ativo && { opacity: 0.4 }]}>
+        <Text style={[styles.timeRangeLabel, { color: subColor }]}>Abertura</Text>
+        <TextInput
+          style={[styles.timeInput, { backgroundColor: inputBg, borderColor: border, color: textColor }]}
+          value={horario.abertura}
+          onChangeText={v => onChange({ ...horario, abertura: formatarHora(v) })}
+          editable={horario.ativo}
+          keyboardType="numeric"
+          maxLength={5}
+          placeholder="08:00"
+          placeholderTextColor={subColor}
+        />
+        <Text style={[styles.timeSep, { color: subColor }]}>–</Text>
+        <Text style={[styles.timeRangeLabel, { color: subColor }]}>Fechamento</Text>
+        <TextInput
+          style={[styles.timeInput, { backgroundColor: inputBg, borderColor: border, color: textColor }]}
+          value={horario.fechamento}
+          onChangeText={v => onChange({ ...horario, fechamento: formatarHora(v) })}
+          editable={horario.ativo}
+          keyboardType="numeric"
+          maxLength={5}
+          placeholder="18:00"
+          placeholderTextColor={subColor}
+        />
+      </View>
     </View>
   );
 }
@@ -142,24 +154,20 @@ function StoreAvatar({ nome, size = 56 }: { nome: string; size?: number }) {
 }
 
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
-  const token = useAuthLojistaStore(s => s.token);
+  const token  = useAuthLojistaStore(s => s.token);
   const lojaId = useAuthLojistaStore(s => s.lojaId);
   const logout = useAuthLojistaStore(s => s.logout);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [horarios, setHorarios] = useState<HorarioDia[]>(HORARIOS_INICIAIS);
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [uploading,  setUploading]  = useState<'logo' | 'banner' | null>(null);
+  const [horarios,   setHorarios]   = useState<HorarioDia[]>(HORARIOS_INICIAIS);
+  const [logoUri,    setLogoUri]    = useState<string | null>(null);
+  const [bannerUri,  setBannerUri]  = useState<string | null>(null);
   const [loja, setLoja] = useState<LojaData>({
-    nome: '',
-    categoria: '',
-    descricao: '',
-    telefone: '',
-    rua: '',
-    bairro: '',
-    cep: '',
-    cidade: '',
-    aceitaAgendamento: false,
-    antecedenciaMinima: '120',
+    nome: '', categoria: '', descricao: '', telefone: '',
+    rua: '', bairro: '', cep: '', cidade: '',
+    aceitaAgendamento: false, antecedenciaMinima: '120',
   });
 
   useEffect(() => {
@@ -167,22 +175,26 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     LojistaService.buscarLojaDetalhes(lojaId, token).then(raw => {
       if (!raw) return;
       setLoja({
-        nome: raw.nome ?? '',
-        categoria: raw.categoria ?? '',
-        descricao: raw.descricao ?? '',
-        telefone: raw.telefone ?? '',
-        rua: raw.endereco ? `${raw.endereco.rua}${raw.endereco.numero ? ', ' + raw.endereco.numero : ''}` : '',
-        bairro: raw.endereco?.bairro ?? '',
-        cep: raw.endereco?.cep ?? '',
-        cidade: raw.endereco?.cidade ?? '',
-        aceitaAgendamento: raw.aceitaAgendamento ?? false,
-        antecedenciaMinima: String(raw.antecedenciaMinima ?? 120),
+        nome:                raw.nome ?? '',
+        categoria:           raw.categoria ?? '',
+        descricao:           raw.descricao ?? '',
+        telefone:            raw.telefone ?? '',
+        rua:                 raw.endereco
+                               ? `${raw.endereco.rua}${raw.endereco.numero ? ', ' + raw.endereco.numero : ''}`
+                               : '',
+        bairro:              raw.endereco?.bairro ?? '',
+        cep:                 raw.endereco?.cep ?? '',
+        cidade:              raw.endereco?.cidade ?? '',
+        aceitaAgendamento:   raw.aceitaAgendamento ?? false,
+        antecedenciaMinima:  String(raw.antecedenciaMinima ?? 120),
       });
+      if (raw.logoUrl)   setLogoUri(raw.logoUrl);
+      if (raw.bannerUrl) setBannerUri(raw.bannerUrl);
       if (raw.horarios && raw.horarios.length > 0) {
         setHorarios(prev => prev.map((h, i) => {
-          const backHorario = raw.horarios.find((bh: any) => bh.diaSemana === i);
-          if (!backHorario) return h;
-          return { ...h, ativo: backHorario.ativo, abertura: backHorario.abertura, fechamento: backHorario.fechamento };
+          const bh = raw.horarios.find((x: any) => x.diaSemana === i);
+          if (!bh) return h;
+          return { ...h, ativo: bh.ativo, abertura: bh.abertura, fechamento: bh.fechamento };
         }));
       }
     }).finally(() => setLoading(false));
@@ -194,7 +206,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const surface   = dark ? '#111638'    : colors.n0;
   const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
-  const updateLoja = useCallback((key: keyof LojaData, value: string | boolean) => {
+  const updateLoja    = useCallback((key: keyof LojaData, value: string | boolean) => {
     setLoja(prev => ({ ...prev, [key]: value }));
   }, []);
 
@@ -209,27 +221,39 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     ]);
   }, [logout]);
 
-  const handlePickBanner = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      aspect: [3, 1],
-    });
-    if (!result.canceled) {
-      Alert.alert('Em breve', 'Upload de banner será implementado em breve.');
-    }
-  }, []);
+  const pickAndUpload = useCallback(async (tipo: 'logo' | 'banner') => {
+    if (!token || !lojaId) return;
 
-  const handlePickAvatar = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: tipo === 'logo' ? [1, 1] : [3, 1],
       quality: 0.8,
-      aspect: [1, 1],
     });
-    if (!result.canceled) {
-      Alert.alert('Em breve', 'Upload de logo será implementado em breve.');
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const uri = result.assets[0].uri;
+
+    // preview local imediato
+    if (tipo === 'logo')   setLogoUri(uri);
+    else                   setBannerUri(uri);
+
+    setUploading(tipo);
+    try {
+      const form = new FormData();
+      form.append(tipo, { uri, type: 'image/jpeg', name: `${tipo}.jpg` } as any);
+
+      await LojistaService.atualizarImagemLoja(lojaId, token, tipo, uri);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível fazer o upload da imagem. Tente novamente.');
+      // reverte preview se falhou
+      if (tipo === 'logo')   setLogoUri(null);
+      else                   setBannerUri(null);
+    } finally {
+      setUploading(null);
     }
-  }, []);
+  }, [token, lojaId]);
 
   const handleSalvar = useCallback(async () => {
     if (!token || !lojaId) {
@@ -239,16 +263,22 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     setSaving(true);
     try {
       const ruaPartes = loja.rua.split(',').map(s => s.trim());
-      const rua = ruaPartes[0] ?? loja.rua;
+      const rua    = ruaPartes[0] ?? loja.rua;
       const numero = ruaPartes[1] ?? '';
 
       await LojistaService.atualizarLoja(lojaId, token, {
-        nome: loja.nome,
-        descricao: loja.descricao,
-        categoria: loja.categoria,
-        telefone: loja.telefone,
-        aceitaAgendamento: loja.aceitaAgendamento,
-        antecedenciaMinima: parseInt(loja.antecedenciaMinima, 10) || 120,
+        nome:                loja.nome,
+        descricao:           loja.descricao,
+        categoria:           loja.categoria,
+        telefone:            loja.telefone,
+        aceitaAgendamento:   loja.aceitaAgendamento,
+        antecedenciaMinima:  parseInt(loja.antecedenciaMinima, 10) || 120,
+        horarios: horarios.map((h, i) => ({
+          diaSemana:  i,
+          ativo:      h.ativo,
+          abertura:   h.abertura,
+          fechamento: h.fechamento,
+        })),
         ...(loja.bairro || loja.cep || loja.cidade ? {
           endereco: { rua, numero, bairro: loja.bairro, cep: loja.cep, cidade: loja.cidade },
         } : {}),
@@ -260,16 +290,18 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     } finally {
       setSaving(false);
     }
-  }, [token, lojaId, loja]);
+  }, [token, lojaId, loja, horarios]);
 
-  const hoje = new Date();
-  const diaSemana = hoje.getDay();
-  const mapDia = [6, 0, 1, 2, 3, 4, 5];
+  const hoje       = new Date();
+  const diaSemana  = hoje.getDay();
+  const mapDia     = [6, 0, 1, 2, 3, 4, 5];
   const horarioHoje = horarios[mapDia[diaSemana]];
-  const agoraMin = hoje.getHours() * 60 + hoje.getMinutes();
-  const [aH, aM] = (horarioHoje?.abertura || '00:00').split(':').map(Number);
-  const [fH, fM] = (horarioHoje?.fechamento || '00:00').split(':').map(Number);
-  const abertaAgora = horarioHoje?.ativo && agoraMin >= aH * 60 + aM && agoraMin < fH * 60 + fM;
+  const agoraMin   = hoje.getHours() * 60 + hoje.getMinutes();
+  const [aH, aM]   = (horarioHoje?.abertura || '00:00').split(':').map(Number);
+  const [fH, fM]   = (horarioHoje?.fechamento || '00:00').split(':').map(Number);
+  const abertaAgora = horarioHoje?.ativo
+    && agoraMin >= aH * 60 + aM
+    && agoraMin < fH * 60 + fM;
 
   if (loading) {
     return (
@@ -280,27 +312,55 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: bgMain }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: bgMain }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
         <Text style={[styles.headerTitle, { color: textColor }]}>Perfil da loja</Text>
         <Text style={[styles.headerSub, { color: subColor }]}>Informações visíveis para os clientes</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         <Text style={[styles.sectionLabel, { color: subColor }]}>IDENTIDADE VISUAL</Text>
         <View style={[styles.card, { borderColor: border }]}>
+          {/* Banner */}
           <View style={[styles.banner, { backgroundColor: colors.navy }]}>
-            <TouchableOpacity style={styles.bannerEditBtn} onPress={handlePickBanner} activeOpacity={0.8}>
-              <Ionicons name="pencil" size={12} color="#fff" />
+            {bannerUri
+              ? <Image source={{ uri: bannerUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              : null}
+            <TouchableOpacity
+              style={styles.bannerEditBtn}
+              onPress={() => pickAndUpload('banner')}
+              activeOpacity={0.8}
+              disabled={uploading !== null}
+            >
+              {uploading === 'banner'
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="pencil" size={12} color="#fff" />}
             </TouchableOpacity>
+
+            {/* Logo sobre o banner */}
             <View style={styles.avatarWrap}>
-              <StoreAvatar nome={loja.nome || 'Loja'} size={58} />
-              <TouchableOpacity style={styles.avatarEditBtn} onPress={handlePickAvatar} activeOpacity={0.8}>
-                <Ionicons name="camera-outline" size={10} color="#fff" />
+              <TouchableOpacity
+                style={styles.avatarTouchable}
+                onPress={() => pickAndUpload('logo')}
+                activeOpacity={0.8}
+                disabled={uploading !== null}
+              >
+                {logoUri
+                  ? <Image source={{ uri: logoUri }} style={styles.logoImg} />
+                  : <StoreAvatar nome={loja.nome || 'Loja'} size={58} />}
+                <View style={styles.avatarEditBtn}>
+                  {uploading === 'logo'
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="camera-outline" size={10} color="#fff" />}
+                </View>
               </TouchableOpacity>
             </View>
           </View>
+
           <View style={styles.storeInfo}>
             <Text style={[styles.storeName, { color: textColor }]}>{loja.nome}</Text>
             <Text style={[styles.storeCat, { color: subColor }]}>{loja.categoria} · {loja.bairro}</Text>
@@ -342,7 +402,10 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         <Text style={[styles.sectionLabel, { color: subColor }]}>HORÁRIO DE FUNCIONAMENTO</Text>
         <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
           {horarios.map((horario, index) => (
-            <View key={horario.dia} style={index < horarios.length - 1 && { borderBottomWidth: 1, borderBottomColor: border }}>
+            <View
+              key={horario.dia}
+              style={index < horarios.length - 1 && { borderBottomWidth: 1, borderBottomColor: border }}
+            >
               <HorarioRow
                 horario={horario}
                 onChange={updated => updateHorario(index, updated)}
@@ -389,11 +452,9 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           activeOpacity={0.85}
           disabled={saving}
         >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveBtnText}>Salvar alterações</Text>
-          )}
+          {saving
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.saveBtnText}>Salvar alterações</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
@@ -403,7 +464,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
 
         <View style={{ height: 24 }} />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -422,9 +483,11 @@ const styles = StyleSheet.create({
                       borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.4)',
                       alignItems: 'center', justifyContent: 'center' },
   avatarWrap:       { position: 'absolute', bottom: -22, left: 14 },
+  avatarTouchable:  { position: 'relative' },
   avatar:           { backgroundColor: colors.orange, alignItems: 'center',
                       justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
   avatarText:       { color: '#fff', fontWeight: '700' },
+  logoImg:          { width: 58, height: 58, borderRadius: 14, borderWidth: 3, borderColor: '#fff' },
   avatarEditBtn:    { position: 'absolute', bottom: -2, right: -2,
                       width: 20, height: 20, borderRadius: 10,
                       backgroundColor: colors.orange, alignItems: 'center',
@@ -442,13 +505,18 @@ const styles = StyleSheet.create({
                       textTransform: 'uppercase', letterSpacing: 0.4 },
   fieldInput:       { borderRadius: 10, borderWidth: 1,
                       paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
-  dayRow:           { flexDirection: 'row', alignItems: 'center',
-                      paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
-  dayName:          { fontSize: 13, fontWeight: '600', width: 32 },
+  // HorarioRow — layout em 2 linhas para melhor responsividade mobile
+  dayRow:           { paddingHorizontal: 14, paddingVertical: 10 },
+  dayTopRow:        { flexDirection: 'row', alignItems: 'center',
+                      justifyContent: 'space-between', marginBottom: 8 },
+  dayName:          { fontSize: 13, fontWeight: '600' },
+  dayTimeRow:       { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  timeRangeLabel:   { fontSize: 11, fontWeight: '500', minWidth: 56 },
   timeInput:        { flex: 1, borderRadius: 8, borderWidth: 1,
-                      paddingVertical: 6, paddingHorizontal: 8,
-                      fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  timeSep:          { fontSize: 12 },
+                      paddingVertical: 8, paddingHorizontal: 10,
+                      fontSize: 13, fontWeight: '600', textAlign: 'center',
+                      minWidth: 64 },
+  timeSep:          { fontSize: 14, fontWeight: '600', marginHorizontal: 2 },
   agendRow:         { flexDirection: 'row', alignItems: 'center',
                       justifyContent: 'space-between', padding: 14, gap: 12 },
   agendInfo:        { flex: 1 },

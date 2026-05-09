@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Alert,
+  Modal,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EntregadorService } from '@ajulabs/api-client';
@@ -49,6 +52,59 @@ export function ProfileScreen({ onLogout }: ProfileScreenProps) {
       setGanhos(g);
     }).finally(() => setLoading(false));
   }, [token]);
+
+  const handleMenuPress = useCallback((label: string) => {
+    switch (label) {
+      case 'Documentos':
+        Alert.alert(
+          'Documentos',
+          perfil?.onboarding?.documentosAprovados
+            ? 'Seus documentos foram verificados e aprovados.'
+            : 'Seus documentos estão em análise. Aguarde a aprovação em até 24 horas.',
+          [{ text: 'OK' }]
+        );
+        break;
+      case 'Dados bancários': {
+        const pix = perfil?.entregador?.pix;
+        Alert.alert(
+          'Dados bancários',
+          pix
+            ? `Chave Pix cadastrada:\n${pix}`
+            : 'Nenhuma chave Pix cadastrada. Entre em contato com o suporte para atualizar seus dados bancários.',
+          [{ text: 'OK' }]
+        );
+        break;
+      }
+      case 'Notificações':
+        Alert.alert(
+          'Notificações',
+          'Gerencie suas preferências de notificação nas configurações do sistema.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Abrir configurações', onPress: () => Linking.openSettings() },
+          ]
+        );
+        break;
+      case 'Segurança':
+        Alert.alert(
+          'Segurança',
+          'Para alterar sua senha, entre em contato com o suporte ou use a opção de recuperação de senha na tela de login.',
+          [{ text: 'OK' }]
+        );
+        break;
+      case 'Ajuda e suporte':
+        Alert.alert(
+          'Ajuda e suporte',
+          'Entre em contato com nossa equipe:',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/5579999999999') },
+            { text: 'Email', onPress: () => Linking.openURL('mailto:suporte@ajulabs.com') },
+          ]
+        );
+        break;
+    }
+  }, [perfil]);
 
   const menuItems = [
     { icon: 'document-text', label: 'Documentos', extra: perfil?.onboarding?.documentosAprovados ? 'Verificado' : undefined, extraColor: '#039855' },
@@ -119,6 +175,7 @@ export function ProfileScreen({ onLogout }: ProfileScreenProps) {
                 s.menuRow,
                 i < menuItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#E4E7F1' },
               ]}
+              onPress={() => handleMenuPress(item.label)}
               activeOpacity={0.7}
             >
               <View style={s.menuIcon}>

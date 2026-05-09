@@ -8,7 +8,7 @@ export async function matchAju(
   textoUsuario: string
 ): Promise<RespostaAju> {
   try {
-    const response = await fetch(`${API_URL}chat/mensagem`, {
+    const response = await fetch(`${API_URL}/chat/mensagem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
