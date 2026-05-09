@@ -242,6 +242,49 @@ export const LojistaService = {
     }
   },
 
+  excluirProduto: async (id: string, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/produtos/${id}`, {
+      method: 'DELETE',
+      headers: authHeader(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao excluir produto');
+    }
+  },
+
+  editarProduto: async (
+    id: string,
+    token: string,
+    dados: {
+      nome?: string;
+      descricao?: string;
+      preco?: number;
+      estoque?: number;
+      categoria?: string;
+      disponivel?: boolean;
+    },
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/produtos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao editar produto');
+    }
+  },
+
+  listarProdutos: async (lojaId: string, token: string): Promise<Produto[]> => {
+    const res = await fetch(`${API_URL}/lojista/produtos?lojaId=${lojaId}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { produtos } = await res.json();
+    return (produtos ?? []).map(mapProduto);
+  },
+
   criarProduto: async (
     token: string,
     dados: {
@@ -264,7 +307,8 @@ export const LojistaService = {
     formData.append('categoria', dados.categoria);
     formData.append('tags', JSON.stringify(dados.tags));
     if (dados.imageUri) {
-      formData.append('imagem', { uri: dados.imageUri, type: 'image/jpeg', name: 'produto.jpg' } as any);
+      const blob = await fetch(dados.imageUri).then(r => r.blob());
+      formData.append('imagem', blob, 'produto.jpg');
     }
     const res = await fetch(`${API_URL}/lojista/produtos`, {
       method: 'POST',
@@ -281,7 +325,8 @@ export const LojistaService = {
 
   analisarImagem: async (token: string, imageUri: string): Promise<any> => {
     const formData = new FormData();
-    formData.append('imagem', { uri: imageUri, type: 'image/jpeg', name: 'produto.jpg' } as any);
+    const blob = await fetch(imageUri).then(r => r.blob());
+    formData.append('imagem', blob, 'produto.jpg');
     const res = await fetch(`${API_URL}/lojista/produtos/analisar`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

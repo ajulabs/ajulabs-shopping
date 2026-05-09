@@ -338,13 +338,12 @@ router.post('/produtos', authMiddleware, authLojista, uploadImagem.single('image
     const loja = await verificarDonoLoja(dados.lojaId, req.user!.id);
     if (!loja) return res.status(403).json({ error: 'Acesso negado a esta loja' });
 
+    console.log('[produto] req.file:', req.file ? `${req.file.originalname} (${req.file.size} bytes, ${req.file.mimetype})` : 'AUSENTE');
+
     let imagemUrl = '';
     if (req.file) {
-      try {
-        imagemUrl = await uploadImagemProduto(req.file.buffer, req.file.mimetype);
-      } catch {
-        // Continua sem imagem se o upload falhar
-      }
+      imagemUrl = await uploadImagemProduto(req.file.buffer, req.file.mimetype);
+      console.log('[produto] imagemUrl salva:', imagemUrl);
     }
 
     const produto = await prisma.produto.create({
@@ -353,6 +352,7 @@ router.post('/produtos', authMiddleware, authLojista, uploadImagem.single('image
 
     res.status(201).json({ produto });
   } catch (error) {
+    console.error('[produto] erro:', error);
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     res.status(500).json({ error: 'Erro ao criar produto' });
   }

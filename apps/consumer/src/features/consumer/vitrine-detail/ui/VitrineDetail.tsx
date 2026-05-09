@@ -30,7 +30,7 @@ function Stars({ value }: { value: number }) {
 
 function BannerImg({ uri }: { uri: string }) {
   const [error, setError] = useState(false);
-  if (error) {
+  if (error || !uri) {
     return <View style={[styles.banner, { backgroundColor: colors.orange100 }]} />;
   }
   return (

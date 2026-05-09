@@ -37,9 +37,9 @@ export default function LojistaLayout() {
       <Tabs.Screen
         name="produtos"
         options={{
-          title: 'Novo produto',
+          title: 'Produtos',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
           ),
         }}
       />
