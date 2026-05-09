@@ -18,6 +18,8 @@ export interface Order {
   obs?: string;
   total: number;
   motoboy?: string;
+  entregadorId?: string;
+  entregadorNome?: string;
 }
 
 export const ORDER_STATUS_MAP: Record<string, OrderStatus> = {

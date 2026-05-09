@@ -359,14 +359,10 @@ const TRANSICOES_VALIDAS: Record<string, string> = {
 // Entregador tira foto do produto e confirma retirada (pronto → saiu_entrega)
 // ========================================
 
-router.post('/corridas/:pedidoId/confirmar-retirada', upload.single('foto'), async (req: AuthRequest, res: Response) => {
+router.post('/corridas/:pedidoId/confirmar-retirada', async (req: AuthRequest, res: Response) => {
   try {
     const { pedidoId } = req.params;
     const entregadorId = req.user!.id;
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'Foto do produto obrigatória' });
-    }
 
     const pedido = await prisma.pedido.findFirst({
       where: { id: pedidoId, entregadorId, status: 'pronto' },

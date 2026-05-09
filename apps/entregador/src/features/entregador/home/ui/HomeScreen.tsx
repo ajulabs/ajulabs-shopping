@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EntregadorService } from '@ajulabs/api-client';
@@ -137,6 +139,8 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
   const [countdown, setCountdown] = useState(15);
   const [ganhoHoje, setGanhoHoje] = useState(0);
   const [corridasHoje, setCorridasHoje] = useState(0);
+  const [waitingRides, setWaitingRides] = useState<RideData[]>([]);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const buscarGanhos = useCallback(async () => {
@@ -149,10 +153,12 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
   }, [token]);
 
   const buscarCorridas = useCallback(async () => {
-    if (!token || !online || offer) return;
+    if (!token || !online) return;
     const corridas = await EntregadorService.buscarCorridasDisponiveis(token).catch(() => []);
-    if (corridas.length > 0 && !offer) {
-      setOffer(mapCorridaToRide(corridas[0]));
+    const rides = corridas.map(mapCorridaToRide);
+    setWaitingRides(rides);
+    if (rides.length > 0 && !offer) {
+      setOffer(rides[0]);
       setCountdown(15);
     }
   }, [token, online, offer]);
@@ -193,11 +199,26 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
       const pedido = await EntregadorService.aceitarCorrida(token, offer.id);
       const rideAccepted = { ...offer, id: pedido.id };
       setOffer(null);
+      setWaitingRides([]);
       onAcceptRide(rideAccepted);
     } catch {
       setOffer(null);
     }
   }, [offer, token, onAcceptRide]);
+
+  const handleAcceptWaiting = useCallback(async (ride: RideData) => {
+    if (!token) return;
+    setAcceptingId(ride.id);
+    try {
+      const pedido = await EntregadorService.aceitarCorrida(token, ride.id);
+      const rideAccepted = { ...ride, id: pedido.id };
+      setOffer(null);
+      setWaitingRides([]);
+      onAcceptRide(rideAccepted);
+    } catch {
+      setAcceptingId(null);
+    }
+  }, [token, onAcceptRide]);
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -240,24 +261,83 @@ export function HomeScreen({ onAcceptRide }: HomeScreenProps) {
       )}
 
       {online && !offer && (
-        <View style={s.summaryCard}>
-          <View style={s.summaryHeader}>
-            <Text style={s.summaryLabel}>Esta semana</Text>
-            <View style={s.liveBadge}>
-              <View style={s.liveDot} />
-              <Text style={s.liveBadgeText}>Procurando corridas</Text>
+        <View style={s.bottomPanel}>
+          <View style={s.summarySection}>
+            <View style={s.summaryHeader}>
+              <Text style={s.summaryLabel}>Esta semana</Text>
+              <View style={s.liveBadge}>
+                <View style={s.liveDot} />
+                <Text style={s.liveBadgeText}>Procurando corridas</Text>
+              </View>
+            </View>
+            <View style={s.summaryRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.summaryAmount}>{brl(ganhoHoje)}</Text>
+                <Text style={s.summarySub}>Ganho da semana</Text>
+              </View>
+              <View style={s.dividerV} />
+              <View style={s.summaryCol}>
+                <Text style={s.summaryColVal}>{corridasHoje}</Text>
+                <Text style={s.summaryColLabel}>Corridas</Text>
+              </View>
             </View>
           </View>
-          <View style={s.summaryRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.summaryAmount}>{brl(ganhoHoje)}</Text>
-              <Text style={s.summarySub}>Ganho da semana</Text>
+
+          <View style={s.waitingSection}>
+            <View style={s.waitingHeader}>
+              <Text style={s.waitingTitle}>Entregas em espera</Text>
+              {waitingRides.length > 0 && (
+                <View style={s.waitingBadge}>
+                  <Text style={s.waitingBadgeText}>{waitingRides.length}</Text>
+                </View>
+              )}
             </View>
-            <View style={s.dividerV} />
-            <View style={s.summaryCol}>
-              <Text style={s.summaryColVal}>{corridasHoje}</Text>
-              <Text style={s.summaryColLabel}>Corridas</Text>
-            </View>
+
+            {waitingRides.length === 0 && (
+              <Text style={s.waitingEmpty}>Nenhuma entrega disponível agora.</Text>
+            )}
+
+            <ScrollView contentContainerStyle={s.waitingList} showsVerticalScrollIndicator={false}>
+              {waitingRides.map(ride => (
+                <View key={ride.id} style={s.waitingCard}>
+                  <View style={s.waitingCardBody}>
+                    <View style={s.waitingRoute}>
+                      <View style={s.waitingRouteRow}>
+                        <View style={[s.routeDot, { backgroundColor: '#000933' }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.waitingRouteMain}>{ride.loja.nome}</Text>
+                          <Text style={s.waitingRouteSub}>{ride.loja.bairro}</Text>
+                        </View>
+                      </View>
+                      <View style={s.routeDash} />
+                      <View style={s.waitingRouteRow}>
+                        <View style={[s.routeDot, { backgroundColor: '#209CEF' }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.waitingRouteMain}>{ride.cliente.bairro}</Text>
+                          <Text style={s.waitingRouteSub}>{ride.cliente.endereco}</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={s.waitingCardRight}>
+                      <Text style={s.waitingGanho}>{brl(ride.ganho)}</Text>
+                      <Text style={s.waitingDuracao}>~{ride.duracao} min</Text>
+                      <TouchableOpacity
+                        style={[s.btnWaitingAccept, acceptingId === ride.id && { opacity: 0.6 }]}
+                        onPress={() => handleAcceptWaiting(ride)}
+                        disabled={acceptingId !== null}
+                        activeOpacity={0.8}
+                      >
+                        {acceptingId === ride.id
+                          ? <ActivityIndicator size="small" color="#fff" />
+                          : <Text style={s.btnWaitingAcceptText}>Aceitar</Text>
+                        }
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       )}
@@ -292,19 +372,38 @@ const s = StyleSheet.create({
   offlineIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   offlineTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
   offlineSub: { fontSize: 13, color: 'rgba(255,255,255,0.65)', textAlign: 'center', maxWidth: 240 },
-  summaryCard: { position: 'absolute', bottom: 14, left: 14, right: 14, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.35, shadowRadius: 32, elevation: 12 },
+  bottomPanel: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '65%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 16 },
+  summarySection: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#F0F1F7' },
   summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   summaryLabel: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(57,255,137,0.15)', borderRadius: 99 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#39FF89' },
   liveBadgeText: { fontSize: 11, fontWeight: '700', color: '#046C2E' },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  summaryAmount: { fontSize: 32, fontWeight: '800', color: '#000933' },
+  summaryAmount: { fontSize: 28, fontWeight: '800', color: '#000933' },
   summarySub: { fontSize: 11, color: '#9099B3', marginTop: 3 },
   dividerV: { width: 1, height: 36, backgroundColor: '#E4E7F1' },
   summaryCol: { flex: 1, alignItems: 'center' },
   summaryColVal: { fontSize: 20, fontWeight: '700', color: '#000933' },
   summaryColLabel: { fontSize: 10, color: '#9099B3', marginTop: 4 },
+  waitingSection: { flex: 1 },
+  waitingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
+  waitingTitle: { fontSize: 14, fontWeight: '700', color: '#000933' },
+  waitingBadge: { minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: '#F2760F', alignItems: 'center', justifyContent: 'center' },
+  waitingBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  waitingEmpty: { fontSize: 12, color: '#9099B3', textAlign: 'center', paddingVertical: 16, paddingHorizontal: 16 },
+  waitingList: { paddingHorizontal: 14, paddingBottom: 24 },
+  waitingCard: { backgroundColor: '#F8F9FC', borderRadius: 12, padding: 12, marginBottom: 10 },
+  waitingCardBody: { flexDirection: 'row', gap: 10 },
+  waitingRoute: { flex: 1 },
+  waitingRouteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  waitingRouteMain: { fontSize: 13, fontWeight: '600', color: '#000933' },
+  waitingRouteSub: { fontSize: 11, color: '#9099B3', marginTop: 1 },
+  waitingCardRight: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 4 },
+  waitingGanho: { fontSize: 16, fontWeight: '800', color: '#000933' },
+  waitingDuracao: { fontSize: 10, color: '#9099B3' },
+  btnWaitingAccept: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F2760F', minWidth: 72, alignItems: 'center' },
+  btnWaitingAcceptText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   offerSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -12 }, shadowOpacity: 0.4, shadowRadius: 40, elevation: 20, paddingBottom: 8 },
   timerTrack: { height: 4, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#E4E7F1', overflow: 'hidden' },
   timerBar: { height: '100%' },

@@ -16,6 +16,8 @@ type Screen = 'list' | 'detail' | 'delivery';
 
 function mapPedidoToOrder(raw: any): Order {
   const status: OrderStatus = ORDER_STATUS_MAP[raw.status as string] ?? 'preparando';
+  const entregadorId: string | undefined = raw.entregadorId ?? raw.entregador?.id ?? undefined;
+  const entregadorNome: string | undefined = raw.entregador?.nome ?? undefined;
   const total = Number(raw.total ?? 0);
   const hora = raw.criadoEm
     ? new Date(raw.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -36,6 +38,8 @@ function mapPedidoToOrder(raw: any): Order {
       qtd: it.quantidade ?? 1,
       preco: Number(it.precoUnitario ?? 0),
     })),
+    entregadorId,
+    entregadorNome,
   };
 }
 
@@ -198,8 +202,10 @@ export function PedidosScreen() {
                       <Text style={s.orderId}>{o.id}</Text>
                       <Text style={s.orderMeta}>{o.hora} · {o.cliente} · {o.distancia}</Text>
                     </View>
-                    <View style={[s.badge, { backgroundColor: meta.bg }]}>
-                      <Text style={[s.badgeText, { color: meta.color }]}>{meta.label}</Text>
+                    <View style={[s.badge, { backgroundColor: o.status === 'pronto' && o.entregadorId ? '#E0F2FE' : meta.bg }]}>
+                      <Text style={[s.badgeText, { color: o.status === 'pronto' && o.entregadorId ? '#0369A1' : meta.color }]}>
+                        {o.status === 'pronto' && o.entregadorId ? 'A caminho' : meta.label}
+                      </Text>
                     </View>
                   </View>
 
@@ -228,10 +234,18 @@ export function PedidosScreen() {
                         <Ionicons name="chevron-forward" size={14} color="#fff" />
                       </TouchableOpacity>
                     )}
-                    {!meta.next && o.status === 'pronto' && (
+                    {!meta.next && o.status === 'pronto' && !o.entregadorId && (
                       <View style={s.dispatched}>
                         <Ionicons name="time-outline" size={14} color="#7C3AED" />
                         <Text style={[s.dispatchedText, { color: '#7C3AED' }]}>Aguardando motoboy</Text>
+                      </View>
+                    )}
+                    {!meta.next && o.status === 'pronto' && o.entregadorId && (
+                      <View style={s.dispatched}>
+                        <Ionicons name="bicycle" size={14} color="#0369A1" />
+                        <Text style={[s.dispatchedText, { color: '#0369A1' }]}>
+                          Entregador a caminho{o.entregadorNome ? ` · ${o.entregadorNome}` : ''}
+                        </Text>
                       </View>
                     )}
                     {!meta.next && o.status === 'despachado' && (
