@@ -126,11 +126,11 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
     }
   }, []);
 
-  const handleConfirmarRetirada = useCallback(async (uri: string) => {
+  const handleConfirmarRetirada = useCallback(async () => {
     if (!token) return;
     setLoadingRetirada(true);
     try {
-      await EntregadorService.confirmarRetirada(token, ride.id, uri);
+      await EntregadorService.confirmarRetirada(token, ride.id);
       setStage('to-customer');
     } catch {
       Alert.alert('Erro', 'Não foi possível confirmar a retirada. Tente novamente.');
@@ -241,7 +241,7 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
 
             <TouchableOpacity
               style={[s.ctaBtn, (!photoUri || loadingRetirada) && { opacity: 0.5 }]}
-              onPress={photoUri ? () => handleConfirmarRetirada(photoUri) : undefined}
+              onPress={photoUri ? handleConfirmarRetirada : undefined}
               disabled={!photoUri || loadingRetirada}
               activeOpacity={0.85}
             >

@@ -620,13 +620,11 @@ export const EntregadorService = {
     return res.json();
   },
 
-  confirmarRetirada: async (token: string, pedidoId: string, fotoUri: string): Promise<void> => {
-    const form = new FormData();
-    form.append('foto', { uri: fotoUri, type: 'image/jpeg', name: 'retirada.jpg' } as any);
+  confirmarRetirada: async (token: string, pedidoId: string): Promise<void> => {
     const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/confirmar-retirada`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({}),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
