@@ -18,6 +18,7 @@ yarn-error.*
 *.pem
 .env*.local
 .env
+.env.docker-test
 *.tsbuildinfo
 /ios
 /android
