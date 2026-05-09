@@ -222,12 +222,6 @@ export const LojistaService = {
       telefone?: string;
       aceitaAgendamento?: boolean;
       antecedenciaMinima?: number;
-      horarios?: {
-        diaSemana: number;
-        ativo: boolean;
-        abertura: string;
-        fechamento: string;
-      }[];
       endereco?: {
         rua: string;
         numero?: string;
@@ -245,26 +239,6 @@ export const LojistaService = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar loja');
-    }
-  },
-
-  atualizarImagemLoja: async (
-    lojaId: string,
-    token: string,
-    tipo: 'logo' | 'banner',
-    imageUri: string,
-  ): Promise<void> => {
-    const form = new FormData();
-    const blob = await fetch(imageUri).then(r => r.blob());
-    form.append(tipo, blob, `${tipo}.jpg`);
-    const res = await fetch(`${API_URL}/lojista/lojas/${lojaId}/imagem`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : `Erro ao atualizar ${tipo}`);
     }
   },
 
@@ -389,15 +363,11 @@ export const LojistaService = {
 
 export const EntregadorService = {
   atualizarOnline: async (token: string, online: boolean): Promise<void> => {
-    const res = await fetch(`${API_URL}/entregador/status`, {
+    await fetch(`${API_URL}/entregador/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
       body: JSON.stringify({ online }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar status');
-    }
   },
 
   buscarCorridasDisponiveis: async (token: string): Promise<any[]> => {
@@ -423,14 +393,10 @@ export const EntregadorService = {
   },
 
   rejeitarCorrida: async (token: string, pedidoId: string): Promise<void> => {
-    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/rejeitar`, {
+    await fetch(`${API_URL}/entregador/corridas/${pedidoId}/rejeitar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao rejeitar corrida');
-    }
   },
 
   atualizarStatusCorrida: async (
@@ -438,15 +404,11 @@ export const EntregadorService = {
     pedidoId: string,
     status: 'saiu_entrega' | 'entregue',
   ): Promise<void> => {
-    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/status`, {
+    await fetch(`${API_URL}/entregador/corridas/${pedidoId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar status da corrida');
-    }
   },
 
   buscarPerfil: async (token: string): Promise<any | null> => {
@@ -457,7 +419,7 @@ export const EntregadorService = {
     return res.json();
   },
 
-  buscarGanhos: async (token: string): Promise<any | null> => {
+  buscarGanhos: async (token: string): Promise<any> => {
     const res = await fetch(`${API_URL}/entregador/ganhos`, {
       headers: authHeader(token),
     });
@@ -530,7 +492,7 @@ export const TranscricaoService = {
     const formData = new FormData();
     formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'audio.m4a' } as any);
 
-    const res = await fetch(`${API_URL}/chat/transcricao`, {
+    const res = await fetch(`${API_URL}chat/transcricao`, {
       method: 'POST',
       body: formData,
     });

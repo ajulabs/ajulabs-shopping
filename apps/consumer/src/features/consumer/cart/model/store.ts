@@ -1,9 +1,6 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Produto, Loja, ItemCarrinho } from '@ajulabs/types';
 import { getLojaById } from '@ajulabs/api-client';
-
-const CART_KEY = 'consumer-cart';
 
 export interface GrupoLoja {
   lojaId: string;
@@ -26,32 +23,11 @@ interface CartState {
   limparLoja: (lojaId: string) => void;
   limparTudo: () => void;
   cachearLoja: (loja: Loja) => void;
-  hydrate: () => Promise<void>;
-}
-
-async function saveCart(itensPorLoja: Record<string, ItemCarrinho[]>) {
-  try {
-    await AsyncStorage.setItem(CART_KEY, JSON.stringify(itensPorLoja));
-  } catch {
-    // falha silenciosa — carrinho continua funcional sem persistência
-  }
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
   itensPorLoja: {},
   lojasCache: {},
-
-  hydrate: async () => {
-    try {
-      const raw = await AsyncStorage.getItem(CART_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, ItemCarrinho[]>;
-        set({ itensPorLoja: parsed });
-      }
-    } catch {
-      // carrinho corrompido — começa vazio
-    }
-  },
 
   adicionar: (produto) => {
     const { itensPorLoja } = get();
@@ -64,9 +40,9 @@ export const useCartStore = create<CartState>((set, get) => ({
         )
       : [...itensAtuais, { produto, quantidade: 1 }];
 
-    const novo = { ...itensPorLoja, [produto.lojaId]: novosItens };
-    set({ itensPorLoja: novo });
-    saveCart(novo);
+    set({
+      itensPorLoja: { ...itensPorLoja, [produto.lojaId]: novosItens },
+    });
   },
 
   remover: (produtoId) => {
@@ -77,7 +53,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       if (filtrados.length > 0) novo[lojaId] = filtrados;
     }
     set({ itensPorLoja: novo });
-    saveCart(novo);
   },
 
   aumentar: (produtoId) => {
@@ -89,7 +64,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
     }
     set({ itensPorLoja: novo });
-    saveCart(novo);
   },
 
   diminuir: (produtoId) => {
@@ -113,20 +87,15 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
     }
     set({ itensPorLoja: novo });
-    saveCart(novo);
   },
 
   limparLoja: (lojaId) => {
     const { itensPorLoja } = get();
     const { [lojaId]: _, ...resto } = itensPorLoja;
     set({ itensPorLoja: resto });
-    saveCart(resto);
   },
 
-  limparTudo: () => {
-    set({ itensPorLoja: {} });
-    saveCart({});
-  },
+  limparTudo: () => set({ itensPorLoja: {} }),
 
   cachearLoja: (loja: Loja) =>
     set(s => ({ lojasCache: { ...s.lojasCache, [loja.id]: loja } })),

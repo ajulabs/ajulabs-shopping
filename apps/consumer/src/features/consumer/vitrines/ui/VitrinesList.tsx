@@ -19,21 +19,16 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
   const [categoria, setCategoria] = useState('todos');
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState(false);
   const router = useRouter();
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
   const quantidadeItens = useMemo(() => calcularQuantidadeItens(itensPorLoja), [itensPorLoja]);
 
-  const carregarLojas = useCallback(() => {
-    setLoading(true);
-    setErro(false);
+  useEffect(() => {
     LojaService.listar()
       .then(data => setLojas(data))
-      .catch(() => setErro(true))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  useEffect(() => { carregarLojas(); }, []);
 
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
@@ -92,20 +87,6 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={colors.orange} />
-        </View>
-      ) : erro ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }}>
-          <Ionicons name="wifi-outline" size={48} color={subColor as string} />
-          <Text style={[styles.titulo, { color: textColor, fontSize: 16, textAlign: 'center' }]}>
-            Não foi possível carregar as lojas
-          </Text>
-          <TouchableOpacity
-            onPress={carregarLojas}
-            style={{ paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.orange, borderRadius: 12 }}
-            activeOpacity={0.85}
-          >
-            <Text style={{ color: colors.n0, fontWeight: '700', fontSize: 14 }}>Tentar novamente</Text>
-          </TouchableOpacity>
         </View>
       ) : (
         <FlatList

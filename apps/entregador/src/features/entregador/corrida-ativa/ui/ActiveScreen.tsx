@@ -5,14 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Modal,
-  TextInput,
-  Alert,
-  Image,
-  Linking,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
@@ -31,8 +26,8 @@ const STAGE_LABEL: Record<Stage, string> = {
 
 interface ActiveRide {
   id: string;
-  loja: { nome: string; endereco: string; bairro: string; telefone?: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento?: string; telefone?: string };
+  loja: { nome: string; endereco: string; bairro: string };
+  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
   ganho: number;
   distancia: number;
   duracao: number;
@@ -44,13 +39,6 @@ interface ActiveScreenProps {
   onFinish: () => void;
 }
 
-function openMaps(address: string) {
-  const query = encodeURIComponent(address);
-  Linking.openURL(`https://maps.google.com/?q=${query}`).catch(() =>
-    Linking.openURL(`geo:0,0?q=${query}`)
-  );
-}
-
 function StageCard({
   icon,
   iconColor,
@@ -60,7 +48,6 @@ function StageCard({
   distance,
   cta,
   onCta,
-  mapsAddress,
 }: {
   icon: string;
   iconColor: string;
@@ -70,7 +57,6 @@ function StageCard({
   distance: string;
   cta: string;
   onCta: () => void;
-  mapsAddress: string;
 }) {
   return (
     <View>
@@ -92,7 +78,7 @@ function StageCard({
           <Text style={s.statLabel}>Distância</Text>
           <Text style={[s.statVal, { color: '#000933' }]}>{distance}</Text>
         </View>
-        <TouchableOpacity style={s.navBtn} onPress={() => openMaps(mapsAddress)} activeOpacity={0.8}>
+        <TouchableOpacity style={s.navBtn} activeOpacity={0.8}>
           <Ionicons name="navigate" size={14} color="#000933" />
           <Text style={s.navBtnText}>Navegar</Text>
         </TouchableOpacity>
@@ -105,57 +91,10 @@ function StageCard({
   );
 }
 
-function CodigoModal({
-  visible,
-  onClose,
-  onConfirm,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onConfirm: (code: string) => void;
-}) {
-  const [code, setCode] = useState('');
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={s.modalOverlay}>
-        <View style={s.modalBox}>
-          <Text style={s.modalTitle}>Código de confirmação</Text>
-          <Text style={s.modalSub}>Peça ao cliente para informar o código de 4 dígitos que ele recebeu.</Text>
-          <TextInput
-            style={s.modalInput}
-            value={code}
-            onChangeText={v => setCode(v.replace(/\D/g, '').slice(0, 4))}
-            keyboardType="numeric"
-            placeholder="0000"
-            maxLength={4}
-            textAlign="center"
-          />
-          <View style={s.modalBtns}>
-            <TouchableOpacity style={s.modalBtnCancel} onPress={() => { setCode(''); onClose(); }} activeOpacity={0.8}>
-              <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.modalBtnOk, code.length !== 4 && { opacity: 0.5 }]}
-              disabled={code.length !== 4}
-              onPress={() => { onConfirm(code); setCode(''); }}
-              activeOpacity={0.85}
-            >
-              <Text style={s.modalBtnOkText}>Confirmar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
-  const token  = useAuthEntregadorStore(s => s.token);
-  const insets = useSafeAreaInsets();
+  const token = useAuthEntregadorStore(s => s.token);
   const [stage, setStage] = useState<Stage>('to-store');
   const idx = STAGES.indexOf(stage);
-  const [showCodigoModal, setShowCodigoModal] = useState(false);
-  const [fotoUri, setFotoUri] = useState<string | null>(null);
 
   const advance = useCallback(async () => {
     const next = STAGES[idx + 1];
@@ -170,64 +109,6 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
     setStage(next);
   }, [idx, token, ride.id, onFinish]);
 
-  const handleChamar = useCallback((telefone?: string) => {
-    if (!telefone) {
-      Alert.alert('Telefone não disponível', 'O número de telefone não está disponível nesta corrida.');
-      return;
-    }
-    Linking.openURL(`tel:${telefone}`).catch(() =>
-      Alert.alert('Erro', 'Não foi possível abrir o discador.')
-    );
-  }, []);
-
-  const handleChat = useCallback(() => {
-    Alert.alert(
-      'Chat',
-      'O chat em tempo real estará disponível em breve. Para entrar em contato, use o telefone.',
-      [{ text: 'OK' }]
-    );
-  }, []);
-
-  const handleNavegar = useCallback(() => {
-    const currentStage = stage;
-    if (currentStage === 'to-store' || currentStage === 'at-store') {
-      openMaps(`${ride.loja.endereco}, ${ride.loja.bairro}`);
-    } else {
-      openMaps(`${ride.cliente.endereco}, ${ride.cliente.bairro}`);
-    }
-  }, [stage, ride]);
-
-  const handleFoto = useCallback(async () => {
-    try {
-      const ImagePicker = await import('expo-image-picker');
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para tirar a foto.');
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: false,
-        quality: 0.7,
-      });
-      if (!result.canceled && result.assets?.[0]) {
-        setFotoUri(result.assets[0].uri);
-        Alert.alert('Foto registrada!', 'A foto da entrega foi salva.');
-      }
-    } catch {
-      Alert.alert('Erro', 'Não foi possível acessar a câmera.');
-    }
-  }, []);
-
-  const handleConfirmarCodigo = useCallback((code: string) => {
-    setShowCodigoModal(false);
-    Alert.alert('Código confirmado!', `Entrega verificada com o código ${code}.`, [
-      { text: 'Finalizar', onPress: onFinish },
-    ]);
-  }, [onFinish]);
-
-  const lojaAddress    = `${ride.loja.endereco}, ${ride.loja.bairro}`;
-  const clienteAddress = `${ride.cliente.endereco}, ${ride.cliente.bairro}`;
-
   return (
     <SafeAreaView style={s.safeArea}>
       <View style={s.mapBg}>
@@ -236,12 +117,15 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
         </View>
       </View>
 
-      <View style={[s.progressCard, { top: Math.max(insets.top + 8, 60) }]}>
+      <View style={s.progressCard}>
         <View style={s.progressBars}>
           {STAGES.map((_, i) => (
             <View
               key={i}
-              style={[s.progressBar, { backgroundColor: i <= idx ? '#F2760F' : '#E4E7F1' }]}
+              style={[
+                s.progressBar,
+                { backgroundColor: i <= idx ? '#F2760F' : '#E4E7F1' },
+              ]}
             />
           ))}
         </View>
@@ -255,30 +139,14 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
       </View>
 
       {stage !== 'delivered' && (
-        <View style={[s.fabs, { top: Math.max(insets.top + 108, 160) }]}>
-          <TouchableOpacity
-            style={[s.fab, { backgroundColor: '#39FF89' }]}
-            onPress={() => handleChamar(
-              stage === 'to-store' || stage === 'at-store'
-                ? ride.loja.telefone
-                : ride.cliente.telefone
-            )}
-            activeOpacity={0.8}
-          >
+        <View style={s.fabs}>
+          <TouchableOpacity style={[s.fab, { backgroundColor: '#39FF89' }]} activeOpacity={0.8}>
             <Ionicons name="call" size={20} color="#002B12" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.fab, { backgroundColor: '#FFFFFF' }]}
-            onPress={handleChat}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={[s.fab, { backgroundColor: '#FFFFFF' }]} activeOpacity={0.8}>
             <Ionicons name="chatbubble" size={20} color="#000933" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.fab, { backgroundColor: '#209CEF' }]}
-            onPress={handleNavegar}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={[s.fab, { backgroundColor: '#209CEF' }]} activeOpacity={0.8}>
             <Ionicons name="navigate" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -295,7 +163,6 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             distance={ride.distancia > 0 ? `${(ride.distancia * 0.4).toFixed(1)} km` : '–'}
             cta="Cheguei na loja"
             onCta={advance}
-            mapsAddress={lojaAddress}
           />
         )}
 
@@ -330,7 +197,6 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             distance={ride.distancia > 0 ? `${(ride.distancia * 0.6).toFixed(1)} km` : '–'}
             cta="Cheguei no destino"
             onCta={advance}
-            mapsAddress={clienteAddress}
           />
         )}
 
@@ -341,20 +207,14 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
             </View>
             <Text style={s.successTitle}>Entrega confirmada!</Text>
             <Text style={s.successSub}>
-              Tire uma foto do pacote entregue ou peça o código de confirmação.
+              Tire uma foto do pacote entregue ou peça o código
             </Text>
             <View style={s.deliverOptions}>
-              <TouchableOpacity style={s.deliverBtn} onPress={handleFoto} activeOpacity={0.8}>
-                {fotoUri
-                  ? <Image source={{ uri: fotoUri }} style={{ width: 28, height: 28, borderRadius: 6 }} />
-                  : <Ionicons name="camera" size={22} color="#F2760F" />}
-                <Text style={s.deliverBtnText}>{fotoUri ? 'Foto salva ✓' : 'Foto do pacote'}</Text>
+              <TouchableOpacity style={s.deliverBtn} activeOpacity={0.8}>
+                <Ionicons name="camera" size={22} color="#F2760F" />
+                <Text style={s.deliverBtnText}>Foto do pacote</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.deliverBtn, { backgroundColor: 'rgba(32,156,239,0.12)' }]}
-                onPress={() => setShowCodigoModal(true)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[s.deliverBtn, { backgroundColor: 'rgba(32,156,239,0.12)' }]} activeOpacity={0.8}>
                 <Ionicons name="document-text" size={22} color="#209CEF" />
                 <Text style={[s.deliverBtnText, { color: '#209CEF' }]}>Código do cliente</Text>
               </TouchableOpacity>
@@ -370,12 +230,6 @@ export function ActiveScreen({ ride, onFinish }: ActiveScreenProps) {
           </View>
         )}
       </View>
-
-      <CodigoModal
-        visible={showCodigoModal}
-        onClose={() => setShowCodigoModal(false)}
-        onConfirm={handleConfirmarCodigo}
-      />
     </SafeAreaView>
   );
 }
@@ -395,6 +249,7 @@ const s = StyleSheet.create({
     right: 14,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
+    padding: '10px 12px' as any,
     paddingHorizontal: 12,
     paddingVertical: 10,
     shadowColor: '#000',
@@ -440,7 +295,7 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     padding: 18,
-    paddingBottom: 32,
+    paddingBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -12 },
     shadowOpacity: 0.25,
@@ -533,52 +388,4 @@ const s = StyleSheet.create({
     gap: 6,
   },
   deliverBtnText: { fontSize: 12, fontWeight: '600', color: '#F2760F' },
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,9,51,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 24,
-    width: '100%',
-    maxWidth: 340,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#000933', marginBottom: 6 },
-  modalSub: { fontSize: 13, color: '#9099B3', lineHeight: 19, marginBottom: 18 },
-  modalInput: {
-    height: 60,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#000933',
-    letterSpacing: 10,
-    marginBottom: 18,
-  },
-  modalBtns: { flexDirection: 'row', gap: 10 },
-  modalBtnCancel: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: '#9099B3' },
-  modalBtnOk: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: '#F2760F',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBtnOkText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });
