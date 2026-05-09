@@ -1,11 +1,52 @@
-.git
-.github
-.vscode
-node_modules
-**/node_modules
-**/dist
-**/.expo
+# Apps mobile (não vão pro container do backend)
 apps/
+
+# Node
+**/node_modules
+**/.pnpm-store
+
+# Build outputs
+**/dist
+**/.next
+**/.expo
+**/.expo-shared
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Env files (passe via Railway variables, NUNCA na imagem)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI / Docs
+.github/
+README.md
 *.md
-.env*
-!.env.example
+
+# Testes
+**/coverage
+**/.nyc_output
+**/__tests__
+**/__mocks__
+**/*.test.ts
+**/*.spec.ts
+
+# Outros
+**/.cache
+**/tmp
+**/temp
