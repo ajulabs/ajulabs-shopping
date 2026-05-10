@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../src/features/entregador/home';
@@ -13,6 +13,7 @@ import { SegurancaScreen } from '../src/features/entregador/perfil/ui/SegurancaS
 import { VeiculoScreen } from '../src/features/entregador/perfil/ui/VeiculoScreen';
 import { OnboardingScreen } from '../src/features/entregador/onboarding';
 import { useAuthEntregadorStore } from '../src/store';
+import { EntregadorService } from '@ajulabs/api-client';
 
 type Tab = 'home' | 'entregas' | 'ganhos' | 'perfil';
 
@@ -140,6 +141,7 @@ function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
 export function CourierApp() {
   const needsOnboarding = useAuthEntregadorStore(s => s.needsOnboarding);
   const logout = useAuthEntregadorStore(s => s.logout);
+  const token = useAuthEntregadorStore(s => s.token);
 
   const [screen, setScreen] = useState<Screen>(needsOnboarding ? 'onboarding' : 'main');
   const [tab, setTab] = useState<Tab>('home');
@@ -147,6 +149,36 @@ export function CourierApp() {
   // Múltiplas entregas (máx 2)
   const [activeRides, setActiveRides] = useState<ActiveRideWithStage[]>([]);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    EntregadorService.buscarCorridasAtivas(token).then(corridas => {
+      if (corridas.length === 0) return;
+      const rides: ActiveRideWithStage[] = corridas.map((raw: any) => ({
+        id: raw.id,
+        loja: {
+          nome: raw.loja?.nome ?? '–',
+          endereco: raw.loja?.endereco ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}` : '–',
+          bairro: raw.loja?.endereco?.bairro ?? '–',
+        },
+        cliente: {
+          nome: 'Cliente',
+          endereco: raw.enderecoEntrega ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}` : '–',
+          bairro: raw.enderecoEntrega?.bairro ?? '–',
+        },
+        ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
+        distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
+        duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
+        codigo: raw.id.slice(-4).toUpperCase(),
+        stage: raw.status === 'saiu_entrega' ? 'to-customer' : 'to-store',
+      }));
+      setActiveRides(prev => {
+        const existingIds = new Set(prev.map(r => r.id));
+        const newRides = rides.filter(r => !existingIds.has(r.id));
+        return [...prev, ...newRides];
+      });
+    }).catch(() => {});
+  }, [token]);
 
   const selectedRide = activeRides.find(r => r.id === selectedRideId) ?? null;
 
@@ -212,9 +244,9 @@ export function CourierApp() {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, overflow: 'hidden' }}>
-        {tab === 'home' && (
+        <View style={[{ flex: 1 }, tab !== 'home' && { display: 'none' }]}>
           <HomeScreen onAcceptRide={handleAcceptRide} activeRidesCount={activeRides.length} />
-        )}
+        </View>
         {tab === 'entregas' && (
           <EntregasAndamentoScreen
             rides={activeRides}

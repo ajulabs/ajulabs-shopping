@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Stage } from '../../corrida-ativa/ui/ActiveScreen';
+import { EntregadorService } from '@ajulabs/api-client';
+import { useAuthEntregadorStore } from '../../auth/model/store';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const fmt = (iso: string) => {
+  const d = new Date(iso);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
 
 const STAGE_LABEL: Record<Stage, string> = {
   'to-store':     'A caminho da loja',
@@ -43,13 +50,38 @@ export interface ActiveRideWithStage {
   stage: Stage;
 }
 
+interface EntregaHistorico {
+  id: string;
+  valorRecebido: number;
+  bonus: number | null;
+  criadoEm: string;
+  pedido: {
+    id: string;
+    loja: { nome: string } | null;
+    enderecoEntrega: { bairro: string; cidade: string } | null;
+  } | null;
+}
+
 interface Props {
   rides: ActiveRideWithStage[];
   onSelectRide: (ride: ActiveRideWithStage) => void;
 }
 
 export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
+  const token = useAuthEntregadorStore(s => s.token);
   const slots = 2 - rides.length;
+
+  const [historico, setHistorico] = useState<EntregaHistorico[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoadingHistorico(true);
+    EntregadorService.listarEntregas(token)
+      .then(setHistorico)
+      .catch(() => {})
+      .finally(() => setLoadingHistorico(false));
+  }, [token]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -59,6 +91,7 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* ── Seção: corridas ativas ── */}
         {rides.length === 0 ? (
           <View style={s.emptyState}>
             <View style={s.emptyIcon}>
@@ -140,6 +173,39 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
             })}
           </>
         )}
+
+        {/* ── Seção: histórico ── */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Histórico</Text>
+        </View>
+
+        {loadingHistorico ? (
+          <ActivityIndicator size="small" color="#F2760F" style={{ marginTop: 20 }} />
+        ) : historico.length === 0 ? (
+          <Text style={s.historicoEmpty}>Nenhuma entrega concluída ainda.</Text>
+        ) : (
+          historico.map(item => {
+            const ganho = Number(item.valorRecebido) + (item.bonus ? Number(item.bonus) : 0);
+            return (
+              <View key={item.id} style={s.historicoCard}>
+                <View style={s.historicoBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color="#046C2E" />
+                  <Text style={s.historicoBadgeText}>Entregue</Text>
+                </View>
+                <View style={s.historicoBody}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.historicoLoja}>{item.pedido?.loja?.nome ?? '–'}</Text>
+                    <Text style={s.historicoDest}>
+                      {item.pedido?.enderecoEntrega?.bairro ?? '–'} · {item.pedido?.enderecoEntrega?.cidade ?? ''}
+                    </Text>
+                    <Text style={s.historicoData}>{fmt(item.criadoEm)}</Text>
+                  </View>
+                  <Text style={s.historicoGanho}>{brl(ganho)}</Text>
+                </View>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -151,7 +217,7 @@ const s = StyleSheet.create({
   headerSub: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#000933', marginTop: 2 },
   scroll: { padding: 16, paddingBottom: 32 },
-  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 14 },
+  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 14 },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F0F1F7', alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#000933' },
   emptySub: { fontSize: 13, color: '#9099B3', textAlign: 'center', maxWidth: 260, lineHeight: 20 },
@@ -173,4 +239,16 @@ const s = StyleSheet.create({
   routeDash: { borderLeftWidth: 2, borderLeftColor: '#E4E7F1', borderStyle: 'dashed', height: 12, marginLeft: 4, marginVertical: 3 },
   continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F2760F', borderRadius: 12, paddingVertical: 14 },
   continueBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  // histórico
+  sectionHeader: { marginTop: 8, marginBottom: 12, borderTopWidth: 1, borderTopColor: '#E4E7F1', paddingTop: 16 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#000933' },
+  historicoEmpty: { fontSize: 12, color: '#9099B3', textAlign: 'center', paddingVertical: 16 },
+  historicoCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#E4E7F1' },
+  historicoBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  historicoBadgeText: { fontSize: 11, fontWeight: '700', color: '#046C2E' },
+  historicoBody: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  historicoLoja: { fontSize: 13, fontWeight: '600', color: '#000933' },
+  historicoDest: { fontSize: 11, color: '#9099B3', marginTop: 2 },
+  historicoData: { fontSize: 10, color: '#B0B7CC', marginTop: 3 },
+  historicoGanho: { fontSize: 16, fontWeight: '800', color: '#046C2E' },
 });
