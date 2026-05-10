@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,7 +32,7 @@ const STAGE_LABEL: Record<Stage, string> = {
 interface ActiveRide {
   id: string;
   loja: { nome: string; endereco: string; bairro: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
+  cliente: { nome: string; telefone?: string; endereco: string; bairro: string; complemento?: string };
   ganho: number;
   distancia: number;
   duracao: number;
@@ -54,6 +55,7 @@ function StageCard({
   distance,
   cta,
   onCta,
+  codigoEntrega,
 }: {
   icon: string;
   iconColor: string;
@@ -63,6 +65,7 @@ function StageCard({
   distance: string;
   cta: string;
   onCta: () => void;
+  codigoEntrega?: string;
 }) {
   return (
     <View>
@@ -89,6 +92,13 @@ function StageCard({
           <Text style={s.navBtnText}>Navegar</Text>
         </TouchableOpacity>
       </View>
+      {codigoEntrega && (
+        <View style={s.codeInfoBox}>
+          <Ionicons name="keypad-outline" size={14} color="#F2760F" />
+          <Text style={s.codeInfoLabel}>Código da corrida:</Text>
+          <Text style={s.codeInfoValue}>{codigoEntrega}</Text>
+        </View>
+      )}
       <TouchableOpacity style={s.ctaBtn} onPress={onCta} activeOpacity={0.85}>
         <Text style={s.ctaBtnText}>{cta}</Text>
         <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
@@ -173,7 +183,7 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
         </TouchableOpacity>
       )}
 
-      <View style={s.progressCard}>
+      <View style={[s.progressCard, onBack && { left: 62 }]}>
         <View style={s.progressBars}>
           {STAGES.map((_, i) => (
             <View
@@ -196,7 +206,13 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
 
       {stage !== 'delivered' && (
         <View style={s.fabs}>
-          <TouchableOpacity style={[s.fab, { backgroundColor: '#39FF89' }]} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[s.fab, { backgroundColor: '#39FF89' }, !ride.cliente.telefone && { opacity: 0.4 }]}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (ride.cliente.telefone) Linking.openURL(`tel:${ride.cliente.telefone}`);
+            }}
+          >
             <Ionicons name="call" size={20} color="#002B12" />
           </TouchableOpacity>
           <TouchableOpacity style={[s.fab, { backgroundColor: '#FFFFFF' }]} activeOpacity={0.8}>
@@ -271,17 +287,26 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
           <StageCard
             icon="home"
             iconColor="#209CEF"
-            primary={`${ride.cliente.nome} · ${ride.cliente.bairro}`}
+            primary={ride.cliente.nome}
             secondary={`${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`}
             eta={ride.duracao > 0 ? `${Math.round(ride.duracao * 0.6)} min` : '–'}
             distance={ride.distancia > 0 ? `${(ride.distancia * 0.6).toFixed(1)} km` : '–'}
             cta="Cheguei no destino"
             onCta={advanceStage}
+            codigoEntrega={ride.id.slice(0, 8).toUpperCase()}
           />
         )}
 
         {stage === 'delivered' && (
           <View>
+            <TouchableOpacity
+              style={s.stageBackBtn}
+              onPress={() => { setStage('to-customer'); setCodigoEntrega(''); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={18} color="#000933" />
+              <Text style={s.stageBackText}>Voltar</Text>
+            </TouchableOpacity>
             <Text style={s.codeLabel}>Código de entrega</Text>
             <View style={[s.codeHint, { flexDirection: 'row', gap: 8, alignItems: 'flex-start' }]}>
               <Ionicons name="information-circle-outline" size={16} color="#F2760F" style={{ marginTop: 1 }} />
@@ -430,6 +455,11 @@ const s = StyleSheet.create({
     paddingVertical: 16,
   },
   ctaBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  stageBackBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginBottom: 14 },
+  stageBackText: { fontSize: 13, fontWeight: '600', color: '#000933' },
+  codeInfoBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF0E3', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
+  codeInfoLabel: { fontSize: 12, color: '#9099B3', fontWeight: '600', flex: 1 },
+  codeInfoValue: { fontSize: 18, fontWeight: '800', color: '#000933', letterSpacing: 6 },
   codeLabel: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
   codeHint: {
     padding: 12,

@@ -162,14 +162,15 @@ export function CourierApp() {
           bairro: raw.loja?.endereco?.bairro ?? '–',
         },
         cliente: {
-          nome: 'Cliente',
+          nome: raw.consumidor?.nome ?? 'Cliente',
+          telefone: raw.consumidor?.telefone ?? undefined,
           endereco: raw.enderecoEntrega ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}` : '–',
           bairro: raw.enderecoEntrega?.bairro ?? '–',
         },
         ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
         distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
         duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
-        codigo: raw.id.slice(-4).toUpperCase(),
+        codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),
         stage: raw.status === 'saiu_entrega' ? 'to-customer' : 'to-store',
       }));
       setActiveRides(prev => {

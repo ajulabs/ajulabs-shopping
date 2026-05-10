@@ -42,7 +42,7 @@ const STAGE_BG: Record<Stage, string> = {
 export interface ActiveRideWithStage {
   id: string;
   loja: { nome: string; endereco: string; bairro: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
+  cliente: { nome: string; telefone?: string; endereco: string; bairro: string; complemento?: string };
   ganho: number;
   distancia: number;
   duracao: number;
