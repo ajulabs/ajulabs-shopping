@@ -18,7 +18,7 @@ const brl = (v: number) =>
 interface RideData {
   id: string;
   loja: { nome: string; endereco: string; bairro: string };
-  cliente: { nome: string; endereco: string; bairro: string; complemento?: string };
+  cliente: { nome: string; telefone?: string; endereco: string; bairro: string; complemento?: string };
   ganho: number;
   distancia: number;
   duracao: number;
@@ -35,13 +35,14 @@ function mapCorridaToRide(raw: any): RideData {
     },
     cliente: {
       nome: raw.consumidor?.nome ?? raw.cliente?.nome ?? 'Cliente',
+      telefone: raw.consumidor?.telefone ?? raw.cliente?.telefone ?? undefined,
       endereco: raw.enderecoEntrega ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}` : '–',
       bairro: raw.enderecoEntrega?.bairro ?? '–',
     },
     ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
     distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
     duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
-    codigo: raw.id.slice(-4).toUpperCase(),
+    codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),
   };
 }
 

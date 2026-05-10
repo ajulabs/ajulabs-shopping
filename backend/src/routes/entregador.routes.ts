@@ -275,6 +275,7 @@ router.get('/corridas/ativas', async (req: AuthRequest, res: Response) => {
         },
         enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true } },
         itens: { select: { quantidade: true, nomeSnapshot: true, precoUnitario: true } },
+        consumidor: { select: { nome: true, telefone: true } },
       },
       orderBy: { criadoEm: 'asc' },
     });
@@ -330,6 +331,7 @@ router.get('/corridas/disponivel', async (req: AuthRequest, res: Response) => {
             precoUnitario: true,
           },
         },
+        consumidor: { select: { nome: true, telefone: true } },
       },
       orderBy: { criadoEm: 'asc' },
     });
@@ -373,6 +375,7 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
         loja: { select: { id: true, nome: true, telefone: true } },
         enderecoEntrega: true,
         itens: { select: { quantidade: true, nomeSnapshot: true, precoUnitario: true } },
+        consumidor: { select: { nome: true, telefone: true } },
       },
     });
 
