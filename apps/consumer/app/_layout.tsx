@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '../src/store';
+import { SplashConsumer } from '../src/features/consumer/splash';
 
 export default function RootLayout() {
   const isLoggedIn = useAuthStore(s => s.isLoggedIn);
   const segments = useSegments();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -23,6 +25,10 @@ export default function RootLayout() {
       router.replace('/(consumer)/chat');
     }
   }, [isLoggedIn, segments, mounted]);
+
+  if (isLoggedIn && showSplash) {
+    return <SplashConsumer onDone={() => setShowSplash(false)} />;
+  }
 
   return <Slot />;
 }
