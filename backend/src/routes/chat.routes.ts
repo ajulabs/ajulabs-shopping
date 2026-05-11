@@ -143,7 +143,7 @@ async function buscarProdutosReais(ids: string[], texto: string): Promise<Produt
       produtos = await prisma.produto.findMany({
         where: { disponivel: true, lojaId: { in: lojas.map(l => l.id) } },
         include,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { criadoEm: 'desc' },  //
         take: 3,
         distinct: ['lojaId'],
       });
