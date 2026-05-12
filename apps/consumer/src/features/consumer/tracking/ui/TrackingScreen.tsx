@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
-import { useAuthStore, useThemeStore } from '../../../../store';
+import { useAuthStore } from '../../../../store';
+import { useTheme } from '../../../../hooks';
 import { TrackingTimeline } from './TrackingTimeline';
 
 const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
@@ -17,20 +18,10 @@ interface Props {
 export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
   const token = useAuthStore(s => s.token);
-  const isDark = useThemeStore(s => s.isDark);
+  const { isDark, bg, surf, border, borderL, text, textSec, textMut, backBtn, iconBg } = useTheme();
+  const avatarBg = isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const textMut = isDark ? 'rgba(255,255,255,0.45)' : colors.n500;
-  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
-  const iconBg  = isDark ? 'rgba(255,255,255,0.08)' : colors.orange100;
-  const avatarBg= isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
@@ -108,7 +99,7 @@ export function TrackingScreen({ pedidoId }: Props) {
           </View>
 
           <View style={{ marginTop: 14 }}>
-            <TrackingTimeline status={pedido.status} isDark={isDark} />
+            <TrackingTimeline status={pedido.status} />
           </View>
         </View>
 

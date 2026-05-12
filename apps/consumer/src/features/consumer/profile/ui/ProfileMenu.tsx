@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 interface MenuItem {
   icon: string;
@@ -11,16 +12,10 @@ interface MenuItem {
 
 interface Props {
   items: MenuItem[];
-  isDark?: boolean;
 }
 
-export function ProfileMenu({ items, isDark = false }: Props) {
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.4)' : colors.n500;
-  const iconBg  = isDark ? 'rgba(255,255,255,0.08)' : colors.orange100;
+export function ProfileMenu({ items }: Props) {
+  const { surf, border, borderL, text, textSec, iconBg } = useTheme();
 
   return (
     <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>

@@ -9,7 +9,8 @@ import * as Location from 'expo-location';
 import { colors } from '@ajulabs/theme';
 import { EnderecoService } from '@ajulabs/api-client';
 import { EnderecoSalvo } from '@ajulabs/types';
-import { useAuthStore, useThemeStore } from '../../src/store';
+import { useAuthStore } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 
 interface EnderecoForm {
   apelido: string;
@@ -41,17 +42,7 @@ function iconeApelido(apelido: string): string {
 export default function EnderecosScreen() {
   const router = useRouter();
   const token = useAuthStore(s => s.token);
-  const isDark = useThemeStore(s => s.isDark);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
-  const inputBg = isDark ? 'rgba(255,255,255,0.06)' : colors.n0;
-  const iconBg  = isDark ? 'rgba(255,255,255,0.08)' : colors.orange100;
+  const { isDark, bg, surf, border, borderL, text, textSec, backBtn, inputBg, iconBg } = useTheme();
 
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
   const [loading, setLoading] = useState(true);

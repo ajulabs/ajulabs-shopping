@@ -3,12 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemCarrinho } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 interface Props {
   item: ItemCarrinho;
   onAumentar: (produtoId: string) => void;
   onDiminuir: (produtoId: string) => void;
-  isDark?: boolean;
 }
 
 function Thumb({ uri, alt, isDark }: { uri: string; alt: string; isDark: boolean }) {
@@ -27,11 +27,10 @@ function Thumb({ uri, alt, isDark }: { uri: string; alt: string; isDark: boolean
   return <Image source={{ uri }} style={styles.thumb} onError={() => setError(true)} />;
 }
 
-export function CartItemRow({ item, onAumentar, onDiminuir, isDark = false }: Props) {
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const border  = isDark ? 'rgba(255,255,255,0.12)' : colors.n200;
-  const qtdBg   = isDark ? colors.surfDark : colors.n0;
+export function CartItemRow({ item, onAumentar, onDiminuir }: Props) {
+  const { isDark, text, textSec, surf } = useTheme();
+  const border = isDark ? 'rgba(255,255,255,0.12)' : colors.n200;
+  const qtdBg  = surf;
 
   return (
     <View style={styles.row}>

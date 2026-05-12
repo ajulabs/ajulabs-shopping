@@ -3,27 +3,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { GrupoLoja } from '../../../../store';
 import { colors } from '@ajulabs/theme';
 import { CartItemRow } from './CartItemRow';
+import { useTheme } from '../../../../hooks';
 
 interface Props {
   numero: number;
   grupo: GrupoLoja;
   onAumentar: (produtoId: string) => void;
   onDiminuir: (produtoId: string) => void;
-  isDark?: boolean;
 }
 
-export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir, isDark = false }: Props) {
+export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir }: Props) {
   const fmtMoney = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
   const fretetxt = grupo.taxaEntrega === 0
     ? 'Frete grátis'
     : `Frete ${fmtMoney(grupo.taxaEntrega)}`;
 
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const subBg   = isDark ? 'rgba(255,255,255,0.03)' : '#FAFBFE';
+  const { isDark, surf, border, borderL, text, textSec } = useTheme();
+  const subBg = isDark ? 'rgba(255,255,255,0.03)' : '#FAFBFE';
 
   return (
     <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
@@ -49,7 +45,6 @@ export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir, isDark = 
             item={item}
             onAumentar={onAumentar}
             onDiminuir={onDiminuir}
-            isDark={isDark}
           />
         ))}
       </View>

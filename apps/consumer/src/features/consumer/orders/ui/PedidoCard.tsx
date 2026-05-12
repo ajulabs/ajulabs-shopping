@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedido, StatusPedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 const STATUS_CONFIG: Record<StatusPedido, { label: string; icon: string; color: string; bg: string }> = {
   aguardando:    { label: 'Aguardando',     icon: 'time-outline',       color: colors.n600,    bg: colors.n100 },
@@ -29,18 +30,13 @@ const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 interface Props {
   pedido: Pedido;
   onPress: (id: string) => void;
-  isDark?: boolean;
 }
 
-export function PedidoCard({ pedido, onPress, isDark = false }: Props) {
+export function PedidoCard({ pedido, onPress }: Props) {
   const cfg = STATUS_CONFIG[pedido.status];
   const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
 
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.45)' : colors.n500;
+  const { surf, border, borderL, text, textSec } = useTheme();
 
   return (
     <TouchableOpacity

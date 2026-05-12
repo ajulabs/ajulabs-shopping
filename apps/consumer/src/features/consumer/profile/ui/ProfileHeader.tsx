@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
+import { useTheme } from '../../../../hooks';
 
 function getIniciais(nome: string): string {
   return nome
@@ -12,19 +13,12 @@ function getIniciais(nome: string): string {
     .join('');
 }
 
-interface Props {
-  isDark?: boolean;
-}
-
-export function ProfileHeader({ isDark = false }: Props) {
+export function ProfileHeader() {
   const nome = useAuthStore(s => s.nome) ?? 'Usuário';
   const email = useAuthStore(s => s.email) ?? '';
   const iniciais = getIniciais(nome);
 
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
+  const { surf, border, text, textSec } = useTheme();
 
   return (
     <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>

@@ -4,21 +4,16 @@ import { useRouter } from 'expo-router';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
-import { useAuthStore, useThemeStore } from '../../../../store';
+import { useAuthStore } from '../../../../store';
+import { useTheme } from '../../../../hooks';
 import { PedidoCard } from './PedidoCard';
 
 export function OrdersScreen() {
   const router = useRouter();
   const token = useAuthStore(s => s.token);
-  const isDark = useThemeStore(s => s.isDark);
+  const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.45)' : colors.n500;
 
   useEffect(() => {
     if (!token) {
@@ -88,7 +83,7 @@ export function OrdersScreen() {
           <>
             <Text style={[styles.secao, { color: textSec as string }]}>Em andamento</Text>
             {ativos.map(p => (
-              <PedidoCard key={p.id} pedido={p} onPress={handlePress} isDark={isDark} />
+              <PedidoCard key={p.id} pedido={p} onPress={handlePress} />
             ))}
           </>
         )}
@@ -99,7 +94,7 @@ export function OrdersScreen() {
               Histórico
             </Text>
             {historico.map(p => (
-              <PedidoCard key={p.id} pedido={p} onPress={handlePress} isDark={isDark} />
+              <PedidoCard key={p.id} pedido={p} onPress={handlePress} />
             ))}
           </>
         )}

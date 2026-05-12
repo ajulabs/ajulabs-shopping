@@ -12,6 +12,7 @@ import { Mic, MicOff, Send } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { TranscricaoService } from '@ajulabs/api-client';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 const PLACEHOLDERS = [
   'Tênis preto até R$200...',
@@ -24,10 +25,9 @@ const PLACEHOLDERS = [
 interface Props {
   onSend: (texto: string) => void;
   disabled?: boolean;
-  isDark?: boolean;
 }
 
-export function ChatInput({ onSend, disabled, isDark = false }: Props) {
+export function ChatInput({ onSend, disabled }: Props) {
   const [value, setValue] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
@@ -36,7 +36,7 @@ export function ChatInput({ onSend, disabled, isDark = false }: Props) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const recordingRef = useRef<Audio.Recording | null>(null);
 
-  const surf        = isDark ? colors.surfDark : '#fff';
+  const { isDark, surf } = useTheme();
   const inputText   = isDark ? colors.n0       : '#1f2937';
   const placeholder = isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af';
 

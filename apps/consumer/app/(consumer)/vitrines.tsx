@@ -1,7 +1,7 @@
-import { useThemeStore } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 import { VitrinesList } from '../../src/features/consumer/vitrines';
 
 export default function VitrinasScreen() {
-  const isDark = useThemeStore(s => s.isDark);
+  const { isDark } = useTheme();
   return <VitrinesList dark={isDark} />;
 }

@@ -3,7 +3,8 @@ import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCartStore, calcularQuantidadeItens, useThemeStore } from '../../src/store';
+import { useCartStore, calcularQuantidadeItens } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 import { colors } from '@ajulabs/theme';
 
 export default function ConsumerLayout() {
@@ -12,7 +13,7 @@ export default function ConsumerLayout() {
     () => calcularQuantidadeItens(itensPorLoja),
     [itensPorLoja]
   );
-  const isDark = useThemeStore(s => s.isDark);
+  const { isDark } = useTheme();
 
   return (
     <Tabs

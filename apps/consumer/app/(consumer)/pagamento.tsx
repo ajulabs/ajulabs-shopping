@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { useThemeStore } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 
 interface Cartao {
   id: string;
@@ -39,17 +39,8 @@ export default function PagamentoScreen() {
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(FORM_VAZIO);
-  const isDark = useThemeStore(s => s.isDark);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
-  const inputBg = isDark ? 'rgba(255,255,255,0.06)' : colors.n0;
-  const iconBg  = isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
+  const { isDark, bg, surf, border, borderL, text, textSec, backBtn, inputBg } = useTheme();
+  const iconBg = isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
 
   const handleSalvar = () => {
     const digits = form.numero.replace(/\D/g, '');

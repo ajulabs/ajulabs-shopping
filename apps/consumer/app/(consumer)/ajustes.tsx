@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { useThemeStore } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 
 const APP_VERSION = '1.0.0';
 
@@ -36,17 +37,8 @@ function Toggle({ value, onToggle }: { value: boolean; onToggle: () => void }) {
 export default function AjustesScreen() {
   const router = useRouter();
   const [historiocoLimpo, setHistoricoLimpo] = useState(false);
-  const isDark = useThemeStore(s => s.isDark);
+  const { isDark, bg, surf, border, borderL, text, textSec, iconBg, backBtn } = useTheme();
   const toggleDark = useThemeStore(s => s.toggleDark);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const iconBg  = isDark ? 'rgba(255,255,255,0.08)' : colors.orange100;
-  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
 
   const handleLimparHistorico = () => {
     const confirmar = () => {

@@ -7,8 +7,8 @@ import {
   calcularGrupos,
   calcularQuantidadeItens,
   useAuthStore,
-  useThemeStore,
 } from '../../../../store';
+import { useTheme } from '../../../../hooks';
 import { colors } from '@ajulabs/theme';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { EnderecoService } from '@ajulabs/api-client';
@@ -16,16 +16,7 @@ import { CartLojaGrupo } from './CartLojaGrupo';
 
 export function CartScreen() {
   const router = useRouter();
-  const isDark = useThemeStore(s => s.isDark);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
-  const iconBg  = isDark ? 'rgba(255,255,255,0.08)' : colors.orange100;
+  const { isDark, bg, surf, border, borderL, text, textSec, backBtn, iconBg } = useTheme();
 
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
   const lojasCache = useCartStore(s => s.lojasCache);
@@ -206,7 +197,6 @@ export function CartScreen() {
             grupo={grupo}
             onAumentar={aumentar}
             onDiminuir={diminuir}
-            isDark={isDark}
           />
         ))}
 

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 're
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { useThemeStore } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 
 interface Config {
   id: string;
@@ -23,15 +23,7 @@ const CONFIGS_INICIAIS: Config[] = [
 export default function NotificacoesScreen() {
   const router = useRouter();
   const [configs, setConfigs] = useState(CONFIGS_INICIAIS);
-  const isDark = useThemeStore(s => s.isDark);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
-  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
+  const { isDark, bg, surf, border, borderL, text, textSec, backBtn } = useTheme();
 
   const toggle = (id: string) =>
     setConfigs(prev => prev.map(c => c.id === id ? { ...c, ativo: !c.ativo } : c));

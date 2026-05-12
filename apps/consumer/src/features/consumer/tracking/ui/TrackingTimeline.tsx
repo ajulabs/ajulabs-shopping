@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusPedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 const STEPS = [
   { key: 'confirmado',   label: 'Pedido recebido',  desc: 'Recebemos seu pedido e repassamos pra loja' },
@@ -22,18 +23,18 @@ const STATUS_TO_IDX: Record<StatusPedido, number> = {
 
 interface Props {
   status: StatusPedido;
-  isDark?: boolean;
 }
 
-export function TrackingTimeline({ status, isDark = false }: Props) {
+export function TrackingTimeline({ status }: Props) {
   const currentIdx = STATUS_TO_IDX[status];
 
-  const dotBorder  = isDark ? colors.bgDark  : '#FAFBFE';
+  const { isDark, bg, border, text, textSec, textMut } = useTheme();
+  const dotBorder  = bg;
   const pendingDot = isDark ? 'rgba(255,255,255,0.12)' : colors.n100;
-  const pendingLine= isDark ? 'rgba(255,255,255,0.10)' : colors.n200;
-  const textActive = isDark ? colors.n0      : colors.navy;
-  const textMuted  = isDark ? 'rgba(255,255,255,0.4)' : colors.n500;
-  const descColor  = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
+  const pendingLine= isDark ? 'rgba(255,255,255,0.10)' : border as string;
+  const textActive = text;
+  const textMuted  = textMut;
+  const descColor  = textSec;
 
   return (
     <View style={styles.container}>

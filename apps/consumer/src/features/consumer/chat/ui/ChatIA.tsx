@@ -6,8 +6,8 @@ import { ChatInput } from './ChatInput';
 import { matchAju } from '@ajulabs/api-client';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useThemeStore } from '../../../../store';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 const SUGESTOES_INICIAIS = [
   'Tênis preto até R$200',
@@ -26,15 +26,8 @@ export function ChatIA() {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([MENSAGEM_INICIAL]);
   const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
   const [carregando, setCarregando] = useState(false);
-  const isDark = useThemeStore(s => s.isDark);
-
+  const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
-
-  const bg   = isDark ? colors.bgDark  : '#f9fafb';
-  const surf = isDark ? colors.surfDark : '#fff';
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6';
-  const text = isDark ? colors.n0 : '#111827';
-  const textSec = isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af';
 
   async function handleEnviar(texto: string) {
     if (!texto.trim() || carregando) return;
@@ -108,10 +101,9 @@ export function ChatIA() {
           sugestoes={sugestoes}
           onSugestao={handleEnviar}
           carregando={carregando}
-          isDark={isDark}
         />
 
-        <ChatInput onSend={handleEnviar} disabled={carregando} isDark={isDark} />
+        <ChatInput onSend={handleEnviar} disabled={carregando} />
 
         <Text style={{
           textAlign: 'center', fontSize: 11,

@@ -12,25 +12,25 @@ import {
 } from 'react-native';
 import { useCartStore } from '../../cart/model/store';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 interface Props {
   mensagens: MensagemChat[];
   sugestoes: string[];
   onSugestao: (texto: string) => void;
   carregando: boolean;
-  isDark?: boolean;
 }
 
-export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando, isDark = false }: Props) {
+export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props) {
   const flatRef = useRef<FlatList>(null);
   const adicionar = useCartStore(s => s.adicionar);
   const cachearLoja = useCartStore(s => s.cachearLoja);
   const router = useRouter();
 
-  const bg        = isDark ? colors.bgDark  : '#f9fafb';
-  const bubbleAju = isDark ? colors.surfDark : '#fff';
+  const { isDark, bg, surf } = useTheme();
+  const bubbleAju = surf;
   const textAju   = isDark ? colors.n0      : '#1f2937';
-  const cardBg    = isDark ? colors.surfDark : '#fff';
+  const cardBg    = surf;
   const cardBorder= isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6';
   const cardText  = isDark ? colors.n0      : '#111827';
   const cardSub   = isDark ? 'rgba(255,255,255,0.45)' : '#9ca3af';

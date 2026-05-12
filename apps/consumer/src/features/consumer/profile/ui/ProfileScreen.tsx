@@ -5,19 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { ProfileHeader } from './ProfileHeader';
 import { ProfileMenu } from './ProfileMenu';
-import { useAuthStore, useThemeStore } from '../../../../store';
+import { useAuthStore } from '../../../../store';
+import { useTheme } from '../../../../hooks';
 
 export function ProfileScreen() {
   const router = useRouter();
   const logout = useAuthStore(s => s.logout);
   const [logoutVisible, setLogoutVisible] = useState(false);
-  const isDark = useThemeStore(s => s.isDark);
-
-  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
-  const surf    = isDark ? colors.surfDark : colors.n0;
-  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
-  const text    = isDark ? colors.n0      : colors.navy;
-  const textSec = isDark ? 'rgba(255,255,255,0.45)' : colors.n500;
+  const { isDark, bg, surf, borderL, text, textSec } = useTheme();
 
   const menuPrincipal = [
     {
@@ -70,14 +65,14 @@ export function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <ProfileHeader isDark={isDark} />
+        <ProfileHeader />
 
         <View style={{ marginTop: 14 }}>
-          <ProfileMenu items={menuPrincipal} isDark={isDark} />
+          <ProfileMenu items={menuPrincipal} />
         </View>
 
         <View style={{ marginTop: 14 }}>
-          <ProfileMenu items={menuConfig} isDark={isDark} />
+          <ProfileMenu items={menuConfig} />
         </View>
 
         {/* Sair */}
