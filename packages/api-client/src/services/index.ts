@@ -35,6 +35,7 @@ function mapProduto(raw: any): Produto {
     descricao: raw.descricao,
     preco: Number(raw.preco ?? 0),
     imagem: raw.imagemUrl ?? '',
+    imagens: Array.isArray(raw.imagens) ? raw.imagens : (raw.imagemUrl ? [raw.imagemUrl] : []),
     categoria: raw.categoria ?? '',
     disponivel: raw.disponivel ?? true,
     estoque: raw.estoque != null ? Number(raw.estoque) : undefined,
@@ -311,12 +312,35 @@ export const LojistaService = {
       estoque?: number;
       categoria?: string;
       disponivel?: boolean;
+      existingImageUrls?: string[];
+      newImageUris?: string[];
     },
   ): Promise<void> => {
+    const { newImageUris = [], existingImageUrls = [], ...rest } = dados;
+
+    const form = new FormData();
+    if (rest.nome      !== undefined) form.append('nome',      rest.nome);
+    if (rest.descricao !== undefined) form.append('descricao', rest.descricao);
+    if (rest.categoria !== undefined) form.append('categoria', rest.categoria);
+    if (rest.preco     !== undefined) form.append('preco',     String(rest.preco));
+    if (rest.estoque   !== undefined) form.append('estoque',   String(rest.estoque));
+    if (rest.disponivel !== undefined) form.append('disponivel', String(rest.disponivel));
+    form.append('imagensExistentes', JSON.stringify(existingImageUrls));
+
+    for (let i = 0; i < newImageUris.length; i++) {
+      const uri = newImageUris[i];
+      if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+        const blob = await fetch(uri).then(r => r.blob());
+        form.append('imagens', blob, `imagem_${i}.jpg`);
+      } else {
+        form.append('imagens', { uri, type: 'image/jpeg', name: `imagem_${i}.jpg` } as any);
+      }
+    }
+
     const res = await fetch(`${API_URL}/lojista/produtos/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify(dados),
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

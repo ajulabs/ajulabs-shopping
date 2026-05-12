@@ -249,6 +249,7 @@ model Produto {
   preco        Decimal  @db.Decimal(10, 2)
   estoque      Int
   imagemUrl    String   @map("imagem_url")
+  imagens      String[] @default([])
   categoria    String
   tags         String[]
   disponivel   Boolean  @default(true)

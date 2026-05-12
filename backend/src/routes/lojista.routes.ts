@@ -277,6 +277,7 @@ const produtoSchema = z.object({
   categoria: z.string(),
   tags: z.array(z.string()).default([]),
   destaque: z.boolean().default(false),
+  disponivel: z.boolean().optional(),
 });
 
 const produtoFormSchema = z.object({
@@ -377,7 +378,7 @@ router.post('/produtos', authMiddleware, authLojista, uploadImagem.single('image
     }
 
     const produto = await prisma.produto.create({
-      data: { ...dados, imagemUrl },
+      data: { ...dados, imagemUrl, imagens: imagemUrl ? [imagemUrl] : [] },
     });
 
     res.status(201).json({ produto });
@@ -388,8 +389,8 @@ router.post('/produtos', authMiddleware, authLojista, uploadImagem.single('image
   }
 });
 
-// PUT /lojista/produtos/:id - Editar produto
-router.put('/produtos/:id', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+// PUT /lojista/produtos/:id - Editar produto (multipart: até 4 imagens opcionais)
+router.put('/produtos/:id', authMiddleware, authLojista, uploadImagem.array('imagens', 4), async (req: AuthRequest, res) => {
   try {
     const produto = await prisma.produto.findUnique({
       where: { id: req.params.id },
@@ -400,7 +401,36 @@ router.put('/produtos/:id', authMiddleware, authLojista, async (req: AuthRequest
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    const dados = produtoSchema.partial().omit({ lojaId: true }).parse(req.body);
+    const body = req.body as Record<string, string | undefined>;
+    const dados: Record<string, unknown> = {};
+    if (body.nome)      dados.nome      = body.nome;
+    if (body.descricao !== undefined) dados.descricao = body.descricao;
+    if (body.categoria) dados.categoria = body.categoria;
+    if (body.preco)     dados.preco     = parseFloat(body.preco);
+    if (body.estoque !== undefined && body.estoque !== '') {
+      dados.estoque = parseInt(body.estoque, 10);
+    }
+    if (body.disponivel !== undefined) {
+      dados.disponivel = body.disponivel === 'true';
+    }
+
+    // Imagens: combinar URLs existentes mantidas + novas uploads
+    let existingUrls: string[] = [];
+    try { existingUrls = JSON.parse(body.imagensExistentes ?? '[]'); } catch {}
+
+    const files = req.files as Express.Multer.File[] | undefined;
+    let newUrls: string[] = [];
+    if (files && files.length > 0) {
+      newUrls = await Promise.all(
+        files.map(f => uploadImagemProduto(f.buffer, f.mimetype)),
+      );
+    }
+
+    const todasImagens = [...existingUrls, ...newUrls];
+    if (todasImagens.length > 0) {
+      dados.imagemUrl = todasImagens[0];
+      dados.imagens   = todasImagens;
+    }
 
     const atualizado = await prisma.produto.update({
       where: { id: req.params.id },
@@ -409,7 +439,6 @@ router.put('/produtos/:id', authMiddleware, authLojista, async (req: AuthRequest
 
     res.json({ produto: atualizado });
   } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     res.status(500).json({ error: 'Erro ao atualizar produto' });
   }
 });

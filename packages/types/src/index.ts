@@ -31,6 +31,7 @@ export interface Produto {
   descricao: string;
   preco: number;
   imagem: string;
+  imagens?: string[];
   categoria: string;
   disponivel: boolean;
   estoque?: number;
