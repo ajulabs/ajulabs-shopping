@@ -52,10 +52,19 @@ function ProdutoRow({
         <Text style={styles.rowCategoria}>{produto.categoria}</Text>
         <Text style={styles.rowPreco}>R$ {produto.preco.toFixed(2).replace('.', ',')}</Text>
       </View>
-      <View style={[styles.badge, produto.disponivel ? styles.badgeOn : styles.badgeOff]}>
-        <Text style={[styles.badgeText, produto.disponivel ? styles.badgeTextOn : styles.badgeTextOff]}>
-          {produto.disponivel ? 'Ativo' : 'Inativo'}
-        </Text>
+      <View style={styles.rowBadges}>
+        <View style={[styles.badge, produto.disponivel ? styles.badgeOn : styles.badgeOff]}>
+          <Text style={[styles.badgeText, produto.disponivel ? styles.badgeTextOn : styles.badgeTextOff]}>
+            {produto.disponivel ? 'Ativo' : 'Inativo'}
+          </Text>
+        </View>
+        {produto.estoque != null && (
+          <View style={[styles.badge, produto.estoque === 0 ? styles.badgeEsgotado : styles.badgeEstoque]}>
+            <Text style={[styles.badgeText, produto.estoque === 0 ? styles.badgeTextEsgotado : styles.badgeTextEstoque]}>
+              {produto.estoque === 0 ? 'Esgotado' : `${produto.estoque} un.`}
+            </Text>
+          </View>
+        )}
       </View>
       <View style={styles.rowActions}>
         <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
@@ -85,7 +94,7 @@ function EditProdutoScreen({
     categoria: produto.categoria,
     descricao: produto.descricao,
     preco: produto.preco.toFixed(2).replace('.', ','),
-    estoque: '',
+    estoque: produto.estoque != null ? String(produto.estoque) : '',
     disponivel: produto.disponivel,
   });
   const [saving, setSaving] = useState(false);
@@ -173,12 +182,15 @@ function EditProdutoScreen({
           <View style={[styles.fieldGroup, { flex: 1 }]}>
             <Text style={styles.fieldLabel}>Estoque</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, form.estoque === '0' && styles.inputEsgotado]}
               value={form.estoque}
               onChangeText={v => set('estoque', v)}
-              placeholder="Manter atual"
+              placeholder="0"
               keyboardType="number-pad"
             />
+            {form.estoque === '0' && (
+              <Text style={styles.estoqueAviso}>Produto ficará fora da vitrine</Text>
+            )}
           </View>
         </View>
 
@@ -356,11 +368,18 @@ const styles = StyleSheet.create({
                        alignItems: 'center', justifyContent: 'center' },
   actionBtnDelete:   { backgroundColor: '#FDECEA' },
   badge:             { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99 },
+  rowBadges:         { alignItems: 'flex-end', gap: 4 },
   badgeOn:           { backgroundColor: 'rgba(57,255,137,0.15)' },
   badgeOff:          { backgroundColor: colors.n100 },
+  badgeEsgotado:     { backgroundColor: 'rgba(226,75,74,0.12)' },
+  badgeEstoque:      { backgroundColor: 'rgba(0,9,51,0.07)' },
   badgeText:         { fontSize: 11, fontWeight: '600' },
   badgeTextOn:       { color: '#046C2E' },
   badgeTextOff:      { color: colors.n600 },
+  badgeTextEsgotado: { color: '#C0392B' },
+  badgeTextEstoque:  { color: colors.navy },
+  inputEsgotado:     { borderColor: '#E24B4A' },
+  estoqueAviso:      { fontSize: 11, color: '#E24B4A', fontWeight: '500', marginTop: 3 },
   center:            { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyTitle:        { fontSize: 17, fontWeight: '600', color: colors.navy, marginTop: 16 },
   emptySub:          { fontSize: 13, color: colors.n600, textAlign: 'center', marginTop: 6, lineHeight: 19 },

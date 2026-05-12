@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { colors } from '@ajulabs/theme';
 import { EnderecoService } from '@ajulabs/api-client';
 import { EnderecoSalvo } from '@ajulabs/types';
@@ -25,6 +26,11 @@ const FORM_VAZIO: EnderecoForm = {
   cep: '', cidade: 'Aracaju', complemento: '',
 };
 
+function formatCEP(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 8);
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+}
+
 function iconeApelido(apelido: string): string {
   const a = apelido.toLowerCase();
   if (a.includes('casa') || a.includes('home')) return 'home';
@@ -41,6 +47,11 @@ export default function EnderecosScreen() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<EnderecoForm>(FORM_VAZIO);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [erroGeral, setErroGeral] = useState('');
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [buscandoLoc, setBuscandoLoc] = useState(false);
+  const [erroLoc, setErroLoc] = useState('');
 
   const carregar = useCallback(() => {
     if (!token) { setLoading(false); return; }
@@ -52,6 +63,87 @@ export default function EnderecosScreen() {
   }, [token]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const clearError = (field: string) =>
+    setErrors(e => ({ ...e, [field]: '' }));
+
+  const buscarCep = useCallback(async (digits: string) => {
+    if (digits.length !== 8) return;
+    setBuscandoCep(true);
+    clearError('cep');
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setErrors(e => ({ ...e, cep: 'CEP não encontrado.' }));
+        return;
+      }
+      setForm(f => ({
+        ...f,
+        rua: data.logradouro || f.rua,
+        bairro: data.bairro || f.bairro,
+        cidade: data.localidade || f.cidade,
+      }));
+    } catch {
+      setErrors(e => ({ ...e, cep: 'Erro ao buscar CEP. Verifique sua conexão.' }));
+    } finally {
+      setBuscandoCep(false);
+    }
+  }, []);
+
+  const usarLocalizacao = async () => {
+    setBuscandoLoc(true);
+    setErroLoc('');
+    try {
+      let latitude: number;
+      let longitude: number;
+
+      if (Platform.OS === 'web') {
+        if (!navigator?.geolocation) {
+          setErroLoc('Geolocalização não suportada neste navegador.');
+          return;
+        }
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false }),
+        );
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } else {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setErroLoc('Permita o acesso à localização nas configurações.');
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        latitude = loc.coords.latitude;
+        longitude = loc.coords.longitude;
+      }
+
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        { headers: { 'User-Agent': 'AjuLabsShopping/1.0' } },
+      );
+      const data = await res.json();
+      const addr = data.address ?? {};
+      const cepRaw = (addr.postcode ?? '').replace(/\D/g, '').slice(0, 8);
+      setForm(f => ({
+        ...f,
+        rua: addr.road || addr.pedestrian || addr.street || f.rua,
+        bairro: addr.suburb || addr.neighbourhood || addr.city_district || f.bairro,
+        cidade: addr.city || addr.town || addr.village || f.cidade,
+        cep: cepRaw || f.cep,
+      }));
+      setErrors({});
+    } catch (e: any) {
+      const msg = e?.code === 1 ? 'Permissão de localização negada pelo navegador.'
+        : e?.code === 2 ? 'Localização indisponível. Tente novamente.'
+        : e?.code === 3 ? 'Tempo esgotado. Tente novamente.'
+        : 'Não foi possível obter sua localização.';
+      setErroLoc(msg);
+    } finally {
+      setBuscandoLoc(false);
+    }
+  };
 
   const handleRemover = (id: string) => {
     const confirmar = () => {
@@ -75,34 +167,47 @@ export default function EnderecosScreen() {
     EnderecoService.definirPadrao(token, id).then(carregar).catch(() => {});
   };
 
-  const [erroForm, setErroForm] = useState('');
-
   const handleSalvar = async () => {
-    setErroForm('');
+    setErroGeral('');
     if (!token) return;
-    if (!form.apelido || !form.rua || !form.numero || !form.bairro || !form.cidade) {
-      setErroForm('Preencha todos os campos obrigatórios.');
+
+    const newErrors: Record<string, string> = {};
+    if (!form.apelido.trim()) newErrors.apelido = 'Campo obrigatório.';
+    if (!form.rua.trim()) newErrors.rua = 'Campo obrigatório.';
+    if (!form.numero.trim()) newErrors.numero = 'Campo obrigatório.';
+    if (!form.bairro.trim()) newErrors.bairro = 'Campo obrigatório.';
+    if (!form.cidade.trim()) newErrors.cidade = 'Campo obrigatório.';
+    if (form.cep.replace(/\D/g, '').length !== 8) newErrors.cep = 'CEP inválido.';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    if (form.cep.replace(/\D/g, '').length !== 8) {
-      setErroForm('CEP deve ter 8 dígitos.');
-      return;
-    }
+
     setSaving(true);
     try {
       await EnderecoService.criar(token, {
         ...form,
+        cep: form.cep.replace(/\D/g, ''),
         complemento: form.complemento || undefined,
       });
       setShowModal(false);
       setForm(FORM_VAZIO);
-      setErroForm('');
+      setErrors({});
       carregar();
     } catch (e: any) {
-      setErroForm(e?.message ?? 'Não foi possível salvar o endereço.');
+      setErroGeral(e?.message ?? 'Não foi possível salvar o endereço.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const fecharModal = () => {
+    setShowModal(false);
+    setForm(FORM_VAZIO);
+    setErrors({});
+    setErroGeral('');
+    setErroLoc('');
   };
 
   return (
@@ -172,41 +277,89 @@ export default function EnderecosScreen() {
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitulo}>Novo Endereço</Text>
-              <TouchableOpacity onPress={() => { setShowModal(false); setForm(FORM_VAZIO); }}>
+              <TouchableOpacity onPress={fecharModal}>
                 <Ionicons name="close" size={24} color={colors.navy} />
               </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+
+              {/* Botão usar localização */}
+              <TouchableOpacity
+                style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
+                onPress={usarLocalizacao}
+                disabled={buscandoLoc}
+                activeOpacity={0.8}
+              >
+                {buscandoLoc
+                  ? <ActivityIndicator size="small" color={colors.orange} />
+                  : <Ionicons name="navigate-outline" size={16} color={colors.orange} />
+                }
+                <Text style={styles.locBtnTxt}>
+                  {buscandoLoc ? 'Buscando localização...' : 'Usar minha localização'}
+                </Text>
+              </TouchableOpacity>
+              {!!erroLoc && (
+                <View style={styles.erroBox}>
+                  <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
+                  <Text style={styles.erroTxt}>{erroLoc}</Text>
+                </View>
+              )}
+
               <Text style={styles.fieldLabel}>Apelido *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, !!errors.apelido && styles.inputError]}
                 value={form.apelido}
-                onChangeText={v => setForm(f => ({ ...f, apelido: v }))}
+                onChangeText={v => { setForm(f => ({ ...f, apelido: v })); clearError('apelido'); }}
                 placeholder="Ex: Casa, Trabalho, Apartamento"
                 placeholderTextColor={colors.n500}
               />
+              {!!errors.apelido && <Text style={styles.fieldError}>{errors.apelido}</Text>}
+
+              <Text style={styles.fieldLabel}>CEP *</Text>
+              <View style={styles.cepRow}>
+                <TextInput
+                  style={[styles.input, styles.cepInput, !!errors.cep && styles.inputError]}
+                  value={formatCEP(form.cep)}
+                  onChangeText={v => {
+                    const digits = v.replace(/\D/g, '').slice(0, 8);
+                    setForm(f => ({ ...f, cep: digits }));
+                    clearError('cep');
+                    if (digits.length === 8) buscarCep(digits);
+                  }}
+                  placeholder="00000-000"
+                  placeholderTextColor={colors.n500}
+                  keyboardType="numeric"
+                  maxLength={9}
+                />
+                {buscandoCep && (
+                  <ActivityIndicator size="small" color={colors.orange} style={styles.cepLoader} />
+                )}
+              </View>
+              {!!errors.cep && <Text style={styles.fieldError}>{errors.cep}</Text>}
 
               <Text style={styles.fieldLabel}>Rua / Avenida *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, !!errors.rua && styles.inputError]}
                 value={form.rua}
-                onChangeText={v => setForm(f => ({ ...f, rua: v }))}
+                onChangeText={v => { setForm(f => ({ ...f, rua: v })); clearError('rua'); }}
                 placeholder="Ex: Av. Ivo do Prado"
                 placeholderTextColor={colors.n500}
               />
+              {!!errors.rua && <Text style={styles.fieldError}>{errors.rua}</Text>}
 
               <View style={styles.row2}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>Número *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, !!errors.numero && styles.inputError]}
                     value={form.numero}
-                    onChangeText={v => setForm(f => ({ ...f, numero: v }))}
+                    onChangeText={v => { setForm(f => ({ ...f, numero: v })); clearError('numero'); }}
                     placeholder="123"
                     placeholderTextColor={colors.n500}
                     keyboardType="numeric"
                   />
+                  {!!errors.numero && <Text style={styles.fieldError}>{errors.numero}</Text>}
                 </View>
                 <View style={{ flex: 2, marginLeft: 12 }}>
                   <Text style={styles.fieldLabel}>Complemento</Text>
@@ -222,42 +375,28 @@ export default function EnderecosScreen() {
 
               <Text style={styles.fieldLabel}>Bairro *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, !!errors.bairro && styles.inputError]}
                 value={form.bairro}
-                onChangeText={v => setForm(f => ({ ...f, bairro: v }))}
+                onChangeText={v => { setForm(f => ({ ...f, bairro: v })); clearError('bairro'); }}
                 placeholder="Ex: Centro"
                 placeholderTextColor={colors.n500}
               />
+              {!!errors.bairro && <Text style={styles.fieldError}>{errors.bairro}</Text>}
 
-              <View style={styles.row2}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>CEP *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.cep}
-                    onChangeText={v => setForm(f => ({ ...f, cep: v.replace(/\D/g, '').slice(0, 8) }))}
-                    placeholder="49000000"
-                    placeholderTextColor={colors.n500}
-                    keyboardType="numeric"
-                    maxLength={8}
-                  />
-                </View>
-                <View style={{ flex: 2, marginLeft: 12 }}>
-                  <Text style={styles.fieldLabel}>Cidade *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.cidade}
-                    onChangeText={v => setForm(f => ({ ...f, cidade: v }))}
-                    placeholder="Aracaju"
-                    placeholderTextColor={colors.n500}
-                  />
-                </View>
-              </View>
+              <Text style={styles.fieldLabel}>Cidade *</Text>
+              <TextInput
+                style={[styles.input, !!errors.cidade && styles.inputError]}
+                value={form.cidade}
+                onChangeText={v => { setForm(f => ({ ...f, cidade: v })); clearError('cidade'); }}
+                placeholder="Aracaju"
+                placeholderTextColor={colors.n500}
+              />
+              {!!errors.cidade && <Text style={styles.fieldError}>{errors.cidade}</Text>}
 
-              {!!erroForm && (
+              {!!erroGeral && (
                 <View style={styles.erroBox}>
                   <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
-                  <Text style={styles.erroTxt}>{erroForm}</Text>
+                  <Text style={styles.erroTxt}>{erroGeral}</Text>
                 </View>
               )}
 
@@ -316,9 +455,18 @@ const styles = StyleSheet.create({
                     borderBottomWidth: 1, borderBottomColor: colors.n100, backgroundColor: colors.n0 },
   modalTitulo:    { fontSize: 18, fontWeight: '700', color: colors.navy },
   modalScroll:    { padding: 20 },
+  locBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    paddingVertical: 12, borderRadius: 12, borderWidth: 1.5,
+                    borderColor: colors.orange, backgroundColor: colors.orange100, marginBottom: 8 },
+  locBtnTxt:      { fontSize: 13, fontWeight: '600', color: colors.orange },
   fieldLabel:     { fontSize: 12, fontWeight: '600', color: colors.n600, marginBottom: 6, marginTop: 14 },
   input:          { backgroundColor: colors.n0, borderRadius: 12, borderWidth: 1, borderColor: colors.n200,
                     paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: colors.navy },
+  inputError:     { borderColor: '#E24B4A' },
+  fieldError:     { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
+  cepRow:         { flexDirection: 'row', alignItems: 'center' },
+  cepInput:       { flex: 1 },
+  cepLoader:      { marginLeft: 10 },
   row2:           { flexDirection: 'row' },
   erroBox:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14,
                     padding: 12, backgroundColor: '#FCEBEB', borderRadius: 10 },

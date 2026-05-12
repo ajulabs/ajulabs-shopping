@@ -37,6 +37,7 @@ function mapProduto(raw: any): Produto {
     imagem: raw.imagemUrl ?? '',
     categoria: raw.categoria ?? '',
     disponivel: raw.disponivel ?? true,
+    estoque: raw.estoque != null ? Number(raw.estoque) : undefined,
     destaque: raw.destaque ?? false,
   };
 }
@@ -246,6 +247,7 @@ export const LojistaService = {
       endereco?: {
         rua: string;
         numero?: string;
+        complemento?: string;
         bairro: string;
         cep: string;
         cidade: string;

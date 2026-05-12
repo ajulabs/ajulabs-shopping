@@ -33,6 +33,7 @@ export interface Produto {
   imagem: string;
   categoria: string;
   disponivel: boolean;
+  estoque?: number;
   destaque?: boolean;
 }
 

@@ -2,9 +2,10 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
   StyleSheet, Switch, Alert, ActivityIndicator, Image,
-  KeyboardAvoidingView, Platform, Modal,
+  KeyboardAvoidingView, Platform, Modal, FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
@@ -24,6 +25,8 @@ interface LojaData {
   descricao: string;
   telefone: string;
   rua: string;
+  numero: string;
+  complemento: string;
   bairro: string;
   cep: string;
   cidade: string;
@@ -34,6 +37,36 @@ interface LojaData {
 interface PerfilLojaProps {
   dark?: boolean;
 }
+
+interface CategoriaItem { label: string; icone: string; }
+
+const CATEGORIAS: CategoriaItem[] = [
+  { label: 'Alimentação',              icone: 'restaurant-outline'      },
+  { label: 'Padaria e Confeitaria',    icone: 'cafe-outline'            },
+  { label: 'Açougue e Peixaria',       icone: 'fish-outline'            },
+  { label: 'Hortifrúti',               icone: 'leaf-outline'            },
+  { label: 'Bebidas',                  icone: 'wine-outline'            },
+  { label: 'Calçados',                 icone: 'footsteps-outline'       },
+  { label: 'Roupas e Acessórios',      icone: 'shirt-outline'           },
+  { label: 'Moda Infantil',            icone: 'happy-outline'           },
+  { label: 'Moda Praia e Esporte',     icone: 'water-outline'           },
+  { label: 'Bijuterias e Joias',       icone: 'diamond-outline'         },
+  { label: 'Cosméticos e Beleza',      icone: 'color-palette-outline'   },
+  { label: 'Farmácia',                 icone: 'medkit-outline'          },
+  { label: 'Ótica',                    icone: 'glasses-outline'         },
+  { label: 'Eletrônicos',              icone: 'phone-portrait-outline'  },
+  { label: 'Informática',              icone: 'laptop-outline'          },
+  { label: 'Eletrodomésticos',         icone: 'home-outline'            },
+  { label: 'Móveis e Decoração',       icone: 'bed-outline'             },
+  { label: 'Papelaria e Livraria',     icone: 'book-outline'            },
+  { label: 'Brinquedos e Games',       icone: 'game-controller-outline' },
+  { label: 'Esportes e Lazer',         icone: 'football-outline'        },
+  { label: 'Pet Shop',                 icone: 'paw-outline'             },
+  { label: 'Ferragens e Construção',   icone: 'construct-outline'       },
+  { label: 'Floricultura',             icone: 'flower-outline'          },
+  { label: 'Serviços',                 icone: 'build-outline'           },
+  { label: 'Outros',                   icone: 'storefront-outline'      },
+];
 
 const HORARIOS_INICIAIS: HorarioDia[] = [
   { dia: 'Segunda-feira',  abreviacao: 'Seg', ativo: true,  abertura: '08:00', fechamento: '18:00' },
@@ -153,6 +186,74 @@ function StoreAvatar({ nome, size = 56 }: { nome: string; size?: number }) {
   );
 }
 
+function CategoriaPicker({
+  value, onChange, dark,
+}: {
+  value: string; onChange: (v: string) => void; dark: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const textColor = dark ? colors.n0    : colors.navy;
+  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const inputBg   = dark ? 'rgba(255,255,255,0.05)' : colors.n50;
+  const border    = dark ? 'rgba(255,255,255,0.08)' : colors.n200;
+  const selected  = CATEGORIAS.find(c => c.label === value);
+
+  return (
+    <>
+      <View style={styles.field}>
+        <Text style={[styles.fieldLabel, { color: subColor }]}>CATEGORIA</Text>
+        <TouchableOpacity
+          style={[styles.fieldInput, styles.catSelector, { backgroundColor: inputBg, borderColor: border }]}
+          onPress={() => setOpen(true)}
+          activeOpacity={0.8}
+        >
+          {selected
+            ? <>
+                <Ionicons name={selected.icone as any} size={18} color={textColor} style={{ marginRight: 8 }} />
+                <Text style={[styles.catSelectorText, { color: textColor }]}>{selected.label}</Text>
+              </>
+            : <Text style={[styles.catSelectorText, { color: subColor }]}>Selecione uma categoria</Text>}
+          <Ionicons name="chevron-down" size={16} color={subColor} />
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOpen(false)}>
+        <View style={styles.catModal}>
+          <View style={styles.catModalHeader}>
+            <Text style={styles.catModalTitle}>Categoria da loja</Text>
+            <TouchableOpacity onPress={() => setOpen(false)}>
+              <Ionicons name="close" size={22} color={colors.navy} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={CATEGORIAS}
+            keyExtractor={item => item.label}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.catItem, item.label === value && styles.catItemSelected]}
+                onPress={() => { onChange(item.label); setOpen(false); }}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={item.icone as any}
+                  size={20}
+                  color={item.label === value ? colors.orange : colors.n600}
+                  style={styles.catItemIcone}
+                />
+                <Text style={[styles.catItemLabel, item.label === value && { color: colors.orange, fontWeight: '700' }]}>
+                  {item.label}
+                </Text>
+                {item.label === value && <Ionicons name="checkmark-circle" size={20} color={colors.orange} />}
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </Modal>
+    </>
+  );
+}
+
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const token  = useAuthLojistaStore(s => s.token);
   const lojaId = useAuthLojistaStore(s => s.lojaId);
@@ -167,7 +268,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const [bannerUri,  setBannerUri]  = useState<string | null>(null);
   const [loja, setLoja] = useState<LojaData>({
     nome: '', categoria: '', descricao: '', telefone: '',
-    rua: '', bairro: '', cep: '', cidade: '',
+    rua: '', numero: '', complemento: '', bairro: '', cep: '', cidade: '',
     aceitaAgendamento: false, antecedenciaMinima: '120',
   });
 
@@ -180,9 +281,9 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         categoria:           raw.categoria ?? '',
         descricao:           raw.descricao ?? '',
         telefone:            raw.telefone ?? '',
-        rua:                 raw.endereco
-                               ? `${raw.endereco.rua}${raw.endereco.numero ? ', ' + raw.endereco.numero : ''}`
-                               : '',
+        rua:                 raw.endereco?.rua ?? '',
+        numero:              raw.endereco?.numero ?? '',
+        complemento:         raw.endereco?.complemento ?? '',
         bairro:              raw.endereco?.bairro ?? '',
         cep:                 raw.endereco?.cep ?? '',
         cidade:              raw.endereco?.cidade ?? '',
@@ -207,9 +308,76 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const surface   = dark ? '#111638'    : colors.n0;
   const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
-  const updateLoja    = useCallback((key: keyof LojaData, value: string | boolean) => {
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [buscandoLoc, setBuscandoLoc] = useState(false);
+  const [erroLoc, setErroLoc]         = useState('');
+
+  const updateLoja = useCallback((key: keyof LojaData, value: string | boolean) => {
     setLoja(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  const buscarCep = useCallback(async (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setBuscandoCep(true);
+    try {
+      const res  = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) { Alert.alert('CEP não encontrado'); return; }
+      setLoja(prev => ({
+        ...prev,
+        rua:    data.logradouro || prev.rua,
+        bairro: data.bairro     || prev.bairro,
+        cidade: data.localidade  || prev.cidade,
+      }));
+    } catch {
+      Alert.alert('Erro', 'Não foi possível buscar o CEP.');
+    } finally {
+      setBuscandoCep(false);
+    }
+  }, []);
+
+  const usarLocalizacao = async () => {
+    setBuscandoLoc(true);
+    setErroLoc('');
+    try {
+      let latitude: number;
+      let longitude: number;
+      if (Platform.OS === 'web') {
+        if (!navigator?.geolocation) { setErroLoc('Geolocalização não suportada.'); return; }
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false }),
+        );
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } else {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setErroLoc('Permita o acesso à localização.'); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        latitude = loc.coords.latitude;
+        longitude = loc.coords.longitude;
+      }
+      const res  = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        { headers: { 'User-Agent': 'AjuLabsShopping/1.0' } },
+      );
+      const data = await res.json();
+      const addr = data.address ?? {};
+      const cep  = (addr.postcode ?? '').replace(/\D/g, '').slice(0, 8);
+      setLoja(prev => ({
+        ...prev,
+        rua:    addr.road || addr.pedestrian || prev.rua,
+        bairro: addr.suburb || addr.neighbourhood || prev.bairro,
+        cidade: addr.city || addr.town || prev.cidade,
+        cep:    cep || prev.cep,
+      }));
+    } catch (e: any) {
+      const msg = e?.code === 1 ? 'Permissão negada.' : e?.code === 3 ? 'Tempo esgotado.' : 'Não foi possível obter localização.';
+      setErroLoc(msg);
+    } finally {
+      setBuscandoLoc(false);
+    }
+  };
 
   const updateHorario = useCallback((index: number, updated: HorarioDia) => {
     setHorarios(prev => prev.map((h, i) => i === index ? updated : h));
@@ -257,10 +425,6 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     }
     setSaving(true);
     try {
-      const ruaPartes = loja.rua.split(',').map(s => s.trim());
-      const rua    = ruaPartes[0] ?? loja.rua;
-      const numero = ruaPartes[1] ?? '';
-
       await LojistaService.atualizarLoja(lojaId, token, {
         nome:                loja.nome,
         descricao:           loja.descricao,
@@ -275,7 +439,14 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           fechamento: h.fechamento,
         })),
         ...(loja.bairro || loja.cep || loja.cidade ? {
-          endereco: { rua, numero, bairro: loja.bairro, cep: loja.cep, cidade: loja.cidade },
+          endereco: {
+            rua:         loja.rua,
+            numero:      loja.numero,
+            complemento: loja.complemento,
+            bairro:      loja.bairro,
+            cep:         loja.cep,
+            cidade:      loja.cidade,
+          },
         } : {}),
       });
       Alert.alert('Salvo!', 'As informações da loja foram atualizadas.');
@@ -372,7 +543,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
           <View style={styles.fieldGroup}>
             <FormField label="NOME DA LOJA" value={loja.nome} onChange={v => updateLoja('nome', v)} dark={dark} />
-            <FormField label="CATEGORIA" value={loja.categoria} onChange={v => updateLoja('categoria', v)} placeholder="Ex: Calçados, Roupas…" dark={dark} />
+            <CategoriaPicker value={loja.categoria} onChange={v => updateLoja('categoria', v)} dark={dark} />
             <FormField label="DESCRIÇÃO" value={loja.descricao} onChange={v => updateLoja('descricao', v)} multiline dark={dark} />
             <FormField label="TELEFONE / WHATSAPP" value={loja.telefone} onChange={v => updateLoja('telefone', v)} keyboardType="phone-pad" dark={dark} />
           </View>
@@ -381,15 +552,57 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         <Text style={[styles.sectionLabel, { color: subColor }]}>ENDEREÇO</Text>
         <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
           <View style={styles.fieldGroup}>
-            <FormField label="RUA / NÚMERO" value={loja.rua} onChange={v => updateLoja('rua', v)} dark={dark} />
+            {/* Botão localização */}
+            <TouchableOpacity
+              style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
+              onPress={usarLocalizacao}
+              disabled={buscandoLoc}
+              activeOpacity={0.8}
+            >
+              {buscandoLoc
+                ? <ActivityIndicator size="small" color={colors.orange} />
+                : <Ionicons name="navigate-outline" size={15} color={colors.orange} />}
+              <Text style={styles.locBtnTxt}>
+                {buscandoLoc ? 'Buscando...' : 'Usar minha localização'}
+              </Text>
+            </TouchableOpacity>
+            {!!erroLoc && <Text style={styles.locErro}>{erroLoc}</Text>}
+
+            {/* CEP com autofill */}
             <View style={styles.fieldRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: subColor }]}>CEP</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TextInput
+                    style={[styles.fieldInput, { backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50, borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.n200, color: textColor, flex: 1 }]}
+                    value={loja.cep}
+                    onChangeText={v => {
+                      const d = v.replace(/\D/g, '').slice(0, 8);
+                      updateLoja('cep', d);
+                      if (d.length === 8) buscarCep(d);
+                    }}
+                    placeholder="00000000"
+                    placeholderTextColor={subColor}
+                    keyboardType="numeric"
+                    maxLength={8}
+                  />
+                  {buscandoCep && <ActivityIndicator size="small" color={colors.orange} style={{ marginLeft: 8 }} />}
+                </View>
+              </View>
               <View style={{ flex: 1 }}>
                 <FormField label="BAIRRO" value={loja.bairro} onChange={v => updateLoja('bairro', v)} dark={dark} />
               </View>
+            </View>
+
+            <View style={styles.fieldRow}>
+              <View style={{ flex: 2 }}>
+                <FormField label="RUA" value={loja.rua} onChange={v => updateLoja('rua', v)} placeholder="Nome da rua" dark={dark} />
+              </View>
               <View style={{ flex: 1 }}>
-                <FormField label="CEP" value={loja.cep} onChange={v => updateLoja('cep', v)} keyboardType="numeric" dark={dark} />
+                <FormField label="NÚMERO" value={loja.numero} onChange={v => updateLoja('numero', v)} placeholder="Nº" keyboardType="numeric" dark={dark} />
               </View>
             </View>
+            <FormField label="COMPLEMENTO" value={loja.complemento} onChange={v => updateLoja('complemento', v)} placeholder="Nº da loja, Box, Sala, Apto..." dark={dark} />
             <FormField label="CIDADE" value={loja.cidade} onChange={v => updateLoja('cidade', v)} dark={dark} />
           </View>
         </View>
@@ -529,6 +742,11 @@ const styles = StyleSheet.create({
   statusText:       { fontSize: 12, fontWeight: '600' },
   fieldGroup:       { padding: 14, gap: 12 },
   fieldRow:         { flexDirection: 'row', gap: 10 },
+  locBtn:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+                      paddingVertical: 11, borderRadius: 10, borderWidth: 1.5,
+                      borderColor: colors.orange, backgroundColor: colors.orange100 },
+  locBtnTxt:        { fontSize: 13, fontWeight: '600', color: colors.orange },
+  locErro:          { fontSize: 11, color: '#E24B4A', fontWeight: '500' },
   field:            { gap: 5 },
   fieldLabel:       { fontSize: 11, fontWeight: '700',
                       textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -572,4 +790,20 @@ const styles = StyleSheet.create({
   modalBtnSairText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   modalBtnCancel:   { width: '100%', paddingVertical: 15, borderRadius: 14, borderWidth: 1, borderColor: '#E4E7F1', alignItems: 'center' },
   modalBtnCancelText: { fontSize: 15, fontWeight: '600', color: '#5A6480' },
+
+  // CategoriaPicker
+  catSelector:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      height: 46, paddingHorizontal: 12 },
+  catSelectorText:  { fontSize: 14, flex: 1 },
+  catModal:         { flex: 1, backgroundColor: '#fff' },
+  catModalHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      paddingHorizontal: 20, paddingVertical: 16,
+                      borderBottomWidth: 1, borderBottomColor: colors.n200 },
+  catModalTitle:    { fontSize: 17, fontWeight: '700', color: colors.navy },
+  catItem:          { flexDirection: 'row', alignItems: 'center', gap: 14,
+                      paddingHorizontal: 20, paddingVertical: 15,
+                      borderBottomWidth: 1, borderBottomColor: colors.n100 },
+  catItemSelected:  { backgroundColor: 'rgba(242,118,15,0.07)' },
+  catItemIcone:     { width: 28, textAlign: 'center' },
+  catItemLabel:     { flex: 1, fontSize: 15, color: colors.navy },
 });

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/';
 
 interface DadosRegistro {
   nome: string;
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   registrar: async (dados: DadosRegistro) => {
     const cpfRaw = dados.cpf.replace(/\D/g, '');
-    const telefoneRaw = `+55${dados.telefone.replace(/\D/g, '')}`;
+    const telefoneRaw = dados.telefone.replace(/[^\d+]/g, '');
 
     const res = await fetch(`${API_URL}auth/usuario/registrar`, {
       method: 'POST',

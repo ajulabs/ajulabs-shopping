@@ -37,6 +37,20 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
       });
     }
 
+    const semEstoque = dados.itens.filter(item => {
+      const produto = produtos.find(p => p.id === item.produtoId)!;
+      return produto.estoque < item.quantidade;
+    });
+    if (semEstoque.length > 0) {
+      return res.status(400).json({
+        error: 'Estoque insuficiente',
+        produtos: semEstoque.map(item => {
+          const p = produtos.find(pr => pr.id === item.produtoId)!;
+          return { id: p.id, nome: p.nome, estoqueDisponivel: p.estoque };
+        }),
+      });
+    }
+
     const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
     if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
 
@@ -56,43 +70,59 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
     const digits = (consumidor?.telefone ?? '').replace(/\D/g, '');
     const codigoEntrega = digits.length >= 4 ? digits.slice(-4) : String(Math.floor(1000 + Math.random() * 9000));
 
-    const pedido = await prisma.pedido.create({
-      data: {
-        consumidorId: req.user!.id,
-        lojaId: dados.lojaId,
-        enderecoEntregaId: dados.enderecoEntregaId,
-        metodoPagamento: dados.metodoPagamento,
-        obs: dados.obs,
-        codigoEntrega,
-        subtotal,
-        taxaEntrega,
-        desconto,
-        total,
-        itens: {
-          create: dados.itens.map(item => {
-            const produto = produtos.find(p => p.id === item.produtoId)!;
-            return {
-              produtoId: produto.id,
-              nomeSnapshot: produto.nome,
-              precoUnitario: produto.preco,
-              quantidade: item.quantidade,
-            };
-          }),
+    const { pedido } = await prisma.$transaction(async (tx) => {
+      const pedido = await tx.pedido.create({
+        data: {
+          consumidorId: req.user!.id,
+          lojaId: dados.lojaId,
+          enderecoEntregaId: dados.enderecoEntregaId,
+          metodoPagamento: dados.metodoPagamento,
+          obs: dados.obs,
+          codigoEntrega,
+          subtotal,
+          taxaEntrega,
+          desconto,
+          total,
+          itens: {
+            create: dados.itens.map(item => {
+              const produto = produtos.find(p => p.id === item.produtoId)!;
+              return {
+                produtoId: produto.id,
+                nomeSnapshot: produto.nome,
+                precoUnitario: produto.preco,
+                quantidade: item.quantidade,
+              };
+            }),
+          },
+          historico: {
+            create: { status: 'aguardando' },
+          },
         },
-        historico: {
-          create: { status: 'aguardando' },
-        },
-      },
-      include: { itens: true, loja: true, historico: true },
-    });
+        include: { itens: true, loja: true, historico: true },
+      });
 
-    await prisma.pagamento.create({
-      data: {
-        pedidoId: pedido.id,
-        metodo: dados.metodoPagamento,
-        valor: total,
-        status: 'pendente',
-      },
+      await tx.pagamento.create({
+        data: {
+          pedidoId: pedido.id,
+          metodo: dados.metodoPagamento,
+          valor: total,
+          status: 'pendente',
+        },
+      });
+
+      for (const item of dados.itens) {
+        const produto = produtos.find(p => p.id === item.produtoId)!;
+        const novoEstoque = produto.estoque - item.quantidade;
+        await tx.produto.update({
+          where: { id: item.produtoId },
+          data: {
+            estoque: novoEstoque,
+            ...(novoEstoque <= 0 ? { disponivel: false } : {}),
+          },
+        });
+      }
+
+      return { pedido };
     });
 
     res.status(201).json({ pedido });

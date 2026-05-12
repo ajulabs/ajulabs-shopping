@@ -12,6 +12,7 @@ interface FieldProps {
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   error?: string;
   autoCapitalize?: 'none' | 'words' | 'sentences';
+  onBlur?: () => void;
 }
 
 export function Field({
@@ -20,6 +21,7 @@ export function Field({
   keyboardType = 'default',
   error,
   autoCapitalize = 'none',
+  onBlur,
 }: FieldProps) {
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
@@ -42,7 +44,7 @@ export function Field({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => { setFocused(false); onBlur?.(); }}
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setShown(s => !s)} hitSlop={10} style={styles.eyeBtn}>

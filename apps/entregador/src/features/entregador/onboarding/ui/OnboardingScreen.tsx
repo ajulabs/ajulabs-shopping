@@ -8,16 +8,10 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthEntregadorStore } from '../../../../store';
 import { EntregadorService } from '@ajulabs/api-client';
+import { formatCPF, validateCPF } from '../../auth/lib/formatCPF';
+import { PhoneInput } from './PhoneInput';
 
 // ─── Formatadores ────────────────────────────────────────────────
-function formatCPF(v: string) {
-  const d = v.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
-}
-
 function formatTel(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11);
   if (d.length <= 2) return d;
@@ -30,10 +24,11 @@ function formatTel(v: string) {
 type KB = 'default' | 'email-address' | 'numeric' | 'phone-pad';
 
 function Input({
-  value, onChange, placeholder, secureTextEntry, keyboardType = 'default',
+  value, onChange, placeholder, secureTextEntry, keyboardType = 'default', autoCapitalize = 'none',
 }: {
   value: string; onChange: (v: string) => void;
   placeholder?: string; secureTextEntry?: boolean; keyboardType?: KB;
+  autoCapitalize?: 'none' | 'words' | 'sentences';
 }) {
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
@@ -46,7 +41,7 @@ function Input({
         placeholderTextColor="#9099B3"
         secureTextEntry={secureTextEntry && !shown}
         keyboardType={keyboardType}
-        autoCapitalize="none"
+        autoCapitalize={autoCapitalize}
         style={s.inputInner}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -174,13 +169,18 @@ function StepPessoal({
       </TouchableOpacity>
 
       <Field label="Nome completo" error={erros.nome}>
-        <Input value={data.nome || ''} onChange={v => up('nome', v)} placeholder="Seu nome completo" />
+        <Input value={data.nome || ''} onChange={v => up('nome', v)} placeholder="Nome e Sobrenome" autoCapitalize="words" />
       </Field>
       <Field label="CPF" error={erros.cpf}>
         <Input value={data.cpf || ''} onChange={v => up('cpf', formatCPF(v))} placeholder="000.000.000-00" keyboardType="numeric" />
       </Field>
       <Field label="Celular" error={erros.celular}>
-        <Input value={data.celular || ''} onChange={v => up('celular', formatTel(v))} placeholder="(79) 9 0000-0000" keyboardType="phone-pad" />
+        <PhoneInput
+          value={data.celular || ''}
+          onChange={(local, full) => { up('celular', local); up('celularCompleto', full); }}
+          error={undefined}
+        />
+        {!!erros.celular && <Text style={s.fieldError}>{erros.celular}</Text>}
       </Field>
       <Field label="Email" error={erros.email}>
         <Input value={data.email || ''} onChange={v => up('email', v)} placeholder="seu@email.com" keyboardType="email-address" />
@@ -463,10 +463,11 @@ function StepRevisao({ data }: { data: Data }) {
 // ─── Validação do passo 1 ─────────────────────────────────────────
 function validarPasso1(data: Data): Record<string, string> {
   const e: Record<string, string> = {};
-  if ((data.nome || '').trim().length < 2) e.nome = 'Informe seu nome completo.';
-  if ((data.cpf || '').replace(/\D/g, '').length !== 11) e.cpf = 'CPF inválido (11 dígitos).';
-  if ((data.celular || '').replace(/\D/g, '').length < 10) e.celular = 'Celular inválido.';
-  if (!(data.email || '').includes('@')) e.email = 'Email inválido.';
+  const nomeParts = (data.nome || '').trim().split(/\s+/);
+  if (nomeParts.length < 2 || nomeParts[1].length < 2) e.nome = 'Informe seu nome e sobrenome.';
+  if (!validateCPF(data.cpf || '')) e.cpf = 'CPF inválido.';
+  if ((data.celularCompleto || data.celular || '').replace(/\D/g, '').length < 10) e.celular = 'Celular inválido.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(data.email || '')) e.email = 'Email inválido.';
   if ((data.senha || '').length < 6) e.senha = 'Mínimo 6 caracteres.';
   if ((data.senha || '') !== (data.confirmarSenha || '')) e.confirmarSenha = 'As senhas não coincidem.';
   return e;
@@ -574,12 +575,12 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     setSubmitError('');
     console.log('[Entregador][Onboarding] Enviando cadastro — nome:', data.nome, '| cpf:', data.cpf, '| email:', data.email, '| transporte:', data.transporte);
     try {
-      const celDigits = (data.celular || '').replace(/\D/g, '');
+      const celFull = (data.celularCompleto || data.celular || '').replace(/[^\d+]/g, '');
       console.log('[Entregador][Onboarding] Registrando conta...');
       await registrar({
         nome:           data.nome,
         cpf:            (data.cpf || '').replace(/\D/g, ''),
-        telefone:       `+55${celDigits}`,
+        telefone:       celFull || `+55${(data.celular || '').replace(/\D/g, '')}`,
         email:          data.email,
         senha:          data.senha,
         tipoTransporte: (data.transporte || 'moto') as 'bike' | 'moto' | 'carro',
