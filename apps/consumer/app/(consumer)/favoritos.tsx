@@ -3,23 +3,26 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../src/hooks';
 
 type Aba = 'produtos' | 'lojas';
 
 export default function FavoritosScreen() {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>('produtos');
+  const { isDark, bg, surf, borderL, text, textSec, backBtn } = useTheme();
+  const textMuted = isDark ? 'rgba(255,255,255,0.3)' : colors.n300;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.btnBack}>
-          <Ionicons name="chevron-back" size={20} color={colors.navy} />
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+        <TouchableOpacity onPress={() => router.navigate('/(consumer)/perfil')} style={[styles.btnBack, { backgroundColor: backBtn }]}>
+          <Ionicons name="chevron-back" size={20} color={text} />
         </TouchableOpacity>
-        <Text style={styles.titulo}>Favoritos</Text>
+        <Text style={[styles.titulo, { color: text }]}>Favoritos</Text>
       </View>
 
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { backgroundColor: surf, borderBottomColor: borderL }]}>
         {(['produtos', 'lojas'] as Aba[]).map(t => (
           <TouchableOpacity
             key={t}
@@ -27,7 +30,10 @@ export default function FavoritosScreen() {
             onPress={() => setAba(t)}
             activeOpacity={0.75}
           >
-            <Text style={[styles.tabTxt, aba === t && styles.tabTxtActive]}>
+            <Text style={[
+              styles.tabTxt,
+              { color: aba === t ? colors.orange : (textSec as string) },
+            ]}>
               {t === 'produtos' ? 'Produtos' : 'Lojas'}
             </Text>
           </TouchableOpacity>
@@ -35,11 +41,11 @@ export default function FavoritosScreen() {
       </View>
 
       <View style={styles.vazio}>
-        <Ionicons name="heart-outline" size={56} color={colors.n300} />
-        <Text style={styles.vazioTitulo}>
+        <Ionicons name="heart-outline" size={56} color={textMuted as string} />
+        <Text style={[styles.vazioTitulo, { color: text }]}>
           Nenhum{aba === 'lojas' ? 'a' : ''} {aba === 'produtos' ? 'produto' : 'loja'} favoritad{aba === 'lojas' ? 'a' : 'o'}
         </Text>
-        <Text style={styles.vazioTxt}>
+        <Text style={[styles.vazioTxt, { color: textSec as string }]}>
           Toque no coração {aba === 'produtos' ? 'de um produto' : 'de uma loja'} para salvar aqui
         </Text>
         <TouchableOpacity
@@ -55,23 +61,21 @@ export default function FavoritosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: '#FAFBFE' },
+  container:      { flex: 1 },
   header:         { flexDirection: 'row', alignItems: 'center', gap: 12,
                     paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                    backgroundColor: colors.n0, borderBottomWidth: 1, borderBottomColor: colors.n100 },
-  btnBack:        { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.n50,
+                    borderBottomWidth: 1 },
+  btnBack:        { width: 38, height: 38, borderRadius: 19,
                     alignItems: 'center', justifyContent: 'center' },
-  titulo:         { fontSize: 20, fontWeight: '700', color: colors.navy },
-  tabs:           { flexDirection: 'row', backgroundColor: colors.n0,
-                    borderBottomWidth: 1, borderBottomColor: colors.n100 },
+  titulo:         { fontSize: 20, fontWeight: '700' },
+  tabs:           { flexDirection: 'row', borderBottomWidth: 1 },
   tab:            { flex: 1, paddingVertical: 14, alignItems: 'center',
                     borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive:      { borderBottomColor: colors.orange },
-  tabTxt:         { fontSize: 14, fontWeight: '600', color: colors.n500 },
-  tabTxtActive:   { color: colors.orange },
+  tabTxt:         { fontSize: 14, fontWeight: '600' },
   vazio:          { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
-  vazioTitulo:    { fontSize: 18, fontWeight: '700', color: colors.navy, marginTop: 8 },
-  vazioTxt:       { fontSize: 13, color: colors.n600, textAlign: 'center', lineHeight: 20 },
+  vazioTitulo:    { fontSize: 18, fontWeight: '700', marginTop: 8 },
+  vazioTxt:       { fontSize: 13, textAlign: 'center', lineHeight: 20 },
   btnExplorar:    { marginTop: 12, paddingHorizontal: 28, paddingVertical: 13,
                     backgroundColor: colors.orange, borderRadius: 14 },
   btnExplorarTxt: { color: colors.n0, fontSize: 14, fontWeight: '700' },

@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedido, StatusPedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 const STATUS_CONFIG: Record<StatusPedido, { label: string; icon: string; color: string; bg: string }> = {
   aguardando:    { label: 'Aguardando',     icon: 'time-outline',       color: colors.n600,    bg: colors.n100 },
@@ -35,16 +36,22 @@ export function PedidoCard({ pedido, onPress }: Props) {
   const cfg = STATUS_CONFIG[pedido.status];
   const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
 
+  const { surf, border, borderL, text, textSec } = useTheme();
+
   return (
     <TouchableOpacity
-      style={[styles.card, isAtivo && styles.cardAtivo]}
+      style={[
+        styles.card,
+        { backgroundColor: surf, borderColor: isAtivo ? colors.orange : border },
+        isAtivo && styles.cardAtivo,
+      ]}
       onPress={() => onPress(pedido.id)}
       activeOpacity={0.8}
     >
       <View style={styles.topo}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.loja}>{pedido.lojaNome}</Text>
-          <Text style={styles.tempo}>{tempoRelativo(pedido.criadoEm)}</Text>
+          <Text style={[styles.loja, { color: text }]}>{pedido.lojaNome}</Text>
+          <Text style={[styles.tempo, { color: textSec as string }]}>{tempoRelativo(pedido.criadoEm)}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
           <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
@@ -53,14 +60,14 @@ export function PedidoCard({ pedido, onPress }: Props) {
       </View>
 
       <View style={styles.itensRow}>
-        <Text style={styles.itensQtd}>
+        <Text style={[styles.itensQtd, { color: textSec as string }]}>
           {pedido.itens.reduce((a, i) => a + i.quantidade, 0)} {pedido.itens.length === 1 ? 'item' : 'itens'}
         </Text>
-        <Text style={styles.totalTxt}>{fmt(pedido.total)}</Text>
+        <Text style={[styles.totalTxt, { color: text }]}>{fmt(pedido.total)}</Text>
       </View>
 
       {isAtivo && pedido.estimativaEntrega && (
-        <View style={styles.etaRow}>
+        <View style={[styles.etaRow, { borderTopColor: borderL }]}>
           <Ionicons name="time-outline" size={14} color={colors.orange} />
           <Text style={styles.etaTxt}>
             Chega em ~{Math.max(1, Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000))} min
@@ -72,23 +79,22 @@ export function PedidoCard({ pedido, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card:       { backgroundColor: colors.n0, borderRadius: 14, padding: 14,
-                marginBottom: 10, borderWidth: 1, borderColor: colors.n200 },
-  cardAtivo:  { borderColor: colors.orange, borderWidth: 1.5 },
+  card:       { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
+  cardAtivo:  { borderWidth: 1.5 },
 
   topo:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  loja:       { fontSize: 15, fontWeight: '700', color: colors.navy },
-  tempo:      { fontSize: 11.5, color: colors.n500, marginTop: 2 },
+  loja:       { fontSize: 15, fontWeight: '700' },
+  tempo:      { fontSize: 11.5, marginTop: 2 },
 
   badge:      { flexDirection: 'row', alignItems: 'center', gap: 4,
                 paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
   badgeTxt:   { fontSize: 11, fontWeight: '600' },
 
   itensRow:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  itensQtd:   { fontSize: 13, color: colors.n600 },
-  totalTxt:   { fontSize: 14, fontWeight: '700', color: colors.navy },
+  itensQtd:   { fontSize: 13 },
+  totalTxt:   { fontSize: 14, fontWeight: '700' },
 
   etaRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
-                paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.n100 },
+                paddingTop: 10, borderTopWidth: 1 },
   etaTxt:     { fontSize: 12, fontWeight: '600', color: colors.orange },
 });

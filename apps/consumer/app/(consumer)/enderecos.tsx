@@ -10,6 +10,7 @@ import { colors } from '@ajulabs/theme';
 import { EnderecoService } from '@ajulabs/api-client';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { useAuthStore } from '../../src/store';
+import { useTheme } from '../../src/hooks';
 
 interface EnderecoForm {
   apelido: string;
@@ -41,6 +42,7 @@ function iconeApelido(apelido: string): string {
 export default function EnderecosScreen() {
   const router = useRouter();
   const token = useAuthStore(s => s.token);
+  const { isDark, bg, surf, border, borderL, text, textSec, backBtn, inputBg, iconBg } = useTheme();
 
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,12 +213,12 @@ export default function EnderecosScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.btnBack}>
-          <Ionicons name="chevron-back" size={20} color={colors.navy} />
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+        <TouchableOpacity onPress={() => router.navigate('/(consumer)/perfil')} style={[styles.btnBack, { backgroundColor: backBtn }]}>
+          <Ionicons name="chevron-back" size={20} color={text} />
         </TouchableOpacity>
-        <Text style={styles.titulo}>Meus Endereços</Text>
+        <Text style={[styles.titulo, { color: text }]}>Meus Endereços</Text>
       </View>
 
       {loading ? (
@@ -227,37 +229,47 @@ export default function EnderecosScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {enderecos.length === 0 && (
             <View style={styles.vazio}>
-              <Ionicons name="location-outline" size={52} color={colors.n300} />
-              <Text style={styles.vazioTitulo}>Nenhum endereço salvo</Text>
-              <Text style={styles.vazioTxt}>Adicione um endereço para receber seus pedidos</Text>
+              <Ionicons name="location-outline" size={52} color={isDark ? 'rgba(255,255,255,0.2)' : colors.n300} />
+              <Text style={[styles.vazioTitulo, { color: text }]}>Nenhum endereço salvo</Text>
+              <Text style={[styles.vazioTxt, { color: textSec as string }]}>
+                Adicione um endereço para receber seus pedidos
+              </Text>
             </View>
           )}
 
           {enderecos.map(addr => (
-            <View key={addr.id} style={styles.card}>
-              <View style={styles.cardIconBox}>
+            <View key={addr.id} style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
+              <View style={[styles.cardIconBox, { backgroundColor: iconBg }]}>
                 <Ionicons name={iconeApelido(addr.apelido) as any} size={18} color={colors.orange} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={styles.cardApelido}>{addr.apelido}</Text>
+                  <Text style={[styles.cardApelido, { color: text }]}>{addr.apelido}</Text>
                   {addr.padrao && (
                     <View style={styles.badgePadrao}>
                       <Text style={styles.badgePadraoTxt}>Padrão</Text>
                     </View>
                   )}
                 </View>
-                <Text style={styles.cardRua}>{addr.rua}</Text>
-                <Text style={styles.cardBairro}>{addr.bairro} · CEP {addr.cep}</Text>
+                <Text style={[styles.cardRua, { color: textSec as string }]}>{addr.rua}</Text>
+                <Text style={[styles.cardBairro, { color: textSec as string }]}>
+                  {addr.bairro} · CEP {addr.cep}
+                </Text>
               </View>
               <View style={styles.cardActions}>
                 {!addr.padrao && (
-                  <TouchableOpacity onPress={() => handleDefinirPadrao(addr.id)} style={styles.actionBtn}>
+                  <TouchableOpacity
+                    onPress={() => handleDefinirPadrao(addr.id)}
+                    style={[styles.actionBtn, { backgroundColor: backBtn }]}
+                  >
                     <Ionicons name="star-outline" size={18} color={colors.orange} />
                   </TouchableOpacity>
                 )}
                 {!addr.padrao && (
-                  <TouchableOpacity onPress={() => handleRemover(addr.id)} style={styles.actionBtn}>
+                  <TouchableOpacity
+                    onPress={() => handleRemover(addr.id)}
+                    style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(163,45,45,0.18)' : '#FCEBEB' }]}
+                  >
                     <Ionicons name="trash-outline" size={18} color="#A32D2D" />
                   </TouchableOpacity>
                 )}
@@ -274,17 +286,16 @@ export default function EnderecosScreen() {
 
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.modal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitulo}>Novo Endereço</Text>
+          <View style={[styles.modal, { backgroundColor: bg }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: borderL, backgroundColor: surf }]}>
+              <Text style={[styles.modalTitulo, { color: text }]}>Novo Endereço</Text>
               <TouchableOpacity onPress={fecharModal}>
-                <Ionicons name="close" size={24} color={colors.navy} />
+                <Ionicons name="close" size={24} color={text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
 
-              {/* Botão usar localização */}
               <TouchableOpacity
                 style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
                 onPress={usarLocalizacao}
@@ -300,26 +311,26 @@ export default function EnderecosScreen() {
                 </Text>
               </TouchableOpacity>
               {!!erroLoc && (
-                <View style={styles.erroBox}>
+                <View style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}>
                   <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
                   <Text style={styles.erroTxt}>{erroLoc}</Text>
                 </View>
               )}
 
-              <Text style={styles.fieldLabel}>Apelido *</Text>
+              <Text style={[styles.fieldLabel, { color: textSec as string }]}>Apelido *</Text>
               <TextInput
-                style={[styles.input, !!errors.apelido && styles.inputError]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.apelido ? '#E24B4A' : border, color: text }]}
                 value={form.apelido}
                 onChangeText={v => { setForm(f => ({ ...f, apelido: v })); clearError('apelido'); }}
                 placeholder="Ex: Casa, Trabalho, Apartamento"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={textSec as string}
               />
               {!!errors.apelido && <Text style={styles.fieldError}>{errors.apelido}</Text>}
 
-              <Text style={styles.fieldLabel}>CEP *</Text>
+              <Text style={[styles.fieldLabel, { color: textSec as string }]}>CEP *</Text>
               <View style={styles.cepRow}>
                 <TextInput
-                  style={[styles.input, styles.cepInput, !!errors.cep && styles.inputError]}
+                  style={[styles.input, styles.cepInput, { backgroundColor: inputBg, borderColor: errors.cep ? '#E24B4A' : border, color: text }]}
                   value={formatCEP(form.cep)}
                   onChangeText={v => {
                     const digits = v.replace(/\D/g, '').slice(0, 8);
@@ -328,7 +339,7 @@ export default function EnderecosScreen() {
                     if (digits.length === 8) buscarCep(digits);
                   }}
                   placeholder="00000-000"
-                  placeholderTextColor={colors.n500}
+                  placeholderTextColor={textSec as string}
                   keyboardType="numeric"
                   maxLength={9}
                 />
@@ -338,63 +349,63 @@ export default function EnderecosScreen() {
               </View>
               {!!errors.cep && <Text style={styles.fieldError}>{errors.cep}</Text>}
 
-              <Text style={styles.fieldLabel}>Rua / Avenida *</Text>
+              <Text style={[styles.fieldLabel, { color: textSec as string }]}>Rua / Avenida *</Text>
               <TextInput
-                style={[styles.input, !!errors.rua && styles.inputError]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.rua ? '#E24B4A' : border, color: text }]}
                 value={form.rua}
                 onChangeText={v => { setForm(f => ({ ...f, rua: v })); clearError('rua'); }}
                 placeholder="Ex: Av. Ivo do Prado"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={textSec as string}
               />
               {!!errors.rua && <Text style={styles.fieldError}>{errors.rua}</Text>}
 
               <View style={styles.row2}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>Número *</Text>
+                  <Text style={[styles.fieldLabel, { color: textSec as string }]}>Número *</Text>
                   <TextInput
-                    style={[styles.input, !!errors.numero && styles.inputError]}
+                    style={[styles.input, { backgroundColor: inputBg, borderColor: errors.numero ? '#E24B4A' : border, color: text }]}
                     value={form.numero}
                     onChangeText={v => { setForm(f => ({ ...f, numero: v })); clearError('numero'); }}
                     placeholder="123"
-                    placeholderTextColor={colors.n500}
+                    placeholderTextColor={textSec as string}
                     keyboardType="numeric"
                   />
                   {!!errors.numero && <Text style={styles.fieldError}>{errors.numero}</Text>}
                 </View>
                 <View style={{ flex: 2, marginLeft: 12 }}>
-                  <Text style={styles.fieldLabel}>Complemento</Text>
+                  <Text style={[styles.fieldLabel, { color: textSec as string }]}>Complemento</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: inputBg, borderColor: border, color: text }]}
                     value={form.complemento}
                     onChangeText={v => setForm(f => ({ ...f, complemento: v }))}
                     placeholder="Apto, Bloco..."
-                    placeholderTextColor={colors.n500}
+                    placeholderTextColor={textSec as string}
                   />
                 </View>
               </View>
 
-              <Text style={styles.fieldLabel}>Bairro *</Text>
+              <Text style={[styles.fieldLabel, { color: textSec as string }]}>Bairro *</Text>
               <TextInput
-                style={[styles.input, !!errors.bairro && styles.inputError]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.bairro ? '#E24B4A' : border, color: text }]}
                 value={form.bairro}
                 onChangeText={v => { setForm(f => ({ ...f, bairro: v })); clearError('bairro'); }}
                 placeholder="Ex: Centro"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={textSec as string}
               />
               {!!errors.bairro && <Text style={styles.fieldError}>{errors.bairro}</Text>}
 
-              <Text style={styles.fieldLabel}>Cidade *</Text>
+              <Text style={[styles.fieldLabel, { color: textSec as string }]}>Cidade *</Text>
               <TextInput
-                style={[styles.input, !!errors.cidade && styles.inputError]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.cidade ? '#E24B4A' : border, color: text }]}
                 value={form.cidade}
                 onChangeText={v => { setForm(f => ({ ...f, cidade: v })); clearError('cidade'); }}
                 placeholder="Aracaju"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={textSec as string}
               />
               {!!errors.cidade && <Text style={styles.fieldError}>{errors.cidade}</Text>}
 
               {!!erroGeral && (
-                <View style={styles.erroBox}>
+                <View style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}>
                   <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
                   <Text style={styles.erroTxt}>{erroGeral}</Text>
                 </View>
@@ -419,50 +430,47 @@ export default function EnderecosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: '#FAFBFE' },
+  container:      { flex: 1 },
   header:         { flexDirection: 'row', alignItems: 'center', gap: 12,
                     paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                    backgroundColor: colors.n0, borderBottomWidth: 1, borderBottomColor: colors.n100 },
-  btnBack:        { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.n50,
+                    borderBottomWidth: 1 },
+  btnBack:        { width: 38, height: 38, borderRadius: 19,
                     alignItems: 'center', justifyContent: 'center' },
-  titulo:         { fontSize: 20, fontWeight: '700', color: colors.navy },
+  titulo:         { fontSize: 20, fontWeight: '700' },
   center:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll:         { padding: 16, paddingBottom: 40 },
   vazio:          { alignItems: 'center', paddingVertical: 56, gap: 10 },
-  vazioTitulo:    { fontSize: 17, fontWeight: '700', color: colors.navy },
-  vazioTxt:       { fontSize: 13, color: colors.n600, textAlign: 'center' },
+  vazioTitulo:    { fontSize: 17, fontWeight: '700' },
+  vazioTxt:       { fontSize: 13, textAlign: 'center' },
   card:           { flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 14,
-                    backgroundColor: colors.n0, borderRadius: 14, marginBottom: 12,
-                    borderWidth: 1, borderColor: colors.n200 },
-  cardIconBox:    { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.orange100,
+                    borderRadius: 14, marginBottom: 12, borderWidth: 1 },
+  cardIconBox:    { width: 40, height: 40, borderRadius: 12,
                     alignItems: 'center', justifyContent: 'center' },
   cardTitleRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardApelido:    { fontSize: 15, fontWeight: '700', color: colors.navy },
-  cardRua:        { fontSize: 13, color: colors.n600, marginTop: 3 },
-  cardBairro:     { fontSize: 12, color: colors.n600 },
+  cardApelido:    { fontSize: 15, fontWeight: '700' },
+  cardRua:        { fontSize: 13, marginTop: 3 },
+  cardBairro:     { fontSize: 12 },
   badgePadrao:    { backgroundColor: colors.orange100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
   badgePadraoTxt: { fontSize: 10, fontWeight: '600', color: colors.orange600 },
   cardActions:    { gap: 8 },
-  actionBtn:      { width: 34, height: 34, borderRadius: 9, backgroundColor: colors.n50,
+  actionBtn:      { width: 34, height: 34, borderRadius: 9,
                     alignItems: 'center', justifyContent: 'center' },
   addBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                     paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed',
                     borderColor: colors.orange, marginTop: 4 },
   addBtnTxt:      { fontSize: 14, fontWeight: '600', color: colors.orange },
-  modal:          { flex: 1, backgroundColor: '#FAFBFE' },
+  modal:          { flex: 1 },
   modalHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                     paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16,
-                    borderBottomWidth: 1, borderBottomColor: colors.n100, backgroundColor: colors.n0 },
-  modalTitulo:    { fontSize: 18, fontWeight: '700', color: colors.navy },
+                    borderBottomWidth: 1 },
+  modalTitulo:    { fontSize: 18, fontWeight: '700' },
   modalScroll:    { padding: 20 },
   locBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                     paddingVertical: 12, borderRadius: 12, borderWidth: 1.5,
                     borderColor: colors.orange, backgroundColor: colors.orange100, marginBottom: 8 },
   locBtnTxt:      { fontSize: 13, fontWeight: '600', color: colors.orange },
-  fieldLabel:     { fontSize: 12, fontWeight: '600', color: colors.n600, marginBottom: 6, marginTop: 14 },
-  input:          { backgroundColor: colors.n0, borderRadius: 12, borderWidth: 1, borderColor: colors.n200,
-                    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: colors.navy },
-  inputError:     { borderColor: '#E24B4A' },
+  fieldLabel:     { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input:          { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14 },
   fieldError:     { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
   cepRow:         { flexDirection: 'row', alignItems: 'center' },
   cepInput:       { flex: 1 },
