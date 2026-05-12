@@ -6,6 +6,8 @@ import { ChatInput } from './ChatInput';
 import { matchAju } from '@ajulabs/api-client';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useThemeStore } from '../../../../store';
+import { colors } from '@ajulabs/theme';
 
 const SUGESTOES_INICIAIS = [
   'Tênis preto até R$200',
@@ -24,8 +26,15 @@ export function ChatIA() {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([MENSAGEM_INICIAL]);
   const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
   const [carregando, setCarregando] = useState(false);
+  const isDark = useThemeStore(s => s.isDark);
 
   const router = useRouter();
+
+  const bg   = isDark ? colors.bgDark  : '#f9fafb';
+  const surf = isDark ? colors.surfDark : '#fff';
+  const borderL = isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6';
+  const text = isDark ? colors.n0 : '#111827';
+  const textSec = isDark ? 'rgba(255,255,255,0.4)' : '#9ca3af';
 
   async function handleEnviar(texto: string) {
     if (!texto.trim() || carregando) return;
@@ -57,7 +66,7 @@ export function ChatIA() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f9fafb' }}
+      style={{ flex: 1, backgroundColor: bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -69,9 +78,9 @@ export function ChatIA() {
           paddingHorizontal: 16,
           paddingTop: 56,
           paddingBottom: 16,
-          backgroundColor: '#fff',
+          backgroundColor: surf,
           borderBottomWidth: 1,
-          borderBottomColor: '#f3f4f6',
+          borderBottomColor: borderL,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={{
@@ -83,14 +92,14 @@ export function ChatIA() {
               <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>A</Text>
             </View>
             <View>
-              <Text style={{ fontWeight: '600', fontSize: 15, color: '#111827' }}>
+              <Text style={{ fontWeight: '600', fontSize: 15, color: text }}>
                 Aju · Personal Shopper
               </Text>
               <Text style={{ fontSize: 12, color: '#22c55e' }}>● Online agora</Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => router.push('/(consumer)/carrinho')}>
-            <Ionicons name="cart-outline" size={22} color="#374151" />
+            <Ionicons name="cart-outline" size={22} color={text} />
           </TouchableOpacity>
         </View>
 
@@ -99,13 +108,15 @@ export function ChatIA() {
           sugestoes={sugestoes}
           onSugestao={handleEnviar}
           carregando={carregando}
+          isDark={isDark}
         />
 
-        <ChatInput onSend={handleEnviar} disabled={carregando} />
+        <ChatInput onSend={handleEnviar} disabled={carregando} isDark={isDark} />
 
         <Text style={{
           textAlign: 'center', fontSize: 11,
-          color: '#9ca3af', paddingBottom: 16,
+          color: textSec, paddingBottom: 16,
+          backgroundColor: bg,
         }}>
           IA com{' '}
           <Text style={{ color: '#f97316', fontWeight: '500' }}>lojas reais</Text>

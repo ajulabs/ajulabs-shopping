@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 're
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
+import { useThemeStore } from '../../src/store';
 
 interface Config {
   id: string;
@@ -22,35 +23,47 @@ const CONFIGS_INICIAIS: Config[] = [
 export default function NotificacoesScreen() {
   const router = useRouter();
   const [configs, setConfigs] = useState(CONFIGS_INICIAIS);
+  const isDark = useThemeStore(s => s.isDark);
+
+  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
+  const surf    = isDark ? colors.surfDark : colors.n0;
+  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
+  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
+  const text    = isDark ? colors.n0      : colors.navy;
+  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
+  const backBtn = isDark ? 'rgba(255,255,255,0.08)' : colors.n50;
 
   const toggle = (id: string) =>
     setConfigs(prev => prev.map(c => c.id === id ? { ...c, ativo: !c.ativo } : c));
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.btnBack}>
-          <Ionicons name="chevron-back" size={20} color={colors.navy} />
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+        <TouchableOpacity onPress={() => router.navigate('/(consumer)/perfil')} style={[styles.btnBack, { backgroundColor: backBtn }]}>
+          <Ionicons name="chevron-back" size={20} color={text} />
         </TouchableOpacity>
-        <Text style={styles.titulo}>Notificações</Text>
+        <Text style={[styles.titulo, { color: text }]}>Notificações</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.descricao}>
+        <Text style={[styles.descricao, { color: textSec as string }]}>
           Escolha quais notificações você quer receber do AjuLabs Shopping.
         </Text>
 
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
           {configs.map((config, i) => (
-            <View key={config.id} style={[styles.row, i < configs.length - 1 && styles.rowBorder]}>
+            <View
+              key={config.id}
+              style={[styles.row, i < configs.length - 1 && [styles.rowBorder, { borderBottomColor: borderL }]]}
+            >
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowLabel}>{config.label}</Text>
-                <Text style={styles.rowDesc}>{config.descricao}</Text>
+                <Text style={[styles.rowLabel, { color: text }]}>{config.label}</Text>
+                <Text style={[styles.rowDesc, { color: textSec as string }]}>{config.descricao}</Text>
               </View>
               <Switch
                 value={config.ativo}
                 onValueChange={() => toggle(config.id)}
-                trackColor={{ false: colors.n200, true: colors.orange }}
+                trackColor={{ false: isDark ? 'rgba(255,255,255,0.15)' : colors.n200, true: colors.orange }}
                 thumbColor={colors.n0}
               />
             </View>
@@ -62,20 +75,19 @@ export default function NotificacoesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: '#FAFBFE' },
+  container:  { flex: 1 },
   header:     { flexDirection: 'row', alignItems: 'center', gap: 12,
                 paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                backgroundColor: colors.n0, borderBottomWidth: 1, borderBottomColor: colors.n100 },
-  btnBack:    { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.n50,
+                borderBottomWidth: 1 },
+  btnBack:    { width: 38, height: 38, borderRadius: 19,
                 alignItems: 'center', justifyContent: 'center' },
-  titulo:     { fontSize: 20, fontWeight: '700', color: colors.navy },
+  titulo:     { fontSize: 20, fontWeight: '700' },
   scroll:     { padding: 16, paddingBottom: 40 },
-  descricao:  { fontSize: 13, color: colors.n600, marginBottom: 16, lineHeight: 20 },
-  card:       { backgroundColor: colors.n0, borderRadius: 16, borderWidth: 1,
-                borderColor: colors.n200, overflow: 'hidden' },
+  descricao:  { fontSize: 13, marginBottom: 16, lineHeight: 20 },
+  card:       { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   row:        { flexDirection: 'row', alignItems: 'center', gap: 14,
                 paddingHorizontal: 16, paddingVertical: 14 },
-  rowBorder:  { borderBottomWidth: 1, borderBottomColor: colors.n100 },
-  rowLabel:   { fontSize: 14, fontWeight: '600', color: colors.navy },
-  rowDesc:    { fontSize: 12, color: colors.n600, marginTop: 2, lineHeight: 16 },
+  rowBorder:  { borderBottomWidth: 1 },
+  rowLabel:   { fontSize: 14, fontWeight: '600' },
+  rowDesc:    { fontSize: 12, marginTop: 2, lineHeight: 16 },
 });

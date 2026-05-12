@@ -12,20 +12,29 @@ function getIniciais(nome: string): string {
     .join('');
 }
 
-export function ProfileHeader() {
+interface Props {
+  isDark?: boolean;
+}
+
+export function ProfileHeader({ isDark = false }: Props) {
   const nome = useAuthStore(s => s.nome) ?? 'Usuário';
   const email = useAuthStore(s => s.email) ?? '';
   const iniciais = getIniciais(nome);
 
+  const surf    = isDark ? colors.surfDark : colors.n0;
+  const border  = isDark ? 'rgba(255,255,255,0.08)' : colors.n200;
+  const text    = isDark ? colors.n0      : colors.navy;
+  const textSec = isDark ? 'rgba(255,255,255,0.55)' : colors.n600;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
       <View style={styles.avatar}>
         <Text style={styles.avatarTxt}>{iniciais}</Text>
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={styles.nome}>{nome}</Text>
-        {!!email && <Text style={styles.email}>{email}</Text>}
+        <Text style={[styles.nome, { color: text }]}>{nome}</Text>
+        {!!email && <Text style={[styles.email, { color: textSec as string }]}>{email}</Text>}
         <View style={styles.badgeRow}>
           <View style={styles.badge}>
             <Ionicons name="flash" size={11} color={colors.orange600} />
@@ -39,15 +48,14 @@ export function ProfileHeader() {
 
 const styles = StyleSheet.create({
   card:       { flexDirection: 'row', alignItems: 'center', gap: 14,
-                backgroundColor: colors.n0, borderRadius: 16, padding: 16,
-                borderWidth: 1, borderColor: colors.n200 },
+                borderRadius: 16, padding: 16, borderWidth: 1 },
 
   avatar:     { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.orange,
                 alignItems: 'center', justifyContent: 'center' },
   avatarTxt:  { color: '#fff', fontWeight: '700', fontSize: 26 },
 
-  nome:       { fontSize: 18, fontWeight: '700', color: colors.navy },
-  email:      { fontSize: 12, color: colors.n600, marginTop: 2 },
+  nome:       { fontSize: 18, fontWeight: '700' },
+  email:      { fontSize: 12, marginTop: 2 },
 
   badgeRow:   { flexDirection: 'row', gap: 6, marginTop: 6 },
   badge:      { flexDirection: 'row', alignItems: 'center', gap: 4,

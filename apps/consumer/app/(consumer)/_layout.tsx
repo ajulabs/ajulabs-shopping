@@ -3,8 +3,8 @@ import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCartStore, calcularQuantidadeItens, useAuthStore } from '../../src/store';
-
+import { useCartStore, calcularQuantidadeItens, useThemeStore } from '../../src/store';
+import { colors } from '@ajulabs/theme';
 
 export default function ConsumerLayout() {
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
@@ -12,17 +12,18 @@ export default function ConsumerLayout() {
     () => calcularQuantidadeItens(itensPorLoja),
     [itensPorLoja]
   );
+  const isDark = useThemeStore(s => s.isDark);
 
   return (
     <Tabs
       initialRouteName='chat'
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#F2760F',
-        tabBarInactiveTintColor: '#9099B3',
+        tabBarActiveTintColor: colors.orange,
+        tabBarInactiveTintColor: isDark ? 'rgba(255,255,255,0.4)' : '#9099B3',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E4E7F1',
+          backgroundColor: isDark ? colors.surfDark : '#FFFFFF',
+          borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#E4E7F1',
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 88 : 64,
           paddingBottom: Platform.OS === 'ios' ? 28 : 8,
@@ -67,7 +68,7 @@ export default function ConsumerLayout() {
           title: 'Carrinho',
           tabBarBadge: quantidadeItens > 0 ? quantidadeItens : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: '#F2760F',
+            backgroundColor: colors.orange,
             color: '#FFFFFF',
             fontSize: 10,
             fontWeight: '700',
@@ -109,15 +110,14 @@ export default function ConsumerLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="vitrine/[id]" options={{ href: null }} />
-      <Tabs.Screen name="checkout" options={{ href: null }} />
-      <Tabs.Screen name="tracking/[id]" options={{ href: null }} />
-      <Tabs.Screen name="enderecos" options={{ href: null }} />
-      <Tabs.Screen name="pagamento" options={{ href: null }} />
-      <Tabs.Screen name="favoritos" options={{ href: null }} />
-      <Tabs.Screen name="notificacoes" options={{ href: null }} />
-      <Tabs.Screen name="ajustes" options={{ href: null }} />
+      <Tabs.Screen name="vitrine/[id]"  options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="checkout"      options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="tracking/[id]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="enderecos"     options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="pagamento"     options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="favoritos"     options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="notificacoes"  options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="ajustes"       options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
-    
   );
 }

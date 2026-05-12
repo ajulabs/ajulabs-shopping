@@ -5,12 +5,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { ProfileHeader } from './ProfileHeader';
 import { ProfileMenu } from './ProfileMenu';
-import { useAuthStore } from '../../../../store';
+import { useAuthStore, useThemeStore } from '../../../../store';
 
 export function ProfileScreen() {
   const router = useRouter();
   const logout = useAuthStore(s => s.logout);
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const isDark = useThemeStore(s => s.isDark);
+
+  const bg      = isDark ? colors.bgDark  : '#FAFBFE';
+  const surf    = isDark ? colors.surfDark : colors.n0;
+  const borderL = isDark ? 'rgba(255,255,255,0.05)' : colors.n100;
+  const text    = isDark ? colors.n0      : colors.navy;
+  const textSec = isDark ? 'rgba(255,255,255,0.45)' : colors.n500;
 
   const menuPrincipal = [
     {
@@ -57,25 +64,25 @@ export function ProfileScreen() {
   const handleLogout = () => setLogoutVisible(true);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.titulo}>Perfil</Text>
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+        <Text style={[styles.titulo, { color: text }]}>Perfil</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <ProfileHeader />
+        <ProfileHeader isDark={isDark} />
 
         <View style={{ marginTop: 14 }}>
-          <ProfileMenu items={menuPrincipal} />
+          <ProfileMenu items={menuPrincipal} isDark={isDark} />
         </View>
 
         <View style={{ marginTop: 14 }}>
-          <ProfileMenu items={menuConfig} />
+          <ProfileMenu items={menuConfig} isDark={isDark} />
         </View>
 
         {/* Sair */}
         <TouchableOpacity
-          style={styles.logoutBtn}
+          style={[styles.logoutBtn, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}
           onPress={handleLogout}
           activeOpacity={0.7}
         >
@@ -84,24 +91,35 @@ export function ProfileScreen() {
         </TouchableOpacity>
 
         {/* Footer */}
-        <Text style={styles.footer}>
-          Shopping Digital · v1.0 · by <Text style={{ color: colors.orange, fontWeight: '600' }}>AjuLabs</Text>
+        <Text style={[styles.footer, { color: textSec as string }]}>
+          Shopping Digital · v1.0 · by{' '}
+          <Text style={{ color: colors.orange, fontWeight: '600' }}>AjuLabs</Text>
         </Text>
       </ScrollView>
 
       <Modal visible={logoutVisible} transparent animationType="fade" onRequestClose={() => setLogoutVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
+          <View style={[styles.modalBox, { backgroundColor: surf }]}>
             <View style={styles.modalIconWrap}>
               <Ionicons name="log-out-outline" size={28} color="#A32D2D" />
             </View>
-            <Text style={styles.modalTitle}>Sair da conta</Text>
-            <Text style={styles.modalMsg}>Tem certeza que deseja sair da sua conta?</Text>
-            <TouchableOpacity style={styles.modalBtnSair} onPress={() => { setLogoutVisible(false); logout(); }} activeOpacity={0.8}>
+            <Text style={[styles.modalTitle, { color: text }]}>Sair da conta</Text>
+            <Text style={[styles.modalMsg, { color: textSec as string }]}>
+              Tem certeza que deseja sair da sua conta?
+            </Text>
+            <TouchableOpacity
+              style={styles.modalBtnSair}
+              onPress={() => { setLogoutVisible(false); logout(); }}
+              activeOpacity={0.8}
+            >
               <Text style={styles.modalBtnSairText}>Sim, quero sair</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setLogoutVisible(false)} activeOpacity={0.8}>
-              <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+            <TouchableOpacity
+              style={[styles.modalBtnCancel, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.n100 }]}
+              onPress={() => setLogoutVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modalBtnCancelText, { color: text }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -111,11 +129,11 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: '#FAFBFE' },
+  container:  { flex: 1 },
 
   header:     { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                backgroundColor: colors.n0, borderBottomWidth: 1, borderBottomColor: colors.n100 },
-  titulo:     { fontSize: 20, fontWeight: '700', color: colors.navy },
+                borderBottomWidth: 1 },
+  titulo:     { fontSize: 20, fontWeight: '700' },
 
   scroll:     { padding: 16, paddingBottom: 40 },
 
@@ -124,18 +142,16 @@ const styles = StyleSheet.create({
                 backgroundColor: '#FCEBEB', borderRadius: 14 },
   logoutTxt:  { fontSize: 14, fontWeight: '600', color: '#A32D2D' },
 
-  footer:     { textAlign: 'center', marginTop: 20, fontSize: 11,
-                color: colors.n500, letterSpacing: 0.3 },
+  footer:     { textAlign: 'center', marginTop: 20, fontSize: 11, letterSpacing: 0.3 },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalBox: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     width: '100%',
@@ -150,8 +166,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.navy, marginBottom: 6 },
-  modalMsg: { fontSize: 13, color: colors.n500, textAlign: 'center', marginBottom: 22, lineHeight: 19 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  modalMsg: { fontSize: 13, textAlign: 'center', marginBottom: 22, lineHeight: 19 },
   modalBtnSair: {
     width: '100%',
     backgroundColor: '#A32D2D',
@@ -167,7 +183,6 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.n100,
   },
-  modalBtnCancelText: { fontSize: 14, fontWeight: '600', color: colors.navy },
+  modalBtnCancelText: { fontSize: 14, fontWeight: '600' },
 });

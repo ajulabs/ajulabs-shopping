@@ -11,6 +11,7 @@ import {
 import { Mic, MicOff, Send } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { TranscricaoService } from '@ajulabs/api-client';
+import { colors } from '@ajulabs/theme';
 
 const PLACEHOLDERS = [
   'Tênis preto até R$200...',
@@ -23,9 +24,10 @@ const PLACEHOLDERS = [
 interface Props {
   onSend: (texto: string) => void;
   disabled?: boolean;
+  isDark?: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: Props) {
+export function ChatInput({ onSend, disabled, isDark = false }: Props) {
   const [value, setValue] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
@@ -33,6 +35,10 @@ export function ChatInput({ onSend, disabled }: Props) {
   const [transcrevendo, setTranscrevendo] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const recordingRef = useRef<Audio.Recording | null>(null);
+
+  const surf        = isDark ? colors.surfDark : '#fff';
+  const inputText   = isDark ? colors.n0       : '#1f2937';
+  const placeholder = isDark ? 'rgba(255,255,255,0.35)' : '#9ca3af';
 
   useEffect(() => {
     if (isFocused) return;
@@ -130,7 +136,7 @@ export function ChatInput({ onSend, disabled }: Props) {
     <View style={{
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#fff',
+      backgroundColor: surf,
       borderRadius: 24,
       marginHorizontal: 16,
       marginBottom: 8,
@@ -138,7 +144,7 @@ export function ChatInput({ onSend, disabled }: Props) {
       paddingVertical: 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
+      shadowOpacity: isDark ? 0.4 : 0.08,
       shadowRadius: 4,
       elevation: 2,
       borderWidth: isProcessing ? 2 : 0,
@@ -150,13 +156,13 @@ export function ChatInput({ onSend, disabled }: Props) {
           position: 'absolute',
           left: 16,
           opacity: fadeAnim,
-          color: '#9ca3af',
+          color: placeholder,
           fontSize: 15,
           pointerEvents: 'none',
         }}>
-          {gravando 
-            ? ' Gravando...' 
-            : transcrevendo 
+          {gravando
+            ? ' Gravando...'
+            : transcrevendo
             ? ' Transcrevendo...'
             : PLACEHOLDERS[placeholderIndex]
           }
@@ -164,7 +170,7 @@ export function ChatInput({ onSend, disabled }: Props) {
       )}
 
       <TextInput
-        style={{ flex: 1, fontSize: 15, color: '#1f2937' }}
+        style={{ flex: 1, fontSize: 15, color: inputText }}
         value={value}
         onChangeText={setValue}
         onFocus={() => setIsFocused(true)}
@@ -180,10 +186,10 @@ export function ChatInput({ onSend, disabled }: Props) {
         disabled={disabled || transcrevendo}
         style={{
           marginLeft: 8,
-          backgroundColor: canSend 
-            ? '#f97316' 
-            : gravando 
-            ? '#fff7ed' 
+          backgroundColor: canSend
+            ? '#f97316'
+            : gravando
+            ? isDark ? 'rgba(242,118,15,0.15)' : '#fff7ed'
             : 'transparent',
           borderRadius: 20,
           padding: 8,
