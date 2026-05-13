@@ -19,6 +19,7 @@ interface LeafletMapProps {
   routeTo?: { lat: number; lng: number } | null;
   /** Heading in degrees (0 = north). Rotates the user marker. */
   heading?: number;
+  centerTrigger?: number;
   style?: object;
 }
 
@@ -68,7 +69,7 @@ function buildUserMarkerHtml(heading: number): string {
 
 export function LeafletMap({
   center, zoom = 15, userLocation, markers = [],
-  routeCoords, routeTo, heading = 0, style,
+  routeCoords, routeTo, heading = 0, centerTrigger = 0, style,
 }: LeafletMapProps) {
   const uid    = useId().replace(/:/g, '');
   const mapId  = `lmap-${uid}`;
@@ -136,6 +137,11 @@ export function LeafletMap({
     // Auto-follow (smooth pan without changing zoom)
     mapRef.current.panTo([userLocation.lat, userLocation.lng], { animate: true, duration: 0.5 });
   }, [userLocation?.lat, userLocation?.lng, heading]);
+
+  useEffect(() => {
+    if (!mapRef.current || !userLocation || centerTrigger === 0) return;
+    mapRef.current.setView([userLocation.lat, userLocation.lng], 17, { animate: true });
+  }, [centerTrigger]);
 
   // ── Draw route from pre-computed coords ───────────────────
   useEffect(() => {

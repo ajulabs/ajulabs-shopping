@@ -20,6 +20,7 @@ interface LeafletMapProps {
   routeTo?: { lat: number; lng: number } | null;
   /** Heading in degrees (0 = north). Rotates the user marker. */
   heading?: number;
+  centerTrigger?: number;
   style?: object;
 }
 
@@ -40,7 +41,7 @@ async function fetchOsrmSimple(
 
 export function LeafletMap({
   center, userLocation, markers = [],
-  routeCoords, routeTo, heading = 0, style,
+  routeCoords, routeTo, heading = 0, centerTrigger = 0, style,
 }: LeafletMapProps) {
   const mapRef = useRef<MapView>(null);
   const rotateAnim = useRef(new Animated.Value(heading)).current;
@@ -69,6 +70,14 @@ export function LeafletMap({
       400
     );
   }, [userLocation?.lat, userLocation?.lng]);
+
+  useEffect(() => {
+    if (!userLocation || !mapRef.current || centerTrigger === 0) return;
+    mapRef.current.animateToRegion(
+      { latitude: userLocation.lat, longitude: userLocation.lng, latitudeDelta: 0.003, longitudeDelta: 0.003 },
+      400,
+    );
+  }, [centerTrigger]);
 
   // Fallback: fetch route when routeTo set and no pre-computed routeCoords
   useEffect(() => {
