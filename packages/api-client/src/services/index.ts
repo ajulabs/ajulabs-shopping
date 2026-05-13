@@ -157,6 +157,15 @@ export const PedidoService = {
     return mapPedido(pedido);
   },
 
+  buscarLocalizacaoEntregador: async (pedidoId: string, token: string): Promise<{ lat: number; lng: number } | null> => {
+    const res = await fetch(`${API_URL}/pedidos/${pedidoId}/localizacao-entregador`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { localizacao } = await res.json();
+    return localizacao ?? null;
+  },
+
   criar: async (
     token: string,
     dados: {
@@ -411,11 +420,29 @@ export const LojistaService = {
     return res.json();
   },
 
+  buscarLocalizacaoEntregador: async (
+    pedidoId: string,
+    token: string,
+  ): Promise<{ lat: number; lng: number; heading?: number; speedKmh?: number } | null> => {
+    const res = await fetch(`${API_URL}/lojista/pedidos/${pedidoId}/localizacao-entregador`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { localizacao } = await res.json();
+    return localizacao ?? null;
+  },
+
   buscarEntregas: async (
     lojaId: string,
     token: string,
   ): Promise<{ emAndamento: any[]; concluidas: any[] }> => {
-    const [andamento, concluidas] = await Promise.all([
+    const [pronto, saiuEntrega, concluidas] = await Promise.all([
+      (async () => {
+        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=pronto&limit=10`, { headers: authHeader(token) });
+        if (!r.ok) return [];
+        const { pedidos } = await r.json();
+        return (pedidos ?? []).filter((p: any) => p.entregador);
+      })(),
       (async () => {
         const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=saiu_entrega&limit=10`, { headers: authHeader(token) });
         if (!r.ok) return [];
@@ -429,7 +456,7 @@ export const LojistaService = {
         return pedidos ?? [];
       })(),
     ]);
-    return { emAndamento: andamento, concluidas };
+    return { emAndamento: [...pronto, ...saiuEntrega], concluidas };
   },
 };
 
@@ -678,6 +705,14 @@ export const EntregadorService = {
       console.error(`[EntregadorService] confirmarRetirada ${pedidoId} → ${res.status}: ${msg}`);
       throw new Error(msg);
     }
+  },
+
+  enviarLocalizacao: async (token: string, pedidoId: string, lat: number, lng: number): Promise<void> => {
+    await fetch(`${API_URL}/entregador/corridas/${pedidoId}/localizacao`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lat, lng }),
+    }).catch(() => {});
   },
 
   confirmarEntrega: async (token: string, pedidoId: string, codigo: string): Promise<void> => {

@@ -5,6 +5,7 @@ import multer from 'multer';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { uploadImagemProduto, uploadImagemLoja } from '../utils/supabase';
+import { getEntregadorLocalizacao } from '../utils/socket';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const uploadImagem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -460,6 +461,25 @@ router.delete('/produtos/:id', authMiddleware, authLojista, async (req: AuthRequ
     res.json({ message: 'Produto removido com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover produto' });
+  }
+});
+
+// GET /lojista/pedidos/:id/localizacao-entregador — última posição GPS para o lojista
+router.get('/pedidos/:id/localizacao-entregador', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: req.params.id },
+      include: { loja: true },
+    });
+
+    if (!pedido || pedido.loja.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const loc = getEntregadorLocalizacao(req.params.id);
+    res.json({ localizacao: loc });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar localização' });
   }
 });
 

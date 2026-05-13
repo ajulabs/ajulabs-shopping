@@ -10,6 +10,7 @@
     "android": { "package": "com.ajulabs.lojista" },
     "plugins": [
       "expo-router",
+      "react-native-maps",
       [
         "expo-image-picker",
         {

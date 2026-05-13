@@ -3,7 +3,7 @@ import { z } from 'zod';
 import multer from 'multer';
 import { prisma } from '../utils/prisma';
 import { authMiddleware, authEntregador, AuthRequest } from '../middleware/auth';
-import { getIo } from '../utils/socket';
+import { getIo, setEntregadorLocalizacao } from '../utils/socket';
 import { uploadImagemEntregador, uploadDocumentoTrocaVeiculo } from '../utils/supabase';
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 
@@ -397,6 +397,38 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
 
 router.post('/corridas/:pedidoId/rejeitar', async (_req: AuthRequest, res: Response) => {
   res.json({ ok: true });
+});
+
+// ========================================
+// POST /entregador/corridas/:pedidoId/localizacao
+// Entregador envia posição GPS → broadcast para consumidor via Socket.IO
+// ========================================
+
+router.post('/corridas/:pedidoId/localizacao', async (req: AuthRequest, res: Response) => {
+  try {
+    const { pedidoId } = req.params;
+    const entregadorId = req.user!.id;
+    const { lat, lng, heading, speedKmh } = z.object({
+      lat: z.number(), lng: z.number(),
+      heading: z.number().optional(),
+      speedKmh: z.number().optional(),
+    }).parse(req.body);
+
+    const pedido = await prisma.pedido.findFirst({
+      where: { id: pedidoId, entregadorId, status: { in: ['pronto', 'saiu_entrega'] } },
+      select: { consumidorId: true, lojaId: true },
+    });
+
+    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado' });
+
+    setEntregadorLocalizacao(pedidoId, lat, lng, pedido.consumidorId, pedido.lojaId, heading, speedKmh);
+
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao atualizar localização' });
+  }
 });
 
 // ========================================

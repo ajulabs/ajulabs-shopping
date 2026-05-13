@@ -144,6 +144,30 @@ export interface MensagemChat {
 export type TabConsumer = 'chat' | 'vitrines' | 'carrinho' | 'pedidos' | 'perfil';
 export type TabLojista = 'pedidos' | 'produtos' | 'dashboard';
 
+// ─── Realtime / Tracking ──────────────────────────────────────
+
+export interface LocationPayload {
+  pedidoId: string;
+  lat: number;
+  lng: number;
+  heading?: number;
+  speedKmh?: number;
+  ts?: number;
+}
+
+export interface StatusPayload {
+  pedidoId: string;
+  status: StatusPedido;
+}
+
+export interface NavStep {
+  instruction: string;
+  distance: number;
+  duration: number;
+  modifier?: string;
+  location: { lat: number; lng: number };
+}
+
 // ─── Checkout ─────────────────────────────────────────────────
 
 export interface EnderecoSalvo {

@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
+import { LeafletMap } from '../../../../components/LeafletMap';
 
 const brl = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -143,7 +145,25 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
   const [corridasHoje, setCorridasHoje] = useState(0);
   const [waitingRides, setWaitingRides] = useState<RideData[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const ARACAJU = { lat: -10.9167, lng: -37.0500 };
+
+  useEffect(() => {
+    let sub: Location.LocationSubscription | null = null;
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      sub = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
+        (l) => setUserLocation({ lat: l.coords.latitude, lng: l.coords.longitude })
+      );
+    })();
+    return () => { sub?.remove(); };
+  }, []);
 
   const buscarGanhos = useCallback(async () => {
     if (!token) return;
@@ -229,10 +249,12 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
 
   return (
     <SafeAreaView style={s.safeArea}>
-      <View style={s.mapPlaceholder}>
-        <Ionicons name="map" size={64} color="rgba(255,255,255,0.4)" />
-        <Text style={s.mapSub}>Mapa — Aracaju, SE</Text>
-      </View>
+      <LeafletMap
+        center={userLocation ?? ARACAJU}
+        userLocation={userLocation}
+        zoom={15}
+        style={s.map}
+      />
 
       <View style={s.topBar}>
         <TouchableOpacity
@@ -374,23 +396,22 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
 }
 
 const s = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B0F22' },
-  mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B0F22' },
-  mapSub: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 8 },
-  topBar: { position: 'absolute', top: 60, left: 14, right: 14 },
+  safeArea: { flex: 1, backgroundColor: '#0B0F22', position: 'relative' as const },
+  map: { flex: 1 },
+  topBar: { position: 'absolute', top: 60, left: 14, right: 14, zIndex: 20 },
   onlineToggle: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 18, elevation: 8 },
   onlineIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   onlineTitle: { fontSize: 15, fontWeight: '700' },
   onlineSub: { fontSize: 11, marginTop: 1 },
   toggleTrack: { width: 46, height: 26, borderRadius: 13, padding: 3, justifyContent: 'center' },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 2 },
-  offlineOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11,15,34,0.7)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
+  offlineOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11,15,34,0.7)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, zIndex: 20 },
   offlineIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   offlineTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
   offlineSub: { fontSize: 13, color: 'rgba(255,255,255,0.65)', textAlign: 'center', maxWidth: 240 },
-  limitBanner: { position: 'absolute', bottom: 14, left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 14, backgroundColor: '#B34D00' },
+  limitBanner: { position: 'absolute', bottom: 14, left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 14, backgroundColor: '#B34D00', zIndex: 20 },
   limitBannerText: { fontSize: 12.5, fontWeight: '600', color: '#fff', flex: 1 },
-  bottomPanel: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '65%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 16 },
+  bottomPanel: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '65%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 16, zIndex: 20 },
   summarySection: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#F0F1F7' },
   summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   summaryLabel: { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -422,7 +443,7 @@ const s = StyleSheet.create({
   waitingDuracao: { fontSize: 10, color: '#9099B3' },
   btnWaitingAccept: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F2760F', minWidth: 72, alignItems: 'center' },
   btnWaitingAcceptText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  offerSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -12 }, shadowOpacity: 0.4, shadowRadius: 40, elevation: 20, paddingBottom: 8 },
+  offerSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -12 }, shadowOpacity: 0.4, shadowRadius: 40, elevation: 20, paddingBottom: 8, zIndex: 20 },
   timerTrack: { height: 4, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#E4E7F1', overflow: 'hidden' },
   timerBar: { height: '100%' },
   offerContent: { padding: 18 },

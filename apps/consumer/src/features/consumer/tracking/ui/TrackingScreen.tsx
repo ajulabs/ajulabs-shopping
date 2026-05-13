@@ -1,27 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
+import { useDeliveryTracking } from '@ajulabs/realtime';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 import { TrackingTimeline } from './TrackingTimeline';
+import { DeliveryMap } from '../../../../components/DeliveryMap';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+
+async function geocodeDestino(address: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const q = encodeURIComponent(`${address}, Aracaju, SE, Brasil`);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+      { headers: { 'User-Agent': 'AjuLabs-Consumer/1.0' } }
+    );
+    const data = await res.json();
+    if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch {}
+  return null;
+}
 
 interface Props {
   pedidoId: string;
 }
 
+const ACTIVE_STATUSES = ['pronto', 'saiu_entrega'];
+
 export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
   const token = useAuthStore(s => s.token);
+  const userId = useAuthStore(s => s.userId);
   const { isDark, bg, surf, border, borderL, text, textSec, textMut, backBtn, iconBg } = useTheme();
   const avatarBg = isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
+  const [destinoLocation, setDestinoLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [lastKnownLocation, setLastKnownLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const geocodedRef = useRef(false);
+
+  const isActive = pedido ? ACTIVE_STATUSES.includes(pedido.status) : false;
+
+  const { entregadorLocation: realtimeLocation } = useDeliveryTracking({
+    apiUrl: API_URL,
+    pedidoId,
+    roomId: userId,
+    roomType: 'usuario',
+    enabled: isActive,
+  });
+
+  const entregadorLocation = realtimeLocation ?? lastKnownLocation;
+
+  // REST fallback: poll last known location every 10s
+  useEffect(() => {
+    if (!token || !isActive) return;
+    const poll = () => {
+      PedidoService.buscarLocalizacaoEntregador(pedidoId, token)
+        .then(loc => { if (loc) setLastKnownLocation(loc); })
+        .catch(() => {});
+    };
+    poll();
+    const interval = setInterval(poll, 10000);
+    return () => clearInterval(interval);
+  }, [pedidoId, token, isActive]);
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
@@ -40,6 +88,18 @@ export function TrackingScreen({ pedidoId }: Props) {
     return () => clearInterval(interval);
   }, [pedidoId, token]);
 
+  // Geocode delivery address once when pedido loads
+  useEffect(() => {
+    if (!pedido || geocodedRef.current) return;
+    geocodedRef.current = true;
+    const addr = pedido.enderecoEntrega;
+    if (addr?.rua) {
+      geocodeDestino(`${addr.rua}, ${addr.numero ?? ''}, ${addr.bairro}`).then(loc => {
+        if (loc) setDestinoLocation(loc);
+      });
+    }
+  }, [pedido?.id]);
+
   if (loading || !pedido) {
     return (
       <View style={[styles.container, { backgroundColor: bg, justifyContent: 'center', alignItems: 'center' }]}>
@@ -49,6 +109,7 @@ export function TrackingScreen({ pedidoId }: Props) {
   }
 
   const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
+  const showMap = ACTIVE_STATUSES.includes(pedido.status);
   const etaMin = pedido.estimativaEntrega
     ? Math.max(1, Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000))
     : null;
@@ -69,6 +130,27 @@ export function TrackingScreen({ pedidoId }: Props) {
         </View>
       </View>
 
+      {/* Mapa — exibido quando o pedido está ativo */}
+      {showMap && (
+        <View style={styles.mapContainer}>
+          <DeliveryMap
+            entregadorLocation={entregadorLocation}
+            destinoLocation={destinoLocation}
+          />
+          {entregadorLocation ? (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Ao vivo</Text>
+            </View>
+          ) : (
+            <View style={[styles.liveBadge, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+              <ActivityIndicator size="small" color="#fff" style={{ transform: [{ scale: 0.6 }] }} />
+              <Text style={styles.liveText}>Localizando...</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ETA card */}
@@ -81,6 +163,25 @@ export function TrackingScreen({ pedidoId }: Props) {
               <Text style={[styles.etaLabel, { color: textMut as string }]}>Chegada prevista</Text>
               <Text style={[styles.etaValue, { color: text }]}>em ~{etaMin} min</Text>
             </View>
+          </View>
+        )}
+
+        {/* Card do entregador */}
+        {pedido.entregador && ACTIVE_STATUSES.includes(pedido.status) && (
+          <View style={[styles.entregadorCard, { backgroundColor: surf, borderColor: border }]}>
+            <View style={[styles.entregadorAvatar, { backgroundColor: avatarBg }]}>
+              <Ionicons name="bicycle" size={20} color={colors.navy} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.entregadorNome, { color: text }]}>{pedido.entregador.nome}</Text>
+              <Text style={[styles.entregadorTipo, { color: textSec as string }]}>{pedido.entregador.tipoTransporte ?? 'Entregador'}</Text>
+            </View>
+            {entregadorLocation && (
+              <View style={styles.locBadge}>
+                <View style={styles.locDot} />
+                <Text style={styles.locTxt}>Rastreando</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -165,6 +266,15 @@ const styles = StyleSheet.create({
                     alignItems: 'center', justifyContent: 'center' },
   headerTitulo:   { fontSize: 18, fontWeight: '700' },
   headerSub:      { fontSize: 12, marginTop: 1 },
+
+  mapContainer:   { height: 220, position: 'relative' },
+  liveBadge:      { position: 'absolute', top: 10, right: 10,
+                    flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20,
+                    paddingHorizontal: 10, paddingVertical: 5 },
+  liveDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: '#39FF89' },
+  liveText:       { fontSize: 11, fontWeight: '700', color: '#fff' },
+
   scroll:         { padding: 16, paddingBottom: 24 },
 
   etaCard:        { flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -173,6 +283,17 @@ const styles = StyleSheet.create({
                     alignItems: 'center', justifyContent: 'center' },
   etaLabel:       { fontSize: 11, fontWeight: '500' },
   etaValue:       { fontSize: 18, fontWeight: '700' },
+
+  entregadorCard:   { flexDirection: 'row', alignItems: 'center', gap: 10,
+                      borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
+  entregadorAvatar: { width: 36, height: 36, borderRadius: 18,
+                      alignItems: 'center', justifyContent: 'center' },
+  entregadorNome:   { fontSize: 14, fontWeight: '700' },
+  entregadorTipo:   { fontSize: 12, marginTop: 1, textTransform: 'capitalize' },
+  locBadge:         { flexDirection: 'row', alignItems: 'center', gap: 4,
+                      backgroundColor: '#E8FFF3', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
+  locDot:           { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  locTxt:           { fontSize: 11, fontWeight: '600', color: '#16A34A' },
 
   timelineCard:   { borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
   lojaRow:        { flexDirection: 'row', alignItems: 'center', gap: 10,

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+import { getEntregadorLocalizacao } from '../utils/socket';
 
 const router = Router();
 
@@ -227,6 +228,25 @@ router.post('/:id/rastrear', authMiddleware, authUsuario, async (req: AuthReques
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar rastreamento' });
+  }
+});
+
+// GET /pedidos/:id/localizacao-entregador - Última posição GPS do entregador
+router.get('/:id/localizacao-entregador', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
+  try {
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: req.params.id },
+      select: { consumidorId: true },
+    });
+
+    if (!pedido || pedido.consumidorId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const loc = getEntregadorLocalizacao(req.params.id);
+    res.json({ localizacao: loc });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar localização' });
   }
 });
 
