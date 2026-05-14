@@ -25,9 +25,10 @@ const PLACEHOLDERS = [
 interface Props {
   onSend: (texto: string) => void;
   disabled?: boolean;
+  token: string;
 }
 
-export function ChatInput({ onSend, disabled }: Props) {
+export function ChatInput({ onSend, disabled, token }: Props) {
   const [value, setValue] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
@@ -110,7 +111,7 @@ export function ChatInput({ onSend, disabled }: Props) {
 
       setTranscrevendo(true);
       try {
-        const texto = await TranscricaoService.transcrever(uri);
+        const texto = await TranscricaoService.transcrever(uri, token);
         setValue(texto);
       } catch (error) {
         console.error('Erro na transcrição:', error);

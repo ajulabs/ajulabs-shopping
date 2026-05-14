@@ -8,6 +8,7 @@ import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 're
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
+import { useAuthStore } from '../../../../store';
 
 const SUGESTOES_INICIAIS = [
   'Tênis preto até R$200',
@@ -28,6 +29,7 @@ export function ChatIA() {
   const [carregando, setCarregando] = useState(false);
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
+  const token = useAuthStore((s) => s.token) ?? '';
 
   async function handleEnviar(texto: string) {
     if (!texto.trim() || carregando) return;
@@ -43,7 +45,7 @@ export function ChatIA() {
     setSugestoes([]);
     setCarregando(true);
 
-    const resposta = await matchAju(mensagens, texto);
+    const resposta = await matchAju(mensagens, texto, token);
 
     const msgAju: MensagemChat = {
       id: (Date.now() + 1).toString(),
@@ -103,7 +105,7 @@ export function ChatIA() {
           carregando={carregando}
         />
 
-        <ChatInput onSend={handleEnviar} disabled={carregando} />
+        <ChatInput onSend={handleEnviar} disabled={carregando} token={token} />
 
         <Text style={{
           textAlign: 'center', fontSize: 11,

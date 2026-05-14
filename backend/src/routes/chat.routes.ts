@@ -1,8 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import OpenAI, { toFile } from 'openai';
 import multer from 'multer';
 import { prisma } from '../utils/prisma';
+import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -163,7 +164,7 @@ async function buscarProdutosReais(ids: string[], texto: string): Promise<Produt
 }
 
 // POST /chat/mensagem
-router.post('/mensagem', async (req: Request, res: Response) => {
+router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
   try {
     const { texto, historico } = mensagemSchema.parse(req.body);
 
@@ -209,7 +210,7 @@ router.post('/mensagem', async (req: Request, res: Response) => {
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 // POST /chat/transcricao  (multipart/form-data, campo: "audio")
-router.post('/transcricao', upload.single('audio'), async (req: Request, res: Response) => {
+router.post('/transcricao', authMiddleware, authUsuario, upload.single('audio'), async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Arquivo de áudio ausente' });
 

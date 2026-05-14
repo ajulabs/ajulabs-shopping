@@ -781,12 +781,13 @@ export const EnderecoService = {
 };
 
 export const TranscricaoService = {
-  transcrever: async (audioUri: string): Promise<string> => {
+  transcrever: async (audioUri: string, token: string): Promise<string> => {
     const formData = new FormData();
     formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'audio.m4a' } as any);
 
     const res = await fetch(`${API_URL}/chat/transcricao`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 
