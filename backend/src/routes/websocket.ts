@@ -1,10 +1,11 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketServer, Socket } from 'socket.io';
 import { verificarToken } from '../utils/jwt';
+import { socketCorsOptions } from '../utils/cors';
 
 export function criarWebSocketServer(httpServer: HttpServer): SocketServer {
   const io = new SocketServer(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: socketCorsOptions,
   });
 
   // Middleware de autenticação JWT para todas as conexões

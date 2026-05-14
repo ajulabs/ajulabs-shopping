@@ -2,6 +2,7 @@ import 'dotenv/config';
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
+import { corsOptions } from './utils/cors';
 import authRoutes from './routes/auth.routes';
 import lojasRoutes from './routes/lojas.routes';
 import produtosRoutes from './routes/produtos.routes';
@@ -19,7 +20,7 @@ const server = http.createServer(app);
 initSocket(server);
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check

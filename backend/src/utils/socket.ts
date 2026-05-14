@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import type http from 'http';
+import { socketCorsOptions } from './cors';
 import { prisma } from './prisma';
 
 let io: Server | null = null;
@@ -34,7 +35,7 @@ export function getEntregadorLocalizacao(pedidoId: string): { lat: number; lng: 
 
 export function initSocket(server: http.Server): Server {
   io = new Server(server, {
-    cors: { origin: '*' },
+    cors: socketCorsOptions,
   });
 
   io.on('connection', (socket) => {
