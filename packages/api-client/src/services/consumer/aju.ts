@@ -5,12 +5,13 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').rep
 
 export async function matchAju(
   historico: MensagemChat[],
-  textoUsuario: string
+  textoUsuario: string,
+  token: string
 ): Promise<RespostaAju> {
   try {
     const response = await fetch(`${API_URL}/chat/mensagem`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         texto: textoUsuario,
         historico: historico.map(m => ({

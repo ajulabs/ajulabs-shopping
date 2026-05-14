@@ -8,6 +8,8 @@ import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 're
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
+import { useAuthStore } from '../../../../store';
+import { useTranscricao } from '../model/useTranscricao';
 
 const SUGESTOES_INICIAIS = [
   'Tênis preto até R$200',
@@ -26,10 +28,14 @@ export function ChatIA() {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([MENSAGEM_INICIAL]);
   const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
   const [carregando, setCarregando] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
+  const token = useAuthStore((s) => s.token) ?? '';
+  const { gravando, transcrevendo, toggleGravacao } = useTranscricao();
 
-  async function handleEnviar(texto: string) {
+  async function enviarMensagem(texto: string) {
     if (!texto.trim() || carregando) return;
 
     const msgUsuario: MensagemChat = {
@@ -43,7 +49,7 @@ export function ChatIA() {
     setSugestoes([]);
     setCarregando(true);
 
-    const resposta = await matchAju(mensagens, texto);
+    const resposta = await matchAju(mensagens, texto, token);
 
     const msgAju: MensagemChat = {
       id: (Date.now() + 1).toString(),
@@ -55,6 +61,13 @@ export function ChatIA() {
 
     setMensagens((prev) => [...prev, msgAju]);
     setCarregando(false);
+  }
+
+  function handleEnviar() {
+    const texto = inputValue.trim();
+    if (!texto) return;
+    setInputValue('');
+    enviarMensagem(texto);
   }
 
   return (
@@ -99,11 +112,19 @@ export function ChatIA() {
         <ChatMsg
           mensagens={mensagens}
           sugestoes={sugestoes}
-          onSugestao={handleEnviar}
+          onSugestao={enviarMensagem}
           carregando={carregando}
         />
 
-        <ChatInput onSend={handleEnviar} disabled={carregando} />
+        <ChatInput
+          value={inputValue}
+          onChangeValue={setInputValue}
+          onSend={handleEnviar}
+          onMicPress={() => toggleGravacao((texto) => setInputValue(texto))}
+          gravando={gravando}
+          transcrevendo={transcrevendo}
+          disabled={carregando}
+        />
 
         <Text style={{
           textAlign: 'center', fontSize: 11,

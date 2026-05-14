@@ -5,12 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   Animated,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Mic, MicOff, Send } from 'lucide-react-native';
-import { Audio } from 'expo-av';
-import { TranscricaoService } from '@ajulabs/api-client';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
 
@@ -23,18 +20,19 @@ const PLACEHOLDERS = [
 ];
 
 interface Props {
-  onSend: (texto: string) => void;
+  value: string;
+  onChangeValue: (v: string) => void;
+  onSend: () => void;
+  onMicPress: () => void;
+  gravando: boolean;
+  transcrevendo: boolean;
   disabled?: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: Props) {
-  const [value, setValue] = useState('');
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+export function ChatInput({ value, onChangeValue, onSend, onMicPress, gravando, transcrevendo, disabled }: Props) {
   const [isFocused, setIsFocused] = useState(false);
-  const [gravando, setGravando] = useState(false);
-  const [transcrevendo, setTranscrevendo] = useState(false);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const recordingRef = useRef<Audio.Recording | null>(null);
 
   const { isDark, surf } = useTheme();
   const inputText   = isDark ? colors.n0       : '#1f2937';
@@ -55,82 +53,8 @@ export function ChatInput({ onSend, disabled }: Props) {
     return () => clearInterval(interval);
   }, [isFocused]);
 
-  function handleSend() {
-    if (!value.trim() || disabled) return;
-    onSend(value.trim());
-    setValue('');
-  }
-
-  async function handleMicPress() {
-    if (gravando) {
-      await pararGravacao();
-    } else {
-      await iniciarGravacao();
-    }
-  }
-
-  async function iniciarGravacao() {
-    try {
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        Alert.alert('Permissão negada', 'Precisamos de acesso ao microfone para gravar sua mensagem.');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-
-      recordingRef.current = recording;
-      setGravando(true);
-    } catch (e) {
-      console.error('Erro ao gravar:', e);
-      Alert.alert('Erro', 'Não foi possível iniciar a gravação.');
-    }
-  }
-
-  async function pararGravacao() {
-    try {
-      if (!recordingRef.current) return;
-
-      setGravando(false);
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
-
-      if (!uri) {
-        Alert.alert('Erro', 'Não foi possível salvar o áudio.');
-        return;
-      }
-
-      setTranscrevendo(true);
-      try {
-        const texto = await TranscricaoService.transcrever(uri);
-        setValue(texto);
-      } catch (error) {
-        console.error('Erro na transcrição:', error);
-        Alert.alert(
-          'Erro ao transcrever',
-          'Não consegui entender o áudio. Tente falar novamente ou digite sua mensagem.'
-        );
-      } finally {
-        setTranscrevendo(false);
-      }
-
-    } catch (e) {
-      console.error('Erro ao parar gravação:', e);
-      Alert.alert('Erro', 'Não foi possível processar o áudio.');
-      setTranscrevendo(false);
-    }
-  }
-
   const isProcessing = gravando || transcrevendo;
-  const canSend = value.trim() && !disabled && !isProcessing;
+  const canSend = !!value.trim() && !disabled && !isProcessing;
 
   return (
     <View style={{
@@ -172,17 +96,17 @@ export function ChatInput({ onSend, disabled }: Props) {
       <TextInput
         style={{ flex: 1, fontSize: 15, color: inputText }}
         value={value}
-        onChangeText={setValue}
+        onChangeText={onChangeValue}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        onSubmitEditing={handleSend}
+        onSubmitEditing={onSend}
         returnKeyType="send"
         editable={!disabled && !isProcessing}
         placeholder=""
       />
 
       <TouchableOpacity
-        onPress={canSend ? handleSend : handleMicPress}
+        onPress={canSend ? onSend : onMicPress}
         disabled={disabled || transcrevendo}
         style={{
           marginLeft: 8,
