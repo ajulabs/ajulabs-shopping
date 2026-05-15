@@ -2,42 +2,42 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import OpenAI, { toFile } from 'openai';
 import multer from 'multer';
-import { prisma } from '../utils/prisma';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
-import { buscarProdutosRAG, buscarProdutosFallback, ProdutoRAG } from '../utils/ragSearch';
+import { ProdutoRAG } from '../utils/ragSearch';
+import { TOOL_DEFINITIONS, executarTool } from '../tools';
 
 const router = Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM_PROMPT = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
-Responda SEMPRE com um JSON válido, sem markdown, sem explicações fora do JSON.
+// Prompt usado na primeira chamada: routing + persona
+const SYSTEM_AGENTE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 
-Formato obrigatório:
+Use as ferramentas disponíveis quando necessário:
+- buscar_produtos: quando o usuário quer comprar algo, ver opções ou pedir recomendações
+- listar_pedidos: quando o usuário perguntar sobre seus pedidos, entrega ou rastreamento
+- criar_ticket: quando o usuário reclamar ou reportar um problema
+
+Se não precisar de ferramentas (saudação, dúvida geral), responda diretamente com JSON:
 {
   "texto": "mensagem curta e animada em português, com sotaque sergipano",
-  "produtos": ["uuid-produto-1", "uuid-produto-2"],
-  "sugestoes": ["mais barato", "só masculino", "outra cor"]
+  "sugestoes": ["sugestão 1", "sugestão 2"]
 }
+Nunca mencione Amazon, iFood ou Shopee.`;
 
+// Prompt usado na segunda chamada: gera resposta final após resultado da tool
+const SYSTEM_RESPOSTA = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
+Os resultados da ferramenta estão na conversa. Responda ao usuário com JSON válido, sem markdown:
+{
+  "texto": "mensagem curta e animada em português, com sotaque sergipano",
+  "sugestoes": ["sugestão 1", "sugestão 2"]
+}
 Regras:
-- Use APENAS os ids dos produtos listados no contexto — nunca invente ids
-- Inclua de 1 a 3 ids de produtos relevantes quando o usuário pedir algo para comprar
-- Se não houver produtos relevantes no contexto, retorne "produtos": []
-- "sugestoes" são chips de refinamento da busca, máximo 3
+- Para produtos: destaque os mais relevantes no texto, sugira refinamentos em "sugestoes"
+- Para pedidos: descreva o status de forma clara e amigável, sem repetir IDs técnicos
+- Para tickets: confirme o registro pelo protocolo e diga que a equipe entrará em contato em breve
+- "sugestoes" apenas para contexto de busca de produtos, máximo 3; caso contrário retorne []
 - Nunca mencione Amazon, iFood ou Shopee`;
-
-function buildContexto(produtos: ProdutoRAG[]): string {
-  if (produtos.length === 0) return '\n\n=== PRODUTOS DISPONÍVEIS ===\nNenhum produto encontrado para esta busca.';
-
-  const linhas = produtos.map(p => {
-    const taxa = p.taxaEntrega === 0 ? 'grátis' : `R$ ${p.taxaEntrega.toFixed(2)}`;
-    const tags = p.tags.length ? ` [${p.tags.join(', ')}]` : '';
-    return `• id:${p.id} | ${p.nome} | R$ ${p.preco.toFixed(2)} | ${p.categoria}${tags} | ${p.loja} | entrega: ${p.tempoEntrega} | taxa: ${taxa}`;
-  });
-
-  return `\n\n=== PRODUTOS RELEVANTES (use apenas estes ids) ===\n${linhas.join('\n')}`;
-}
 
 const mensagemSchema = z.object({
   texto: z.string().min(1).max(1000),
@@ -59,7 +59,7 @@ type ProdutoChat = {
 };
 
 function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
-  return produtos.map(p => ({
+  return produtos.slice(0, 3).map(p => ({
     id: p.id,
     lojaId: p.lojaId,
     nome: p.nome,
@@ -75,48 +75,67 @@ function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
 router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
   try {
     const { texto, historico } = mensagemSchema.parse(req.body);
+    const usuarioId = req.user!.id;
 
-    // Busca semântica: TOP-8 produtos relevantes para a mensagem do usuário
-    const produtosRAG = await buscarProdutosRAG(texto);
+    const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map(m => ({
+      role: m.remetente === 'usuario' ? 'user' : 'assistant',
+      content: m.conteudo,
+    }));
 
-    const systemPrompt = SYSTEM_PROMPT + buildContexto(produtosRAG);
+    // ── 1ª chamada: roteamento via tool calling ───────────────────────────────
+    const primeiraResposta = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 300,
+      response_format: { type: 'json_object' },
+      tools: TOOL_DEFINITIONS,
+      tool_choice: 'auto',
+      messages: [
+        { role: 'system', content: SYSTEM_AGENTE },
+        ...historicoParsed,
+        { role: 'user', content: texto },
+      ],
+    });
 
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: systemPrompt },
-      ...historico.map(m => ({
-        role: m.remetente === 'usuario' ? 'user' : 'assistant',
-        content: m.conteudo,
-      } as OpenAI.Chat.ChatCompletionMessageParam)),
-      { role: 'user', content: texto },
-    ];
+    const mensagemAgente = primeiraResposta.choices[0].message;
 
-    const completion = await openai.chat.completions.create({
+    // ── Generico: modelo respondeu diretamente sem acionar tool ──────────────
+    if (!mensagemAgente.tool_calls || mensagemAgente.tool_calls.length === 0) {
+      const resposta = JSON.parse(mensagemAgente.content ?? '{}');
+      resposta.produtos = [];
+      return res.json(resposta);
+    }
+
+    // ── Tool acionada: executa e coleta resultado ─────────────────────────────
+    const toolCall = mensagemAgente.tool_calls[0];
+    if (toolCall.type !== 'function') return res.json({ texto: 'Não entendi. Pode repetir?', produtos: [], sugestoes: [] });
+    const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
+
+    const toolResult = await executarTool(toolCall.function.name, toolArgs, usuarioId);
+
+    // ── 2ª chamada: gera resposta final com base no resultado da tool ─────────
+    const segundaResposta = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       max_tokens: 500,
       response_format: { type: 'json_object' },
-      messages,
+      messages: [
+        { role: 'system', content: SYSTEM_RESPOSTA },
+        ...historicoParsed,
+        { role: 'user', content: texto },
+        { role: 'assistant', content: null, tool_calls: mensagemAgente.tool_calls },
+        {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(toolResult.dados),
+        },
+      ],
     });
 
-    const raw = completion.choices[0]?.message?.content ?? '{}';
-    const resposta = JSON.parse(raw);
+    const resposta = JSON.parse(segundaResposta.choices[0].message.content ?? '{}');
 
-    // Mapeia os ids retornados pela IA contra os produtos do RAG (sem query extra ao banco)
-    const idsRetornados: string[] = Array.isArray(resposta.produtos)
-      ? resposta.produtos.map((id: unknown) => String(id)).filter(Boolean)
+    // Produtos vêm do resultado da tool, não da IA (evita alucinação de ids)
+    resposta.produtos = toolResult.tipo === 'produtos'
+      ? ragParaChat(toolResult.dados)
       : [];
-
-    const produtosValidados = idsRetornados.length > 0
-      ? ragParaChat(produtosRAG.filter(p => idsRetornados.includes(p.id)))
-      : [];
-
-    // Fallback: se RAG não teve resultados e a IA não retornou nada, usa busca por keyword
-    const produtosFinais = produtosValidados.length > 0
-      ? produtosValidados
-      : produtosRAG.length === 0
-        ? ragParaChat(await buscarProdutosFallback(texto))
-        : [];
-
-    resposta.produtos = produtosFinais;
 
     res.json(resposta);
   } catch (error) {
