@@ -5,6 +5,7 @@ import multer from 'multer';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { uploadImagemProduto, uploadImagemLoja } from '../utils/supabase';
+import { embedirProduto } from '../utils/embeddings';
 import { getEntregadorLocalizacao } from '../utils/socket';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -382,6 +383,10 @@ router.post('/produtos', authMiddleware, authLojista, uploadImagem.single('image
       data: { ...dados, imagemUrl, imagens: imagemUrl ? [imagemUrl] : [] },
     });
 
+    embedirProduto(produto.id).catch(err =>
+      console.error(`[embedding] falhou para produto ${produto.id}:`, err),
+    );
+
     res.status(201).json({ produto });
   } catch (error) {
     console.error('[produto] erro:', error);
@@ -437,6 +442,10 @@ router.put('/produtos/:id', authMiddleware, authLojista, uploadImagem.array('ima
       where: { id: req.params.id },
       data: dados,
     });
+
+    embedirProduto(atualizado.id).catch(err =>
+      console.error(`[embedding] falhou para produto ${atualizado.id}:`, err),
+    );
 
     res.json({ produto: atualizado });
   } catch (error) {
