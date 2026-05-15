@@ -14,6 +14,7 @@ import enderecosRoutes from './routes/enderecos.routes';
 import entregadorRoutes from './routes/entregador.routes';
 import lojistaRoutes from './routes/lojista.routes';
 import { initSocket } from './utils/socket';
+import { backfillEmbeddings } from './jobs/backfillEmbeddings';
 
 const app = express();
 const server = http.createServer(app);
@@ -68,4 +69,5 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 server.listen(PORT, () => {
   console.log(`\n🚀 AjuLabs API rodando em http://localhost:${PORT}\n`);
+  backfillEmbeddings().catch(err => console.error('[backfill]', err));
 });
