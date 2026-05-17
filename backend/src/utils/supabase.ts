@@ -77,6 +77,30 @@ export async function uploadImagemLoja(
   return data.publicUrl;
 }
 
+export async function uploadImagemConsumidor(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<string> {
+  const ext = mimeType.split('/')[1] || 'jpg';
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error: bucketError } = await supabase.storage.createBucket('consumidores', { public: true });
+  if (bucketError && bucketError.message.includes('already exists')) {
+    await supabase.storage.updateBucket('consumidores', { public: true });
+  } else if (bucketError) {
+    throw bucketError;
+  }
+
+  const { error } = await supabase.storage
+    .from('consumidores')
+    .upload(fileName, buffer, { contentType: mimeType });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('consumidores').getPublicUrl(fileName);
+  return data.publicUrl;
+}
+
 export async function uploadImagemProduto(
   buffer: Buffer,
   mimeType: string,

@@ -47,6 +47,7 @@ export default function EnderecosScreen() {
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [enderecoEditandoId, setEnderecoEditandoId] = useState<string | null>(null);
   const [form, setForm] = useState<EnderecoForm>(FORM_VAZIO);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -147,10 +148,59 @@ export default function EnderecosScreen() {
     }
   };
 
-  const handleRemover = (id: string) => {
+  const handleEditar = (addr: EnderecoSalvo) => {
+    setEnderecoEditandoId(addr.id);
+    setForm({
+      apelido: addr.apelido,
+      rua: addr.ruaRaw ?? addr.rua,
+      numero: addr.numero ?? '',
+      bairro: addr.bairroRaw ?? addr.bairro,
+      cep: addr.cep,
+      cidade: addr.cidade ?? 'Aracaju',
+      complemento: addr.complemento ?? '',
+    });
+    setErrors({});
+    setErroGeral('');
+    setErroLoc('');
+    setShowModal(true);
+  };
+
+  const handleRemover = (addr: EnderecoSalvo) => {
+    if (addr.padrao) {
+      const outro = enderecos.find(e => e.id !== addr.id);
+      if (!outro) {
+        if (Platform.OS === 'web') {
+          window.alert('Não é possível remover o único endereço cadastrado.');
+        } else {
+          Alert.alert('Atenção', 'Não é possível remover o único endereço cadastrado.');
+        }
+        return;
+      }
+      const confirmar = async () => {
+        if (!token) return;
+        try {
+          await EnderecoService.definirPadrao(token, outro.id);
+          await EnderecoService.remover(token, addr.id);
+          carregar();
+        } catch {
+          Alert.alert('Erro', 'Não foi possível remover o endereço');
+        }
+      };
+      if (Platform.OS === 'web') {
+        if (window.confirm(`"${outro.apelido}" será definido como padrão e "${addr.apelido}" será removido. Continuar?`)) confirmar();
+      } else {
+        Alert.alert(
+          'Remover endereço padrão',
+          `"${outro.apelido}" será definido como padrão e "${addr.apelido}" será removido. Continuar?`,
+          [{ text: 'Cancelar', style: 'cancel' }, { text: 'Remover', style: 'destructive', onPress: confirmar }],
+        );
+      }
+      return;
+    }
+
     const confirmar = () => {
       if (!token) return;
-      EnderecoService.remover(token, id).then(carregar).catch(() =>
+      EnderecoService.remover(token, addr.id).then(carregar).catch(() =>
         Alert.alert('Erro', 'Não foi possível remover o endereço'),
       );
     };
@@ -166,7 +216,9 @@ export default function EnderecosScreen() {
 
   const handleDefinirPadrao = (id: string) => {
     if (!token) return;
-    EnderecoService.definirPadrao(token, id).then(carregar).catch(() => {});
+    const anterior = enderecos;
+    setEnderecos(prev => prev.map(e => ({ ...e, padrao: e.id === id })));
+    EnderecoService.definirPadrao(token, id).catch(() => setEnderecos(anterior));
   };
 
   const handleSalvar = async () => {
@@ -186,16 +238,20 @@ export default function EnderecosScreen() {
       return;
     }
 
+    const dados = {
+      ...form,
+      cep: form.cep.replace(/\D/g, ''),
+      complemento: form.complemento || undefined,
+    };
+
     setSaving(true);
     try {
-      await EnderecoService.criar(token, {
-        ...form,
-        cep: form.cep.replace(/\D/g, ''),
-        complemento: form.complemento || undefined,
-      });
-      setShowModal(false);
-      setForm(FORM_VAZIO);
-      setErrors({});
+      if (enderecoEditandoId) {
+        await EnderecoService.atualizar(token, enderecoEditandoId, dados);
+      } else {
+        await EnderecoService.criar(token, dados);
+      }
+      fecharModal();
       carregar();
     } catch (e: any) {
       setErroGeral(e?.message ?? 'Não foi possível salvar o endereço.');
@@ -206,6 +262,7 @@ export default function EnderecosScreen() {
 
   const fecharModal = () => {
     setShowModal(false);
+    setEnderecoEditandoId(null);
     setForm(FORM_VAZIO);
     setErrors({});
     setErroGeral('');
@@ -257,22 +314,25 @@ export default function EnderecosScreen() {
                 </Text>
               </View>
               <View style={styles.cardActions}>
-                {!addr.padrao && (
-                  <TouchableOpacity
-                    onPress={() => handleDefinirPadrao(addr.id)}
-                    style={[styles.actionBtn, { backgroundColor: backBtn }]}
-                  >
-                    <Ionicons name="star-outline" size={18} color={colors.orange} />
-                  </TouchableOpacity>
-                )}
-                {!addr.padrao && (
-                  <TouchableOpacity
-                    onPress={() => handleRemover(addr.id)}
-                    style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(163,45,45,0.18)' : '#FCEBEB' }]}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#A32D2D" />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  onPress={() => handleEditar(addr)}
+                  style={[styles.actionBtn, { backgroundColor: backBtn }]}
+                >
+                  <Ionicons name="pencil-outline" size={17} color={colors.orange} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => !addr.padrao && handleDefinirPadrao(addr.id)}
+                  style={[styles.actionBtn, { backgroundColor: addr.padrao ? colors.orange100 : backBtn }]}
+                  activeOpacity={addr.padrao ? 1 : 0.7}
+                >
+                  <Ionicons name={addr.padrao ? 'star' : 'star-outline'} size={17} color={colors.orange} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleRemover(addr)}
+                  style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(163,45,45,0.18)' : '#FCEBEB' }]}
+                >
+                  <Ionicons name="trash-outline" size={17} color="#A32D2D" />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -288,7 +348,9 @@ export default function EnderecosScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.modal, { backgroundColor: bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: borderL, backgroundColor: surf }]}>
-              <Text style={[styles.modalTitulo, { color: text }]}>Novo Endereço</Text>
+              <Text style={[styles.modalTitulo, { color: text }]}>
+                {enderecoEditandoId ? 'Editar Endereço' : 'Novo Endereço'}
+              </Text>
               <TouchableOpacity onPress={fecharModal}>
                 <Ionicons name="close" size={24} color={text} />
               </TouchableOpacity>
@@ -419,7 +481,10 @@ export default function EnderecosScreen() {
               >
                 {saving
                   ? <ActivityIndicator color={colors.n0} />
-                  : <Text style={styles.saveBtnTxt}>Salvar endereço</Text>}
+                  : <Text style={styles.saveBtnTxt}>
+                      {enderecoEditandoId ? 'Salvar alterações' : 'Salvar endereço'}
+                    </Text>
+                }
               </TouchableOpacity>
             </ScrollView>
           </View>

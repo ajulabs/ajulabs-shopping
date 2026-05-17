@@ -738,8 +738,37 @@ function mapEndereco(e: any): EnderecoSalvo {
     bairro: e.cidade ? `${e.bairro}, ${e.cidade}` : e.bairro,
     cep: e.cep,
     padrao: e.padrao ?? false,
+    ruaRaw: e.rua,
+    numero: e.numero,
+    bairroRaw: e.bairro,
+    cidade: e.cidade,
+    complemento: e.complemento,
   };
 }
+
+export const PerfilService = {
+  atualizarAvatar: async (token: string, imageUri: string): Promise<string> => {
+    const form = new FormData();
+    if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
+      const blob = await fetch(imageUri).then(r => r.blob());
+      form.append('avatar', blob, 'avatar.jpg');
+    } else {
+      form.append('avatar', { uri: imageUri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
+    }
+    const res = await fetch(`${API_URL}/perfil/avatar`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = typeof err.error === 'string' ? err.error : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    return data.avatarUrl;
+  },
+};
 
 export const EnderecoService = {
   listar: async (token: string): Promise<EnderecoSalvo[]> => {
@@ -759,6 +788,21 @@ export const EnderecoService = {
       body: JSON.stringify(dados),
     });
     if (!res.ok) throw new Error('Erro ao criar endereço');
+    const { endereco } = await res.json();
+    return mapEndereco(endereco);
+  },
+
+  atualizar: async (
+    token: string,
+    id: string,
+    dados: { apelido?: string; rua?: string; numero?: string; bairro?: string; cep?: string; cidade?: string; complemento?: string },
+  ): Promise<EnderecoSalvo> => {
+    const res = await fetch(`${API_URL}/enderecos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) throw new Error('Erro ao atualizar endereço');
     const { endereco } = await res.json();
     return mapEndereco(endereco);
   },

@@ -177,6 +177,12 @@ export interface EnderecoSalvo {
   bairro: string;
   cep: string;
   padrao: boolean;
+  // campos raw para edição
+  ruaRaw?: string;
+  numero?: string;
+  bairroRaw?: string;
+  cidade?: string;
+  complemento?: string;
 }
 
 export type MetodoPagamento = 'pix' | 'cartao';
