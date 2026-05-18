@@ -1,5 +1,5 @@
 import { Loja, Produto, Pedido, EnderecoSalvo, EntregadorResumo } from '@ajulabs/types';
-export { matchAju } from "./consumer/aju";
+export { matchAju, registrarCliqueSugestao } from "./consumer/aju";
 
 declare const process: { env: Record<string, string | undefined> };
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');

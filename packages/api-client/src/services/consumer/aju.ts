@@ -6,7 +6,9 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').rep
 export async function matchAju(
   historico: MensagemChat[],
   textoUsuario: string,
-  token: string
+  token: string,
+  conversaId?: string,
+  pedidoSelecionadoId?: string,
 ): Promise<RespostaAju> {
   try {
     const response = await fetch(`${API_URL}/chat/mensagem`, {
@@ -18,6 +20,8 @@ export async function matchAju(
           remetente: m.remetente,
           conteudo: m.conteudo,
         })),
+        conversaId,
+        pedidoSelecionadoId,
       }),
     });
 
@@ -36,5 +40,16 @@ export async function matchAju(
     console.error('[matchAju]', err);
     const msg = err instanceof Error ? err.message : 'Eita, tive um probleminha aqui. Tenta de novo!';
     return { texto: msg };
+  }
+}
+
+export async function registrarCliqueSugestao(sugestaoId: string, token: string): Promise<void> {
+  try {
+    await fetch(`${API_URL}/chat/sugestao/${sugestaoId}/clique`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // fire-and-forget: não bloqueia o usuário
   }
 }

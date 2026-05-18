@@ -5,12 +5,23 @@ import multer from 'multer';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { ProdutoRAG } from '../utils/ragSearch';
 import { TOOL_DEFINITIONS, executarTool } from '../tools';
+import {
+  obterOuCriarConversa,
+  salvarMensagens,
+  salvarSugestoesChat,
+  registrarClique,
+  obterEstado,
+} from '../utils/conversa';
+import {
+  iniciarFluxoQueixa,
+  processarSelecaoPedido,
+  processarConfirmacao,
+} from '../tools/queixaFlow';
 
 const router = Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Prompt usado na primeira chamada: routing + persona
 const SYSTEM_AGENTE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 
 Use as ferramentas disponíveis quando necessário:
@@ -25,7 +36,6 @@ Se não precisar de ferramentas (saudação, dúvida geral), responda diretament
 }
 Nunca mencione Amazon, iFood ou Shopee.`;
 
-// Prompt usado na segunda chamada: gera resposta final após resultado da tool
 const SYSTEM_RESPOSTA = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 Os resultados da ferramenta estão na conversa. Responda ao usuário com JSON válido, sem markdown:
 {
@@ -45,6 +55,8 @@ const mensagemSchema = z.object({
     remetente: z.enum(['usuario', 'aju']),
     conteudo: z.string(),
   })).default([]),
+  conversaId: z.string().uuid().optional(),
+  pedidoSelecionadoId: z.string().uuid().optional(),
 });
 
 type ProdutoChat = {
@@ -74,15 +86,36 @@ function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
 // POST /chat/mensagem
 router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
   try {
-    const { texto, historico } = mensagemSchema.parse(req.body);
+    const { texto, historico, conversaId: conversaIdReq, pedidoSelecionadoId } = mensagemSchema.parse(req.body);
     const usuarioId = req.user!.id;
 
+    const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
+    const conversaId = conversa.id;
+
+    const estado = await obterEstado(conversaId);
+
+    // ── Passo 3: confirmação ──────────────────────────────────────────────────
+    if (estado?.passo === 'confirmando') {
+      const resultado = await processarConfirmacao(conversaId, usuarioId, texto);
+      const textoSalvo = resultado.tipo === 'resposta' ? resultado.texto
+        : (resultado as { texto: string }).texto;
+      await salvarMensagens(conversaId, texto, textoSalvo);
+      return res.json({ ...resultado, conversaId });
+    }
+
+    // ── Passo 2: seleção de pedido ────────────────────────────────────────────
+    if (estado?.passo === 'selecionando_pedido') {
+      const resultado = await processarSelecaoPedido(conversaId, texto, pedidoSelecionadoId);
+      await salvarMensagens(conversaId, texto, resultado.texto);
+      return res.json({ ...resultado, conversaId });
+    }
+
+    // ── Fluxo normal com OpenAI ───────────────────────────────────────────────
     const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map(m => ({
       role: m.remetente === 'usuario' ? 'user' : 'assistant',
       content: m.conteudo,
     }));
 
-    // ── 1ª chamada: roteamento via tool calling ───────────────────────────────
     const primeiraResposta = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       max_tokens: 300,
@@ -98,21 +131,33 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
 
     const mensagemAgente = primeiraResposta.choices[0].message;
 
-    // ── Generico: modelo respondeu diretamente sem acionar tool ──────────────
+    // Sem tool: resposta direta
     if (!mensagemAgente.tool_calls || mensagemAgente.tool_calls.length === 0) {
       const resposta = JSON.parse(mensagemAgente.content ?? '{}');
+      resposta.tipo = 'resposta';
       resposta.produtos = [];
-      return res.json(resposta);
+      await salvarMensagens(conversaId, texto, resposta.texto || '');
+      return res.json({ ...resposta, conversaId });
     }
 
-    // ── Tool acionada: executa e coleta resultado ─────────────────────────────
     const toolCall = mensagemAgente.tool_calls[0];
-    if (toolCall.type !== 'function') return res.json({ texto: 'Não entendi. Pode repetir?', produtos: [], sugestoes: [] });
+    if (toolCall.type !== 'function') {
+      await salvarMensagens(conversaId, texto, 'Não entendi. Pode repetir?');
+      return res.json({ tipo: 'resposta', texto: 'Não entendi. Pode repetir?', produtos: [], sugestoes: [], conversaId });
+    }
+
     const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
 
+    // ── Intercepta criar_ticket → inicia queixa flow ──────────────────────────
+    if (toolCall.function.name === 'criar_ticket') {
+      const resultado = await iniciarFluxoQueixa(conversaId, usuarioId, toolArgs.motivo ?? texto);
+      await salvarMensagens(conversaId, texto, resultado.texto);
+      return res.json({ ...resultado, conversaId });
+    }
+
+    // ── Executa outras tools normalmente ─────────────────────────────────────
     const toolResult = await executarTool(toolCall.function.name, toolArgs, usuarioId);
 
-    // ── 2ª chamada: gera resposta final com base no resultado da tool ─────────
     const segundaResposta = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       max_tokens: 500,
@@ -131,21 +176,36 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
     });
 
     const resposta = JSON.parse(segundaResposta.choices[0].message.content ?? '{}');
+    resposta.tipo = 'resposta';
+    resposta.produtos = toolResult.tipo === 'produtos' ? ragParaChat(toolResult.dados) : [];
 
-    // Produtos vêm do resultado da tool, não da IA (evita alucinação de ids)
-    resposta.produtos = toolResult.tipo === 'produtos'
-      ? ragParaChat(toolResult.dados)
-      : [];
+    const { msgAju } = await salvarMensagens(conversaId, texto, resposta.texto || '');
 
-    res.json(resposta);
+    if (toolResult.tipo === 'produtos' && toolResult.dados.length > 0) {
+      await salvarSugestoesChat(msgAju.id, toolResult.dados);
+    }
+
+    res.json({ ...resposta, conversaId });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[chat/mensagem]', msg);
     res.status(500).json({
+      tipo: 'resposta',
       texto: 'Eita, tive um probleminha aqui. Tenta de novo!',
       ...(process.env.NODE_ENV !== 'production' && { debug: msg }),
     });
+  }
+});
+
+// POST /chat/sugestao/:id/clique
+router.post('/sugestao/:id/clique', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
+  try {
+    await registrarClique(req.params.id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('[chat/sugestao/clique]', error);
+    res.status(500).json({ error: 'Erro ao registrar clique' });
   }
 });
 

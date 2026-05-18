@@ -29,13 +29,14 @@ export function ChatIA() {
   const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
   const [carregando, setCarregando] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [conversaId, setConversaId] = useState<string | undefined>(undefined);
 
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
   const token = useAuthStore((s) => s.token) ?? '';
   const { gravando, transcrevendo, toggleGravacao } = useTranscricao();
 
-  async function enviarMensagem(texto: string) {
+  async function enviarMensagem(texto: string, pedidoSelecionadoId?: string) {
     if (!texto.trim() || carregando) return;
 
     const msgUsuario: MensagemChat = {
@@ -49,7 +50,11 @@ export function ChatIA() {
     setSugestoes([]);
     setCarregando(true);
 
-    const resposta = await matchAju(mensagens, texto, token);
+    const resposta = await matchAju(mensagens, texto, token, conversaId, pedidoSelecionadoId);
+
+    if (resposta.conversaId && !conversaId) {
+      setConversaId(resposta.conversaId);
+    }
 
     const msgAju: MensagemChat = {
       id: (Date.now() + 1).toString(),

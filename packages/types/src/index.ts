@@ -124,12 +124,25 @@ export interface ProdutoCard {
   imagemUrl: string;
 }
 
+export interface PedidoCard {
+  numero: number;
+  id: string;
+  loja: string;
+  total: number;
+  data: string;
+  itens: string[];
+  status: string;
+}
+
 export interface RespostaAju {
+  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido';
   texto: string;
   produtos?: ProdutoCard[];
   sugestoes?: string[];
+  pedidos?: PedidoCard[];
+  pedido?: PedidoCard;
+  conversaId?: string;
 }
-
 
 export interface MensagemChat {
   id: string;
