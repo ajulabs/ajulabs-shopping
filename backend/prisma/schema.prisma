@@ -22,10 +22,11 @@ model Usuario {
   criadoEm            DateTime @default(now()) @map("criado_em")
   atualizadoEm        DateTime @updatedAt @map("atualizado_em")
 
-  enderecos     EnderecoUsuario[]
-  pedidos       Pedido[]
-  conversas     ConversaChat[]
-  avaliacoes    AvaliacaoLoja[]
+  enderecos       EnderecoUsuario[]
+  pedidos         Pedido[]
+  conversas       ConversaChat[]
+  avaliacoes      AvaliacaoLoja[]
+  supportTickets  SupportTicket[]
 
   @@map("usuarios")
 }
@@ -189,12 +190,13 @@ model Loja {
   criadoEm           DateTime @default(now()) @map("criado_em")
   atualizadoEm       DateTime @updatedAt @map("atualizado_em")
 
-  lojista   Lojista                @relation(fields: [lojistaId], references: [id], onDelete: Cascade)
-  endereco  EnderecoLoja?
-  horarios  HorarioFuncionamento[]
-  produtos  Produto[]
-  pedidos   Pedido[]
-  avaliacoes AvaliacaoLoja[]
+  lojista        Lojista                @relation(fields: [lojistaId], references: [id], onDelete: Cascade)
+  endereco       EnderecoLoja?
+  horarios       HorarioFuncionamento[]
+  produtos       Produto[]
+  pedidos        Pedido[]
+  avaliacoes     AvaliacaoLoja[]
+  supportTickets SupportTicket[]
 
   @@map("lojas")
 }
@@ -346,6 +348,7 @@ model Pedido {
   pagamento        Pagamento?
   entregaRealizada EntregaRealizada?
   avaliacao        AvaliacaoLoja?
+  supportTickets   SupportTicket[]
 
   @@map("pedidos")
 }
@@ -422,15 +425,41 @@ model SugestaoProdutoChat {
   @@map("sugestoes_produto_chat")
 }
 
+enum TicketStatus {
+  aberto
+  em_andamento
+  resolvido
+}
+
 model SupportTicket {
-  id           String   @id @default(uuid())
-  consumidorId String   @map("consumidor_id")
-  pedidoId     String?  @map("pedido_id")
+  id           String       @id @default(uuid())
+  consumidorId String       @map("consumidor_id")
+  pedidoId     String?      @map("pedido_id")
+  lojaId       String?      @map("loja_id")
   motivo       String
-  protocolo    String   @unique
-  criadoEm    DateTime @default(now()) @map("criado_em")
+  protocolo    String       @unique
+  status       TicketStatus @default(aberto)
+  urgente      Boolean      @default(false)
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+  atualizadoEm DateTime     @updatedAt @map("atualizado_em")
+
+  consumidor Usuario      @relation(fields: [consumidorId], references: [id])
+  pedido     Pedido?      @relation(fields: [pedidoId], references: [id])
+  loja       Loja?        @relation(fields: [lojaId], references: [id])
+  notas      TicketNota[]
 
   @@map("support_tickets")
+}
+
+model TicketNota {
+  id        String        @id @default(uuid())
+  ticketId  String        @map("ticket_id")
+  texto     String
+  criadoEm  DateTime      @default(now()) @map("criado_em")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_notas")
 }
 
 // ========================================

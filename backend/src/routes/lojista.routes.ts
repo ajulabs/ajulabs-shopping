@@ -473,6 +473,151 @@ router.delete('/produtos/:id', authMiddleware, authLojista, async (req: AuthRequ
   }
 });
 
+// GET /lojista/lojas/:id/tickets - Listar tickets da loja
+router.get('/lojas/:id/tickets', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const loja = await verificarDonoLoja(req.params.id, req.user!.id);
+    if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+
+    const { status, page = '1', limit = '20' } = req.query;
+    const where: Record<string, unknown> = { lojaId: loja.id };
+    if (status) where.status = status;
+
+    const [tickets, total] = await Promise.all([
+      prisma.supportTicket.findMany({
+        where,
+        include: {
+          consumidor: { select: { nome: true, telefone: true } },
+          pedido: {
+            select: {
+              id: true,
+              total: true,
+              criadoEm: true,
+              itens: { select: { nomeSnapshot: true, quantidade: true } },
+            },
+          },
+          notas: true,
+        },
+        orderBy: [{ urgente: 'desc' }, { criadoEm: 'desc' }],
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
+      }),
+      prisma.supportTicket.count({ where }),
+    ]);
+
+    res.json({ tickets, total, page: Number(page), limit: Number(limit) });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar tickets' });
+  }
+});
+
+// GET /lojista/tickets/:id - Detalhe de um ticket
+router.get('/tickets/:id', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: req.params.id },
+      include: {
+        consumidor: { select: { nome: true, telefone: true } },
+        pedido: {
+          select: {
+            id: true,
+            total: true,
+            criadoEm: true,
+            itens: { select: { nomeSnapshot: true, quantidade: true } },
+          },
+        },
+        loja: { select: { lojistaId: true } },
+        notas: { orderBy: { criadoEm: 'asc' } },
+      },
+    });
+
+    if (!ticket || ticket.loja?.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    res.json({ ticket });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar ticket' });
+  }
+});
+
+// PATCH /lojista/tickets/:id/status - Atualizar status do ticket
+router.patch('/tickets/:id/status', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const { status } = req.body;
+    const VALID = ['aberto', 'em_andamento', 'resolvido'];
+    if (!VALID.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: req.params.id },
+      include: { loja: { select: { lojistaId: true } } },
+    });
+
+    if (!ticket || ticket.loja?.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const atualizado = await prisma.supportTicket.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+
+    res.json({ ticket: atualizado });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar status do ticket' });
+  }
+});
+
+// PATCH /lojista/tickets/:id/urgente - Marcar/desmarcar como urgente
+router.patch('/tickets/:id/urgente', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const { urgente } = req.body;
+
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: req.params.id },
+      include: { loja: { select: { lojistaId: true } } },
+    });
+
+    if (!ticket || ticket.loja?.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const atualizado = await prisma.supportTicket.update({
+      where: { id: req.params.id },
+      data: { urgente: Boolean(urgente) },
+    });
+
+    res.json({ ticket: atualizado });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar ticket' });
+  }
+});
+
+// POST /lojista/tickets/:id/notas - Adicionar nota interna
+router.post('/tickets/:id/notas', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const { texto } = req.body;
+    if (!texto?.trim()) return res.status(400).json({ error: 'Texto obrigatório' });
+
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: req.params.id },
+      include: { loja: { select: { lojistaId: true } } },
+    });
+
+    if (!ticket || ticket.loja?.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const nota = await prisma.ticketNota.create({
+      data: { ticketId: req.params.id, texto: texto.trim() },
+    });
+
+    res.status(201).json({ nota });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao adicionar nota' });
+  }
+});
+
 // GET /lojista/pedidos/:id/localizacao-entregador — última posição GPS para o lojista
 router.get('/pedidos/:id/localizacao-entregador', authMiddleware, authLojista, async (req: AuthRequest, res) => {
   try {

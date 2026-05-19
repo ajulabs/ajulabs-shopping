@@ -25,9 +25,9 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SYSTEM_AGENTE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 
 Use as ferramentas disponíveis quando necessário:
-- buscar_produtos: quando o usuário quer comprar algo, ver opções ou pedir recomendações
-- listar_pedidos: quando o usuário perguntar sobre seus pedidos, entrega ou rastreamento
-- criar_ticket: quando o usuário reclamar ou reportar um problema
+- buscar_produtos: usuário quer COMPRAR algo novo ou ver recomendações
+- listar_pedidos: usuário pergunta sobre status, entrega ou rastreamento de pedido
+- criar_ticket: usuário menciona QUALQUER problema com pedido já feito (produto danificado, quebrado, errado, não chegou, entrega atrasada). Use IMEDIATAMENTE sem pedir confirmação ou número de pedido — o sistema buscará os pedidos automaticamente.
 
 Se não precisar de ferramentas (saudação, dúvida geral), responda diretamente com JSON:
 {
