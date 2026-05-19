@@ -174,10 +174,15 @@ export async function processarConfirmacao(
   const result = await executarCriarTicket(estado.motivo, usuarioId, estado.pedidoId);
   const { protocolo } = result.dados as { criado: boolean; protocolo: string };
 
+  const pedido = estado.pedidoId
+    ? await prisma.pedido.findUnique({ where: { id: estado.pedidoId }, select: { lojaId: true } })
+    : null;
+
   await prisma.supportTicket.create({
     data: {
       consumidorId: usuarioId,
       pedidoId: estado.pedidoId,
+      lojaId: pedido?.lojaId ?? null,
       motivo: estado.motivo,
       protocolo,
     },

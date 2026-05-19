@@ -53,6 +53,15 @@ export default function LojistaLayout() {
         }}
       />
       <Tabs.Screen
+        name="tickets"
+        options={{
+          title: 'Tickets',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'ticket' : 'ticket-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="logistica"
         options={{
           title: 'Logística',
