@@ -6,11 +6,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "ios": { "bundleIdentifier": "com.ajulabs.lojista" },
-    "android": { "package": "com.ajulabs.lojista" },
+    "ios": {
+      "bundleIdentifier": "com.ajulabs.lojista"
+    },
+    "android": {
+      "package": "com.ajulabs.lojista"
+    },
     "plugins": [
       "expo-router",
-      "react-native-maps",
       [
         "expo-image-picker",
         {
