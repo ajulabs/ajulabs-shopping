@@ -6,7 +6,7 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
     function: {
       name: 'buscar_produtos',
       description:
-        'Busca produtos no marketplace por relevância semântica. Use quando o usuário quer comprar algo, ver opções, pedir recomendações ou mencionar qualquer categoria de produto.',
+        'Busca produtos no marketplace por relevância semântica. Use SOMENTE quando o usuário quer COMPRAR algo novo, ver opções ou pedir recomendações de produtos. NÃO use para reclamações sobre produtos já comprados.',
       parameters: {
         type: 'object',
         properties: {
@@ -37,7 +37,7 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
     function: {
       name: 'criar_ticket',
       description:
-        'Registra uma reclamação ou problema para atendimento humano. Use quando o usuário expressar insatisfação, reclamar de produto, entrega ou atendimento.',
+        'Registra uma reclamação para atendimento humano. Use IMEDIATAMENTE quando o usuário mencionar qualquer problema pós-compra: produto danificado, quebrado, defeituoso, errado, não chegou, entrega atrasada, cobrança errada ou qualquer insatisfação com pedido já realizado. NÃO peça mais informações antes de chamar esta função.',
       parameters: {
         type: 'object',
         properties: {

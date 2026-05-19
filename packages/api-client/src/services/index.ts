@@ -432,6 +432,67 @@ export const LojistaService = {
     return localizacao ?? null;
   },
 
+  listarTickets: async (
+    lojaId: string,
+    token: string,
+    status?: string,
+  ): Promise<any[]> => {
+    const url = status
+      ? `${API_URL}/lojista/lojas/${lojaId}/tickets?status=${encodeURIComponent(status)}`
+      : `${API_URL}/lojista/lojas/${lojaId}/tickets`;
+    const res = await fetch(url, { headers: authHeader(token) });
+    if (!res.ok) return [];
+    const { tickets } = await res.json();
+    return tickets ?? [];
+  },
+
+  buscarTicket: async (ticketId: string, token: string): Promise<any | null> => {
+    const res = await fetch(`${API_URL}/lojista/tickets/${ticketId}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { ticket } = await res.json();
+    return ticket ?? null;
+  },
+
+  atualizarStatusTicket: async (ticketId: string, status: string, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/tickets/${ticketId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar status');
+    }
+  },
+
+  toggleUrgenteTicket: async (ticketId: string, urgente: boolean, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/tickets/${ticketId}/urgente`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ urgente }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar ticket');
+    }
+  },
+
+  adicionarNotaTicket: async (ticketId: string, texto: string, token: string): Promise<any> => {
+    const res = await fetch(`${API_URL}/lojista/tickets/${ticketId}/notas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ texto }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao adicionar nota');
+    }
+    const { nota } = await res.json();
+    return nota;
+  },
+
   buscarEntregas: async (
     lojaId: string,
     token: string,
