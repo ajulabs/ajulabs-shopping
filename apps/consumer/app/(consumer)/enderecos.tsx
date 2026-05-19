@@ -11,6 +11,7 @@ import { EnderecoService } from '@ajulabs/api-client';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { useAuthStore } from '../../src/store';
 import { useTheme } from '../../src/hooks';
+import { AddressMap } from '../../src/components/AddressMap';
 
 interface EnderecoForm {
   apelido: string;
@@ -269,6 +270,8 @@ export default function EnderecosScreen() {
     setErroLoc('');
   };
 
+  const mapAddress = form.rua && form.bairro ? `${form.rua}, ${form.bairro}` : '';
+
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
@@ -466,6 +469,15 @@ export default function EnderecosScreen() {
               />
               {!!errors.cidade && <Text style={styles.fieldError}>{errors.cidade}</Text>}
 
+              {!!mapAddress && (
+                <View style={[styles.mapPreview, { borderColor: border }]}>
+                  <Text style={[styles.mapLabel, { color: textSec as string }]}>Preview do endereço</Text>
+                  <View style={styles.mapBox}>
+                    <AddressMap address={mapAddress} />
+                  </View>
+                </View>
+              )}
+
               {!!erroGeral && (
                 <View style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}>
                   <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
@@ -544,6 +556,10 @@ const styles = StyleSheet.create({
   erroBox:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14,
                     padding: 12, backgroundColor: '#FCEBEB', borderRadius: 10 },
   erroTxt:        { flex: 1, fontSize: 13, color: '#A32D2D' },
+  mapPreview:     { marginTop: 16, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  mapLabel:       { fontSize: 11, fontWeight: '600', paddingHorizontal: 12, paddingVertical: 8,
+                    textTransform: 'uppercase', letterSpacing: 0.4 },
+  mapBox:         { height: 150 },
   saveBtn:        { backgroundColor: colors.orange, height: 52, borderRadius: 14, marginTop: 24,
                     alignItems: 'center', justifyContent: 'center',
                     shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
