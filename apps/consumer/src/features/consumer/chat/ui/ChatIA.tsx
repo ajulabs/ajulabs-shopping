@@ -6,6 +6,10 @@ import { ChatInput } from './ChatInput';
 import { matchAju } from '@ajulabs/api-client';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
+import { useAuthStore } from '../../../../store';
+import { useTranscricao } from '../model/useTranscricao';
 
 const SUGESTOES_INICIAIS = [
   'Tênis preto até R$200',
@@ -24,10 +28,15 @@ export function ChatIA() {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([MENSAGEM_INICIAL]);
   const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
   const [carregando, setCarregando] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [conversaId, setConversaId] = useState<string | undefined>(undefined);
 
+  const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
+  const token = useAuthStore((s) => s.token) ?? '';
+  const { gravando, transcrevendo, toggleGravacao } = useTranscricao();
 
-  async function handleEnviar(texto: string) {
+  async function enviarMensagem(texto: string, pedidoSelecionadoId?: string) {
     if (!texto.trim() || carregando) return;
 
     const msgUsuario: MensagemChat = {
@@ -41,7 +50,11 @@ export function ChatIA() {
     setSugestoes([]);
     setCarregando(true);
 
-    const resposta = await matchAju(mensagens, texto);
+    const resposta = await matchAju(mensagens, texto, token, conversaId, pedidoSelecionadoId);
+
+    if (resposta.conversaId && !conversaId) {
+      setConversaId(resposta.conversaId);
+    }
 
     const msgAju: MensagemChat = {
       id: (Date.now() + 1).toString(),
@@ -55,9 +68,16 @@ export function ChatIA() {
     setCarregando(false);
   }
 
+  function handleEnviar() {
+    const texto = inputValue.trim();
+    if (!texto) return;
+    setInputValue('');
+    enviarMensagem(texto);
+  }
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f9fafb' }}
+      style={{ flex: 1, backgroundColor: bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -69,9 +89,9 @@ export function ChatIA() {
           paddingHorizontal: 16,
           paddingTop: 56,
           paddingBottom: 16,
-          backgroundColor: '#fff',
+          backgroundColor: surf,
           borderBottomWidth: 1,
-          borderBottomColor: '#f3f4f6',
+          borderBottomColor: borderL,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={{
@@ -83,29 +103,38 @@ export function ChatIA() {
               <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>A</Text>
             </View>
             <View>
-              <Text style={{ fontWeight: '600', fontSize: 15, color: '#111827' }}>
+              <Text style={{ fontWeight: '600', fontSize: 15, color: text }}>
                 Aju · Personal Shopper
               </Text>
               <Text style={{ fontSize: 12, color: '#22c55e' }}>● Online agora</Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => router.push('/(consumer)/carrinho')}>
-            <Ionicons name="cart-outline" size={22} color="#374151" />
+            <Ionicons name="cart-outline" size={22} color={text} />
           </TouchableOpacity>
         </View>
 
         <ChatMsg
           mensagens={mensagens}
           sugestoes={sugestoes}
-          onSugestao={handleEnviar}
+          onSugestao={enviarMensagem}
           carregando={carregando}
         />
 
-        <ChatInput onSend={handleEnviar} disabled={carregando} />
+        <ChatInput
+          value={inputValue}
+          onChangeValue={setInputValue}
+          onSend={handleEnviar}
+          onMicPress={() => toggleGravacao((texto) => setInputValue(texto))}
+          gravando={gravando}
+          transcrevendo={transcrevendo}
+          disabled={carregando}
+        />
 
         <Text style={{
           textAlign: 'center', fontSize: 11,
-          color: '#9ca3af', paddingBottom: 16,
+          color: textSec, paddingBottom: 16,
+          backgroundColor: bg,
         }}>
           IA com{' '}
           <Text style={{ color: '#f97316', fontWeight: '500' }}>lojas reais</Text>

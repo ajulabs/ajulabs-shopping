@@ -8,11 +8,18 @@
     "entregador": "pnpm --filter entregador start",
     "consumer:android": "pnpm --filter consumer android",
     "consumer:ios": "pnpm --filter consumer ios",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "packageManager": "pnpm@10.33.4",
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
+  },
+  "dependencies": {
+    "expo": "~54.0.34",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
   }
 }

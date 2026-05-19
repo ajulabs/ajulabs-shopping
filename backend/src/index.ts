@@ -2,6 +2,7 @@ import 'dotenv/config';
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
+import { corsOptions } from './utils/cors';
 import authRoutes from './routes/auth.routes';
 import lojasRoutes from './routes/lojas.routes';
 import produtosRoutes from './routes/produtos.routes';
@@ -13,13 +14,14 @@ import enderecosRoutes from './routes/enderecos.routes';
 import entregadorRoutes from './routes/entregador.routes';
 import lojistaRoutes from './routes/lojista.routes';
 import { initSocket } from './utils/socket';
+import { backfillEmbeddings } from './jobs/backfillEmbeddings';
 
 const app = express();
 const server = http.createServer(app);
 initSocket(server);
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check
@@ -67,4 +69,5 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 server.listen(PORT, () => {
   console.log(`\n🚀 AjuLabs API rodando em http://localhost:${PORT}\n`);
+  backfillEmbeddings().catch(err => console.error('[backfill]', err));
 });

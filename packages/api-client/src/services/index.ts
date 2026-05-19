@@ -1,5 +1,5 @@
 import { Loja, Produto, Pedido, EnderecoSalvo, EntregadorResumo } from '@ajulabs/types';
-export { matchAju } from "./consumer/aju";
+export { matchAju, registrarCliqueSugestao } from "./consumer/aju";
 
 declare const process: { env: Record<string, string | undefined> };
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -35,8 +35,10 @@ function mapProduto(raw: any): Produto {
     descricao: raw.descricao,
     preco: Number(raw.preco ?? 0),
     imagem: raw.imagemUrl ?? '',
+    imagens: Array.isArray(raw.imagens) ? raw.imagens : (raw.imagemUrl ? [raw.imagemUrl] : []),
     categoria: raw.categoria ?? '',
     disponivel: raw.disponivel ?? true,
+    estoque: raw.estoque != null ? Number(raw.estoque) : undefined,
     destaque: raw.destaque ?? false,
   };
 }
@@ -155,6 +157,15 @@ export const PedidoService = {
     return mapPedido(pedido);
   },
 
+  buscarLocalizacaoEntregador: async (pedidoId: string, token: string): Promise<{ lat: number; lng: number } | null> => {
+    const res = await fetch(`${API_URL}/pedidos/${pedidoId}/localizacao-entregador`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { localizacao } = await res.json();
+    return localizacao ?? null;
+  },
+
   criar: async (
     token: string,
     dados: {
@@ -246,6 +257,7 @@ export const LojistaService = {
       endereco?: {
         rua: string;
         numero?: string;
+        complemento?: string;
         bairro: string;
         cep: string;
         cidade: string;
@@ -309,12 +321,35 @@ export const LojistaService = {
       estoque?: number;
       categoria?: string;
       disponivel?: boolean;
+      existingImageUrls?: string[];
+      newImageUris?: string[];
     },
   ): Promise<void> => {
+    const { newImageUris = [], existingImageUrls = [], ...rest } = dados;
+
+    const form = new FormData();
+    if (rest.nome      !== undefined) form.append('nome',      rest.nome);
+    if (rest.descricao !== undefined) form.append('descricao', rest.descricao);
+    if (rest.categoria !== undefined) form.append('categoria', rest.categoria);
+    if (rest.preco     !== undefined) form.append('preco',     String(rest.preco));
+    if (rest.estoque   !== undefined) form.append('estoque',   String(rest.estoque));
+    if (rest.disponivel !== undefined) form.append('disponivel', String(rest.disponivel));
+    form.append('imagensExistentes', JSON.stringify(existingImageUrls));
+
+    for (let i = 0; i < newImageUris.length; i++) {
+      const uri = newImageUris[i];
+      if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+        const blob = await fetch(uri).then(r => r.blob());
+        form.append('imagens', blob, `imagem_${i}.jpg`);
+      } else {
+        form.append('imagens', { uri, type: 'image/jpeg', name: `imagem_${i}.jpg` } as any);
+      }
+    }
+
     const res = await fetch(`${API_URL}/lojista/produtos/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify(dados),
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -385,11 +420,29 @@ export const LojistaService = {
     return res.json();
   },
 
+  buscarLocalizacaoEntregador: async (
+    pedidoId: string,
+    token: string,
+  ): Promise<{ lat: number; lng: number; heading?: number; speedKmh?: number } | null> => {
+    const res = await fetch(`${API_URL}/lojista/pedidos/${pedidoId}/localizacao-entregador`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { localizacao } = await res.json();
+    return localizacao ?? null;
+  },
+
   buscarEntregas: async (
     lojaId: string,
     token: string,
   ): Promise<{ emAndamento: any[]; concluidas: any[] }> => {
-    const [andamento, concluidas] = await Promise.all([
+    const [pronto, saiuEntrega, concluidas] = await Promise.all([
+      (async () => {
+        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=pronto&limit=10`, { headers: authHeader(token) });
+        if (!r.ok) return [];
+        const { pedidos } = await r.json();
+        return (pedidos ?? []).filter((p: any) => p.entregador);
+      })(),
       (async () => {
         const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=saiu_entrega&limit=10`, { headers: authHeader(token) });
         if (!r.ok) return [];
@@ -403,7 +456,7 @@ export const LojistaService = {
         return pedidos ?? [];
       })(),
     ]);
-    return { emAndamento: andamento, concluidas };
+    return { emAndamento: [...pronto, ...saiuEntrega], concluidas };
   },
 };
 
@@ -654,6 +707,14 @@ export const EntregadorService = {
     }
   },
 
+  enviarLocalizacao: async (token: string, pedidoId: string, lat: number, lng: number): Promise<void> => {
+    await fetch(`${API_URL}/entregador/corridas/${pedidoId}/localizacao`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lat, lng }),
+    }).catch(() => {});
+  },
+
   confirmarEntrega: async (token: string, pedidoId: string, codigo: string): Promise<void> => {
     const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/confirmar-entrega`, {
       method: 'POST',
@@ -677,8 +738,66 @@ function mapEndereco(e: any): EnderecoSalvo {
     bairro: e.cidade ? `${e.bairro}, ${e.cidade}` : e.bairro,
     cep: e.cep,
     padrao: e.padrao ?? false,
+    ruaRaw: e.rua,
+    numero: e.numero,
+    bairroRaw: e.bairro,
+    cidade: e.cidade,
+    complemento: e.complemento,
   };
 }
+
+// Redimensiona para 200x200 via Canvas (web only)
+async function resizeParaDataUri(uri: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement('img') as HTMLImageElement;
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const SIZE = 200;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, SIZE, SIZE);
+      resolve(canvas.toDataURL('image/jpeg', 0.65));
+    };
+    img.onerror = reject;
+    img.src = uri;
+  });
+}
+
+export const PerfilService = {
+  atualizarAvatar: async (token: string, imageUri: string): Promise<string> => {
+    // Web: redimensiona com Canvas e envia via PUT /perfil (não depende do novo endpoint)
+    if (typeof document !== 'undefined') {
+      const avatarUrl = await resizeParaDataUri(imageUri);
+      const res = await fetch(`${API_URL}/perfil`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ avatarUrl }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === 'string' ? err.error : `HTTP ${res.status}`);
+      }
+      const { usuario } = await res.json();
+      return usuario.avatarUrl;
+    }
+
+    // Native: envia via PATCH /perfil/avatar (requer backend atualizado)
+    const form = new FormData();
+    form.append('avatar', { uri: imageUri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
+    const res = await fetch(`${API_URL}/perfil/avatar`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.avatarUrl;
+  },
+};
 
 export const EnderecoService = {
   listar: async (token: string): Promise<EnderecoSalvo[]> => {
@@ -702,6 +821,21 @@ export const EnderecoService = {
     return mapEndereco(endereco);
   },
 
+  atualizar: async (
+    token: string,
+    id: string,
+    dados: { apelido?: string; rua?: string; numero?: string; bairro?: string; cep?: string; cidade?: string; complemento?: string },
+  ): Promise<EnderecoSalvo> => {
+    const res = await fetch(`${API_URL}/enderecos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) throw new Error('Erro ao atualizar endereço');
+    const { endereco } = await res.json();
+    return mapEndereco(endereco);
+  },
+
   remover: async (token: string, id: string): Promise<void> => {
     const res = await fetch(`${API_URL}/enderecos/${id}`, {
       method: 'DELETE',
@@ -720,12 +854,13 @@ export const EnderecoService = {
 };
 
 export const TranscricaoService = {
-  transcrever: async (audioUri: string): Promise<string> => {
+  transcrever: async (audioUri: string, token: string): Promise<string> => {
     const formData = new FormData();
     formData.append('audio', { uri: audioUri, type: 'audio/m4a', name: 'audio.m4a' } as any);
 
     const res = await fetch(`${API_URL}/chat/transcricao`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 

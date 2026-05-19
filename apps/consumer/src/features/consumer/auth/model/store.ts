@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/';
 
 interface DadosRegistro {
   nome: string;
@@ -17,6 +17,7 @@ interface AuthState {
   email: string | null;
   nome: string | null;
   userId: string | null;
+  avatarUrl: string | null;
   codigoVerificado: boolean;
 
   login: (cpf: string, senha: string) => Promise<void>;
@@ -24,6 +25,7 @@ interface AuthState {
   enviarCodigo: (telefone: string) => Promise<void>;
   verificarCodigo: (codigo: string) => Promise<boolean>;
   registrarNome: (nome: string) => void;
+  setAvatarUrl: (url: string | null) => void;
   logout: () => void;
 }
 
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   email: null,
   nome: null,
   userId: null,
+  avatarUrl: null,
   codigoVerificado: false,
 
   login: async (cpf: string, senha: string) => {
@@ -65,7 +68,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   registrar: async (dados: DadosRegistro) => {
     const cpfRaw = dados.cpf.replace(/\D/g, '');
-    const telefoneRaw = `+55${dados.telefone.replace(/\D/g, '')}`;
+    const telefoneRaw = dados.telefone.replace(/[^\d+]/g, '');
 
     const res = await fetch(`${API_URL}auth/usuario/registrar`, {
       method: 'POST',
@@ -114,6 +117,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ nome, isLoggedIn: true });
   },
 
+  setAvatarUrl: (url: string | null) => {
+    set({ avatarUrl: url });
+  },
+
   logout: () => {
     set({
       isLoggedIn: false,
@@ -122,6 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: null,
       nome: null,
       userId: null,
+      avatarUrl: null,
       codigoVerificado: false,
     });
   },

@@ -6,9 +6,38 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "ios": { "bundleIdentifier": "com.ajulabs.entregador" },
-    "android": { "package": "com.ajulabs.entregador" },
-    "plugins": ["expo-router"],
+    "ios": {
+      "bundleIdentifier": "com.ajulabs.entregador",
+      "infoPlist": {
+        "UIBackgroundModes": ["location"],
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "O AjuLabs Entregador usa sua localização para navegação GPS durante as entregas.",
+        "NSLocationWhenInUseUsageDescription": "O AjuLabs Entregador usa sua localização para navegação GPS durante as entregas."
+      }
+    },
+    "android": {
+      "package": "com.ajulabs.entregador",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-task-manager",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir que o AjuLabs Entregador acesse sua localização para navegação GPS durante as entregas.",
+          "locationAlwaysAndWhenInUsePermission": "Permitir que o AjuLabs Entregador acesse sua localização em segundo plano para atualizar a posição durante as entregas.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "react-native-maps"
+    ],
     "scheme": "ajulabs-entregador"
   }
 }

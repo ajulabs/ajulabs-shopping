@@ -242,19 +242,21 @@ model Categoria {
 }
 
 model Produto {
-  id           String   @id @default(uuid())
-  lojaId       String   @map("loja_id")
+  id           String                      @id @default(uuid())
+  lojaId       String                      @map("loja_id")
   nome         String
   descricao    String
-  preco        Decimal  @db.Decimal(10, 2)
+  preco        Decimal                     @db.Decimal(10, 2)
   estoque      Int
-  imagemUrl    String   @map("imagem_url")
+  imagemUrl    String                      @map("imagem_url")
+  imagens      String[]                    @default([])
   categoria    String
   tags         String[]
-  disponivel   Boolean  @default(true)
-  destaque     Boolean  @default(false)
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  disponivel   Boolean                     @default(true)
+  destaque     Boolean                     @default(false)
+  embedding    Unsupported("vector(1536)")?
+  criadoEm     DateTime                    @default(now()) @map("criado_em")
+  atualizadoEm DateTime                    @updatedAt @map("atualizado_em")
 
   loja      Loja                  @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   variacoes VariacaoProduto[]
@@ -378,9 +380,11 @@ model HistoricoStatusPedido {
 // ========================================
 
 model ConversaChat {
-  id        String   @id @default(uuid())
-  usuarioId String   @map("usuario_id")
-  criadaEm  DateTime @default(now()) @map("criada_em")
+  id           String    @id @default(uuid())
+  usuarioId    String    @map("usuario_id")
+  criadaEm     DateTime  @default(now()) @map("criada_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+  estado       Json?
 
   usuario   Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   mensagens MensagemChat[]
@@ -407,14 +411,26 @@ model MensagemChat {
 }
 
 model SugestaoProdutoChat {
-  id         String @id @default(uuid())
-  mensagemId String @map("mensagem_id")
-  produtoId  String @map("produto_id")
+  id         String    @id @default(uuid())
+  mensagemId String    @map("mensagem_id")
+  produtoId  String    @map("produto_id")
+  clicadoEm DateTime? @map("clicado_em")
 
   mensagem MensagemChat @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
   produto  Produto      @relation(fields: [produtoId], references: [id])
 
   @@map("sugestoes_produto_chat")
+}
+
+model SupportTicket {
+  id           String   @id @default(uuid())
+  consumidorId String   @map("consumidor_id")
+  pedidoId     String?  @map("pedido_id")
+  motivo       String
+  protocolo    String   @unique
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@map("support_tickets")
 }
 
 // ========================================

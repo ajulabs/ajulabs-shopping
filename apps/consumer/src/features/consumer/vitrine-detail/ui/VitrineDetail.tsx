@@ -48,6 +48,11 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const adicionar = useCartStore(s => s.adicionar);
 
   useEffect(() => {
+    setLoading(true);
+    setLoja(null);
+    setProdutos([]);
+    setCatSelecionada('Todos');
+
     Promise.all([
       LojaService.buscarPorId(lojaId),
       ProdutoService.listarPorLoja(lojaId).catch(() => [] as Produto[]),

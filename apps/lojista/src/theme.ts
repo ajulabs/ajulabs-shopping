@@ -1,1 +1,1 @@
-export { colors } from '@ajulabs/theme';
+export { colors, AjuLogo } from '@ajulabs/theme';

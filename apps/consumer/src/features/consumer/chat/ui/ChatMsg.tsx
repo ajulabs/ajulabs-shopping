@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { MensagemChat, ProdutoCard, Loja } from '@ajulabs/types';
+import { MensagemChat, ProdutoCard, PedidoCard, Loja } from '@ajulabs/types';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   Image,
 } from 'react-native';
 import { useCartStore } from '../../cart/model/store';
+import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../hooks';
 
 interface Props {
   mensagens: MensagemChat[];
   sugestoes: string[];
-  onSugestao: (texto: string) => void;
+  onSugestao: (texto: string, pedidoSelecionadoId?: string) => void;
   carregando: boolean;
 }
 
@@ -24,6 +26,18 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
   const adicionar = useCartStore(s => s.adicionar);
   const cachearLoja = useCartStore(s => s.cachearLoja);
   const router = useRouter();
+
+  const { isDark, bg, surf } = useTheme();
+  const bubbleAju = surf;
+  const textAju   = isDark ? colors.n0      : '#1f2937';
+  const cardBg    = surf;
+  const cardBorder= isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6';
+  const cardText  = isDark ? colors.n0      : '#111827';
+  const cardSub   = isDark ? 'rgba(255,255,255,0.45)' : '#9ca3af';
+  const imgBg     = isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6';
+  const chipBg    = isDark ? 'rgba(242,118,15,0.15)' : '#fff7ed';
+  const chipBorder= isDark ? 'rgba(242,118,15,0.3)'  : '#fed7aa';
+  const chipText  = isDark ? '#F2760F'                : '#c2410c';
 
   useEffect(() => {
     setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
@@ -59,14 +73,83 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
     router.push('/(consumer)/carrinho');
   };
 
+  const statusLabel: Record<string, string> = {
+    aguardando: 'Aguardando',
+    confirmado: 'Confirmado',
+    preparando: 'Preparando',
+    pronto: 'Pronto',
+    saiu_entrega: 'Saiu para entrega',
+    entregue: 'Entregue',
+    cancelado: 'Cancelado',
+  };
+
+  const renderPedidoCard = (pedido: PedidoCard, onPress: () => void, destaque?: boolean) => (
+    <TouchableOpacity
+      key={pedido.id}
+      onPress={onPress}
+      activeOpacity={0.75}
+      style={{
+        backgroundColor: destaque ? (isDark ? 'rgba(249,115,22,0.15)' : '#fff7ed') : cardBg,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: destaque ? '#f97316' : cardBorder,
+        padding: 14,
+        marginBottom: 10,
+      }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={{ fontWeight: '700', fontSize: 14, color: cardText }} numberOfLines={1}>
+            {pedido.loja}
+          </Text>
+          <Text style={{ fontSize: 12, color: cardSub, marginTop: 2 }}>
+            {pedido.data} · {statusLabel[pedido.status] ?? pedido.status}
+          </Text>
+        </View>
+        <Text style={{ fontWeight: '700', fontSize: 14, color: '#f97316' }}>
+          R$ {pedido.total.toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={{ marginTop: 8 }}>
+        {pedido.itens.slice(0, 3).map((item, i) => (
+          <Text key={i} style={{ fontSize: 12, color: cardSub, lineHeight: 18 }}>
+            • {item}
+          </Text>
+        ))}
+        {pedido.itens.length > 3 && (
+          <Text style={{ fontSize: 12, color: cardSub }}>
+            +{pedido.itens.length - 3} iten{pedido.itens.length - 3 > 1 ? 's' : ''}
+          </Text>
+        )}
+      </View>
+
+      {!destaque && (
+        <View style={{
+          marginTop: 10,
+          backgroundColor: '#f97316',
+          borderRadius: 8,
+          paddingVertical: 7,
+          alignItems: 'center',
+        }}>
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+            Este pedido #{pedido.numero}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
   const renderItem = ({ item: msg }: { item: MensagemChat }) => {
     const isAju = msg.remetente === 'aju';
+    const tipo = msg.resposta?.tipo;
+
     return (
       <View
         style={{
           alignSelf: isAju ? 'flex-start' : 'flex-end',
-          width: msg.resposta?.produtos ? '100%' : 'auto',
-          maxWidth: msg.resposta?.produtos ? '100%' : '85%',
+          width: (tipo === 'selecionarPedido' || tipo === 'confirmarPedido' || msg.resposta?.produtos) ? '100%' : 'auto',
+          maxWidth: (tipo === 'selecionarPedido' || tipo === 'confirmarPedido' || msg.resposta?.produtos) ? '100%' : '85%',
           marginBottom: 12,
         }}
       >
@@ -74,7 +157,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           style={{
             alignSelf: isAju ? 'flex-start' : 'flex-end',
             maxWidth: '85%',
-            backgroundColor: isAju ? '#fff' : '#f97316',
+            backgroundColor: isAju ? bubbleAju : '#f97316',
             borderRadius: 18,
             borderBottomLeftRadius: isAju ? 4 : 18,
             borderBottomRightRadius: isAju ? 18 : 4,
@@ -82,17 +165,67 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
             paddingVertical: 10,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.06,
+            shadowOpacity: isDark ? 0.3 : 0.06,
             shadowRadius: 3,
             elevation: 1,
           }}
         >
-          <Text style={{ color: isAju ? '#1f2937' : '#fff', fontSize: 15, lineHeight: 21 }}>
+          <Text style={{ color: isAju ? textAju : '#fff', fontSize: 15, lineHeight: 21 }}>
             {msg.conteudo}
           </Text>
         </View>
 
-        {msg.resposta?.produtos && (
+        {/* Cards de pedidos para seleção */}
+        {tipo === 'selecionarPedido' && msg.resposta?.pedidos && (
+          <View style={{ marginTop: 10, paddingHorizontal: 4 }}>
+            {msg.resposta.pedidos.map(pedido =>
+              renderPedidoCard(
+                pedido,
+                () => onSugestao(`Pedido número ${pedido.numero} — ${pedido.loja}`, pedido.id),
+              )
+            )}
+          </View>
+        )}
+
+        {/* Card de pedido selecionado para confirmação */}
+        {tipo === 'confirmarPedido' && msg.resposta?.pedido && (
+          <View style={{ marginTop: 10, paddingHorizontal: 4 }}>
+            {renderPedidoCard(msg.resposta.pedido, () => {}, true)}
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+              <TouchableOpacity
+                onPress={() => onSugestao('Sim, confirmar')}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#22c55e',
+                  borderRadius: 10,
+                  paddingVertical: 11,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Sim, confirmar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => onSugestao('Não, escolher outro pedido')}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6',
+                  borderRadius: 10,
+                  paddingVertical: 11,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ color: cardText, fontWeight: '600', fontSize: 14 }}>Outro pedido</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Cards de produtos */}
+        {msg.resposta?.produtos && msg.resposta.produtos.length > 0 && (
           <FlatList
             horizontal
             data={msg.resposta.produtos}
@@ -107,20 +240,20 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
               <View
                 style={{
                   width: 160,
-                  backgroundColor: '#fff',
+                  backgroundColor: cardBg,
                   borderRadius: 14,
                   overflow: 'hidden',
                   borderWidth: 1,
-                  borderColor: '#f3f4f6',
+                  borderColor: cardBorder,
                   elevation: 2,
                   shadowColor: '#000',
-                  shadowOpacity: 0.07,
+                  shadowOpacity: isDark ? 0.4 : 0.07,
                   shadowRadius: 4,
                 }}
               >
                 <View style={{
                   height: 100,
-                  backgroundColor: '#f3f4f6',
+                  backgroundColor: imgBg,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
@@ -131,7 +264,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                       resizeMode="cover"
                     />
                   ) : (
-                    <Ionicons name="bag-outline" size={28} color="#9ca3af" />
+                    <Ionicons name="bag-outline" size={28} color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'} />
                   )}
                   <View style={{
                     position: 'absolute', bottom: 6, left: 6,
@@ -150,23 +283,23 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
 
                 <View style={{ padding: 10 }}>
                   <Text
-                    style={{ fontWeight: '600', fontSize: 13, color: '#111827', lineHeight: 17 }}
+                    style={{ fontWeight: '600', fontSize: 13, color: cardText, lineHeight: 17 }}
                     numberOfLines={2}
                   >
                     {produto.nome}
                   </Text>
                   <Text
-                    style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}
+                    style={{ fontSize: 11, color: cardSub, marginTop: 2 }}
                     numberOfLines={1}
                   >
                     {produto.loja}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
-                    <Text style={{ fontWeight: '700', fontSize: 15, color: '#111827' }}>
+                    <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>
                       R$ {produto.preco.toFixed(2)}
                     </Text>
                     {produto.precoOriginal && (
-                      <Text style={{ fontSize: 11, color: '#9ca3af', textDecorationLine: 'line-through' }}>
+                      <Text style={{ fontSize: 11, color: cardSub, textDecorationLine: 'line-through' }}>
                         R$ {produto.precoOriginal.toFixed(2)}
                       </Text>
                     )}
@@ -176,7 +309,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                     activeOpacity={0.8}
                     style={{
                       marginTop: 8,
-                      backgroundColor: '#111827',
+                      backgroundColor: isDark ? colors.orange : '#111827',
                       borderRadius: 8,
                       paddingVertical: 7,
                       alignItems: 'center',
@@ -190,22 +323,22 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           />
         )}
 
-        {msg.resposta?.sugestoes && (
+        {msg.resposta?.sugestoes && msg.resposta.sugestoes.length > 0 && (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, paddingHorizontal: 4 }}>
             {msg.resposta.sugestoes.map((s) => (
               <TouchableOpacity
                 key={s}
                 onPress={() => onSugestao(s)}
                 style={{
-                  backgroundColor: '#fff7ed',
+                  backgroundColor: chipBg,
                   borderWidth: 1,
-                  borderColor: '#fed7aa',
+                  borderColor: chipBorder,
                   borderRadius: 20,
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                 }}
               >
-                <Text style={{ color: '#c2410c', fontSize: 13 }}>{s}</Text>
+                <Text style={{ color: chipText, fontSize: 13 }}>{s}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -220,7 +353,8 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
       data={mensagens}
       keyExtractor={(m) => m.id}
       renderItem={renderItem}
-      contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 8, backgroundColor: bg }}
+      style={{ backgroundColor: bg }}
       showsVerticalScrollIndicator={false}
       onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
       ListFooterComponent={
@@ -228,7 +362,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           {carregando && (
             <View style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
               <View style={{
-                backgroundColor: '#fff',
+                backgroundColor: bubbleAju,
                 borderRadius: 18,
                 borderBottomLeftRadius: 4,
                 paddingHorizontal: 16,
@@ -245,15 +379,15 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                   key={s}
                   onPress={() => onSugestao(s)}
                   style={{
-                    backgroundColor: '#fff7ed',
+                    backgroundColor: chipBg,
                     borderWidth: 1,
-                    borderColor: '#fed7aa',
+                    borderColor: chipBorder,
                     borderRadius: 20,
                     paddingHorizontal: 14,
                     paddingVertical: 8,
                   }}
                 >
-                  <Text style={{ color: '#c2410c', fontSize: 13 }}>{s}</Text>
+                  <Text style={{ color: chipText, fontSize: 13 }}>{s}</Text>
                 </TouchableOpacity>
               ))}
             </View>

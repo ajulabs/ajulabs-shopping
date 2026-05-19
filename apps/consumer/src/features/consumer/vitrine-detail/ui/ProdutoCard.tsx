@@ -1,5 +1,7 @@
-import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Produto } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 
@@ -24,12 +26,28 @@ function ProductImg({ uri, alt }: { uri: string; alt: string }) {
 }
 
 export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) {
+  const router    = useRouter();
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
   const surface   = dark ? colors.surfDark : colors.n0;
   const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
-  const handleAdd = useCallback(() => onAdd(produto.id), [produto.id, onAdd]);
+  const [added, setAdded] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handleAdd = useCallback(() => {
+    if (added) {
+      router.push('/(consumer)/carrinho');
+      return;
+    }
+    onAdd(produto.id);
+    setAdded(true);
+
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.92, duration: 80, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }),
+    ]).start();
+  }, [added, produto.id, onAdd, router]);
 
   return (
     <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
@@ -57,14 +75,28 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
         <Text style={[styles.preco, { color: textColor }]}>
           R$ {produto.preco.toFixed(2).replace('.', ',')}
         </Text>
-        <TouchableOpacity
-          style={[styles.btnAdd, !produto.disponivel && { opacity: 0.4 }]}
-          onPress={handleAdd}
-          disabled={!produto.disponivel}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.btnAddText}>+ Adicionar</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <TouchableOpacity
+            style={[
+              styles.btnAdd,
+              added && styles.btnAdded,
+              !produto.disponivel && { opacity: 0.4 },
+            ]}
+            onPress={handleAdd}
+            disabled={!produto.disponivel}
+            activeOpacity={0.8}
+          >
+            {added ? (
+              <>
+                <Ionicons name="cart" size={13} color={colors.n0} />
+                <Text style={styles.btnAddedText}>Ver carrinho</Text>
+                <Ionicons name="chevron-forward" size={11} color={colors.n0} />
+              </>
+            ) : (
+              <Text style={styles.btnAddText}>+ Adicionar</Text>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </View>
   );
@@ -90,6 +122,8 @@ const styles = StyleSheet.create({
   overlayText:       { color: colors.n0, fontSize: 12, fontWeight: '700' },
   btnAdd:            { width: '100%', height: 30, borderRadius: 8, marginTop: 8,
                        backgroundColor: colors.orange100,
-                       alignItems: 'center', justifyContent: 'center' },
+                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  btnAdded:          { backgroundColor: colors.orange },
   btnAddText:        { color: colors.orange600, fontSize: 12, fontWeight: '600' },
+  btnAddedText:      { color: colors.n0, fontSize: 12, fontWeight: '600' },
 });

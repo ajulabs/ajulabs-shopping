@@ -31,8 +31,10 @@ export interface Produto {
   descricao: string;
   preco: number;
   imagem: string;
+  imagens?: string[];
   categoria: string;
   disponivel: boolean;
+  estoque?: number;
   destaque?: boolean;
 }
 
@@ -122,12 +124,25 @@ export interface ProdutoCard {
   imagemUrl: string;
 }
 
+export interface PedidoCard {
+  numero: number;
+  id: string;
+  loja: string;
+  total: number;
+  data: string;
+  itens: string[];
+  status: string;
+}
+
 export interface RespostaAju {
+  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido';
   texto: string;
   produtos?: ProdutoCard[];
   sugestoes?: string[];
+  pedidos?: PedidoCard[];
+  pedido?: PedidoCard;
+  conversaId?: string;
 }
-
 
 export interface MensagemChat {
   id: string;
@@ -142,6 +157,30 @@ export interface MensagemChat {
 export type TabConsumer = 'chat' | 'vitrines' | 'carrinho' | 'pedidos' | 'perfil';
 export type TabLojista = 'pedidos' | 'produtos' | 'dashboard';
 
+// ─── Realtime / Tracking ──────────────────────────────────────
+
+export interface LocationPayload {
+  pedidoId: string;
+  lat: number;
+  lng: number;
+  heading?: number;
+  speedKmh?: number;
+  ts?: number;
+}
+
+export interface StatusPayload {
+  pedidoId: string;
+  status: StatusPedido;
+}
+
+export interface NavStep {
+  instruction: string;
+  distance: number;
+  duration: number;
+  modifier?: string;
+  location: { lat: number; lng: number };
+}
+
 // ─── Checkout ─────────────────────────────────────────────────
 
 export interface EnderecoSalvo {
@@ -151,6 +190,12 @@ export interface EnderecoSalvo {
   bairro: string;
   cep: string;
   padrao: boolean;
+  // campos raw para edição
+  ruaRaw?: string;
+  numero?: string;
+  bairroRaw?: string;
+  cidade?: string;
+  complemento?: string;
 }
 
 export type MetodoPagamento = 'pix' | 'cartao';

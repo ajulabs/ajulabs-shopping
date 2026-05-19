@@ -5,29 +5,24 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { colors } from '@ajulabs/theme';
+import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
-import { formatCPF } from '../lib/formatCPF';
+import { formatCPF, validateCPF } from '../lib/formatCPF';
 import { Field } from './components/Field';
+import { PhoneInput } from './components/PhoneInput';
 
 interface CadastroConsumerProps {
   onCadastroSuccess?: () => void;
 }
 
-function formatTelefone(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return `(${digits}`;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
-
 export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const router = useRouter();
   const registrar = useAuthStore(s => s.registrar);
-  const [nome, setNome]           = useState('');
-  const [cpf, setCpf]             = useState('');
-  const [telefone, setTelefone]   = useState('');
-  const [email, setEmail]         = useState('');
+  const [nome, setNome]                   = useState('');
+  const [cpf, setCpf]                     = useState('');
+  const [telefone, setTelefone]           = useState('');
+  const [telefoneCompleto, setTelefoneCompleto] = useState('');
+  const [email, setEmail]                 = useState('');
   const [senha, setSenha]         = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [loading, setLoading]     = useState(false);
@@ -36,15 +31,32 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const clearError = (key: string) =>
     setErrors(e => ({ ...e, [key]: '' }));
 
+  const blurNome = () => {
+    const parts = nome.trim().split(/\s+/);
+    if (nome.trim() && (parts.length < 2 || parts[1].length < 2))
+      setErrors(e => ({ ...e, nome: 'Informe seu nome e sobrenome.' }));
+  };
+
+  const blurCpf = () => {
+    if (cpf.trim() && !validateCPF(cpf))
+      setErrors(e => ({ ...e, cpf: 'CPF inválido.' }));
+  };
+
+  const blurEmail = () => {
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
+      setErrors(e => ({ ...e, email: 'Email inválido.' }));
+  };
+
   const validate = useCallback(() => {
     const errs: Record<string, string> = {};
-    if (nome.trim().length < 2)
-      errs.nome = 'Informe seu nome completo.';
-    if (cpf.replace(/\D/g, '').length !== 11)
-      errs.cpf = 'CPF inválido — deve ter 11 dígitos.';
-    if (telefone.replace(/\D/g, '').length < 10)
+    const nomeParts = nome.trim().split(/\s+/);
+    if (nomeParts.length < 2 || nomeParts[1].length < 2)
+      errs.nome = 'Informe seu nome e sobrenome.';
+    if (!validateCPF(cpf))
+      errs.cpf = 'CPF inválido.';
+    if (telefoneCompleto.replace(/\D/g, '').length < 10)
       errs.telefone = 'Telefone inválido.';
-    if (!email.includes('@') || !email.includes('.'))
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
       errs.email = 'Email inválido.';
     if (senha.length < 8)
       errs.senha = 'A senha deve ter pelo menos 8 caracteres.';
@@ -56,14 +68,14 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
       errs.confirmar = 'As senhas não coincidem.';
     setErrors(errs);
     return Object.keys(errs).length === 0;
-  }, [nome, cpf, telefone, email, senha, confirmar]);
+  }, [nome, cpf, telefoneCompleto, email, senha, confirmar]);
 
   const handleCadastro = useCallback(async () => {
     if (!validate()) return;
     setLoading(true);
     console.log('[Consumer][Cadastro] Enviando cadastro — nome:', nome, '| cpf:', cpf, '| email:', email);
     try {
-      await registrar({ nome, cpf, telefone, email, senha });
+      await registrar({ nome, cpf, telefone: telefoneCompleto, email, senha });
       console.log('[Consumer][Cadastro] Cadastro bem-sucedido');
       onCadastroSuccess?.();
       router.replace('/(consumer)/chat');
@@ -79,7 +91,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
     } finally {
       setLoading(false);
     }
-  }, [validate, registrar, nome, cpf, telefone, email, senha, onCadastroSuccess, router]);
+  }, [validate, registrar, nome, cpf, telefoneCompleto, email, senha, onCadastroSuccess, router]);
 
   return (
     <View style={styles.container}>
@@ -87,8 +99,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <View style={styles.logoWrap}>
-          <Text style={styles.logoText}>A</Text>
+        <View style={{ marginBottom: 16 }}>
+          <AjuLogo size={52} />
         </View>
         <Text style={styles.topTitle}>Criar conta</Text>
         <Text style={styles.topSub}>Compre nos melhores lojistas de Aracaju.</Text>
@@ -110,6 +122,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           placeholder="João da Silva"
           autoCapitalize="words"
           error={errors.nome}
+          onBlur={blurNome}
         />
         <Field
           label="CPF"
@@ -118,13 +131,16 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           placeholder="000.000.000-00"
           keyboardType="numeric"
           error={errors.cpf}
+          onBlur={blurCpf}
         />
-        <Field
-          label="TELEFONE"
+        <Text style={styles.phoneLabel}>TELEFONE</Text>
+        <PhoneInput
           value={telefone}
-          onChange={v => { setTelefone(formatTelefone(v)); clearError('telefone'); }}
-          placeholder="(79) 99999-1234"
-          keyboardType="phone-pad"
+          onChange={(local, full) => {
+            setTelefone(local);
+            setTelefoneCompleto(full);
+            clearError('telefone');
+          }}
           error={errors.telefone}
         />
         <Field
@@ -134,6 +150,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           placeholder="voce@email.com"
           keyboardType="email-address"
           error={errors.email}
+          onBlur={blurEmail}
         />
         <Field
           label="SENHA"
@@ -196,9 +213,6 @@ const styles = StyleSheet.create({
   backBtn:       { position: 'absolute', top: 52, left: 24, width: 38, height: 38,
                    borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.15)',
                    alignItems: 'center', justifyContent: 'center' },
-  logoWrap:      { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.orange,
-                   alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  logoText:      { fontSize: 28, fontWeight: '800', color: '#fff' },
   topTitle:      { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   topSub:        { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
 
@@ -207,6 +221,8 @@ const styles = StyleSheet.create({
   cardContent:   { padding: 28, paddingBottom: 0 },
   cardTitle:     { fontSize: 20, fontWeight: '700', color: colors.navy },
   cardSub:       { fontSize: 13, color: colors.n600, marginTop: 4, marginBottom: 22 },
+  phoneLabel:    { fontSize: 11, fontWeight: '700', color: colors.n600,
+                   textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5, marginTop: 14 },
 
   errorGeral:    { fontSize: 13, color: '#E24B4A', textAlign: 'center',
                    marginBottom: 12, fontWeight: '500' },

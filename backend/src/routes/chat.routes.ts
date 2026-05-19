@@ -1,86 +1,53 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import OpenAI, { toFile } from 'openai';
 import multer from 'multer';
-import { prisma } from '../utils/prisma';
+import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
+import { ProdutoRAG } from '../utils/ragSearch';
+import { TOOL_DEFINITIONS, executarTool } from '../tools';
+import {
+  obterOuCriarConversa,
+  salvarMensagens,
+  salvarSugestoesChat,
+  registrarClique,
+  obterEstado,
+} from '../utils/conversa';
+import {
+  iniciarFluxoQueixa,
+  processarSelecaoPedido,
+  processarConfirmacao,
+} from '../tools/queixaFlow';
 
 const router = Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM_PROMPT_BASE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
-Responda SEMPRE com um JSON válido, sem markdown, sem explicações fora do JSON.
+const SYSTEM_AGENTE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
 
-Formato obrigatório:
+Use as ferramentas disponíveis quando necessário:
+- buscar_produtos: quando o usuário quer comprar algo, ver opções ou pedir recomendações
+- listar_pedidos: quando o usuário perguntar sobre seus pedidos, entrega ou rastreamento
+- criar_ticket: quando o usuário reclamar ou reportar um problema
+
+Se não precisar de ferramentas (saudação, dúvida geral), responda diretamente com JSON:
 {
   "texto": "mensagem curta e animada em português, com sotaque sergipano",
-  "produtos": [
-    {
-      "id": "uuid-real-do-produto",
-      "nome": "Nome do Produto",
-      "loja": "Nome da Loja — Categoria",
-      "preco": 189.90,
-      "precoOriginal": null,
-      "tempoEntrega": "25–40 min",
-      "imagemUrl": "url-real-ou-vazio"
-    }
-  ],
-  "sugestoes": ["mais barato", "só masculino", "outra cor"]
+  "sugestoes": ["sugestão 1", "sugestão 2"]
 }
+Nunca mencione Amazon, iFood ou Shopee.`;
 
+const SYSTEM_RESPOSTA = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
+Os resultados da ferramenta estão na conversa. Responda ao usuário com JSON válido, sem markdown:
+{
+  "texto": "mensagem curta e animada em português, com sotaque sergipano",
+  "sugestoes": ["sugestão 1", "sugestão 2"]
+}
 Regras:
-- "produtos" DEVE aparecer sempre que o usuário: pedir algo para comprar, pedir indicação de lojas, querer ver opções, mencionar qualquer categoria, ou pedir recomendações gerais — inclua sempre de 1 a 3 produtos representativos do catálogo
-- Quando recomendar lojas, escolha lojas diferentes e inclua 1 produto representativo de cada
-- Use APENAS lojas e produtos da lista abaixo — nunca invente lojas ou produtos
-- Use o "id" real do produto exatamente como listado abaixo
-- Máximo 3 produtos por resposta
-- Nunca mencione Amazon, iFood ou Shopee
-- "sugestoes" são chips que refinam a busca, máximo 3
-- Se não houver produtos compatíveis no catálogo, diga isso honestamente`;
-
-async function buildSystemPrompt(): Promise<string> {
-  const lojas = await prisma.loja.findMany({
-    where: { aberta: true },
-    select: {
-      nome: true,
-      categoria: true,
-      tempoEntregaMin: true,
-      tempoEntregaMax: true,
-      taxaEntrega: true,
-      avaliacao: true,
-      produtos: {
-        where: { disponivel: true },
-        select: {
-          id: true,
-          lojaId: true,
-          nome: true,
-          preco: true,
-          categoria: true,
-          imagemUrl: true,
-          tags: true,
-        },
-        take: 30,
-      },
-    },
-  });
-
-  if (lojas.length === 0) {
-    return `${SYSTEM_PROMPT_BASE}\n\n=== CATÁLOGO ===\nNenhuma loja disponível no momento.`;
-  }
-
-  const catalogo = lojas.map(loja => {
-    const entrega = `${loja.tempoEntregaMin}–${loja.tempoEntregaMax} min`;
-    const taxa = Number(loja.taxaEntrega) === 0 ? 'grátis' : `R$ ${Number(loja.taxaEntrega).toFixed(2)}`;
-    const header = `🏪 ${loja.nome} | ${loja.categoria} | entrega: ${entrega} | taxa: ${taxa} | ⭐ ${loja.avaliacao}`;
-    const itens = loja.produtos.map(p => {
-      const tags = p.tags.length ? ` [${p.tags.join(', ')}]` : '';
-      return `  • id:${p.id} | ${p.nome} | R$ ${Number(p.preco).toFixed(2)} | ${p.categoria}${tags} | img:${p.imagemUrl || ''}`;
-    }).join('\n');
-    return itens ? `${header}\n${itens}` : `${header}\n  (sem produtos disponíveis)`;
-  }).join('\n\n');
-
-  return `${SYSTEM_PROMPT_BASE}\n\n=== CATÁLOGO REAL DO MARKETPLACE ===\n${catalogo}`;
-}
+- Para produtos: destaque os mais relevantes no texto, sugira refinamentos em "sugestoes"
+- Para pedidos: descreva o status de forma clara e amigável, sem repetir IDs técnicos
+- Para tickets: confirme o registro pelo protocolo e diga que a equipe entrará em contato em breve
+- "sugestoes" apenas para contexto de busca de produtos, máximo 3; caso contrário retorne []
+- Nunca mencione Amazon, iFood ou Shopee`;
 
 const mensagemSchema = z.object({
   texto: z.string().min(1).max(1000),
@@ -88,6 +55,8 @@ const mensagemSchema = z.object({
     remetente: z.enum(['usuario', 'aju']),
     conteudo: z.string(),
   })).default([]),
+  conversaId: z.string().uuid().optional(),
+  pedidoSelecionadoId: z.string().uuid().optional(),
 });
 
 type ProdutoChat = {
@@ -101,115 +70,149 @@ type ProdutoChat = {
   imagemUrl: string;
 };
 
-async function buscarProdutosReais(ids: string[], texto: string): Promise<ProdutoChat[]> {
-  const include = {
-    loja: { select: { nome: true, categoria: true, tempoEntregaMin: true, tempoEntregaMax: true } },
-  };
-
-  // Primeiro tenta pelos IDs que a IA retornou
-  let produtos = await prisma.produto.findMany({
-    where: { id: { in: ids }, disponivel: true },
-    include,
-    take: 3,
-  });
-
-  // Se a IA inventou IDs, busca por palavras-chave do texto do usuário
-  if (produtos.length === 0 && texto.trim().length > 0) {
-    const palavras = texto.trim().split(/\s+/).filter(p => p.length > 2);
-    if (palavras.length > 0) {
-      produtos = await prisma.produto.findMany({
-        where: {
-          disponivel: true,
-          OR: palavras.flatMap(p => [
-            { nome: { contains: p, mode: 'insensitive' as const } },
-            { categoria: { contains: p, mode: 'insensitive' as const } },
-            { descricao: { contains: p, mode: 'insensitive' as const } },
-          ]),
-        },
-        include,
-        take: 3,
-      });
-    }
-  }
-
-  // Último recurso: retorna produtos em destaque de lojas abertas distintas
-  if (produtos.length === 0) {
-    const lojas = await prisma.loja.findMany({
-      where: { aberta: true },
-      select: { id: true },
-      take: 3,
-    });
-    if (lojas.length > 0) {
-      produtos = await prisma.produto.findMany({
-        where: { disponivel: true, lojaId: { in: lojas.map(l => l.id) } },
-        include,
-        orderBy: { criadoEm: 'desc' },  //
-        take: 3,
-        distinct: ['lojaId'],
-      });
-    }
-  }
-
-  return produtos.map(p => ({
+function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
+  return produtos.slice(0, 3).map(p => ({
     id: p.id,
     lojaId: p.lojaId,
     nome: p.nome,
-    loja: `${p.loja.nome}${p.loja.categoria ? ` — ${p.loja.categoria}` : ''}`,
-    preco: Number(p.preco),
+    loja: p.loja,
+    preco: p.preco,
     precoOriginal: null,
-    tempoEntrega: `${p.loja.tempoEntregaMin}–${p.loja.tempoEntregaMax} min`,
-    imagemUrl: p.imagemUrl ?? '',
+    tempoEntrega: p.tempoEntrega,
+    imagemUrl: p.imagemUrl,
   }));
 }
 
 // POST /chat/mensagem
-router.post('/mensagem', async (req: Request, res: Response) => {
+router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
   try {
-    const { texto, historico } = mensagemSchema.parse(req.body);
+    const { texto, historico, conversaId: conversaIdReq, pedidoSelecionadoId } = mensagemSchema.parse(req.body);
+    const usuarioId = req.user!.id;
 
-    const systemPrompt = await buildSystemPrompt();
+    const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
+    const conversaId = conversa.id;
 
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: systemPrompt },
-      ...historico.map(m => ({
-        role: m.remetente === 'usuario' ? 'user' : 'assistant',
-        content: m.conteudo,
-      } as OpenAI.Chat.ChatCompletionMessageParam)),
-      { role: 'user', content: texto },
-    ];
+    const estado = await obterEstado(conversaId);
 
-    const completion = await openai.chat.completions.create({
+    // ── Passo 3: confirmação ──────────────────────────────────────────────────
+    if (estado?.passo === 'confirmando') {
+      const resultado = await processarConfirmacao(conversaId, usuarioId, texto);
+      const textoSalvo = resultado.tipo === 'resposta' ? resultado.texto
+        : (resultado as { texto: string }).texto;
+      await salvarMensagens(conversaId, texto, textoSalvo);
+      return res.json({ ...resultado, conversaId });
+    }
+
+    // ── Passo 2: seleção de pedido ────────────────────────────────────────────
+    if (estado?.passo === 'selecionando_pedido') {
+      const resultado = await processarSelecaoPedido(conversaId, texto, pedidoSelecionadoId);
+      await salvarMensagens(conversaId, texto, resultado.texto);
+      return res.json({ ...resultado, conversaId });
+    }
+
+    // ── Fluxo normal com OpenAI ───────────────────────────────────────────────
+    const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map(m => ({
+      role: m.remetente === 'usuario' ? 'user' : 'assistant',
+      content: m.conteudo,
+    }));
+
+    const primeiraResposta = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      max_tokens: 800,
+      max_tokens: 300,
       response_format: { type: 'json_object' },
-      messages,
+      tools: TOOL_DEFINITIONS,
+      tool_choice: 'auto',
+      messages: [
+        { role: 'system', content: SYSTEM_AGENTE },
+        ...historicoParsed,
+        { role: 'user', content: texto },
+      ],
     });
 
-    const raw = completion.choices[0]?.message?.content ?? '{}';
-    const resposta = JSON.parse(raw);
+    const mensagemAgente = primeiraResposta.choices[0].message;
 
-    // Validação server-side: substituir produtos pela versão real do banco
-    const ids = Array.isArray(resposta.produtos)
-      ? resposta.produtos.map((p: any) => String(p.id ?? '')).filter(Boolean)
-      : [];
-    resposta.produtos = await buscarProdutosReais(ids, texto);
+    // Sem tool: resposta direta
+    if (!mensagemAgente.tool_calls || mensagemAgente.tool_calls.length === 0) {
+      const resposta = JSON.parse(mensagemAgente.content ?? '{}');
+      resposta.tipo = 'resposta';
+      resposta.produtos = [];
+      await salvarMensagens(conversaId, texto, resposta.texto || '');
+      return res.json({ ...resposta, conversaId });
+    }
 
-    res.json(resposta);
+    const toolCall = mensagemAgente.tool_calls[0];
+    if (toolCall.type !== 'function') {
+      await salvarMensagens(conversaId, texto, 'Não entendi. Pode repetir?');
+      return res.json({ tipo: 'resposta', texto: 'Não entendi. Pode repetir?', produtos: [], sugestoes: [], conversaId });
+    }
+
+    const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
+
+    // ── Intercepta criar_ticket → inicia queixa flow ──────────────────────────
+    if (toolCall.function.name === 'criar_ticket') {
+      const resultado = await iniciarFluxoQueixa(conversaId, usuarioId, toolArgs.motivo ?? texto);
+      await salvarMensagens(conversaId, texto, resultado.texto);
+      return res.json({ ...resultado, conversaId });
+    }
+
+    // ── Executa outras tools normalmente ─────────────────────────────────────
+    const toolResult = await executarTool(toolCall.function.name, toolArgs, usuarioId);
+
+    const segundaResposta = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 500,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_RESPOSTA },
+        ...historicoParsed,
+        { role: 'user', content: texto },
+        { role: 'assistant', content: null, tool_calls: mensagemAgente.tool_calls },
+        {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(toolResult.dados),
+        },
+      ],
+    });
+
+    const resposta = JSON.parse(segundaResposta.choices[0].message.content ?? '{}');
+    resposta.tipo = 'resposta';
+    resposta.produtos = toolResult.tipo === 'produtos' ? ragParaChat(toolResult.dados) : [];
+
+    const { msgAju } = await salvarMensagens(conversaId, texto, resposta.texto || '');
+
+    if (toolResult.tipo === 'produtos' && toolResult.dados.length > 0) {
+      await salvarSugestoesChat(msgAju.id, toolResult.dados);
+    }
+
+    res.json({ ...resposta, conversaId });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[chat/mensagem]', msg);
     res.status(500).json({
+      tipo: 'resposta',
       texto: 'Eita, tive um probleminha aqui. Tenta de novo!',
       ...(process.env.NODE_ENV !== 'production' && { debug: msg }),
     });
   }
 });
 
+// POST /chat/sugestao/:id/clique
+router.post('/sugestao/:id/clique', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
+  try {
+    await registrarClique(req.params.id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('[chat/sugestao/clique]', error);
+    res.status(500).json({ error: 'Erro ao registrar clique' });
+  }
+});
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 // POST /chat/transcricao  (multipart/form-data, campo: "audio")
-router.post('/transcricao', upload.single('audio'), async (req: Request, res: Response) => {
+router.post('/transcricao', authMiddleware, authUsuario, upload.single('audio'), async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Arquivo de áudio ausente' });
 
