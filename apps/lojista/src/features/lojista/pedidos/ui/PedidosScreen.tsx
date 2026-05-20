@@ -9,6 +9,8 @@ import { useAuthLojistaStore } from '../../../../store';
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
+import { usePedidosRealtime } from '@ajulabs/realtime';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -68,9 +70,16 @@ export function PedidosScreen() {
 
   useEffect(() => {
     fetchPedidos();
-    const interval = setInterval(fetchPedidos, 30000);
+    const interval = setInterval(fetchPedidos, 60000);
     return () => clearInterval(interval);
   }, [fetchPedidos]);
+
+  usePedidosRealtime({
+    apiUrl: API_URL,
+    lojaId,
+    enabled: !!lojaId && !!token,
+    onNovoPedido: fetchPedidos,
+  });
 
   useEffect(() => {
     Animated.loop(

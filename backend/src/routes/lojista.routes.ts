@@ -6,7 +6,7 @@ import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { uploadImagemProduto, uploadImagemLoja } from '../utils/supabase';
 import { embedirProduto } from '../utils/embeddings';
-import { getEntregadorLocalizacao } from '../utils/socket';
+import { getEntregadorLocalizacao, emitPedidoAtualizado, emitCorridaOferta, emitTicketMensagem, emitTicketStatus } from '../utils/socket';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const uploadImagem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -92,6 +92,16 @@ router.patch('/pedidos/:id/status', authMiddleware, authLojista, async (req: Aut
       },
     });
 
+    emitPedidoAtualizado(atualizado.consumidorId, atualizado.id, proximoStatus);
+    if (proximoStatus === 'pronto') {
+      emitCorridaOferta({
+        id: atualizado.id,
+        lojaId: pedido.lojaId,
+        lojaNome: pedido.loja?.nome ?? '',
+        total: Number(atualizado.total ?? 0),
+        taxaEntrega: Number(atualizado.taxaEntrega ?? 0),
+      });
+    }
     res.json({ pedido: atualizado });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar status' });
@@ -561,9 +571,10 @@ router.patch('/tickets/:id/status', authMiddleware, authLojista, async (req: Aut
 
     const atualizado = await prisma.supportTicket.update({
       where: { id: req.params.id },
-      data: { status },
+      data: { status, ...(status === 'resolvido' && { urgente: false }) },
     });
 
+    emitTicketStatus(ticket.consumidorId, req.params.id, status);
     res.json({ ticket: atualizado });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar status do ticket' });
@@ -639,6 +650,7 @@ router.post('/tickets/:id/mensagens', authMiddleware, authLojista, async (req: A
       data: { ticketId: req.params.id, remetente: 'lojista', texto: texto.trim() },
     });
 
+    emitTicketMensagem(ticket.consumidorId, ticket.lojaId, { ...mensagem, ticketId: req.params.id }, 'lojista');
     res.status(201).json({ mensagem });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao enviar mensagem' });

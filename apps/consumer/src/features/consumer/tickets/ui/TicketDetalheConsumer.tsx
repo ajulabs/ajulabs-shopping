@@ -9,6 +9,8 @@ import { colors } from '@ajulabs/theme';
 import { ConsumerTicketService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
+import { useTicketRealtime } from '@ajulabs/realtime';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 import {
   TicketConsumidor, TicketMensagem, STATUS_META, tempoRelativo, mapTicketConsumidor,
 } from '../model/data';
@@ -118,6 +120,7 @@ export function TicketDetalheConsumer() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const router   = useRouter();
   const token    = useAuthStore(s => s.token);
+  const userId   = useAuthStore(s => s.userId);
   const { bg, surf, borderL, text, textSec, textMut, inputBg } = useTheme();
 
   const [ticket, setTicket]   = useState<TicketConsumidor | null>(null);
@@ -128,6 +131,11 @@ export function TicketDetalheConsumer() {
   const [cancelando, setCancelando] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  useEffect(() => {
+    setTicket(null);
+    setLoading(true);
+  }, [id]);
+
   const carregar = useCallback(async () => {
     if (!token || !id) return;
     const raw = await ConsumerTicketService.buscar(id, token);
@@ -137,9 +145,32 @@ export function TicketDetalheConsumer() {
 
   useEffect(() => {
     carregar();
-    const interval = setInterval(carregar, 30_000);
+    const interval = setInterval(carregar, 60_000);
     return () => clearInterval(interval);
   }, [carregar]);
+
+  useTicketRealtime({
+    apiUrl: API_URL,
+    ticketId: id ?? null,
+    roomId: userId,
+    roomType: 'usuario',
+    enabled: !!userId && !!id,
+    onMensagem: (msg) => {
+      if (msg.remetente === 'consumidor') return; // ignore own messages
+      setTicket(t => t ? {
+        ...t,
+        mensagens: [...t.mensagens, {
+          id: msg.id,
+          remetente: msg.remetente,
+          texto: msg.texto,
+          criadoEm: msg.criadoEm,
+        }],
+      } : t);
+    },
+    onStatus: (payload) => {
+      setTicket(t => t ? { ...t, status: payload.status as any } : t);
+    },
+  });
 
   async function enviarMensagem() {
     if (!msg.trim() || !token || !ticket) return;
