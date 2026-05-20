@@ -9,8 +9,7 @@ import { useAuthLojistaStore } from '../../../../store';
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
-import { usePedidosRealtime } from '@ajulabs/realtime';
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+import { usePedidoSound } from './usePedidoSound';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -56,6 +55,9 @@ export function PedidosScreen() {
   const [screen, setScreen] = useState<Screen>('list');
   const [selected, setSelected] = useState<Order | null>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const { tocarSom } = usePedidoSound();
+  const novosAnteriorRef = useRef(0);
+  const primeiraCarregadaRef = useRef(true);
 
   const fetchPedidos = useCallback(async () => {
     if (!lojaId || !token) { setLoading(false); return; }
@@ -70,16 +72,9 @@ export function PedidosScreen() {
 
   useEffect(() => {
     fetchPedidos();
-    const interval = setInterval(fetchPedidos, 60000);
+    const interval = setInterval(fetchPedidos, 30000);
     return () => clearInterval(interval);
   }, [fetchPedidos]);
-
-  usePedidosRealtime({
-    apiUrl: API_URL,
-    lojaId,
-    enabled: !!lojaId && !!token,
-    onNovoPedido: fetchPedidos,
-  });
 
   useEffect(() => {
     Animated.loop(
@@ -89,6 +84,21 @@ export function PedidosScreen() {
       ])
     ).start();
   }, []);
+
+  const novos = orders.filter(o => o.status === 'novo').length;
+
+  // Toca som quando chega pedido novo (ignora primeira carga)
+  useEffect(() => {
+    if (primeiraCarregadaRef.current) {
+      primeiraCarregadaRef.current = false;
+      novosAnteriorRef.current = novos;
+      return;
+    }
+    if (novos > novosAnteriorRef.current) {
+      tocarSom();
+    }
+    novosAnteriorRef.current = novos;
+  }, [novos]);
 
   const advance = useCallback(async (id: string) => {
     const order = orders.find(o => o.id === id);
@@ -111,7 +121,6 @@ export function PedidosScreen() {
     }
   }, [orders, token, fetchPedidos]);
 
-  const novos = orders.filter(o => o.status === 'novo').length;
   const list = filter === 'todos' ? orders : orders.filter(o => o.status === filter);
 
   const filters: { id: 'todos' | OrderStatus; label: string }[] = [
@@ -172,7 +181,7 @@ export function PedidosScreen() {
               <Ionicons name="notifications" size={16} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>{novos} pedido novo!</Text>
+              <Text style={s.alertTitle}>{novos} pedido{novos > 1 ? 's' : ''} novo{novos > 1 ? 's' : ''}!</Text>
               <Text style={s.alertSub}>Aceite rápido pra manter a avaliação alta.</Text>
             </View>
           </Animated.View>
@@ -263,7 +272,7 @@ export function PedidosScreen() {
                     {!meta.next && o.status === 'despachado' && (
                       <View style={s.dispatched}>
                         <Ionicons name="bicycle" size={14} color="#046C2E" />
-                        <Text style={s.dispatchedText}>{o.motoboy ?? 'Despachado'}</Text>
+                        <Text style={s.dispatchedText}>{(o as any).motoboy ?? 'Despachado'}</Text>
                       </View>
                     )}
                   </View>
