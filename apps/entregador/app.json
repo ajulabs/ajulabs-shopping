@@ -9,7 +9,9 @@
     "ios": {
       "bundleIdentifier": "com.ajulabs.entregador",
       "infoPlist": {
-        "UIBackgroundModes": ["location"],
+        "UIBackgroundModes": [
+          "location"
+        ],
         "NSLocationAlwaysAndWhenInUseUsageDescription": "O AjuLabs Entregador usa sua localização para navegação GPS durante as entregas.",
         "NSLocationWhenInUseUsageDescription": "O AjuLabs Entregador usa sua localização para navegação GPS durante as entregas."
       }
@@ -35,8 +37,7 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ],
-      "react-native-maps"
+      ]
     ],
     "scheme": "ajulabs-entregador"
   }

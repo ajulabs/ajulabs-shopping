@@ -6,6 +6,7 @@ import { EnderecoSalvo } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { EnderecoService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
+import { AddressMap } from '../../../../components/AddressMap';
 
 interface Props {
   enderecoId: string;
@@ -34,6 +35,11 @@ export function StepEndereco({ enderecoId, onSelect }: Props) {
 
   useEffect(() => { carregarEnderecos(); }, [token]);
 
+  const enderecoSelecionado = enderecos.find(e => e.id === enderecoId);
+  const addressString = enderecoSelecionado
+    ? `${enderecoSelecionado.rua}, ${enderecoSelecionado.bairro}`
+    : '';
+
   if (loading) {
     return (
       <View style={{ alignItems: 'center', paddingVertical: 40 }}>
@@ -48,7 +54,7 @@ export function StepEndereco({ enderecoId, onSelect }: Props) {
 
       {enderecos.length === 0 ? (
         <View style={styles.vazio}>
-          <Ionicons name="location-outline" size={32} color={colors.n400} />
+          <Ionicons name="location-outline" size={32} color={colors.n300} />
           <Text style={styles.vazioTxt}>Nenhum endereço cadastrado</Text>
         </View>
       ) : (
@@ -92,6 +98,21 @@ export function StepEndereco({ enderecoId, onSelect }: Props) {
         })
       )}
 
+      {enderecoSelecionado && (
+        <View style={styles.mapContainer}>
+          <AddressMap
+            address={addressString}
+            style={styles.map}
+          />
+          <View style={styles.mapOverlay}>
+            <Ionicons name="location" size={12} color={colors.orange} />
+            <Text style={styles.mapOverlayTxt} numberOfLines={1}>
+              {enderecoSelecionado.rua}, {enderecoSelecionado.bairro}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <TouchableOpacity
         style={styles.addBtn}
         activeOpacity={0.7}
@@ -128,6 +149,14 @@ const styles = StyleSheet.create({
   bairro:         { fontSize: 12, color: colors.n600 },
   check:          { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.orange,
                     alignItems: 'center', justifyContent: 'center' },
+  mapContainer:   { borderRadius: 14, overflow: 'hidden', marginBottom: 12,
+                    height: 160, borderWidth: 1, borderColor: colors.n200 },
+  map:            { flex: 1 },
+  mapOverlay:     { position: 'absolute', bottom: 8, left: 8, right: 8,
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 8,
+                    paddingHorizontal: 10, paddingVertical: 6 },
+  mapOverlayTxt:  { fontSize: 11, color: colors.navy, fontWeight: '500', flex: 1 },
   addBtn:         { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 14,
                     borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed',
                     borderColor: colors.n200 },
