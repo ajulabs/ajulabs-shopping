@@ -10,6 +10,8 @@ import { Produto } from '@ajulabs/types';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
 import { NovoProduto } from './NovoProduto';
+import { TipoProdutoSelector } from './TipoProdutoSelector';
+import { TipoProdutoValue, derivarCategoriaString } from '../data/tipoProdutos';
 
 type Mode = 'list' | 'add' | 'edit';
 
@@ -20,6 +22,7 @@ interface EditForm {
   preco: string;
   estoque: string;
   disponivel: boolean;
+  tipoProduto: TipoProdutoValue | null;
 }
 
 function ProdutoThumb({ uri, nome, size = 88 }: { uri: string; nome: string; size?: number }) {
@@ -124,6 +127,7 @@ function EditProdutoScreen({
     preco: produto.preco.toFixed(2).replace('.', ','),
     estoque: produto.estoque != null ? String(produto.estoque) : '',
     disponivel: produto.disponivel,
+    tipoProduto: null,
   });
   const [saving, setSaving] = useState(false);
 
@@ -139,7 +143,7 @@ function EditProdutoScreen({
     return filled;
   });
 
-  const set = useCallback((key: keyof EditForm, value: string | boolean) => {
+  const set = useCallback((key: keyof EditForm, value: string | boolean | TipoProdutoValue | null) => {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
 
@@ -190,9 +194,12 @@ function EditProdutoScreen({
         .filter((s): s is { type: 'new'; uri: string } => s.type === 'new')
         .map(s => s.uri);
 
+      const categoriaFinal = form.tipoProduto
+        ? derivarCategoriaString(form.tipoProduto)
+        : form.categoria;
       const dados: Parameters<typeof LojistaService.editarProduto>[2] = {
         nome: form.nome,
-        categoria: form.categoria,
+        categoria: categoriaFinal,
         descricao: form.descricao,
         preco,
         disponivel: form.disponivel,
@@ -273,8 +280,19 @@ function EditProdutoScreen({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Categoria</Text>
-          <TextInput style={styles.input} value={form.categoria} onChangeText={v => set('categoria', v)} placeholder="Categoria" />
+          <Text style={styles.fieldLabel}>Tipo de produto</Text>
+          <TipoProdutoSelector
+            value={form.tipoProduto}
+            onChange={v => set('tipoProduto', v)}
+          />
+          {!form.tipoProduto && (
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              value={form.categoria}
+              onChangeText={v => set('categoria', v)}
+              placeholder="Ou informe a categoria manualmente"
+            />
+          )}
         </View>
 
         <View style={styles.fieldGroup}>

@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
+import { TipoProdutoSelector } from './TipoProdutoSelector';
+import { TipoProdutoValue, derivarCategoriaString } from '../data/tipoProdutos';
 
 type Stage = 'capture' | 'analyzing' | 'edit';
 
@@ -19,6 +21,7 @@ interface ProductData {
   preco: string;
   estoque: string;
   variacoes: string[];
+  tipoProduto: TipoProdutoValue | null;
 }
 
 interface NovoProdutoProps {
@@ -171,29 +174,13 @@ function EditStage({
   data, onChange, onPublicar, saving = false, imageUri,
 }: {
   data: ProductData;
-  onChange: (key: keyof ProductData, value: string | string[]) => void;
+  onChange: (key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => void;
   onPublicar: () => void;
   saving?: boolean;
   imageUri: string | null;
 }) {
   const [newTag, setNewTag] = useState('');
   const [imgLoading, setImgLoading] = useState(true);
-  const [showVariacoes, setShowVariacoes] = useState(false);
-
-  const cat = data.categoria.toLowerCase();
-  const isVestuario = ['roupa', 'camisa', 'camiseta', 'blusa', 'calça', 'saia', 'vestido',
-    'moletom', 'jaqueta', 'casaco', 'shorts', 'bermuda', 'malha', 'moda', 'vestuário',
-    'vestuario', 'polo', 'regata', 'colete', 'pijama'].some(k => cat.includes(k));
-  const isCalcado = ['calçado', 'calcado', 'sapato', 'tênis', 'tenis', 'sandália', 'sandalia',
-    'bota', 'chinelo', 'sapatilha', 'mocassim', 'salto', 'scarpin'].some(k => cat.includes(k));
-
-  const sizesDisponiveis = isVestuario
-    ? ['PP', 'P', 'M', 'G', 'GG', 'GGG']
-    : isCalcado
-    ? ['33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44']
-    : ['PP', 'P', 'M', 'G', 'GG', '38', '39', '40', '41', '42'];
-
-  const exibirVariacoes = isVestuario || isCalcado || showVariacoes;
 
   const addTag = useCallback(() => {
     if (!newTag.trim()) return;
@@ -239,12 +226,10 @@ function EditStage({
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Categoria</Text>
-        <TextInput
-          style={styles.input}
-          value={data.categoria}
-          onChangeText={v => onChange('categoria', v)}
-          placeholder="Ex: Calçados, Roupas, Joias…"
+        <Text style={styles.fieldLabel}>Tipo de produto</Text>
+        <TipoProdutoSelector
+          value={data.tipoProduto}
+          onChange={v => onChange('tipoProduto', v)}
         />
       </View>
 
@@ -311,48 +296,6 @@ function EditStage({
         </View>
       </View>
 
-      {exibirVariacoes ? (
-        <View style={styles.fieldGroup}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.fieldLabel}>Variações (tamanhos)</Text>
-            <TouchableOpacity onPress={() => { setShowVariacoes(false); onChange('variacoes', []); }} activeOpacity={0.7}>
-              <Text style={{ fontSize: 11, color: colors.n500 }}>Remover</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.variacoesWrap}>
-            {sizesDisponiveis.map(v => {
-              const selected = data.variacoes.includes(v);
-              return (
-                <TouchableOpacity
-                  key={v}
-                  onPress={() => {
-                    const next = selected
-                      ? data.variacoes.filter(x => x !== v)
-                      : [...data.variacoes, v];
-                    onChange('variacoes', next);
-                  }}
-                  style={[
-                    styles.variacaoBtn,
-                    selected && { backgroundColor: colors.navy, borderColor: colors.navy },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.variacaoText, selected && { color: '#fff' }]}>{v}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.addVariacoesBtn}
-          onPress={() => setShowVariacoes(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="add-circle-outline" size={16} color={colors.n500} />
-          <Text style={styles.addVariacoesTxt}>Adicionar variações de tamanho</Text>
-        </TouchableOpacity>
-      )}
 
       <TouchableOpacity
         style={[styles.publishBtn, saving && { opacity: 0.7 }]}
@@ -389,6 +332,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     preco: '',
     estoque: '',
     variacoes: [],
+    tipoProduto: null,
   });
 
   const textColor = dark ? colors.n0    : colors.navy;
@@ -402,7 +346,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
   const handleVoltar = useCallback(() => {
     setStage('capture');
     setImageUri(null);
-    setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [] });
+    setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [], tipoProduto: null });
   }, []);
 
   const handleCapture = useCallback(async (uri: string) => {
@@ -418,6 +362,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
         preco: data.preco ?? '',
         estoque: data.estoque ?? '',
         variacoes: [],
+        tipoProduto: null,
       });
     } catch {
       Alert.alert('Aviso', 'Não foi possível analisar a imagem. Preencha os dados manualmente.');
@@ -426,7 +371,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     }
   }, [token]);
 
-  const handleChange = useCallback((key: keyof ProductData, value: string | string[]) => {
+  const handleChange = useCallback((key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => {
     setProductData(prev => ({ ...prev, [key]: value }));
   }, []);
 
@@ -441,6 +386,9 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
       Alert.alert('Erro', 'Informe um preço válido.');
       return;
     }
+    const categoriaFinal = productData.tipoProduto
+      ? derivarCategoriaString(productData.tipoProduto)
+      : productData.categoria;
     setSaving(true);
     try {
       await LojistaService.criarProduto(token, {
@@ -449,7 +397,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
         descricao: productData.descricao,
         preco,
         estoque: isNaN(estoque) ? 0 : estoque,
-        categoria: productData.categoria,
+        categoria: categoriaFinal,
         tags: productData.tags,
         imageUri: imageUri ?? undefined,
       });
@@ -471,7 +419,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     } else {
       setStage('capture');
       setImageUri(null);
-      setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [] });
+      setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [], tipoProduto: null });
     }
   }, [onVoltar]);
 
