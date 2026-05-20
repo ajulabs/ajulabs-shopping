@@ -1,15 +1,36 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { MensagemChat } from '@ajulabs/types';
 import { ChatMsg } from './ChatMsg';
 import { ChatInput } from './ChatInput';
 import { matchAju } from '@ajulabs/api-client';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, TouchableOpacity, KeyboardAvoidingView, Platform,
+  Animated, StyleSheet, Modal,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
 import { useAuthStore } from '../../../../store';
 import { useTranscricao } from '../model/useTranscricao';
+import * as SecureStore from 'expo-secure-store';
+
+const ONBOARDING_KEY = 'aju_onboarding_v1';
+
+// expo-secure-store não funciona na web — fallback para localStorage
+const storage = {
+  getItem: (key: string) =>
+    Platform.OS === 'web'
+      ? Promise.resolve(typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null)
+      : SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+      return Promise.resolve();
+    }
+    return SecureStore.setItemAsync(key, value);
+  },
+};
 
 const SUGESTOES_INICIAIS = [
   'Tênis preto até R$200',
@@ -24,17 +45,50 @@ const MENSAGEM_INICIAL: MensagemChat = {
   criadaEm: new Date().toISOString(),
 };
 
+const CAPABILITIES: { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; title: string; desc: string }[] = [
+  { icon: 'search-outline',       color: '#f97316', title: 'Buscar Produtos',  desc: 'Descreva o que quer e encontro produtos similares por você' },
+  { icon: 'receipt-outline',      color: '#2563EB', title: 'Rastrear Pedidos', desc: 'Saiba exatamente onde está seu pedido e quando chega' },
+  { icon: 'alert-circle-outline', color: '#DC2626', title: 'Fazer Reclamação', desc: 'Produto com defeito, não chegou ou diferente? Resolvemos em 24h' },
+  { icon: 'chatbubble-outline',   color: '#7C3AED', title: 'Tirar Dúvidas',    desc: 'Pergunte sobre políticas, entrega, trocas, etc' },
+];
+
+const QUICK_ACTIONS: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; msg: string; color: string }[] = [
+  { icon: 'search-outline',        label: 'Buscar',  msg: 'Quero buscar produtos',           color: '#f97316' },
+  { icon: 'receipt-outline',       label: 'Pedidos', msg: 'Quero ver meus pedidos',           color: '#2563EB' },
+  { icon: 'alert-circle-outline',  label: 'Reclamar', msg: 'Tive um problema com meu pedido', color: '#DC2626' },
+  { icon: 'help-circle-outline',   label: 'Dúvidas', msg: 'Tenho uma dúvida',                 color: '#7C3AED' },
+];
+
 export function ChatIA() {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([MENSAGEM_INICIAL]);
   const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
   const [carregando, setCarregando] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [conversaId, setConversaId] = useState<string | undefined>(undefined);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const welcomeOpacity = useRef(new Animated.Value(0)).current;
 
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
   const token = useAuthStore((s) => s.token) ?? '';
   const { gravando, transcrevendo, toggleGravacao } = useTranscricao();
+
+  useEffect(() => {
+    storage.getItem(ONBOARDING_KEY).then(done => {
+      if (!done) {
+        setShowWelcome(true);
+        Animated.timing(welcomeOpacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+      }
+    });
+  }, []);
+
+  function dismissWelcome() {
+    Animated.timing(welcomeOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
+      setShowWelcome(false);
+      storage.setItem(ONBOARDING_KEY, '1').catch(() => {});
+    });
+  }
 
   async function enviarMensagem(texto: string, pedidoSelecionadoId?: string) {
     if (!texto.trim() || carregando) return;
@@ -82,6 +136,7 @@ export function ChatIA() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <View style={{ flex: 1 }}>
+        {/* Header */}
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -109,9 +164,22 @@ export function ChatIA() {
               <Text style={{ fontSize: 12, color: '#22c55e' }}>● Online agora</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(consumer)/carrinho')}>
-            <Ionicons name="cart-outline" size={22} color={text} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => setShowHelp(true)}
+              style={{
+                width: 34, height: 34, borderRadius: 17,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : colors.n100,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 15, color: textSec as string, fontWeight: '700' }}>?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(consumer)/carrinho')}>
+              <Ionicons name="cart-outline" size={22} color={text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ChatMsg
@@ -120,6 +188,28 @@ export function ChatIA() {
           onSugestao={enviarMensagem}
           carregando={carregando}
         />
+
+        {/* Quick Actions */}
+        <View style={[s.quickRow, { backgroundColor: bg }]}>
+          {QUICK_ACTIONS.map(a => (
+            <TouchableOpacity
+              key={a.label}
+              onPress={() => { setInputValue(''); enviarMensagem(a.msg); }}
+              disabled={carregando}
+              style={[
+                s.quickBtn,
+                { backgroundColor: surf, borderColor: borderL },
+                carregando && { opacity: 0.4 },
+              ]}
+              activeOpacity={0.65}
+            >
+              <View style={[s.quickIconWrap, { backgroundColor: a.color + '18' }]}>
+                <Ionicons name={a.icon} size={13} color={a.color} />
+              </View>
+              <Text style={[s.quickLabel, { color: text }]}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <ChatInput
           value={inputValue}
@@ -131,16 +221,92 @@ export function ChatIA() {
           disabled={carregando}
         />
 
-        <Text style={{
-          textAlign: 'center', fontSize: 11,
-          color: textSec, paddingBottom: 16,
-          backgroundColor: bg,
-        }}>
+        <Text style={{ textAlign: 'center', fontSize: 11, color: textSec, paddingBottom: 16, backgroundColor: bg }}>
           IA com{' '}
           <Text style={{ color: '#f97316', fontWeight: '500' }}>lojas reais</Text>
           {' '}de Aracaju
         </Text>
       </View>
+
+      {/* Welcome Overlay */}
+      {showWelcome && (
+        <Animated.View style={[StyleSheet.absoluteFill, s.overlay, { opacity: welcomeOpacity }]}>
+          <View style={[s.card, { backgroundColor: isDark ? colors.surfDark : colors.n0 }]}>
+            <Text style={[s.welcomeTitle, { color: text }]}>👋 Bem-vindo ao Aju</Text>
+            <Text style={[s.welcomeSub, { color: textSec as string }]}>
+              Sua personal shopper de Aracaju
+            </Text>
+
+            {CAPABILITIES.map(c => (
+              <View key={c.title} style={s.capRow}>
+                <View style={[s.capIconWrap, { backgroundColor: c.color + '18' }]}>
+                  <Ionicons name={c.icon} size={18} color={c.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.capTitle, { color: text }]}>{c.title}</Text>
+                  <Text style={[s.capDesc, { color: textSec as string }]}>"{c.desc}"</Text>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity onPress={dismissWelcome} style={s.primaryBtn} activeOpacity={0.85}>
+              <Text style={s.primaryBtnTxt}>Entendi!</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Help Modal */}
+      <Modal visible={showHelp} transparent animationType="fade" onRequestClose={() => setShowHelp(false)}>
+        <View style={s.overlay}>
+          <View style={[s.card, { backgroundColor: isDark ? colors.surfDark : colors.n0 }]}>
+            <Text style={[s.helpTitle, { color: text }]}> O que Aju pode fazer?</Text>
+            <View style={[s.divider, { backgroundColor: borderL }]} />
+
+            {CAPABILITIES.map(c => (
+              <View key={c.title} style={s.capRow}>
+                <View style={[s.capIconWrap, { backgroundColor: c.color + '18' }]}>
+                  <Ionicons name={c.icon} size={18} color={c.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.capTitle, { color: text }]}>{c.title}</Text>
+                  <Text style={[s.capDesc, { color: textSec as string }]}>"{c.desc}"</Text>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              onPress={() => setShowHelp(false)}
+              style={[s.primaryBtn, { backgroundColor: colors.navy }]}
+              activeOpacity={0.85}
+            >
+              <Text style={s.primaryBtnTxt}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
+
+const s = StyleSheet.create({
+  overlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)',
+                  justifyContent: 'center', alignItems: 'center', padding: 24, zIndex: 100 },
+  card:         { borderRadius: 24, padding: 24, width: '100%', maxWidth: 360 },
+  welcomeTitle: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  welcomeSub:   { fontSize: 13, marginBottom: 20 },
+  helpTitle:    { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  divider:      { height: 1, marginVertical: 14 },
+  capRow:       { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  capIconWrap:  { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  capTitle:     { fontSize: 14, fontWeight: '700' },
+  capDesc:      { fontSize: 12, marginTop: 2 },
+  primaryBtn:   { marginTop: 8, backgroundColor: colors.orange, borderRadius: 14,
+                  paddingVertical: 14, alignItems: 'center' },
+  primaryBtnTxt: { fontSize: 15, fontWeight: '700', color: colors.n0 },
+  quickRow:     { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  quickBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 5, borderRadius: 10, paddingVertical: 8, borderWidth: 1 },
+  quickIconWrap: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  quickLabel:   { fontSize: 11.5, fontWeight: '600' },
+});

@@ -1,11 +1,12 @@
 // app/(consumer)/_layout.tsx
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCartStore, calcularQuantidadeItens } from '../../src/store';
+import { useCartStore, calcularQuantidadeItens, useAuthStore } from '../../src/store';
 import { useTheme } from '../../src/hooks';
 import { colors } from '@ajulabs/theme';
+import { ConsumerTicketService } from '@ajulabs/api-client';
 
 export default function ConsumerLayout() {
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
@@ -14,6 +15,19 @@ export default function ConsumerLayout() {
     [itensPorLoja]
   );
   const { isDark } = useTheme();
+  const token = useAuthStore(s => s.token);
+  const [ticketsAbertos, setTicketsAbertos] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchTickets = async () => {
+      const lista = await ConsumerTicketService.listar(token);
+      setTicketsAbertos((lista ?? []).filter((t: any) => t.status === 'aberto').length);
+    };
+    fetchTickets();
+    const interval = setInterval(fetchTickets, 60_000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   return (
     <Tabs
@@ -102,6 +116,15 @@ export default function ConsumerLayout() {
         name="tickets"
         options={{
           title: 'Tickets',
+          tabBarBadge: ticketsAbertos > 0 ? ticketsAbertos : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#DC2626',
+            color: '#FFFFFF',
+            fontSize: 10,
+            fontWeight: '700',
+            minWidth: 18,
+            height: 18,
+          },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'ticket' : 'ticket-outline'}
