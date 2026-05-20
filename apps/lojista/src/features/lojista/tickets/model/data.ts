@@ -6,6 +6,13 @@ export interface TicketNota {
   criadoEm: string;
 }
 
+export interface TicketMensagem {
+  id: string;
+  remetente: string;
+  texto: string;
+  criadoEm: string;
+}
+
 export interface Ticket {
   id: string;
   protocolo: string;
@@ -22,6 +29,7 @@ export interface Ticket {
     itens: { nomeSnapshot: string; quantidade: number }[];
   };
   notas: TicketNota[];
+  mensagens: TicketMensagem[];
 }
 
 export const STATUS_META: Record<TicketStatus, { label: string; bg: string; color: string; icon: string }> = {
@@ -74,6 +82,12 @@ export function mapTicket(raw: any): Ticket {
       id:       n.id,
       texto:    n.texto,
       criadoEm: n.criadoEm ?? n.criado_em,
+    })),
+    mensagens: (raw.mensagens ?? []).map((m: any) => ({
+      id:        m.id,
+      remetente: m.remetente,
+      texto:     m.texto,
+      criadoEm:  m.criadoEm ?? m.criado_em,
     })),
   };
 }

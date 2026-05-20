@@ -429,6 +429,7 @@ enum TicketStatus {
   aberto
   em_andamento
   resolvido
+  cancelado
 }
 
 model SupportTicket {
@@ -443,12 +444,27 @@ model SupportTicket {
   criadoEm     DateTime     @default(now()) @map("criado_em")
   atualizadoEm DateTime     @updatedAt @map("atualizado_em")
 
-  consumidor Usuario      @relation(fields: [consumidorId], references: [id])
-  pedido     Pedido?      @relation(fields: [pedidoId], references: [id])
-  loja       Loja?        @relation(fields: [lojaId], references: [id])
+  avaliacaoConsumidor Int? @map("avaliacao_consumidor")
+
+  consumidor Usuario          @relation(fields: [consumidorId], references: [id])
+  pedido     Pedido?          @relation(fields: [pedidoId], references: [id])
+  loja       Loja?            @relation(fields: [lojaId], references: [id])
   notas      TicketNota[]
+  mensagens  TicketMensagem[]
 
   @@map("support_tickets")
+}
+
+model TicketMensagem {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  remetente String
+  texto     String
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_mensagens")
 }
 
 model TicketNota {

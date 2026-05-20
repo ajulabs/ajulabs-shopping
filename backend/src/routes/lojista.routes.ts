@@ -496,7 +496,8 @@ router.get('/lojas/:id/tickets', authMiddleware, authLojista, async (req: AuthRe
               itens: { select: { nomeSnapshot: true, quantidade: true } },
             },
           },
-          notas: true,
+          notas:     true,
+          mensagens: true,
         },
         orderBy: [{ urgente: 'desc' }, { criadoEm: 'desc' }],
         skip: (Number(page) - 1) * Number(limit),
@@ -526,8 +527,9 @@ router.get('/tickets/:id', authMiddleware, authLojista, async (req: AuthRequest,
             itens: { select: { nomeSnapshot: true, quantidade: true } },
           },
         },
-        loja: { select: { lojistaId: true } },
-        notas: { orderBy: { criadoEm: 'asc' } },
+        loja:      { select: { lojistaId: true } },
+        notas:     true,
+        mensagens: true,
       },
     });
 
@@ -615,6 +617,31 @@ router.post('/tickets/:id/notas', authMiddleware, authLojista, async (req: AuthR
     res.status(201).json({ nota });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao adicionar nota' });
+  }
+});
+
+// POST /lojista/tickets/:id/mensagens - Lojista responde ao consumidor
+router.post('/tickets/:id/mensagens', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  try {
+    const { texto } = req.body;
+    if (!texto?.trim()) return res.status(400).json({ error: 'Texto obrigatório' });
+
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: req.params.id },
+      include: { loja: { select: { lojistaId: true } } },
+    });
+
+    if (!ticket || ticket.loja?.lojistaId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const mensagem = await prisma.ticketMensagem.create({
+      data: { ticketId: req.params.id, remetente: 'lojista', texto: texto.trim() },
+    });
+
+    res.status(201).json({ mensagem });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao enviar mensagem' });
   }
 });
 

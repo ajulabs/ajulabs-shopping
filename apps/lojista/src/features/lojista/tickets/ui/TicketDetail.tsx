@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, StatusBar, TextInput,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
-import { Ticket, TicketStatus, STATUS_META, STATUS_NEXT, STATUS_NEXT_LABEL, mapTicket } from '../model/data';
+import { Ticket, TicketMensagem, STATUS_META, STATUS_NEXT, STATUS_NEXT_LABEL, mapTicket } from '../model/data';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -25,9 +25,12 @@ interface Props {
 }
 
 export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
-  const [nota, setNota]         = useState('');
-  const [saving, setSaving]     = useState(false);
+  const [nota, setNota]             = useState('');
+  const [msg, setMsg]               = useState('');
+  const [saving, setSaving]         = useState(false);
   const [addingNota, setAddingNota] = useState(false);
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const proximoStatus = STATUS_NEXT[ticket.status];
   const proximoLabel  = STATUS_NEXT_LABEL[ticket.status];
@@ -57,6 +60,28 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
     setSaving(false);
   }
 
+  async function enviarMensagem() {
+    if (!msg.trim()) return;
+    setSendingMsg(true);
+    try {
+      const nova = await LojistaService.enviarMensagemTicket(ticket.id, msg.trim(), token);
+      onUpdate({
+        ...ticket,
+        mensagens: [...ticket.mensagens, {
+          id:        nova.id,
+          remetente: 'lojista',
+          texto:     nova.texto,
+          criadoEm:  nova.criadoEm ?? nova.criado_em,
+        }],
+      });
+      setMsg('');
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível enviar a mensagem.');
+    }
+    setSendingMsg(false);
+  }
+
   async function enviarNota() {
     if (!nota.trim()) return;
     setAddingNota(true);
@@ -78,7 +103,12 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
   }
 
   return (
-    <SafeAreaView style={s.safe}>
+    <KeyboardAvoidingView
+      style={s.safe}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={80}
+    >
+    <SafeAreaView style={{ flex: 1 }}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       <View style={s.header}>
@@ -99,7 +129,7 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <ScrollView ref={scrollRef} style={s.scroll} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
 
         {/* Status + ação */}
         <View style={s.section}>
@@ -181,6 +211,56 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
           </View>
         )}
 
+        {/* Mensagens com consumidor */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Conversa com consumidor</Text>
+          {ticket.mensagens.length === 0 ? (
+            <Text style={s.semNotas}>Nenhuma mensagem ainda.</Text>
+          ) : (
+            ticket.mensagens.map((m: TicketMensagem) => (
+              <View
+                key={m.id}
+                style={[
+                  s.msgBubble,
+                  m.remetente === 'lojista'
+                    ? s.msgLojista
+                    : s.msgConsumidor,
+                ]}
+              >
+                <Text style={[s.msgRem, { color: m.remetente === 'lojista' ? '#000933' : '#DE6708' }]}>
+                  {m.remetente === 'lojista' ? 'Você' : 'Consumidor'}
+                </Text>
+                <Text style={s.msgTxt}>{m.texto}</Text>
+                <Text style={s.msgData}>{dataCompleta(m.criadoEm)}</Text>
+              </View>
+            ))
+          )}
+
+          {ticket.status !== 'resolvido' && ticket.status !== 'cancelado' && (
+            <View style={s.notaInputRow}>
+              <TextInput
+                style={s.notaInput}
+                value={msg}
+                onChangeText={setMsg}
+                placeholder="Responder ao consumidor..."
+                placeholderTextColor="#C8CDE0"
+                multiline
+              />
+              <TouchableOpacity
+                style={[s.notaEnviarBtn, (!msg.trim() || sendingMsg) && { opacity: 0.4 }]}
+                onPress={enviarMensagem}
+                disabled={!msg.trim() || sendingMsg}
+                activeOpacity={0.8}
+              >
+                {sendingMsg
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="send" size={16} color="#fff" />
+                }
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* Notas internas */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Notas internas</Text>
@@ -219,6 +299,7 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
 
       </ScrollView>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -261,4 +342,10 @@ const s = StyleSheet.create({
   notaInputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', marginTop: 4 },
   notaInput: { flex: 1, borderWidth: 1, borderColor: '#E4E7F1', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#000933', maxHeight: 100, backgroundColor: '#fff' },
   notaEnviarBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#000933', alignItems: 'center', justifyContent: 'center' },
+  msgBubble:    { borderRadius: 12, padding: 10, marginBottom: 8 },
+  msgLojista:   { backgroundColor: '#EEF2FF', alignSelf: 'flex-end' as const, borderBottomRightRadius: 2 },
+  msgConsumidor: { backgroundColor: '#F6F7FB', alignSelf: 'flex-start' as const, borderBottomLeftRadius: 2 },
+  msgRem:       { fontSize: 10.5, fontWeight: '700' as const, marginBottom: 3, textTransform: 'uppercase' as const },
+  msgTxt:       { fontSize: 13, color: '#000933', lineHeight: 19 },
+  msgData:      { fontSize: 10.5, color: '#9099B3', marginTop: 4, textAlign: 'right' as const },
 });
