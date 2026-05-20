@@ -99,6 +99,19 @@ export default function ConsumerLayout() {
         }}
       />
       <Tabs.Screen
+        name="tickets"
+        options={{
+          title: 'Tickets',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'ticket' : 'ticket-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
@@ -111,6 +124,7 @@ export default function ConsumerLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="tickets/[id]"  options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="vitrine/[id]"  options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="checkout"      options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="tracking/[id]" options={{ href: null, tabBarStyle: { display: 'none' } }} />

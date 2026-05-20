@@ -479,6 +479,20 @@ export const LojistaService = {
     }
   },
 
+  enviarMensagemTicket: async (ticketId: string, texto: string, token: string): Promise<any> => {
+    const res = await fetch(`${API_URL}/lojista/tickets/${ticketId}/mensagens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ texto }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar mensagem');
+    }
+    const { mensagem } = await res.json();
+    return mensagem;
+  },
+
   adicionarNotaTicket: async (ticketId: string, texto: string, token: string): Promise<any> => {
     const res = await fetch(`${API_URL}/lojista/tickets/${ticketId}/notas`, {
       method: 'POST',
@@ -518,6 +532,62 @@ export const LojistaService = {
       })(),
     ]);
     return { emAndamento: [...pronto, ...saiuEntrega], concluidas };
+  },
+};
+
+export const ConsumerTicketService = {
+  listar: async (token: string, status?: string): Promise<any[]> => {
+    const url = status
+      ? `${API_URL}/tickets?status=${encodeURIComponent(status)}`
+      : `${API_URL}/tickets`;
+    const res = await fetch(url, { headers: authHeader(token) });
+    if (!res.ok) return [];
+    const { tickets } = await res.json();
+    return tickets ?? [];
+  },
+
+  buscar: async (id: string, token: string): Promise<any | null> => {
+    const res = await fetch(`${API_URL}/tickets/${id}`, { headers: authHeader(token) });
+    if (!res.ok) return null;
+    const { ticket } = await res.json();
+    return ticket ?? null;
+  },
+
+  enviarMensagem: async (id: string, texto: string, token: string): Promise<any> => {
+    const res = await fetch(`${API_URL}/tickets/${id}/mensagens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ texto }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar mensagem');
+    }
+    const { mensagem } = await res.json();
+    return mensagem;
+  },
+
+  cancelar: async (id: string, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/tickets/${id}`, {
+      method: 'DELETE',
+      headers: authHeader(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao cancelar ticket');
+    }
+  },
+
+  avaliar: async (id: string, nota: number, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/tickets/${id}/avaliacao`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ nota }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao avaliar ticket');
+    }
   },
 };
 
