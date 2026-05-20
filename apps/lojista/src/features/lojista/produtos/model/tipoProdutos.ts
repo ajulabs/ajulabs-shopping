@@ -164,6 +164,37 @@ export const TIPOS_PRODUTO: CatConfig[] = [
     ],
   },
   {
+    id: 'beleza',
+    nome: 'Beleza',
+    icon: 'lipstick',
+    subcats: [
+      {
+        id: 'maquiagem',
+        nome: 'Maquiagem',
+        specs: [
+          { id: 'tipo', label: 'Tipo de produto', multiplo: false, opcoes: ['Base', 'Batom', 'Blush', 'Sombra', 'Rímel', 'Contorno', 'Iluminador', 'Primer'] },
+          { id: 'cor', label: 'Tom / Cor', multiplo: true, opcoes: ['Nude', 'Rosa', 'Vermelho', 'Coral', 'Marrom', 'Bege', 'Claro', 'Médio', 'Escuro'] },
+        ],
+      },
+      {
+        id: 'perfumaria',
+        nome: 'Perfumaria',
+        specs: [
+          { id: 'tipo', label: 'Tipo', multiplo: false, opcoes: ['Perfume', 'Colônia', 'Desodorante', 'Body Splash'] },
+          { id: 'volume', label: 'Volume', multiplo: true, opcoes: ['30ml', '50ml', '75ml', '100ml', '200ml'] },
+        ],
+      },
+      {
+        id: 'cabelos',
+        nome: 'Cabelos',
+        specs: [
+          { id: 'tipo', label: 'Tipo de produto', multiplo: false, opcoes: ['Shampoo', 'Condicionador', 'Máscara', 'Óleo', 'Leave-in', 'Finalizador'] },
+          { id: 'tipo-cabelo', label: 'Para cabelo', multiplo: true, opcoes: ['Liso', 'Ondulado', 'Cacheado', 'Crespo', 'Tingido', 'Seco', 'Oleoso'] },
+        ],
+      },
+    ],
+  },
+  {
     id: 'esporte',
     nome: 'Esporte',
     icon: 'soccer',
@@ -203,37 +234,6 @@ export const TIPOS_PRODUTO: CatConfig[] = [
     ],
   },
   {
-    id: 'beleza',
-    nome: 'Beleza',
-    icon: 'lipstick',
-    subcats: [
-      {
-        id: 'maquiagem',
-        nome: 'Maquiagem',
-        specs: [
-          { id: 'tipo', label: 'Tipo de produto', multiplo: false, opcoes: ['Base', 'Batom', 'Blush', 'Sombra', 'Rímel', 'Contorno', 'Iluminador', 'Primer'] },
-          { id: 'cor', label: 'Tom / Cor', multiplo: true, opcoes: ['Nude', 'Rosa', 'Vermelho', 'Coral', 'Marrom', 'Bege', 'Claro', 'Médio', 'Escuro'] },
-        ],
-      },
-      {
-        id: 'perfumaria',
-        nome: 'Perfumaria',
-        specs: [
-          { id: 'tipo', label: 'Tipo', multiplo: false, opcoes: ['Perfume', 'Colônia', 'Desodorante', 'Body Splash'] },
-          { id: 'volume', label: 'Volume', multiplo: true, opcoes: ['30ml', '50ml', '75ml', '100ml', '200ml'] },
-        ],
-      },
-      {
-        id: 'cabelos',
-        nome: 'Cabelos',
-        specs: [
-          { id: 'tipo', label: 'Tipo de produto', multiplo: false, opcoes: ['Shampoo', 'Condicionador', 'Máscara', 'Óleo', 'Leave-in', 'Finalizador'] },
-          { id: 'tipo-cabelo', label: 'Para cabelo', multiplo: true, opcoes: ['Liso', 'Ondulado', 'Cacheado', 'Crespo', 'Tingido', 'Seco', 'Oleoso'] },
-        ],
-      },
-    ],
-  },
-  {
     id: 'alimentos',
     nome: 'Alimentos',
     icon: 'food-apple-outline',
@@ -265,12 +265,4 @@ export function getSubcatNome(catId: string, subcatId: string, specs?: Record<st
 export function derivarCategoriaString(v: TipoProdutoValue): string {
   const subNome = getSubcatNome(v.catId, v.subcatId, v.specs);
   return subNome ? `${getCatNome(v.catId)} - ${subNome}` : getCatNome(v.catId);
-}
-
-export function derivarVariacoes(v: TipoProdutoValue): string[] {
-  const sizes: string[] = [];
-  for (const specId of ['tamanho', 'tamanho-letra', 'tamanho-numero']) {
-    if (v.specs[specId]) sizes.push(...v.specs[specId]);
-  }
-  return sizes;
 }

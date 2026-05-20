@@ -1,28 +1,18 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, ActivityIndicator, Alert, Image, Modal,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
-import { TipoProdutoSelector } from './TipoProdutoSelector';
-import { TipoProdutoValue, derivarCategoriaString } from '../data/tipoProdutos';
+import { TipoProdutoValue, derivarCategoriaString } from '../model/tipoProdutos';
+import { Stepper } from './NovoProdutoStepper';
+import { CaptureStage } from './NovoProdutoCaptureStage';
+import { AnalyzingStage } from './NovoProdutoAnalyzingStage';
+import { EditStage, ProductData } from './NovoProdutoEditStage';
 
 type Stage = 'capture' | 'analyzing' | 'edit';
-
-interface ProductData {
-  nome: string;
-  categoria: string;
-  descricao: string;
-  tags: string[];
-  preco: string;
-  estoque: string;
-  variacoes: string[];
-  tipoProduto: TipoProdutoValue | null;
-}
 
 interface NovoProdutoProps {
   dark?: boolean;
@@ -30,310 +20,21 @@ interface NovoProdutoProps {
   onVoltar?: () => void;
 }
 
-const STEPS = ['Foto', 'IA analisa', 'Revisar', 'Publicar'];
-
-function Stepper({ current }: { current: number }) {
-  return (
-    <View style={styles.stepperRow}>
-      {STEPS.map((label, i) => {
-        const isDone    = i < current;
-        const isActive  = i === current;
-        const isPending = i > current;
-        return (
-          <View key={label} style={styles.stepItem}>
-            <View style={styles.stepTop}>
-              {i > 0 && (
-                <View style={[styles.stepLine, { backgroundColor: isDone || isActive ? colors.orange : colors.n200 }]} />
-              )}
-              <View style={[
-                styles.stepCircle,
-                isActive  && { backgroundColor: colors.orange },
-                isDone    && { backgroundColor: colors.orange },
-                isPending && { backgroundColor: colors.n100 },
-              ]}>
-                <Text style={[
-                  styles.stepNum,
-                  (isActive || isDone) && { color: '#fff' },
-                  isPending && { color: colors.n600 },
-                ]}>
-                  {isDone ? '✓' : String(i + 1)}
-                </Text>
-              </View>
-              {i < STEPS.length - 1 && (
-                <View style={[styles.stepLine, { backgroundColor: isDone ? colors.orange : colors.n200 }]} />
-              )}
-            </View>
-            <Text style={[
-              styles.stepLabel,
-              (isActive || isDone) ? { color: colors.navy } : { color: colors.n600 },
-              isActive && { fontWeight: '600' },
-            ]}>
-              {label}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function CaptureStage({ onCapture }: { onCapture: (uri: string) => void }) {
-  const handleCamera = useCallback(async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para fotografar o produto.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      onCapture(result.assets[0].uri);
-    }
-  }, [onCapture]);
-
-  const handleGallery = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      onCapture(result.assets[0].uri);
-    }
-  }, [onCapture]);
-
-  return (
-    <View style={styles.content}>
-      <View style={styles.iaCard}>
-        <View style={styles.iaDecoCircle} />
-        <View style={styles.iaDecoCircle2} />
-        <View style={styles.iaBadge}>
-          <Text style={styles.iaBadgeText}>Cadastro com IA</Text>
-        </View>
-        <Text style={styles.iaTitle}>{'Tire uma foto.\nA IA faz o resto.'}</Text>
-        <Text style={styles.iaDesc}>
-          Nome, categoria, descrição e tags — tudo preenchido automaticamente. Você só confirma.
-        </Text>
-      </View>
-
-      <TouchableOpacity style={styles.photoArea} onPress={handleCamera} activeOpacity={0.85}>
-        <View style={styles.photoIcon}>
-          <Ionicons name="camera-outline" size={28} color="#F2760F" />
-        </View>
-        <Text style={styles.photoTitle}>Tirar foto do produto</Text>
-        <Text style={styles.photoSub}>ou toque para escolher da galeria</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} activeOpacity={0.8}>
-        <Text style={styles.galleryBtnText}>Escolher da galeria</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.sectionLabel}>O que a IA vai preencher</Text>
-      <View style={styles.stagesList}>
-        {[
-          'Nome do produto',
-          'Categoria e subcategoria',
-          'Descrição otimizada para busca',
-          'Tags de busca sugeridas',
-          'Sugestão de preço baseada no mercado',
-        ].map(item => (
-          <View key={item} style={styles.stageRow}>
-            <View style={styles.stageDot} />
-            <Text style={styles.stageText}>{item}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function AnalyzingStage() {
-  return (
-    <View style={[styles.content, styles.analyzingContainer]}>
-      <View style={styles.analyzingCard}>
-        <ActivityIndicator size="large" color={colors.orange} />
-        <Text style={styles.analyzingTitle}>IA analisando sua foto…</Text>
-        <Text style={styles.analyzingDesc}>
-          Identificando categoria, cor e sugestões de preço
-        </Text>
-        <View style={styles.analyzeSteps}>
-          {['Identificando produto…', 'Gerando descrição otimizada…', 'Sugerindo tags de busca…'].map((t, i) => (
-            <View key={i} style={styles.analyzeStep}>
-              <View style={[styles.analyzeStepDot, { backgroundColor: colors.orange }]} />
-              <Text style={styles.analyzeStepText}>{t}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function EditStage({
-  data, onChange, onPublicar, saving = false, imageUri,
-}: {
-  data: ProductData;
-  onChange: (key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => void;
-  onPublicar: () => void;
-  saving?: boolean;
-  imageUri: string | null;
-}) {
-  const [newTag, setNewTag] = useState('');
-  const [imgLoading, setImgLoading] = useState(true);
-
-  const addTag = useCallback(() => {
-    if (!newTag.trim()) return;
-    onChange('tags', [...data.tags, newTag.trim().toLowerCase()]);
-    setNewTag('');
-  }, [newTag, data.tags, onChange]);
-
-  const removeTag = useCallback((tag: string) => {
-    onChange('tags', data.tags.filter(t => t !== tag));
-  }, [data.tags, onChange]);
-
-  return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.editContent}>
-      {imageUri && (
-        <View style={styles.productImageWrap}>
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.productImage}
-            resizeMode="cover"
-            onLoadEnd={() => setImgLoading(false)}
-            onError={() => setImgLoading(false)}
-          />
-          {imgLoading && (
-            <View style={styles.productImageOverlay}>
-              <ActivityIndicator color={colors.orange} size="large" />
-            </View>
-          )}
-        </View>
-      )}
-
-      <View style={styles.iaBadgeSmall}>
-        <Text style={styles.iaBadgeSmallText}>✦ Preenchido pela Aju IA</Text>
-      </View>
-
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Nome do produto</Text>
-        <TextInput
-          style={styles.input}
-          value={data.nome}
-          onChangeText={v => onChange('nome', v)}
-          placeholder="Nome do produto"
-        />
-      </View>
-
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Tipo de produto</Text>
-        <TipoProdutoSelector
-          value={data.tipoProduto}
-          onChange={v => onChange('tipoProduto', v)}
-        />
-      </View>
-
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Descrição</Text>
-        <TextInput
-          style={[styles.input, styles.inputMultiline]}
-          value={data.descricao}
-          onChangeText={v => onChange('descricao', v)}
-          placeholder="Descrição do produto…"
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Tags sugeridas</Text>
-        <View style={styles.tagsWrap}>
-          {data.tags.map(tag => (
-            <TouchableOpacity
-              key={tag}
-              style={styles.tag}
-              onPress={() => removeTag(tag)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.tagText}>#{tag}</Text>
-              <Text style={styles.tagRemove}>×</Text>
-            </TouchableOpacity>
-          ))}
-          <View style={styles.tagInput}>
-            <TextInput
-              style={styles.tagInputField}
-              value={newTag}
-              onChangeText={setNewTag}
-              onSubmitEditing={addTag}
-              placeholder="+ tag"
-              placeholderTextColor={colors.n600}
-              returnKeyType="done"
-            />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.rowFields}>
-        <View style={[styles.fieldGroup, { flex: 1 }]}>
-          <Text style={styles.fieldLabel}>Preço (R$)</Text>
-          <TextInput
-            style={styles.input}
-            value={data.preco}
-            onChangeText={v => onChange('preco', v)}
-            placeholder="0,00"
-            keyboardType="decimal-pad"
-          />
-        </View>
-        <View style={[styles.fieldGroup, { flex: 1 }]}>
-          <Text style={styles.fieldLabel}>Estoque</Text>
-          <TextInput
-            style={styles.input}
-            value={data.estoque}
-            onChangeText={v => onChange('estoque', v)}
-            placeholder="0"
-            keyboardType="number-pad"
-          />
-        </View>
-      </View>
-
-
-      <TouchableOpacity
-        style={[styles.publishBtn, saving && { opacity: 0.7 }]}
-        onPress={onPublicar}
-        activeOpacity={0.85}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.publishBtnText}>Publicar produto</Text>
-        )}
-      </TouchableOpacity>
-
-      <View style={{ height: 24 }} />
-    </ScrollView>
-  );
-}
+const EMPTY_DATA: ProductData = {
+  nome: '', categoria: '', descricao: '', tags: [],
+  preco: '', estoque: '', variacoes: [], tipoProduto: null,
+};
 
 export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoProps) {
-  const token = useAuthLojistaStore(s => s.token);
+  const token  = useAuthLojistaStore(s => s.token);
   const lojaId = useAuthLojistaStore(s => s.lojaId);
 
-  const [stage, setStage] = useState<Stage>('capture');
-  const [saving, setSaving] = useState(false);
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [stage, setStage]               = useState<Stage>('capture');
+  const [saving, setSaving]             = useState(false);
+  const [imageUri, setImageUri]         = useState<string | null>(null);
+  const [showSuccess, setShowSuccess]   = useState(false);
   const [publishedName, setPublishedName] = useState('');
-  const [productData, setProductData] = useState<ProductData>({
-    nome: '',
-    categoria: '',
-    descricao: '',
-    tags: [],
-    preco: '',
-    estoque: '',
-    variacoes: [],
-    tipoProduto: null,
-  });
+  const [productData, setProductData]   = useState<ProductData>(EMPTY_DATA);
 
   const textColor = dark ? colors.n0    : colors.navy;
   const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
@@ -346,7 +47,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
   const handleVoltar = useCallback(() => {
     setStage('capture');
     setImageUri(null);
-    setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [], tipoProduto: null });
+    setProductData(EMPTY_DATA);
   }, []);
 
   const handleCapture = useCallback(async (uri: string) => {
@@ -371,7 +72,10 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     }
   }, [token]);
 
-  const handleChange = useCallback((key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => {
+  const handleChange = useCallback((
+    key: keyof ProductData,
+    value: string | string[] | TipoProdutoValue | null,
+  ) => {
     setProductData(prev => ({ ...prev, [key]: value }));
   }, []);
 
@@ -419,7 +123,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     } else {
       setStage('capture');
       setImageUri(null);
-      setProductData({ nome: '', categoria: '', descricao: '', tags: [], preco: '', estoque: '', variacoes: [], tipoProduto: null });
+      setProductData(EMPTY_DATA);
     }
   }, [onVoltar]);
 
@@ -485,116 +189,26 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
 }
 
 const styles = StyleSheet.create({
-  container:          { flex: 1 },
-  header:             { flexDirection: 'row', alignItems: 'center', gap: 10,
-                        paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1 },
-  backBtn:            { width: 34, height: 34, borderRadius: 17,
-                        backgroundColor: 'rgba(0,0,0,0.06)',
-                        alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  headerInfo:         { flex: 1 },
-  headerTitle:        { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
-  headerSub:          { fontSize: 12, color: '#6B7390', marginTop: 1 },
-  productImageWrap:   { width: '100%', height: 200, borderRadius: 14, marginBottom: 4,
-                        backgroundColor: '#F0F1F5', overflow: 'hidden' },
-  productImage:       { width: '100%', height: '100%' },
-  productImageOverlay:{ ...StyleSheet.absoluteFillObject, alignItems: 'center',
-                        justifyContent: 'center', backgroundColor: 'rgba(240,241,245,0.7)' },
-  stepperWrapper:     { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
-  stepperRow:         { flexDirection: 'row', alignItems: 'flex-start' },
-  stepItem:           { flex: 1, alignItems: 'center' },
-  stepTop:            { flexDirection: 'row', alignItems: 'center', width: '100%' },
-  stepLine:           { flex: 1, height: 2, marginBottom: 0 },
-  stepCircle:         { width: 28, height: 28, borderRadius: 14,
-                        alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  stepNum:            { fontSize: 12, fontWeight: '700' },
-  stepLabel:          { fontSize: 10, marginTop: 4, textAlign: 'center', fontWeight: '500' },
-  content:            { padding: 16, gap: 14 },
-  iaCard:             { backgroundColor: '#000933', borderRadius: 18, padding: 18,
-                        overflow: 'hidden', position: 'relative' },
-  iaDecoCircle:       { position: 'absolute', top: -20, right: -20, width: 100, height: 100,
-                        borderRadius: 50, backgroundColor: 'rgba(242,118,15,0.1)' },
-  iaDecoCircle2:      { position: 'absolute', bottom: -30, right: 20, width: 70, height: 70,
-                        borderRadius: 35, backgroundColor: 'rgba(242,118,15,0.06)' },
-  iaBadge:            { alignSelf: 'flex-start', backgroundColor: 'rgba(242,118,15,0.25)',
-                        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, marginBottom: 10 },
-  iaBadgeText:        { color: '#FFA05C', fontSize: 11, fontWeight: '600' },
-  iaTitle:            { fontSize: 22, fontWeight: '700', color: '#fff',
-                        lineHeight: 28, letterSpacing: -0.4 },
-  iaDesc:             { fontSize: 13, color: 'rgba(255,255,255,0.65)',
-                        marginTop: 8, lineHeight: 19 },
-  photoArea:          { borderWidth: 2, borderColor: '#F2760F', borderStyle: 'dashed',
-                        borderRadius: 18, backgroundColor: '#fff',
-                        paddingVertical: 36, paddingHorizontal: 20,
-                        alignItems: 'center', gap: 10 },
-  photoIcon:          { width: 72, height: 72, borderRadius: 36,
-                        backgroundColor: '#FFEAD4',
-                        alignItems: 'center', justifyContent: 'center' },
-  photoTitle:         { fontSize: 17, fontWeight: '600', color: '#000933' },
-  photoSub:           { fontSize: 13, color: '#6B7390' },
-  galleryBtn:         { height: 44, borderRadius: 12, borderWidth: 1.5,
-                        borderColor: '#E4E7F1', alignItems: 'center', justifyContent: 'center' },
-  galleryBtnText:     { fontSize: 14, fontWeight: '600', color: '#6B7390' },
-  sectionLabel:       { fontSize: 11, fontWeight: '600', color: '#6B7390',
-                        textTransform: 'uppercase', letterSpacing: 0.5 },
-  stagesList:         { gap: 8 },
-  stageRow:           { flexDirection: 'row', alignItems: 'center', gap: 10,
-                        padding: 10, paddingHorizontal: 14,
-                        backgroundColor: '#fff', borderRadius: 12,
-                        borderWidth: 1, borderColor: '#E4E7F1' },
-  stageDot:           { width: 8, height: 8, borderRadius: 4, backgroundColor: '#F2760F' },
-  stageText:          { fontSize: 13, color: '#6B7390' },
-  analyzingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  analyzingCard:      { backgroundColor: '#fff', borderRadius: 20, padding: 24,
-                        alignItems: 'center', gap: 14, width: '100%',
-                        borderWidth: 1, borderColor: '#E4E7F1' },
-  analyzingTitle:     { fontSize: 18, fontWeight: '600', color: '#000933', letterSpacing: -0.3 },
-  analyzingDesc:      { fontSize: 13, color: '#6B7390', textAlign: 'center' },
-  analyzeSteps:       { gap: 8, width: '100%', marginTop: 4 },
-  analyzeStep:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  analyzeStepDot:     { width: 6, height: 6, borderRadius: 3 },
-  analyzeStepText:    { fontSize: 13, color: '#6B7390' },
-  editContent:        { padding: 16, gap: 14 },
-  iaBadgeSmall:       { backgroundColor: '#FFEAD4', paddingHorizontal: 12,
-                        paddingVertical: 8, borderRadius: 12 },
-  iaBadgeSmallText:   { fontSize: 12, color: '#DE6708', fontWeight: '600' },
-  fieldGroup:         { gap: 6 },
-  fieldLabel:         { fontSize: 12, fontWeight: '600', color: '#6B7390',
-                        textTransform: 'uppercase', letterSpacing: 0.4 },
-  input:              { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E4E7F1',
-                        borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-                        fontSize: 14, color: '#000933' },
-  inputMultiline:     { minHeight: 80, textAlignVertical: 'top' },
-  rowFields:          { flexDirection: 'row', gap: 10 },
-  tagsWrap:           { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag:                { flexDirection: 'row', alignItems: 'center', gap: 4,
-                        backgroundColor: '#FFEAD4', paddingHorizontal: 10,
-                        paddingVertical: 6, borderRadius: 99 },
-  tagText:            { fontSize: 12, fontWeight: '600', color: '#DE6708' },
-  tagRemove:          { fontSize: 14, color: '#DE6708', opacity: 0.6 },
-  tagInput:           { borderWidth: 1, borderColor: '#E4E7F1', borderStyle: 'dashed',
-                        borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
-  tagInputField:      { fontSize: 12, color: '#000933', minWidth: 50 },
-  variacoesWrap:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  variacaoBtn:        { width: 44, height: 38, borderRadius: 10,
-                        backgroundColor: '#F4F5FA', borderWidth: 1, borderColor: '#E4E7F1',
-                        alignItems: 'center', justifyContent: 'center' },
-  variacaoText:       { fontSize: 12, fontWeight: '700', color: '#000933' },
-  addVariacoesBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6,
-                        paddingVertical: 10, paddingHorizontal: 2 },
-  addVariacoesTxt:    { fontSize: 13, color: colors.n500 },
-  publishBtn:         { height: 50, borderRadius: 14, backgroundColor: '#F2760F',
-                        alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  publishBtnText:     { fontSize: 15, fontWeight: '700', color: '#fff' },
-  successOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-                        justifyContent: 'center', alignItems: 'center', padding: 24 },
-  successBox:         { backgroundColor: '#fff', borderRadius: 24, padding: 28,
-                        width: '100%', alignItems: 'center', gap: 10 },
-  successIconWrap:    { width: 88, height: 88, borderRadius: 44,
-                        backgroundColor: '#FFF3E8',
-                        alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  successTitle:       { fontSize: 22, fontWeight: '800', color: '#000933', letterSpacing: -0.4 },
-  successMsg:         { fontSize: 14, color: '#6B7390', textAlign: 'center', lineHeight: 20 },
-  successBtn:         { marginTop: 8, width: '100%', height: 50, borderRadius: 14,
-                        backgroundColor: '#F2760F', alignItems: 'center', justifyContent: 'center' },
-  successBtnText:     { fontSize: 15, fontWeight: '700', color: '#fff' },
+  container:       { flex: 1 },
+  header:          { flexDirection: 'row', alignItems: 'center', gap: 10,
+                     paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1 },
+  backBtn:         { width: 34, height: 34, borderRadius: 17,
+                     backgroundColor: 'rgba(0,0,0,0.06)',
+                     alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  headerInfo:      { flex: 1 },
+  headerTitle:     { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
+  headerSub:       { fontSize: 12, color: '#6B7390', marginTop: 1 },
+  stepperWrapper:  { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  successOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+                     justifyContent: 'center', alignItems: 'center', padding: 24 },
+  successBox:      { backgroundColor: '#fff', borderRadius: 24, padding: 28,
+                     width: '100%', alignItems: 'center', gap: 10 },
+  successIconWrap: { width: 88, height: 88, borderRadius: 44,
+                     backgroundColor: '#FFF3E8',
+                     alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  successTitle:    { fontSize: 22, fontWeight: '800', color: '#000933', letterSpacing: -0.4 },
+  successMsg:      { fontSize: 14, color: '#6B7390', textAlign: 'center', lineHeight: 20 },
+  successBtn:      { marginTop: 8, width: '100%', height: 50, borderRadius: 14,
+                     backgroundColor: '#F2760F', alignItems: 'center', justifyContent: 'center' },
+  successBtnText:  { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

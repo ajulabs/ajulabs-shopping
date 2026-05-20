@@ -7,7 +7,7 @@ import {
   TipoProdutoValue,
   getCatNome,
   getSubcatNome,
-} from '../data/tipoProdutos';
+} from '../model/tipoProdutos';
 
 interface Props {
   value: TipoProdutoValue | null;
