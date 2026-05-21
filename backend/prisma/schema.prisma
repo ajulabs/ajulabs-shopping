@@ -22,11 +22,13 @@ model Usuario {
   criadoEm            DateTime @default(now()) @map("criado_em")
   atualizadoEm        DateTime @updatedAt @map("atualizado_em")
 
-  enderecos       EnderecoUsuario[]
-  pedidos         Pedido[]
-  conversas       ConversaChat[]
-  avaliacoes      AvaliacaoLoja[]
-  supportTickets  SupportTicket[]
+  enderecos        EnderecoUsuario[]
+  pedidos          Pedido[]
+  conversas        ConversaChat[]
+  avaliacoes       AvaliacaoLoja[]
+  supportTickets   SupportTicket[]
+  favoritos        FavoritoProduto[]
+  favoritosLojas   FavoritoLoja[]
 
   @@map("usuarios")
 }
@@ -197,6 +199,7 @@ model Loja {
   pedidos        Pedido[]
   avaliacoes     AvaliacaoLoja[]
   supportTickets SupportTicket[]
+  favoritos      FavoritoLoja[]
 
   @@map("lojas")
 }
@@ -264,6 +267,7 @@ model Produto {
   variacoes VariacaoProduto[]
   itens     ItemPedido[]
   sugestoes SugestaoProdutoChat[]
+  favoritos FavoritoProduto[]
 
   @@map("produtos")
 }
@@ -277,6 +281,32 @@ model VariacaoProduto {
   produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
   @@map("variacoes_produto")
+}
+
+model FavoritoLoja {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  lojaId    String   @map("loja_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  loja    Loja    @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, lojaId])
+  @@map("favoritos_loja")
+}
+
+model FavoritoProduto {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  produtoId String   @map("produto_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, produtoId])
+  @@map("favoritos_produto")
 }
 
 // ========================================

@@ -50,7 +50,11 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
   }, [added, produto.id, onAdd, router]);
 
   return (
-    <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: surface, borderColor: border }]}
+      onPress={() => router.push(`/(consumer)/produto/${produto.id}` as any)}
+      activeOpacity={0.92}
+    >
       <View>
         <ProductImg uri={produto.imagem} alt={produto.nome} />
         {produto.destaque && (
@@ -98,12 +102,12 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card:              { borderRadius: 14, overflow: 'hidden', borderWidth: 1 },
+  card:              { borderRadius: 14, overflow: 'hidden', borderWidth: 1, flexShrink: 0 },
   img:               { width: '100%', aspectRatio: 4 / 3 },
   imgFallback:       { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.orange100,
                        alignItems: 'center', justifyContent: 'center' },
