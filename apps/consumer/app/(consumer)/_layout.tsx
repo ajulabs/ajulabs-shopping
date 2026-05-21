@@ -7,6 +7,9 @@ import { useCartStore, calcularQuantidadeItens, useAuthStore } from '../../src/s
 import { useTheme } from '../../src/hooks';
 import { colors } from '@ajulabs/theme';
 import { ConsumerTicketService } from '@ajulabs/api-client';
+import { useTicketRealtime } from '@ajulabs/realtime';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export default function ConsumerLayout() {
   const itensPorLoja = useCartStore(s => s.itensPorLoja);
@@ -15,7 +18,8 @@ export default function ConsumerLayout() {
     [itensPorLoja]
   );
   const { isDark } = useTheme();
-  const token = useAuthStore(s => s.token);
+  const token  = useAuthStore(s => s.token);
+  const userId = useAuthStore(s => s.userId);
   const [ticketsAbertos, setTicketsAbertos] = useState(0);
 
   useEffect(() => {
@@ -28,6 +32,19 @@ export default function ConsumerLayout() {
     const interval = setInterval(fetchTickets, 60_000);
     return () => clearInterval(interval);
   }, [token]);
+
+  useTicketRealtime({
+    apiUrl: API_URL,
+    ticketId: null,
+    roomId: userId ?? null,
+    roomType: 'usuario',
+    enabled: !!userId,
+    onStatus: ({ status }) => {
+      if (status === 'resolvido' || status === 'cancelado') {
+        setTicketsAbertos(prev => Math.max(0, prev - 1));
+      }
+    },
+  });
 
   return (
     <Tabs

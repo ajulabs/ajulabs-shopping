@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
-import { getEntregadorLocalizacao } from '../utils/socket';
+import { getEntregadorLocalizacao, emitPedidoNovo } from '../utils/socket';
 
 const router = Router();
 
@@ -126,6 +126,12 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
       return { pedido };
     });
 
+    emitPedidoNovo(dados.lojaId, {
+      id: pedido.id,
+      total: Number(total),
+      itens: (pedido.itens ?? []).map((i: any) => ({ nome: i.nomeSnapshot, quantidade: i.quantidade })),
+      criadoEm: pedido.criadoEm,
+    });
     res.status(201).json({ pedido });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });

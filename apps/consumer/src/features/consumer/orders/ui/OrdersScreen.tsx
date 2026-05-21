@@ -7,10 +7,14 @@ import { PedidoService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 import { PedidoCard } from './PedidoCard';
+import { usePedidoConsumerRealtime } from '@ajulabs/realtime';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export function OrdersScreen() {
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
+  const token  = useAuthStore(s => s.token);
+  const userId = useAuthStore(s => s.userId);
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +33,19 @@ export function OrdersScreen() {
       PedidoService.listar(token)
         .then(data => setPedidos(data))
         .catch(() => {});
-    }, 30000);
+    }, 60_000);
 
     return () => clearInterval(interval);
   }, [token]);
+
+  usePedidoConsumerRealtime({
+    apiUrl: API_URL,
+    userId: userId ?? null,
+    enabled: !!userId,
+    onAtualizado: ({ pedidoId, status }) => {
+      setPedidos(prev => prev.map(p => p.id === pedidoId ? { ...p, status: status as any } : p));
+    },
+  });
 
   const ativos = pedidos.filter(p => !['entregue', 'cancelado'].includes(p.status));
   const historico = pedidos.filter(p => ['entregue', 'cancelado'].includes(p.status));

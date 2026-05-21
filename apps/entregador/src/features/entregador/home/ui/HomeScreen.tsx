@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
+import { useCorridasRealtime } from '@ajulabs/realtime';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 import { LeafletMap } from '../../../../components/LeafletMap';
 
 const brl = (v: number) =>
@@ -138,6 +140,7 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenProps) {
   const token = useAuthEntregadorStore(s => s.token);
+  const entregadorId = useAuthEntregadorStore(s => s.entregadorId);
   const [online, setOnline] = useState(false);
   const [offer, setOffer] = useState<RideData | null>(null);
   const [countdown, setCountdown] = useState(15);
@@ -203,9 +206,42 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
       return;
     }
     buscarCorridas();
-    pollRef.current = setInterval(buscarCorridas, 8000);
+    pollRef.current = setInterval(buscarCorridas, 30000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [online, buscarCorridas]);
+
+  useCorridasRealtime({
+    apiUrl: API_URL,
+    entregadorId,
+    enabled: online && activeRidesCount < 2,
+    onOferta: (corrida) => {
+      if (!online || activeRidesCount >= 2) return;
+      setWaitingRides(prev => {
+        const exists = prev.some(r => r.id === corrida.id);
+        if (exists) return prev;
+        const novo: RideData = {
+          id: corrida.id,
+          loja: { nome: corrida.lojaNome, endereco: '', bairro: '' },
+          cliente: { nome: '', endereco: '', bairro: '' },
+          ganho: Number(corrida.taxaEntrega ?? 0) * 0.8,
+          distancia: 0,
+          duracao: 20,
+          codigo: corrida.id.slice(-4).toUpperCase(),
+        };
+        return [...prev, novo];
+      });
+      setOffer(prev => prev ?? {
+        id: corrida.id,
+        loja: { nome: corrida.lojaNome, endereco: '', bairro: '' },
+        cliente: { nome: '', endereco: '', bairro: '' },
+        ganho: Number(corrida.taxaEntrega ?? 0) * 0.8,
+        distancia: 0,
+        duracao: 20,
+        codigo: corrida.id.slice(-4).toUpperCase(),
+      });
+      setCountdown(15);
+    },
+  });
 
   useEffect(() => {
     if (!offer) return;

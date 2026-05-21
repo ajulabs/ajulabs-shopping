@@ -89,3 +89,43 @@ export function getIo(): Server {
   if (!io) throw new Error('Socket.IO não inicializado');
   return io;
 }
+
+export function emitPedidoNovo(lojaId: string, payload: object): void {
+  try { getIo().to(`loja:${lojaId}`).emit('pedido:novo', payload); } catch {}
+}
+
+export function emitPedidoAtualizado(consumidorId: string, pedidoId: string, status: string, lojaId?: string): void {
+  try {
+    const io = getIo();
+    io.to(`usuario:${consumidorId}`).emit('pedido:atualizado', { pedidoId, status });
+    if (lojaId) io.to(`loja:${lojaId}`).emit('pedido:atualizado', { pedidoId, status });
+  } catch {}
+}
+
+export function emitCorridaOferta(payload: object): void {
+  try { getIo().to('entregadores').emit('corrida:oferta', payload); } catch {}
+}
+
+export function emitTicketMensagem(
+  consumidorId: string,
+  lojaId: string | null,
+  mensagem: object,
+  remetente: 'consumidor' | 'lojista',
+): void {
+  try {
+    const io = getIo();
+    if (remetente === 'consumidor' && lojaId) {
+      io.to(`loja:${lojaId}`).emit('ticket:mensagem', mensagem);
+    } else {
+      io.to(`usuario:${consumidorId}`).emit('ticket:mensagem', mensagem);
+    }
+  } catch {}
+}
+
+export function emitTicketStatus(consumidorId: string, ticketId: string, status: string): void {
+  try { getIo().to(`usuario:${consumidorId}`).emit('ticket:status', { ticketId, status }); } catch {}
+}
+
+export function emitTicketNovo(lojaId: string, payload: object): void {
+  try { getIo().to(`loja:${lojaId}`).emit('ticket:novo', payload); } catch {}
+}

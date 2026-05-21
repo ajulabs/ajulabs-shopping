@@ -7,6 +7,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { Ticket, TicketMensagem, STATUS_META, STATUS_NEXT, STATUS_NEXT_LABEL, mapTicket } from '../model/data';
+import { useTicketRealtime } from '@ajulabs/realtime';
+import { useAuthLojistaStore } from '../../../../store';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -25,12 +28,33 @@ interface Props {
 }
 
 export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
+  const lojaId = useAuthLojistaStore(s => s.lojaId);
   const [nota, setNota]             = useState('');
   const [msg, setMsg]               = useState('');
   const [saving, setSaving]         = useState(false);
   const [addingNota, setAddingNota] = useState(false);
   const [sendingMsg, setSendingMsg] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  useTicketRealtime({
+    apiUrl: API_URL,
+    ticketId: ticket.id,
+    roomId: lojaId,
+    roomType: 'lojista',
+    enabled: !!lojaId,
+    onMensagem: (msg) => {
+      if (msg.remetente === 'lojista') return; // ignore own messages
+      onUpdate({
+        ...ticket,
+        mensagens: [...ticket.mensagens, {
+          id: msg.id,
+          remetente: msg.remetente,
+          texto: msg.texto,
+          criadoEm: msg.criadoEm,
+        }],
+      });
+    },
+  });
 
   const proximoStatus = STATUS_NEXT[ticket.status];
   const proximoLabel  = STATUS_NEXT_LABEL[ticket.status];

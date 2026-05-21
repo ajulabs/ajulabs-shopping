@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+import { emitTicketMensagem } from '../utils/socket';
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.post('/:id/mensagens', authMiddleware, authUsuario, async (req: AuthReque
       data: { ticketId: req.params.id, remetente: 'consumidor', texto: texto.trim() },
     });
 
+    emitTicketMensagem(req.user!.id, ticket.lojaId, { ...mensagem, ticketId: req.params.id }, 'consumidor');
     res.status(201).json({ mensagem });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao enviar mensagem' });
