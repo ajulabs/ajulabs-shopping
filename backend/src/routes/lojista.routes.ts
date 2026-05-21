@@ -92,7 +92,7 @@ router.patch('/pedidos/:id/status', authMiddleware, authLojista, async (req: Aut
       },
     });
 
-    emitPedidoAtualizado(atualizado.consumidorId, atualizado.id, proximoStatus);
+    emitPedidoAtualizado(atualizado.consumidorId, atualizado.id, proximoStatus, pedido.lojaId);
     if (proximoStatus === 'pronto') {
       emitCorridaOferta({
         id: atualizado.id,

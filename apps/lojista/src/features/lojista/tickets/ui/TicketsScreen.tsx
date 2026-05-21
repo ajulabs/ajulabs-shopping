@@ -8,6 +8,9 @@ import { LojistaService } from '@ajulabs/api-client';
 import { useAuthLojistaStore } from '../../../../store';
 import { Ticket, TicketStatus, STATUS_META, FILTERS, mapTicket } from '../model/data';
 import { TicketDetail } from './TicketDetail';
+import { useTicketRealtime } from '@ajulabs/realtime';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 function dataCurta(iso: string) {
   const d = new Date(iso);
@@ -40,6 +43,16 @@ export function TicketsScreen() {
     const interval = setInterval(fetchTickets, 60000);
     return () => clearInterval(interval);
   }, [fetchTickets]);
+
+  useTicketRealtime({
+    apiUrl: API_URL,
+    ticketId: null,
+    roomId: lojaId ?? null,
+    roomType: 'lojista',
+    enabled: !!lojaId,
+    onMensagem: fetchTickets,
+    onStatus: fetchTickets,
+  });
 
   const handleTicketUpdate = useCallback((updated: Ticket) => {
     setTickets(ts => ts.map(t => t.id === updated.id ? updated : t));

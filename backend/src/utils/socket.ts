@@ -94,8 +94,12 @@ export function emitPedidoNovo(lojaId: string, payload: object): void {
   try { getIo().to(`loja:${lojaId}`).emit('pedido:novo', payload); } catch {}
 }
 
-export function emitPedidoAtualizado(consumidorId: string, pedidoId: string, status: string): void {
-  try { getIo().to(`usuario:${consumidorId}`).emit('pedido:atualizado', { pedidoId, status }); } catch {}
+export function emitPedidoAtualizado(consumidorId: string, pedidoId: string, status: string, lojaId?: string): void {
+  try {
+    const io = getIo();
+    io.to(`usuario:${consumidorId}`).emit('pedido:atualizado', { pedidoId, status });
+    if (lojaId) io.to(`loja:${lojaId}`).emit('pedido:atualizado', { pedidoId, status });
+  } catch {}
 }
 
 export function emitCorridaOferta(payload: object): void {

@@ -10,6 +10,9 @@ import { useAuthLojistaStore } from '../../auth/model/store';
 import { RastreamentoModal } from './components/RastreamentoModal';
 import { mapPedidoToEntrega } from '../lib/mappers';
 import type { EntregaDisplay } from '../model/types';
+import { usePedidoLojistaRealtime } from '@ajulabs/realtime';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export function LogisticaScreen() {
   const token  = useAuthLojistaStore(s => s.token);
@@ -33,9 +36,16 @@ export function LogisticaScreen() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(fetchData, 60_000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  usePedidoLojistaRealtime({
+    apiUrl: API_URL,
+    lojaId: lojaId ?? null,
+    enabled: !!lojaId,
+    onAtualizado: fetchData,
+  });
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
