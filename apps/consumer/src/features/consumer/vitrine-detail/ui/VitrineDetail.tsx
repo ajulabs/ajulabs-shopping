@@ -1,12 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LojaService, ProdutoService } from '@ajulabs/api-client';
+import { LojaService, ProdutoService, FavoritoLojaService } from '@ajulabs/api-client';
 import { Loja, Produto } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { ProdutoCard } from './ProdutoCard';
-import { useCartStore } from '../../../../store';
+import { useCartStore, useAuthStore } from '../../../../store';
 
 interface VitrineDetailProps {
   lojaId: string;
@@ -44,8 +44,11 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [favoritado, setFavoritado] = useState(false);
   const cachearLoja = useCartStore(s => s.cachearLoja);
   const adicionar = useCartStore(s => s.adicionar);
+  const token = useAuthStore(s => s.token);
+  const heartScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     setLoading(true);
@@ -56,14 +59,28 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
     Promise.all([
       LojaService.buscarPorId(lojaId),
       ProdutoService.listarPorLoja(lojaId).catch(() => [] as Produto[]),
-    ]).then(([l, p]) => {
+      token ? FavoritoLojaService.checar(lojaId, token) : Promise.resolve(false),
+    ]).then(([l, p, fav]) => {
       if (l) {
         setLoja(l);
         cachearLoja(l);
       }
       setProdutos(p);
+      setFavoritado(fav as boolean);
     }).finally(() => setLoading(false));
   }, [lojaId]);
+
+  const handleFavorito = useCallback(async () => {
+    if (!token) { router.push('/(auth)/login'); return; }
+    const novo = !favoritado;
+    setFavoritado(novo);
+    Animated.sequence([
+      Animated.timing(heartScale, { toValue: 1.4, duration: 120, useNativeDriver: true }),
+      Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 8 }),
+    ]).start();
+    if (novo) await FavoritoLojaService.favoritar(lojaId, token);
+    else await FavoritoLojaService.desfavoritar(lojaId, token);
+  }, [favoritado, token, lojaId]);
 
   const handleAddToCart = useCallback((produtoId: string) => {
     const produto = produtos.find(p => p.id === produtoId);
@@ -110,6 +127,15 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
           <TouchableOpacity style={styles.btnBack} onPress={() => router.push('/(consumer)/vitrines')} activeOpacity={0.85}>
             <Ionicons name="chevron-back" size={20} color={colors.navy} />
           </TouchableOpacity>
+          <Animated.View style={[styles.btnHeart, { transform: [{ scale: heartScale }] }]}>
+            <TouchableOpacity onPress={handleFavorito} activeOpacity={0.85}>
+              <Ionicons
+                name={favoritado ? 'heart' : 'heart-outline'}
+                size={20}
+                color={favoritado ? colors.orange : colors.navy}
+              />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         <View style={styles.infoCardWrapper}>
@@ -202,6 +228,9 @@ const styles = StyleSheet.create({
   bannerGradient:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                      backgroundColor: 'rgba(0,9,51,0.4)' },
   btnBack:         { position: 'absolute', top: 44, left: 14, width: 38, height: 38,
+                     borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.95)',
+                     alignItems: 'center', justifyContent: 'center' },
+  btnHeart:        { position: 'absolute', top: 44, right: 14, width: 38, height: 38,
                      borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.95)',
                      alignItems: 'center', justifyContent: 'center' },
   infoCardWrapper: { marginHorizontal: 16, marginTop: -40, zIndex: 1 },

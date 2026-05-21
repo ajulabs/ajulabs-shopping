@@ -24,6 +24,28 @@ export interface Categoria {
   emoji: string;
 }
 
+export interface VariacaoProduto {
+  id: string;
+  produtoId: string;
+  nome: string;
+  estoque: number;
+}
+
+export interface AvaliacaoLoja {
+  id: string;
+  lojaId: string;
+  usuarioId: string;
+  pedidoId: string;
+  nota: number;
+  comentario?: string | null;
+  criadoEm: string;
+  usuario: {
+    id: string;
+    nome: string;
+    avatarUrl?: string | null;
+  };
+}
+
 export interface Produto {
   id: string;
   lojaId: string;
@@ -33,9 +55,11 @@ export interface Produto {
   imagem: string;
   imagens?: string[];
   categoria: string;
+  tags?: string[];
   disponivel: boolean;
   estoque?: number;
   destaque?: boolean;
+  variacoes?: VariacaoProduto[];
 }
 
 export interface Loja {

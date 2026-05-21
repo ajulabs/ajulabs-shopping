@@ -1,4 +1,4 @@
-import { Loja, Produto, Pedido, EnderecoSalvo, EntregadorResumo } from '@ajulabs/types';
+import { Loja, Produto, Pedido, EnderecoSalvo, EntregadorResumo, AvaliacaoLoja, VariacaoProduto } from '@ajulabs/types';
 export { matchAju, registrarCliqueSugestao } from "./consumer/aju";
 
 declare const process: { env: Record<string, string | undefined> };
@@ -37,9 +37,18 @@ function mapProduto(raw: any): Produto {
     imagem: raw.imagemUrl ?? '',
     imagens: Array.isArray(raw.imagens) ? raw.imagens : (raw.imagemUrl ? [raw.imagemUrl] : []),
     categoria: raw.categoria ?? '',
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
     disponivel: raw.disponivel ?? true,
     estoque: raw.estoque != null ? Number(raw.estoque) : undefined,
     destaque: raw.destaque ?? false,
+    variacoes: Array.isArray(raw.variacoes)
+      ? raw.variacoes.map((v: any): VariacaoProduto => ({
+          id: v.id,
+          produtoId: v.produtoId ?? raw.id,
+          nome: v.nome,
+          estoque: Number(v.estoque ?? 0),
+        }))
+      : undefined,
   };
 }
 
@@ -135,6 +144,103 @@ export const ProdutoService = {
     const data = await res.json();
     const lista = data.produtos ?? data;
     return lista.filter((p: any) => p.destaque).map(mapProduto);
+  },
+
+  buscarPorId: async (id: string): Promise<Produto | null> => {
+    const res = await fetch(`${API_URL}/produtos/${id}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return mapProduto(data.produto ?? data);
+  },
+};
+
+export const FavoritoLojaService = {
+  listar: async (token: string): Promise<Loja[]> => {
+    const res = await fetch(`${API_URL}/favoritos/lojas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const { lojas } = await res.json();
+    return (lojas ?? []).map(mapLoja);
+  },
+
+  checar: async (lojaId: string, token: string): Promise<boolean> => {
+    const res = await fetch(`${API_URL}/favoritos/lojas/${lojaId}/check`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const { favoritado } = await res.json();
+    return !!favoritado;
+  },
+
+  favoritar: async (lojaId: string, token: string): Promise<void> => {
+    await fetch(`${API_URL}/favoritos/lojas/${lojaId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  desfavoritar: async (lojaId: string, token: string): Promise<void> => {
+    await fetch(`${API_URL}/favoritos/lojas/${lojaId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
+export const AvaliacaoService = {
+  listarPorLoja: async (lojaId: string): Promise<AvaliacaoLoja[]> => {
+    const res = await fetch(`${API_URL}/avaliacoes/loja/${lojaId}`);
+    if (!res.ok) return [];
+    const { avaliacoes } = await res.json();
+    return (avaliacoes ?? []).map((a: any): AvaliacaoLoja => ({
+      id: a.id,
+      lojaId: a.lojaId,
+      usuarioId: a.usuarioId,
+      pedidoId: a.pedidoId,
+      nota: a.nota,
+      comentario: a.comentario ?? null,
+      criadoEm: a.criadoEm,
+      usuario: {
+        id: a.usuario?.id ?? '',
+        nome: a.usuario?.nome ?? 'Usuário',
+        avatarUrl: a.usuario?.avatarUrl ?? null,
+      },
+    }));
+  },
+};
+
+export const FavoritoService = {
+  listar: async (token: string): Promise<Produto[]> => {
+    const res = await fetch(`${API_URL}/favoritos/produtos`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const { produtos } = await res.json();
+    return (produtos ?? []).map(mapProduto);
+  },
+
+  checar: async (produtoId: string, token: string): Promise<boolean> => {
+    const res = await fetch(`${API_URL}/favoritos/produtos/${produtoId}/check`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const { favoritado } = await res.json();
+    return !!favoritado;
+  },
+
+  favoritar: async (produtoId: string, token: string): Promise<void> => {
+    await fetch(`${API_URL}/favoritos/produtos/${produtoId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  desfavoritar: async (produtoId: string, token: string): Promise<void> => {
+    await fetch(`${API_URL}/favoritos/produtos/${produtoId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
   },
 };
 
