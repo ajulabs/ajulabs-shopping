@@ -25,6 +25,13 @@ export interface CorridaOfertaPayload {
   taxaEntrega: number;
 }
 
+export interface TicketNovoPayload {
+  id: string;
+  protocolo: string;
+  motivo: string;
+  consumidorId: string;
+}
+
 export interface ServerEvents {
   'localizacao:entregador': (payload: LocationPayload) => void;
   'pedido:status': (payload: StatusPayload) => void;
@@ -33,6 +40,7 @@ export interface ServerEvents {
   'corrida:oferta': (payload: CorridaOfertaPayload) => void;
   'ticket:mensagem': (payload: TicketMensagemPayload) => void;
   'ticket:status': (payload: { ticketId: string; status: string }) => void;
+  'ticket:novo': (payload: TicketNovoPayload) => void;
 }
 
 export interface ClientEvents {

@@ -1,5 +1,5 @@
 export { getSocket, disconnectSocket } from './client';
-export type { ServerEvents, ClientEvents, LocationPayload, StatusPayload, TicketMensagemPayload, PedidoNovoPayload, CorridaOfertaPayload } from './events';
+export type { ServerEvents, ClientEvents, LocationPayload, StatusPayload, TicketMensagemPayload, PedidoNovoPayload, CorridaOfertaPayload, TicketNovoPayload } from './events';
 export { useDeliveryTracking } from './hooks/useDeliveryTracking';
 export { useLocationEmitter } from './hooks/useLocationEmitter';
 export { usePedidosRealtime } from './hooks/usePedidosRealtime';

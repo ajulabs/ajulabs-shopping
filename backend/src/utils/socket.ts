@@ -125,3 +125,7 @@ export function emitTicketMensagem(
 export function emitTicketStatus(consumidorId: string, ticketId: string, status: string): void {
   try { getIo().to(`usuario:${consumidorId}`).emit('ticket:status', { ticketId, status }); } catch {}
 }
+
+export function emitTicketNovo(lojaId: string, payload: object): void {
+  try { getIo().to(`loja:${lojaId}`).emit('ticket:novo', payload); } catch {}
+}

@@ -50,6 +50,7 @@ export function TicketsScreen() {
     roomId: lojaId ?? null,
     roomType: 'lojista',
     enabled: !!lojaId,
+    onNovo: fetchTickets,
     onMensagem: fetchTickets,
     onStatus: fetchTickets,
   });

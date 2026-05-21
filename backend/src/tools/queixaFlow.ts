@@ -7,6 +7,7 @@ import {
   EstadoSelecionandoPedido,
 } from '../utils/conversa';
 import { executarCriarTicket } from './executors';
+import { emitTicketNovo } from '../utils/socket';
 
 // ─── Tipos de retorno ─────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ export async function processarConfirmacao(
     ? await prisma.pedido.findUnique({ where: { id: estado.pedidoId }, select: { lojaId: true } })
     : null;
 
-  await prisma.supportTicket.create({
+  const ticket = await prisma.supportTicket.create({
     data: {
       consumidorId: usuarioId,
       pedidoId: estado.pedidoId,
@@ -187,6 +188,15 @@ export async function processarConfirmacao(
       protocolo,
     },
   });
+
+  if (pedido?.lojaId) {
+    emitTicketNovo(pedido.lojaId, {
+      id: ticket.id,
+      protocolo,
+      motivo: estado.motivo,
+      consumidorId: usuarioId,
+    });
+  }
 
   await atualizarEstado(conversaId, null);
 

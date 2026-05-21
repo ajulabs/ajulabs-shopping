@@ -11,6 +11,9 @@ import { ConsumerTicketService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 import { TicketConsumidor, TicketStatus, STATUS_META, tempoRelativo, mapTicketConsumidor } from '../model/data';
+import { useTicketRealtime } from '@ajulabs/realtime';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const FILTERS: { id: 'todos' | TicketStatus; label: string }[] = [
   { id: 'todos',        label: 'Todos' },
@@ -22,6 +25,7 @@ const FILTERS: { id: 'todos' | TicketStatus; label: string }[] = [
 export function MeusTicketsScreen() {
   const router  = useRouter();
   const token   = useAuthStore(s => s.token);
+  const userId  = useAuthStore(s => s.userId);
   const { bg, surf, borderL, text, textSec, textMut } = useTheme();
 
   const [tickets, setTickets] = useState<TicketConsumidor[]>([]);
@@ -42,6 +46,31 @@ export function MeusTicketsScreen() {
       fetch();
     }, [fetch])
   );
+
+  useTicketRealtime({
+    apiUrl: API_URL,
+    ticketId: null,
+    roomId: userId ?? null,
+    roomType: 'usuario',
+    enabled: !!userId,
+    onStatus: ({ ticketId, status }) => {
+      setTickets(prev => prev.map(t =>
+        t.id === ticketId ? { ...t, status: status as TicketStatus } : t
+      ));
+    },
+    onMensagem: (msg) => {
+      setTickets(prev => prev.map(t =>
+        t.id === msg.ticketId
+          ? { ...t, mensagens: [...t.mensagens, {
+              id: msg.id,
+              remetente: msg.remetente as 'consumidor' | 'lojista',
+              texto: msg.texto,
+              criadoEm: msg.criadoEm,
+            }] }
+          : t
+      ));
+    },
+  });
 
   const list = filter === 'todos' ? tickets : tickets.filter(t => t.status === filter);
   const countFor = (id: 'todos' | TicketStatus) =>
