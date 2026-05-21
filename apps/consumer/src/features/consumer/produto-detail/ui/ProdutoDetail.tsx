@@ -93,7 +93,7 @@ function ImageCarousel({ imagens, nome }: { imagens: string[]; nome: string }) {
               key={idx}
               source={{ uri }}
               style={styles.carouselImg}
-              resizeMode="cover"
+              resizeMode="contain"
               onError={() => setErrors(e => ({ ...e, [idx]: true }))}
             />
           ),
@@ -620,12 +620,12 @@ const styles = StyleSheet.create({
 
   // Carrossel
   carouselWrapper:      { width: SCREEN_W, backgroundColor: '#f5f5f7' },
-  carouselImg:          { width: SCREEN_W, aspectRatio: 1 },
-  carouselImgFallback:  { width: SCREEN_W, aspectRatio: 1,
+  carouselImg:          { width: SCREEN_W, height: 300, backgroundColor: '#f5f5f7' },
+  carouselImgFallback:  { width: SCREEN_W, height: 300,
                           alignItems: 'center', justifyContent: 'center',
                           backgroundColor: colors.orange100 },
   carouselImgFallbackText: { fontSize: 64, fontWeight: '700', color: colors.orange600 },
-  carouselFallback:     { width: SCREEN_W, aspectRatio: 1,
+  carouselFallback:     { width: SCREEN_W, height: 300,
                           alignItems: 'center', justifyContent: 'center',
                           backgroundColor: colors.n100 },
   dots:                 { flexDirection: 'row', justifyContent: 'center',
