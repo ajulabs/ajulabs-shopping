@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { Stage } from '../../corrida-ativa/ui/ActiveScreen';
+import type { Stage } from '../../corrida-ativa/model/types';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 

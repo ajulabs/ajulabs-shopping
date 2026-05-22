@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigation } from '@ajulabs/maps';
 
 interface Params {
@@ -7,18 +7,36 @@ interface Params {
 }
 
 export function useRideNavigation({ destination, enabled }: Params) {
-  const [navigationStarted, setNavigationStarted] = useState(false);
   const [centerTrigger, setCenterTrigger] = useState(0);
+  const [fitTrigger, setFitTrigger]       = useState(0);
+  const routeReadyRef = useRef(false);
 
+  // GPS starts as soon as destination is available — no button needed.
+  const nav = useNavigation(destination, enabled);
+
+  // Reset per-destination state when the delivery stage changes.
   useEffect(() => {
-    setNavigationStarted(false);
     setCenterTrigger(0);
+    routeReadyRef.current = false;
   }, [destination?.lat, destination?.lng]);
 
-  const nav = useNavigation(destination, enabled && navigationStarted);
+  // Auto-fit map the first time a route becomes ready for each destination.
+  // This gives the entregador a full overview of the route (Uber/iFood style).
+  useEffect(() => {
+    if (nav.routeReady && !routeReadyRef.current) {
+      routeReadyRef.current = true;
+      setFitTrigger(t => t + 1);
+    }
+  }, [nav.routeReady]);
 
-  const startNavigation = useCallback(() => setNavigationStarted(true), []);
   const centerMap = useCallback(() => setCenterTrigger(t => t + 1), []);
 
-  return { ...nav, navigationStarted, startNavigation, centerTrigger, centerMap };
+  return {
+    ...nav,
+    // navigationStarted is automatic: true when OSRM has a route ready.
+    navigationStarted: nav.routeReady,
+    centerTrigger,
+    fitTrigger,
+    centerMap,
+  };
 }

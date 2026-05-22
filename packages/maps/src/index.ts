@@ -1,7 +1,12 @@
 export { BaseMap } from './components/BaseMap';
 export type { BaseMapProps, MapMarker } from './components/BaseMap';
+export { DeliveryTrackingMap } from './components/DeliveryTrackingMap';
+export type { DeliveryTrackingMapProps, DeliveryStatus } from './components/DeliveryTrackingMap';
 export { useNavigation } from './hooks/useNavigation';
-export type { NavState } from './hooks/useNavigation';
+export type { NavState, NavigationConfig } from './hooks/useNavigation';
+export { useDeliveryMap } from './hooks/useDeliveryMap';
+export type { UseDeliveryMapOptions, DeliveryMapState } from './hooks/useDeliveryMap';
 export { useRouteDisplay } from './hooks/useRouteDisplay';
 export { haversine, nearestIdx, buildInstruction } from './utils/geo';
 export { fetchOsrmFull, fetchOsrmSimple } from './utils/osrm';
+export { getCachedRoute, setCachedRoute } from './utils/routeCache';

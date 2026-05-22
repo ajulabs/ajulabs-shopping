@@ -10,13 +10,14 @@ export const STAGE_LABEL: Record<Stage, string> = {
 
 export interface ActiveRide {
   id: string;
-  loja: { nome: string; endereco: string; bairro: string };
+  loja: { nome: string; endereco: string; bairro: string; cep?: string };
   cliente: {
     nome: string;
     telefone?: string;
     endereco: string;
     bairro: string;
     complemento?: string;
+    cep?: string;
   };
   ganho: number;
   distancia: number;

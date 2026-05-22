@@ -270,10 +270,10 @@ router.get('/corridas/ativas', async (req: AuthRequest, res: Response) => {
           select: {
             id: true,
             nome: true,
-            endereco: { select: { rua: true, numero: true, bairro: true, cidade: true } },
+            endereco: { select: { rua: true, numero: true, bairro: true, cidade: true, cep: true } },
           },
         },
-        enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true } },
+        enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true, cep: true } },
         itens: { select: { quantidade: true, nomeSnapshot: true, precoUnitario: true } },
         consumidor: { select: { nome: true, telefone: true } },
       },
@@ -320,10 +320,10 @@ router.get('/corridas/disponivel', async (req: AuthRequest, res: Response) => {
           select: {
             id: true,
             nome: true,
-            endereco: { select: { rua: true, numero: true, bairro: true, cidade: true } },
+            endereco: { select: { rua: true, numero: true, bairro: true, cidade: true, cep: true } },
           },
         },
-        enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true } },
+        enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true, cep: true } },
         itens: {
           select: {
             quantidade: true,

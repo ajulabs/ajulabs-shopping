@@ -84,7 +84,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      const errorMsg = typeof data.error === 'string' ? data.error : 'Erro ao criar conta';
+      let errorMsg = 'Erro ao criar conta';
+      if (typeof data.error === 'string') {
+        errorMsg = data.error;
+      } else if (Array.isArray(data.error) && data.error.length > 0) {
+        errorMsg = data.error.map((e: { message?: string }) => e.message ?? String(e)).join('. ');
+      }
       throw new Error(errorMsg);
     }
 

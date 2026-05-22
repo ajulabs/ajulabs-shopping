@@ -1,24 +1,25 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   Image, TextInput, ActivityIndicator, Alert, Linking,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useLocationEmitter } from '@ajulabs/realtime';
 import { useAuthEntregadorStore } from '../../auth/model/store';
-import { LeafletMap } from '../../../../components/LeafletMap';
-import type { MapMarker } from '../../../../components/LeafletMap';
+import { DeliveryTrackingMap } from '@ajulabs/maps';
 import { startBackgroundTracking, stopBackgroundTracking } from '../../../../tasks/locationTask';
 import { STAGES, STAGE_LABEL, type Stage, type ActiveRide } from '../model/types';
 import { geocode } from '../lib/geocode';
 import { fmtDist, fmtEta, fmtSpeed, maneuverIcon, brl } from '../lib/formatters';
 import { StageCard } from './components/StageCard';
+import { NavigationChoiceModal } from './components/NavigationChoiceModal';
+import { ExternalNavBadge } from './components/NavigationChoiceModal';
 import { useRideNavigation } from '../hooks/useRideNavigation';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-const ARACAJU = { lat: -10.9167, lng: -37.0500 };
 
 interface ActiveScreenProps {
   ride: ActiveRide;
@@ -38,25 +39,31 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
   const [codigoEntrega, setCodigoEntrega]     = useState('');
   const [loadingEntrega, setLoadingEntrega]   = useState(false);
 
-  const [mapMarkers, setMapMarkers]     = useState<MapMarker[]>([]);
-  const [mapCenter, setMapCenter]       = useState(ARACAJU);
   const [storeCoords, setStoreCoords]   = useState<{ lat: number; lng: number } | null>(null);
   const [clientCoords, setClientCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geocodeDone, setGeocodeDone]   = useState(false);
+
+  const [navMode, setNavMode]   = useState<'internal' | 'external' | null>(null);
+  const [extNavUrl, setExtNavUrl] = useState<string | null>(null);
+  const extNavTypeRef = useRef<'gmaps' | 'waze'>('gmaps');
+
+  const runGeocode = useCallback(async () => {
+    setGeocodeDone(false);
+    const [sc, cc] = await Promise.all([
+      geocode(`${ride.loja.endereco}, ${ride.loja.bairro}`, ride.loja.cep),
+      geocode(`${ride.cliente.endereco}, ${ride.cliente.bairro}`, ride.cliente.cep),
+    ]);
+    setStoreCoords(sc);
+    setClientCoords(cc);
+    setGeocodeDone(true);
+  }, [ride.loja.endereco, ride.loja.bairro, ride.loja.cep, ride.cliente.endereco, ride.cliente.bairro, ride.cliente.cep]);
+
+  useEffect(() => { runGeocode(); }, []);
 
   useEffect(() => {
-    (async () => {
-      const [sc, cc] = await Promise.all([
-        geocode(`${ride.loja.endereco}, ${ride.loja.bairro}`),
-        geocode(`${ride.cliente.endereco}, ${ride.cliente.bairro}`),
-      ]);
-      setStoreCoords(sc);
-      setClientCoords(cc);
-      const markers: MapMarker[] = [];
-      if (sc) { markers.push({ ...sc, color: '#000933', label: ride.loja.nome }); setMapCenter(sc); }
-      if (cc) { markers.push({ ...cc, color: '#F2760F', label: ride.cliente.nome }); if (!sc) setMapCenter(cc); }
-      if (markers.length > 0) setMapMarkers(markers);
-    })();
-  }, []);
+    setNavMode(null);
+    setExtNavUrl(null);
+  }, [stage]);
 
   const isMoving = stage === 'to-store' || stage === 'to-customer';
 
@@ -64,6 +71,57 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
     stage === 'to-store'    ? storeCoords  :
     stage === 'to-customer' ? clientCoords :
     null;
+
+  const destName = stage === 'to-store' ? ride.loja.nome : ride.cliente.nome;
+  const destAddress = stage === 'to-store'
+    ? `${ride.loja.endereco}, ${ride.loja.bairro}`
+    : `${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`;
+
+  const showNavChoiceModal = isMoving && geocodeDone && !!destination && navMode === null;
+
+  const handleOpenExternalNav = useCallback(async (type: 'gmaps' | 'waze') => {
+    extNavTypeRef.current = type;
+    setNavMode('external');
+
+    let origin: string | null = null;
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        origin = `${loc.coords.latitude},${loc.coords.longitude}`;
+      }
+    } catch {}
+
+    const dest = destination!;
+    let url: string;
+
+    if (type === 'gmaps') {
+      const params = new URLSearchParams({
+        api: '1',
+        destination: `${dest.lat},${dest.lng}`,
+        travelmode: 'driving',
+      });
+      if (origin) params.set('origin', origin);
+      url = `https://www.google.com/maps/dir/?${params}`;
+    } else {
+      url = `https://waze.com/ul?ll=${dest.lat},${dest.lng}&navigate=yes`;
+      if (origin) {
+        const [lat, lng] = origin.split(',');
+        url += `&from=lat:${lat} lng:${lng}`;
+      }
+    }
+
+    setExtNavUrl(url);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível abrir o aplicativo de navegação.');
+    }
+  }, [destination]);
+
+  const handleReopenExtNav = useCallback(() => {
+    if (extNavUrl) Linking.openURL(extNavUrl).catch(() => {});
+  }, [extNavUrl]);
 
   const {
     userLocation: navUserLocation,
@@ -77,10 +135,10 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
     heading,
     isOffRoute,
     navigationStarted,
-    startNavigation,
     centerTrigger,
+    fitTrigger,
     centerMap,
-  } = useRideNavigation({ destination, enabled: isMoving && !!(storeCoords || clientCoords) });
+  } = useRideNavigation({ destination, enabled: isMoving && !!destination && navMode === 'internal' });
 
   const isNavigating = isMoving && navigationStarted;
 
@@ -145,22 +203,26 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
     }
   }, [token, ride.id, codigoEntrega, onFinish]);
 
-  const userLocation = navUserLocation ?? undefined;
-  const center = userLocation ?? mapCenter;
   const routeCoordsDisplay = routeCoords.length > 1 ? routeCoords : undefined;
+  const isArrivingSoon     = navigationStarted && distanceRemaining > 0 && distanceRemaining < 150;
+  // Geocode failed for the current stage destination
+  const geocodeError = geocodeDone && !destination;
 
   return (
     <SafeAreaView style={s.safeArea}>
-      <LeafletMap
-        center={center}
-        userLocation={userLocation}
-        markers={mapMarkers}
+      <DeliveryTrackingMap
+        entregadorLocation={
+          navUserLocation
+            ? { lat: navUserLocation.lat, lng: navUserLocation.lng, heading, speedKmh }
+            : null
+        }
+        destination={destination}
         routeCoords={routeCoordsDisplay}
-        routeTo={destination}
-        heading={heading}
-        zoom={16}
-        style={s.mapBg}
+        defaultFollowing={true}
+        theme="light"
         centerTrigger={centerTrigger}
+        fitTrigger={fitTrigger}
+        style={s.mapBg}
       />
 
       <View style={s.topOverlay}>
@@ -232,7 +294,7 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
       )}
 
       <View style={s.bottomSheet}>
-        {isMoving && !navigationStarted && (
+        {isMoving && navMode !== 'external' && !navigationStarted && (
           <View>
             <View style={s.preNavRow}>
               <View style={[s.preNavIcon, { backgroundColor: stage === 'to-store' ? '#000933' : '#209CEF' }]}>
@@ -250,10 +312,48 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
                 </Text>
               </View>
             </View>
-            <TouchableOpacity style={s.startNavBtn} onPress={startNavigation} activeOpacity={0.85}>
-              <Ionicons name="navigate" size={18} color="#FFFFFF" />
-              <Text style={s.startNavBtnText}>Iniciar navegação</Text>
-            </TouchableOpacity>
+            {geocodeError ? (
+              <View style={s.geocodeErrorRow}>
+                <Ionicons name="warning-outline" size={16} color="#EF4444" />
+                <Text style={s.geocodeErrorText}>Endereço não encontrado no mapa.</Text>
+                <TouchableOpacity onPress={runGeocode} style={s.retryBtn} activeOpacity={0.7}>
+                  <Text style={s.retryBtnText}>Tentar novamente</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={s.calculatingRow}>
+                <ActivityIndicator color="#F2760F" size="small" />
+                <Text style={s.calculatingText}>Calculando melhor rota...</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {isMoving && navMode === 'external' && (
+          <View>
+            <View style={s.preNavRow}>
+              <View style={[s.preNavIcon, { backgroundColor: stage === 'to-store' ? '#000933' : '#209CEF' }]}>
+                <Ionicons name={stage === 'to-store' ? 'storefront' : 'home'} size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.preNavPrimary}>
+                  {stage === 'to-store' ? ride.loja.nome : ride.cliente.nome}
+                </Text>
+                <Text style={s.preNavSecondary} numberOfLines={1}>
+                  {stage === 'to-store'
+                    ? `${ride.loja.endereco} · ${ride.loja.bairro}`
+                    : `${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`
+                  }
+                </Text>
+              </View>
+            </View>
+            <View style={s.extNavRow}>
+              <ExternalNavBadge type={extNavTypeRef.current} />
+              <TouchableOpacity style={s.extNavReopenBtn} onPress={handleReopenExtNav} activeOpacity={0.8}>
+                <Ionicons name="open-outline" size={14} color="#209CEF" />
+                <Text style={s.extNavReopenText}>Reabrir</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -276,13 +376,21 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
           </View>
         )}
 
-        {stage === 'to-store' && navigationStarted && (
-          <StageCard
-            icon="storefront" iconColor="#000933"
-            primary={ride.loja.nome}
-            secondary={`${ride.loja.endereco} · ${ride.loja.bairro}`}
-            cta="Cheguei ao estabelecimento" onCta={advanceStage}
-          />
+        {stage === 'to-store' && (navigationStarted || navMode === 'external') && (
+          <>
+            {isArrivingSoon && navMode === 'internal' && (
+              <View style={s.arrivingBanner}>
+                <Ionicons name="location" size={14} color="#39FF89" />
+                <Text style={s.arrivingText}>Você está chegando ao estabelecimento!</Text>
+              </View>
+            )}
+            <StageCard
+              icon="storefront" iconColor="#000933"
+              primary={ride.loja.nome}
+              secondary={`${ride.loja.endereco} · ${ride.loja.bairro}`}
+              cta="Cheguei ao estabelecimento" onCta={advanceStage}
+            />
+          </>
         )}
 
         {stage === 'at-store' && (
@@ -327,14 +435,22 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
           </View>
         )}
 
-        {stage === 'to-customer' && navigationStarted && (
-          <StageCard
-            icon="home" iconColor="#209CEF"
-            primary={ride.cliente.nome}
-            secondary={`${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`}
-            cta="Pedido entregue" onCta={advanceStage}
-            codigoEntrega={ride.id.slice(0, 8).toUpperCase()}
-          />
+        {stage === 'to-customer' && (navigationStarted || navMode === 'external') && (
+          <>
+            {isArrivingSoon && navMode === 'internal' && (
+              <View style={s.arrivingBanner}>
+                <Ionicons name="location" size={14} color="#39FF89" />
+                <Text style={s.arrivingText}>Você está chegando ao destino do cliente!</Text>
+              </View>
+            )}
+            <StageCard
+              icon="home" iconColor="#209CEF"
+              primary={ride.cliente.nome}
+              secondary={`${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`}
+              cta="Pedido entregue" onCta={advanceStage}
+              codigoEntrega={ride.id.slice(0, 8).toUpperCase()}
+            />
+          </>
         )}
 
         {stage === 'delivered' && (
@@ -378,6 +494,15 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
           </View>
         )}
       </View>
+
+      <NavigationChoiceModal
+        visible={showNavChoiceModal}
+        destinationName={destName}
+        destinationAddress={destAddress}
+        onInternal={() => setNavMode('internal')}
+        onGoogleMaps={() => handleOpenExternalNav('gmaps')}
+        onWaze={() => handleOpenExternalNav('waze')}
+      />
     </SafeAreaView>
   );
 }
@@ -443,17 +568,35 @@ const s = StyleSheet.create({
     shadowOpacity: 0.25, shadowRadius: 30, elevation: 14, zIndex: 20,
   },
 
-  preNavRow:      { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
-  preNavIcon:     { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  preNavPrimary:  { fontSize: 16, fontWeight: '700', color: '#000933', lineHeight: 21 },
-  preNavSecondary:{ fontSize: 12, color: '#9099B3', marginTop: 2 },
-  startNavBtn:    {
+  preNavRow:       { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
+  preNavIcon:      { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  preNavPrimary:   { fontSize: 16, fontWeight: '700', color: '#000933', lineHeight: 21 },
+  preNavSecondary: { fontSize: 12, color: '#9099B3', marginTop: 2 },
+  calculatingRow:  {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: '#F2760F', borderRadius: 14, paddingVertical: 17,
-    shadowColor: '#F2760F', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 14, elevation: 6,
+    paddingVertical: 12,
   },
-  startNavBtnText:{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  extNavRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F0F7FF', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  extNavReopenBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  extNavReopenText:{ fontSize: 13, fontWeight: '700', color: '#209CEF' },
+  calculatingText:  { fontSize: 13, color: '#9099B3', fontWeight: '600' },
+  geocodeErrorRow:  {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12,
+  },
+  geocodeErrorText: { fontSize: 12, color: '#EF4444', fontWeight: '600', flex: 1 },
+  retryBtn:         { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#EF4444', borderRadius: 8 },
+  retryBtnText:     { fontSize: 11, color: '#fff', fontWeight: '700' },
+  arrivingBanner:  {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(57,255,137,0.10)',
+    borderWidth: 1, borderColor: '#39FF89',
+    borderRadius: 10, padding: 10, marginBottom: 10,
+  },
+  arrivingText:    { fontSize: 13, color: '#39FF89', fontWeight: '700', flex: 1 },
 
   navStats:       { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F6F7FB', borderRadius: 14, paddingVertical: 10, marginBottom: 14 },
   navStat:        { flex: 1, alignItems: 'center' },
