@@ -6,6 +6,19 @@ import type { NavStep } from '@ajulabs/types';
 
 export type { NavStep };
 
+export interface NavigationConfig {
+  /** GPS accuracy. 'high' = BestForNavigation (default). 'balanced' saves battery. */
+  accuracyMode?: 'high' | 'balanced';
+  /** Min distance (meters) between GPS samples. Default: 5. Increase to save battery. */
+  distanceInterval?: number;
+  /** Min time (ms) between GPS samples. Default: 1000. Increase to save battery. */
+  timeInterval?: number;
+  /** Distance (meters) to consider off-route. Default: 80. */
+  offRouteThreshold?: number;
+  /** Distance (meters) to advance to next step. Default: 25. */
+  stepAdvanceDistance?: number;
+}
+
 export interface NavState {
   userLocation: { lat: number; lng: number } | null;
   heading: number;
@@ -24,7 +37,15 @@ export interface NavState {
 export function useNavigation(
   destination: { lat: number; lng: number } | null,
   active: boolean,
+  config?: NavigationConfig,
 ): NavState {
+  const {
+    accuracyMode = 'high',
+    distanceInterval = 5,
+    timeInterval = 1000,
+    offRouteThreshold = 80,
+    stepAdvanceDistance = 25,
+  } = config ?? {};
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading]           = useState(0);
   const [speedKmh, setSpeedKmh]         = useState(0);
@@ -37,15 +58,18 @@ export function useNavigation(
   const [isOffRoute, setIsOffRoute]     = useState(false);
   const [routeReady, setRouteReady]     = useState(false);
 
-  const routeCoordsRef  = useRef<{ lat: number; lng: number }[]>([]);
-  const stepsRef        = useRef<NavStep[]>([]);
-  const stepIdxRef      = useRef(0);
-  const progressIdxRef  = useRef(0);
-  const destRef         = useRef(destination);
-  const fetchKeyRef     = useRef('');
-  const fetchingRef     = useRef(false);
+  const routeCoordsRef    = useRef<{ lat: number; lng: number }[]>([]);
+  const stepsRef          = useRef<NavStep[]>([]);
+  const stepIdxRef        = useRef(0);
+  const progressIdxRef    = useRef(0);
+  const destRef           = useRef(destination);
+  const fetchKeyRef       = useRef('');
+  const fetchingRef       = useRef(false);
+  const userLocationRef   = useRef<{ lat: number; lng: number } | null>(null);
+  const routeReadyRef     = useRef(false);
 
-  destRef.current = destination;
+  destRef.current       = destination;
+  routeReadyRef.current = routeReady;
 
   const fetchRoute = useCallback(async (from: { lat: number; lng: number }) => {
     const dest = destRef.current;
@@ -90,9 +114,11 @@ export function useNavigation(
 
       sub = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5,
-          timeInterval: 1000,
+          accuracy: accuracyMode === 'high'
+            ? Location.Accuracy.BestForNavigation
+            : Location.Accuracy.Balanced,
+          distanceInterval,
+          timeInterval,
         },
         (loc) => {
           const pos  = { lat: loc.coords.latitude, lng: loc.coords.longitude };
@@ -100,6 +126,7 @@ export function useNavigation(
           const spd  = Math.max(0, (loc.coords.speed ?? 0) * 3.6);
 
           setUserLocation(pos);
+          userLocationRef.current = pos;
           setHeading(hdg);
           setSpeedKmh(spd);
 
@@ -112,7 +139,7 @@ export function useNavigation(
           }
 
           const { idx: nearIdx, dist: nearDist } = nearestIdx(pos, coords, progressIdxRef.current);
-          if (nearDist > 80) {
+          if (nearDist > offRouteThreshold) {
             setIsOffRoute(true);
             fetchKeyRef.current = '';
             fetchRoute(pos);
@@ -126,7 +153,7 @@ export function useNavigation(
           if (steps.length > sIdx) {
             const dToStep = haversine(pos, steps[sIdx].location);
             setDistanceToStep(dToStep);
-            if (dToStep < 25 && sIdx + 1 < steps.length) {
+            if (dToStep < stepAdvanceDistance && sIdx + 1 < steps.length) {
               stepIdxRef.current = sIdx + 1;
               setStepIdx(sIdx + 1);
             }
@@ -144,7 +171,8 @@ export function useNavigation(
     })();
 
     return () => { sub?.remove(); };
-  }, [active, fetchRoute]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, fetchRoute, accuracyMode, distanceInterval, timeInterval]);
 
   useEffect(() => {
     if (destination && userLocation) {
@@ -153,6 +181,21 @@ export function useNavigation(
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination?.lat, destination?.lng]);
+
+  // Retry route every 8 s when not yet ready — handles desktop browsers where
+  // watchPosition only fires once (user not moving) and OSRM may time out.
+  useEffect(() => {
+    if (!active || routeReady) return;
+    const id = setInterval(() => {
+      if (routeReadyRef.current) return;
+      const pos = userLocationRef.current;
+      if (!pos || !destRef.current) return;
+      fetchKeyRef.current = '';
+      fetchRoute(pos);
+    }, 8000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, routeReady, fetchRoute]);
 
   return {
     userLocation,

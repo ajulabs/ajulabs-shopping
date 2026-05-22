@@ -15,6 +15,7 @@ import entregadorRoutes from './routes/entregador.routes';
 import lojistaRoutes from './routes/lojista.routes';
 import ticketsRoutes from './routes/tickets.routes';
 import favoritosRoutes from './routes/favoritos.routes';
+import geocodeRoutes from './routes/geocode.routes';
 import { initSocket } from './utils/socket';
 import { backfillEmbeddings } from './jobs/backfillEmbeddings';
 
@@ -59,6 +60,7 @@ app.use('/entregador', entregadorRoutes);
 app.use('/lojista', lojistaRoutes);
 app.use('/tickets', ticketsRoutes);
 app.use('/favoritos', favoritosRoutes);
+app.use('/geocode', geocodeRoutes);
 
 // 404
 app.use((req, res) => {

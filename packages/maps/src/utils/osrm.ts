@@ -1,4 +1,5 @@
 import { buildInstruction } from './geo';
+import { getCachedRoute, setCachedRoute } from './routeCache';
 import type { NavStep } from '@ajulabs/types';
 
 export async function fetchOsrmFull(
@@ -10,13 +11,23 @@ export async function fetchOsrmFull(
   totalDuration: number;
   totalDistance: number;
 }> {
+  const cached = getCachedRoute(from, to);
+  if (cached) return cached;
+
   const url =
     `https://router.project-osrm.org/route/v1/driving/` +
     `${from.lng},${from.lat};${to.lng},${to.lat}` +
     `?overview=full&geometries=geojson&steps=true`;
 
-  const res = await fetch(url);
-  const data = await res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+  const data = await res!.json();
   const route = data.routes?.[0];
   if (!route) throw new Error('Rota não encontrada');
 
@@ -36,12 +47,15 @@ export async function fetchOsrmFull(
     }
   }
 
-  return {
+  const result = {
     coords,
     steps,
     totalDuration: route.duration as number,
     totalDistance: route.distance as number,
   };
+
+  setCachedRoute(from, to, result);
+  return result;
 }
 
 export async function fetchOsrmSimple(
