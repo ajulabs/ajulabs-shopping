@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/';
+const API_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
 
 interface DadosRegistro {
   nome: string;
@@ -105,12 +106,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   enviarCodigo: async (telefone: string) => {
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
     set({ telefone });
   },
 
   verificarCodigo: async (codigo: string) => {
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 800));
     if (codigo.length === 4) {
       set({ codigoVerificado: true, userId: 'user-001' });
       return true;

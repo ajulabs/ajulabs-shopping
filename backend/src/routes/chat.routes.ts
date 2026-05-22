@@ -17,8 +17,12 @@ import {
   processarSelecaoPedido,
   processarConfirmacao,
 } from '../tools/queixaFlow';
+import { chatLimiter } from '../lib/rateLimiter';
+import { logger } from '../lib/logger';
 
 const router = Router();
+
+router.use(chatLimiter);
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -51,10 +55,14 @@ Regras:
 
 const mensagemSchema = z.object({
   texto: z.string().min(1).max(1000),
-  historico: z.array(z.object({
-    remetente: z.enum(['usuario', 'aju']),
-    conteudo: z.string(),
-  })).default([]),
+  historico: z
+    .array(
+      z.object({
+        remetente: z.enum(['usuario', 'aju']),
+        conteudo: z.string(),
+      }),
+    )
+    .default([]),
   conversaId: z.string().uuid().optional(),
   pedidoSelecionadoId: z.string().uuid().optional(),
 });
@@ -71,7 +79,7 @@ type ProdutoChat = {
 };
 
 function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
-  return produtos.slice(0, 3).map(p => ({
+  return produtos.slice(0, 3).map((p) => ({
     id: p.id,
     lojaId: p.lojaId,
     nome: p.nome,
@@ -86,7 +94,12 @@ function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
 // POST /chat/mensagem
 router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
   try {
-    const { texto, historico, conversaId: conversaIdReq, pedidoSelecionadoId } = mensagemSchema.parse(req.body);
+    const {
+      texto,
+      historico,
+      conversaId: conversaIdReq,
+      pedidoSelecionadoId,
+    } = mensagemSchema.parse(req.body);
     const usuarioId = req.user!.id;
 
     const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
@@ -97,8 +110,8 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
     // ── Passo 3: confirmação ──────────────────────────────────────────────────
     if (estado?.passo === 'confirmando') {
       const resultado = await processarConfirmacao(conversaId, usuarioId, texto);
-      const textoSalvo = resultado.tipo === 'resposta' ? resultado.texto
-        : (resultado as { texto: string }).texto;
+      const textoSalvo =
+        resultado.tipo === 'resposta' ? resultado.texto : (resultado as { texto: string }).texto;
       await salvarMensagens(conversaId, texto, textoSalvo);
       return res.json({ ...resultado, conversaId });
     }
@@ -111,7 +124,7 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
     }
 
     // ── Fluxo normal com OpenAI ───────────────────────────────────────────────
-    const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map(m => ({
+    const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map((m) => ({
       role: m.remetente === 'usuario' ? 'user' : 'assistant',
       content: m.conteudo,
     }));
@@ -143,7 +156,13 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
     const toolCall = mensagemAgente.tool_calls[0];
     if (toolCall.type !== 'function') {
       await salvarMensagens(conversaId, texto, 'Não entendi. Pode repetir?');
-      return res.json({ tipo: 'resposta', texto: 'Não entendi. Pode repetir?', produtos: [], sugestoes: [], conversaId });
+      return res.json({
+        tipo: 'resposta',
+        texto: 'Não entendi. Pode repetir?',
+        produtos: [],
+        sugestoes: [],
+        conversaId,
+      });
     }
 
     const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
@@ -189,7 +208,7 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('[chat/mensagem]', msg);
+    logger.error({ msg }, '[chat/mensagem]');
     res.status(500).json({
       tipo: 'resposta',
       texto: 'Eita, tive um probleminha aqui. Tenta de novo!',
@@ -199,38 +218,49 @@ router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, r
 });
 
 // POST /chat/sugestao/:id/clique
-router.post('/sugestao/:id/clique', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
-  try {
-    await registrarClique(req.params.id);
-    res.json({ ok: true });
-  } catch (error) {
-    console.error('[chat/sugestao/clique]', error);
-    res.status(500).json({ error: 'Erro ao registrar clique' });
-  }
-});
+router.post(
+  '/sugestao/:id/clique',
+  authMiddleware,
+  authUsuario,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      await registrarClique(req.params.id);
+      res.json({ ok: true });
+    } catch (error) {
+      logger.error({ err: error }, '[chat/sugestao/clique]');
+      res.status(500).json({ error: 'Erro ao registrar clique' });
+    }
+  },
+);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 // POST /chat/transcricao  (multipart/form-data, campo: "audio")
-router.post('/transcricao', authMiddleware, authUsuario, upload.single('audio'), async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Arquivo de áudio ausente' });
+router.post(
+  '/transcricao',
+  authMiddleware,
+  authUsuario,
+  upload.single('audio'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'Arquivo de áudio ausente' });
 
-    const file = await toFile(req.file.buffer, req.file.originalname || 'audio.m4a', {
-      type: req.file.mimetype || 'audio/m4a',
-    });
+      const file = await toFile(req.file.buffer, req.file.originalname || 'audio.m4a', {
+        type: req.file.mimetype || 'audio/m4a',
+      });
 
-    const transcricao = await openai.audio.transcriptions.create({
-      file,
-      model: 'whisper-1',
-      language: 'pt',
-    });
+      const transcricao = await openai.audio.transcriptions.create({
+        file,
+        model: 'whisper-1',
+        language: 'pt',
+      });
 
-    res.json({ texto: transcricao.text });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao transcrever áudio' });
-  }
-});
+      res.json({ texto: transcricao.text });
+    } catch (error) {
+      logger.error({ err: error }, 'Erro ao transcrever áudio');
+      res.status(500).json({ error: 'Erro ao transcrever áudio' });
+    }
+  },
+);
 
 export default router;

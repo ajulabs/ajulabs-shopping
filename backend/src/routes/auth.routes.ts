@@ -3,14 +3,13 @@ import { z } from 'zod';
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 import { gerarToken, gerarRefreshToken, verificarRefreshToken } from '../utils/jwt';
 import { prisma } from '../utils/prisma';
-import {
-  cpfSchema,
-  cnpjSchema,
-  senhaForteSchema,
-  emailSchema,
-} from '../utils/validacoes';
+import { cpfSchema, cnpjSchema, senhaForteSchema, emailSchema } from '../utils/validacoes';
+import { authLimiter } from '../lib/rateLimiter';
+import { logger } from '../lib/logger';
 
 const router = Router();
+
+router.use(authLimiter);
 
 // ========================================
 // CONSUMIDOR
@@ -52,21 +51,28 @@ router.post('/usuario/registrar', async (req, res) => {
     res.status(201).json({
       token,
       refreshToken,
-      usuario: { id: usuario.id, nome: usuario.nome, telefone: usuario.telefone, email: usuario.email },
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        telefone: usuario.telefone,
+        email: usuario.email,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    console.error(error);
+    logger.error({ err: error }, 'Erro ao registrar usuário');
     res.status(500).json({ error: 'Erro ao registrar usuário' });
   }
 });
 
 router.post('/usuario/login', async (req, res) => {
   try {
-    const { cpf, senha } = z.object({
-      cpf: z.string(),
-      senha: z.string(),
-    }).parse(req.body);
+    const { cpf, senha } = z
+      .object({
+        cpf: z.string(),
+        senha: z.string(),
+      })
+      .parse(req.body);
 
     const cpfRaw = cpf.replace(/\D/g, '');
     const usuario = await prisma.usuario.findUnique({ where: { cpf: cpfRaw } });
@@ -82,7 +88,12 @@ router.post('/usuario/login', async (req, res) => {
     res.json({
       token,
       refreshToken,
-      usuario: { id: usuario.id, nome: usuario.nome, telefone: usuario.telefone, email: usuario.email },
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        telefone: usuario.telefone,
+        email: usuario.email,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
@@ -130,7 +141,7 @@ router.post('/entregador/registrar', async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    console.error('[entregador/registrar]', error);
+    logger.error({ err: error }, '[entregador/registrar]');
     res.status(500).json({ error: 'Erro ao registrar entregador' });
   }
 });
@@ -138,10 +149,12 @@ router.post('/entregador/registrar', async (req, res) => {
 // Aceita email OU telefone para login (campo "identificador" novo ou "telefone" legado)
 router.post('/entregador/login', async (req, res) => {
   try {
-    const { cpf, senha } = z.object({
-      cpf: z.string(),
-      senha: z.string(),
-    }).parse(req.body);
+    const { cpf, senha } = z
+      .object({
+        cpf: z.string(),
+        senha: z.string(),
+      })
+      .parse(req.body);
 
     const cpfRaw = cpf.replace(/\D/g, '');
     const entregador = await prisma.entregador.findUnique({ where: { cpf: cpfRaw } });
@@ -157,7 +170,13 @@ router.post('/entregador/login', async (req, res) => {
     res.json({
       token,
       refreshToken,
-      entregador: { id: entregador.id, nome: entregador.nome, email: entregador.email, statusConta: entregador.statusConta, fotoUrl: entregador.fotoUrl ?? null },
+      entregador: {
+        id: entregador.id,
+        nome: entregador.nome,
+        email: entregador.email,
+        statusConta: entregador.statusConta,
+        fotoUrl: entregador.fotoUrl ?? null,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
@@ -211,7 +230,13 @@ router.post('/lojista/registrar', async (req, res) => {
     res.status(201).json({
       token,
       refreshToken,
-      lojista: { id: lojista.id, nomeResponsavel: lojista.nomeResponsavel, email: lojista.email, lojaId: loja.id, lojaNome: loja.nome },
+      lojista: {
+        id: lojista.id,
+        nomeResponsavel: lojista.nomeResponsavel,
+        email: lojista.email,
+        lojaId: loja.id,
+        lojaNome: loja.nome,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
@@ -222,11 +247,13 @@ router.post('/lojista/registrar', async (req, res) => {
 // Aceita email OU cnpj para login (campo "identificador" novo ou "cnpj" legado)
 router.post('/lojista/login', async (req, res) => {
   try {
-    const body = z.object({
-      identificador: z.string().optional(),
-      cnpj: z.string().optional(),
-      senha: z.string(),
-    }).parse(req.body);
+    const body = z
+      .object({
+        identificador: z.string().optional(),
+        cnpj: z.string().optional(),
+        senha: z.string(),
+      })
+      .parse(req.body);
 
     const raw = body.identificador ?? body.cnpj ?? '';
     const senha = body.senha;
@@ -256,7 +283,14 @@ router.post('/lojista/login', async (req, res) => {
     res.json({
       token,
       refreshToken,
-      lojista: { id: lojista.id, nomeResponsavel: lojista.nomeResponsavel, email: lojista.email, cnpj: lojista.cnpj, lojaId: loja?.id ?? null, lojaNome: loja?.nome ?? null },
+      lojista: {
+        id: lojista.id,
+        nomeResponsavel: lojista.nomeResponsavel,
+        email: lojista.email,
+        cnpj: lojista.cnpj,
+        lojaId: loja?.id ?? null,
+        lojaNome: loja?.nome ?? null,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
