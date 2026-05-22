@@ -2,7 +2,7 @@
 
 Marketplace local de Aracaju conectando consumidores e lojistas com entrega rápida e assistente de compras com IA (Aju).
 
-Três apps mobile independentes compartilhando código via packages internos.
+Três apps mobile independentes + backend Node.js, compartilhando código via packages internos.
 
 ---
 
@@ -20,6 +20,9 @@ Três apps mobile independentes compartilhando código via packages internos.
 | OpenAI API | — | Assistente de compras Aju |
 | pnpm | 10+ | Gerenciador de pacotes (workspaces) |
 | TypeScript | 5.9 | Tipagem estática |
+| Node.js + Express | — | Backend REST API |
+| Prisma | — | ORM + migrações |
+| PostgreSQL | — | Banco de dados |
 
 ---
 
@@ -37,105 +40,148 @@ ajulabs/
 │   ├── theme/                 Cores e tokens de design
 │   └── api-client/            Services + mock de dados (vira API real no futuro)
 │
+├── backend/                   API Node.js + Express + Prisma
+│
 ├── pnpm-workspace.yaml        Define os workspaces
 ├── tsconfig.base.json         Config TypeScript compartilhada
 ├── .npmrc                     Config do pnpm (hoisting pro Expo)
 └── package.json               Scripts globais
 ```
 
-### Como os apps usam os packages
-
-```
-apps/consumer/          apps/lojista/          apps/entregador/
-     │                       │                       │
-     └───────────────────────┼───────────────────────┘
-                             │
-                    import { Loja } from '@ajulabs/types'
-                    import { colors } from '@ajulabs/theme'
-                    import { LojaService } from '@ajulabs/api-client'
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-        packages/types  packages/theme  packages/api-client
-```
-
-Mudou um tipo em `packages/types`? O TypeScript reclama nos 3 apps automaticamente.
-
 ---
 
-## Setup do ambiente
-
-### Pré-requisitos
+## Pré-requisitos
 
 - **Node.js 20+** — [nodejs.org](https://nodejs.org)
-- **pnpm 10+** — instalar com `npm install -g pnpm`
+- **pnpm 10+** — `npm install -g pnpm`
 - **Git** — [git-scm.com](https://git-scm.com)
 - **Expo Go** no celular — [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779)
 
-### Instalação (primeiro setup)
-
-```bash
-# 1. Clone o repositório
-git clone https://github.com/SEU_USUARIO/ajulabs-shopping-frontend.git
-cd ajulabs-shopping-frontend
-
-# 2. Instale todas as dependências (dos 3 apps + packages, de uma vez)
-pnpm install
-
-# 3. Crie o .env do consumer (chave da OpenAI pro chat da Aju)
-cp apps/consumer/.env.example apps/consumer/.env
-# Edite apps/consumer/.env e coloque sua chave
-```
-
 > **Importante:** usamos `pnpm`, não `npm` nem `yarn`. Os workspaces só funcionam com pnpm.
-
-### Variáveis de ambiente
-
-O consumer precisa de uma variável pra o chat da Aju funcionar:
-
-```bash
-# apps/consumer/.env
-EXPO_PUBLIC_OPENAI_API_KEY="sua-chave-aqui"
-```
-
-Obtenha sua chave em [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
-
-O `.env` nunca é commitado (está no `.gitignore`).
 
 ---
 
-## Rodando os apps
+## Setup — Frontend (apps mobile)
 
-Da **raiz do monorepo**, rode qualquer app com um único comando:
+### 1. Instalar dependências
 
 ```bash
-# App do consumidor (marketplace)
-pnpm consumer
+git clone https://github.com/SEU_USUARIO/ajulabs-shopping-frontend.git
+cd ajulabs-shopping-frontend
+pnpm install
+```
 
-# App do lojista (gestão de pedidos/produtos)
-pnpm lojista
+### 2. Variáveis de ambiente
 
-# App do entregador (rastreamento)
-pnpm entregador
+Crie `apps/consumer/.env` com:
+
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:3000/
+```
+
+O `.env` nunca é commitado.
+
+### 3. Rodar os apps
+
+Da **raiz do monorepo**:
+
+```bash
+pnpm consumer      # App do consumidor (marketplace)
+pnpm lojista       # App do lojista (gestão de pedidos/produtos)
+pnpm entregador    # App do entregador (rastreamento)
 ```
 
 Cada comando abre o Metro Bundler com um QR code. Escaneie com o Expo Go no celular.
 
-> **Dica:** só é possível rodar 1 app por vez (cada um ocupa a porta 8081). Para trocar, faça `Ctrl+C` e rode o outro.
+> Só é possível rodar 1 app por vez (cada um ocupa a porta 8081). Para trocar, faça `Ctrl+C` e rode o outro.
 
 ### Outros comandos úteis
 
 ```bash
-# Verificar tipos em todos os workspaces
-pnpm typecheck
-
-# Rodar diretamente no Android/iOS
-pnpm consumer:android
-pnpm consumer:ios
+pnpm typecheck          # Verificar tipos em todos os workspaces
+pnpm consumer:android   # Rodar direto no Android
+pnpm consumer:ios       # Rodar direto no iOS
 
 # Limpar cache do Metro (quando der erro estranho)
-cd apps/consumer
-npx expo start --clear
+cd apps/consumer && npx expo start --clear
+```
+
+---
+
+## Setup — Backend
+
+### 1. Entrar na pasta e instalar dependências
+
+```bash
+cd backend
+pnpm install
+```
+
+### 2. Variáveis de ambiente
+
+Copie o exemplo e preencha com as credenciais:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+```bash
+DATABASE_URL=postgresql://...        # Supabase (pooler)
+DIRECT_URL=postgresql://...          # Supabase (direto, usado pelo Prisma)
+SUPABASE_URL=https://....supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_KEY=eyJ...
+
+PORT=3000
+NODE_ENV=development
+JWT_SECRET=segredo-longo-aleatorio
+JWT_REFRESH_SECRET=outro-segredo-longo
+OPENAI_API_KEY=sk-...                # Chave da OpenAI (chat da Aju)
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+ALLOWED_ORIGINS=                     # Vazio em dev (aceita qualquer origem)
+```
+
+O `.env` nunca vai pro Git.
+
+### 3. Configurar o banco de dados
+
+```bash
+pnpm prisma:generate   # Gera o Prisma Client
+pnpm prisma:push       # Sincroniza o schema com o banco
+```
+
+> Rode `pnpm prisma:generate` sempre que alterar o `schema.prisma`.
+
+### 4. Rodar o servidor
+
+```bash
+pnpm dev
+```
+
+O servidor sobe em `http://localhost:3000`.
+
+### Scripts disponíveis do backend
+
+```bash
+pnpm dev              # Servidor em modo watch (desenvolvimento)
+pnpm build            # Compilar TypeScript
+pnpm start            # Rodar build de produção
+pnpm prisma:studio    # Interface visual do banco (Prisma Studio)
+pnpm prisma:seed      # Popular o banco com dados iniciais
+pnpm db:reset         # Resetar o banco
+```
+
+### Testar rotas com curl
+
+```bash
+# Fazer login e salvar o token
+curl.exe -X POST http://localhost:3000/auth/usuario/login \
+  -H "Content-Type: application/json" \
+  -d "{\"telefone\":\"+5579999991234\",\"senha\":\"123456\"}"
+
+# Usar o token nas rotas protegidas
+curl.exe http://localhost:3000/perfil \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 ```
 
 ---
@@ -148,42 +194,40 @@ Cada app segue **Feature-Sliced Design** adaptado para React Native:
 apps/consumer/
 ├── app/                       Rotas (Expo Router) — só importam e renderizam features
 │   ├── (consumer)/
-│   │   ├── _layout.tsx        Tab navigator (Chat, Vitrines, Carrinho, Pedidos, Perfil)
+│   │   ├── _layout.tsx        Tab navigator
 │   │   ├── chat.tsx           → importa ChatIA
 │   │   ├── vitrines.tsx       → importa VitrinesList
-│   │   ├── carrinho.tsx       → importa CartScreen
 │   │   └── ...
 │   └── _layout.tsx            Root layout
 │
 ├── src/
 │   ├── features/consumer/     Telas organizadas por domínio
-│   │   ├── cart/ui/           CartScreen, CartItemRow, CartLojaGrupo
-│   │   ├── chat/ui/           ChatIA, ChatInput, ChatMsg
-│   │   ├── vitrines/ui/       VitrinesList, LojaCard, LojasDestaque
-│   │   ├── vitrine-detail/ui/ VitrineDetail, ProdutoCard
+│   │   ├── cart/ui/
+│   │   ├── chat/ui/
+│   │   ├── vitrines/ui/
 │   │   └── ...
-│   ├── store/                 Estado global (Zustand) — cartStore
+│   ├── store/                 Estado global (Zustand)
 │   └── components/            Componentes genéricos (usados em 2+ features)
 │
 └── assets/                    Ícones, imagens, fontes
 ```
 
-### Regras da arquitetura
+### Regras
 
-- **`app/`** — só roteamento. Arquivos finos que importam e renderizam features. Sem lógica.
-- **`features/`** — todo código de tela vive aqui. Cada feature tem sua pasta `ui/` e um `index.ts` de barrel export.
-- **`components/`** — só componentes usados em 2+ features. Se é específico de uma feature, fica dentro dela.
+- **`app/`** — só roteamento. Sem lógica.
+- **`features/`** — todo código de tela vive aqui. Cada feature tem `ui/` e `index.ts`.
+- **`components/`** — só componentes usados em 2+ features.
 - **`store/`** — estado global compartilhado (carrinho, usuário, preferências).
 
 ### Packages compartilhados
 
 | Package | Import | O que contém |
 |---|---|---|
-| `@ajulabs/types` | `import { Loja } from '@ajulabs/types'` | Todas as interfaces: Loja, Produto, Pedido, Usuario, ItemCarrinho, etc. |
-| `@ajulabs/theme` | `import { colors } from '@ajulabs/theme'` | Paleta de cores (navy, orange, n50-n900) e tokens de design |
-| `@ajulabs/api-client` | `import { LojaService } from '@ajulabs/api-client'` | Services (LojaService, ProdutoService, PedidoService) + mock data + chat Aju |
+| `@ajulabs/types` | `import { Loja } from '@ajulabs/types'` | Interfaces: Loja, Produto, Pedido, Usuario, etc. |
+| `@ajulabs/theme` | `import { colors } from '@ajulabs/theme'` | Paleta de cores e tokens de design |
+| `@ajulabs/api-client` | `import { LojaService } from '@ajulabs/api-client'` | Services + mock data + chat Aju |
 
-> **Regra:** nunca importe com path relativo (`../../../../types`). Sempre use `@ajulabs/*`.
+> **Regra:** nunca importe com path relativo. Sempre use `@ajulabs/*`.
 
 ---
 
@@ -195,7 +239,6 @@ git checkout main && git pull origin main
 
 # Criar branch
 git checkout -b feat/consumer-checkout
-git checkout -b feat/lojista-dashboard
 git checkout -b fix/cart-total-bug
 
 # Commitar
@@ -218,15 +261,7 @@ git push origin feat/consumer-checkout
 
 ### Escopos comuns
 
-| Escopo | Quando usar |
-|---|---|
-| `consumer` | Mudança no app do consumidor |
-| `lojista` | Mudança no app do lojista |
-| `entregador` | Mudança no app do entregador |
-| `types` | Mudança nas interfaces compartilhadas |
-| `api-client` | Mudança nos services ou mock |
-| `theme` | Mudança nos tokens de design |
-| `monorepo` | Config de workspace, CI, scripts globais |
+`consumer` · `lojista` · `entregador` · `types` · `api-client` · `theme` · `monorepo` · `backend`
 
 > **Nunca faça push direto na main.** Todo código entra via Pull Request.
 
@@ -234,70 +269,40 @@ git push origin feat/consumer-checkout
 
 ## Trabalhando com packages
 
-### Quando mudar um tipo
-
-Se você precisa adicionar um campo novo numa interface (ex: `telefone` em `Loja`):
-
-1. Edite `packages/types/src/index.ts`
-2. Rode `pnpm typecheck` — vai mostrar todos os arquivos que precisam ser atualizados
-3. Corrija nos apps afetados
-4. Commite tudo no mesmo PR:
-   ```
-   feat(types): add telefone field to Loja interface
-   ```
-
-### Quando adicionar uma dependência
+### Adicionar uma dependência
 
 ```bash
-# Adicionar no consumer
-cd apps/consumer
-pnpm add nome-do-pacote
+# No consumer
+cd apps/consumer && pnpm add nome-do-pacote
 
-# Adicionar num package compartilhado
-cd packages/api-client
-pnpm add nome-do-pacote
-
-# Voltar pra raiz depois
-cd ../..
+# Num package compartilhado
+cd packages/api-client && pnpm add nome-do-pacote
 ```
+
+### Mudar um tipo
+
+1. Edite `packages/types/src/index.ts`
+2. Rode `pnpm typecheck` — mostra todos os arquivos afetados
+3. Corrija nos apps afetados
+4. Commite tudo no mesmo PR
 
 ### Quando o backend estiver pronto
 
-Só mude `packages/api-client/`. Os services já têm a interface certa — troque o mock por `fetch` real:
-
-```ts
-// packages/api-client/src/services/index.ts
-// ANTES (mock):
-export const LojaService = {
-  listar: async () => { await delay(); return getLojasAbertas(); },
-};
-
-// DEPOIS (API real):
-export const LojaService = {
-  listar: async () => {
-    const res = await fetch('https://api.ajulabs.com/lojas');
-    return res.json();
-  },
-};
-```
-
-Os 3 apps continuam funcionando sem mudar nenhuma linha — eles importam `LojaService` de `@ajulabs/api-client` e não sabem se é mock ou real.
+Só mude `packages/api-client/`. Os services já têm a interface certa — troque o mock por `fetch` real. Os 3 apps continuam funcionando sem nenhuma mudança.
 
 ---
 
 ## Troubleshooting
 
-### "Unable to resolve module" ao rodar o app
+**"Unable to resolve module" ao rodar o app**
 ```bash
-cd apps/consumer
-npx expo start --clear
+cd apps/consumer && npx expo start --clear
 ```
 
-### Erros vermelhos no VS Code mas o app roda
-O TypeScript server do VS Code às vezes fica com cache antigo:
-1. `Ctrl+Shift+P` → "TypeScript: Restart TS Server"
+**Erros vermelhos no VS Code mas o app roda**
+`Ctrl+Shift+P` → "TypeScript: Restart TS Server"
 
-### pnpm install dá erro de peer dependency
+**`pnpm install` dá erro de peer dependency**
 Verifique que o `.npmrc` na raiz tem:
 ```
 auto-install-peers=true
@@ -306,11 +311,10 @@ node-linker=hoisted
 shamefully-hoist=true
 ```
 
-### Metro não encontra mudanças nos packages
+**Metro não encontra mudanças nos packages**
 Pare o Metro (`Ctrl+C`) e rode com `--clear`:
 ```bash
-cd apps/consumer
-npx expo start --clear
+cd apps/consumer && npx expo start --clear
 ```
 
 ---
