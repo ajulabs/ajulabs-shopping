@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/';
+const API_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
 
-const TOKEN_KEY   = 'entregador_auth_token';
+const TOKEN_KEY = 'entregador_auth_token';
 const SESSION_KEY = 'entregador_auth_session';
 
 interface DadosRegistro {
@@ -56,18 +57,18 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>((set, get) => 
   hydrate: async () => {
     if (get().hydrated) return;
     try {
-      const token      = await AsyncStorage.getItem(TOKEN_KEY);
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
       const sessionRaw = await AsyncStorage.getItem(SESSION_KEY);
       if (token && sessionRaw) {
         const entregador = JSON.parse(sessionRaw);
         set({
-          isLoggedIn:   true,
+          isLoggedIn: true,
           token,
           entregadorId: entregador.id ?? null,
-          nome:         entregador.nome ?? null,
-          cpf:          entregador.cpf ?? null,
-          email:        entregador.email ?? null,
-          fotoUrl:      entregador.fotoUrl ?? null,
+          nome: entregador.nome ?? null,
+          cpf: entregador.cpf ?? null,
+          email: entregador.email ?? null,
+          fotoUrl: entregador.fotoUrl ?? null,
         });
       }
     } catch {
@@ -89,12 +90,12 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>((set, get) => 
     }
     await salvarSessao(data.token, { ...data.entregador, cpf });
     set({
-      isLoggedIn:   true,
+      isLoggedIn: true,
       needsOnboarding: false,
-      token:        data.token,
+      token: data.token,
       entregadorId: data.entregador.id,
-      nome:         data.entregador.nome,
-      fotoUrl:      data.entregador.fotoUrl ?? null,
+      nome: data.entregador.nome,
+      fotoUrl: data.entregador.fotoUrl ?? null,
       cpf,
     });
   },
@@ -111,13 +112,13 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>((set, get) => 
     }
     await salvarSessao(data.token, { ...data.entregador, cpf: dados.cpf, email: dados.email });
     set({
-      isLoggedIn:   true,
+      isLoggedIn: true,
       needsOnboarding: false,
-      token:        data.token,
+      token: data.token,
       entregadorId: data.entregador.id,
-      nome:         data.entregador.nome,
-      cpf:          dados.cpf,
-      email:        dados.email,
+      nome: data.entregador.nome,
+      cpf: dados.cpf,
+      email: dados.email,
     });
   },
 

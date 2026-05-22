@@ -1,8 +1,17 @@
-import { Loja, Produto, Pedido, EnderecoSalvo, EntregadorResumo, AvaliacaoLoja, VariacaoProduto } from '@ajulabs/types';
-export { matchAju, registrarCliqueSugestao } from "./consumer/aju";
+import {
+  Loja,
+  Produto,
+  Pedido,
+  EnderecoSalvo,
+  EntregadorResumo,
+  AvaliacaoLoja,
+  VariacaoProduto,
+} from '@ajulabs/types';
+export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 
 declare const process: { env: Record<string, string | undefined> };
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const API_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
 
 function authHeader(token: string) {
   return { Authorization: `Bearer ${token}` };
@@ -35,19 +44,24 @@ function mapProduto(raw: any): Produto {
     descricao: raw.descricao,
     preco: Number(raw.preco ?? 0),
     imagem: raw.imagemUrl ?? '',
-    imagens: (() => { const f = (Array.isArray(raw.imagens) ? raw.imagens : []).filter(Boolean); return f.length ? f : (raw.imagemUrl ? [raw.imagemUrl] : []); })(),
+    imagens: (() => {
+      const f = (Array.isArray(raw.imagens) ? raw.imagens : []).filter(Boolean);
+      return f.length ? f : raw.imagemUrl ? [raw.imagemUrl] : [];
+    })(),
     categoria: raw.categoria ?? '',
     tags: Array.isArray(raw.tags) ? raw.tags : [],
     disponivel: raw.disponivel ?? true,
     estoque: raw.estoque != null ? Number(raw.estoque) : undefined,
     destaque: raw.destaque ?? false,
     variacoes: Array.isArray(raw.variacoes)
-      ? raw.variacoes.map((v: any): VariacaoProduto => ({
-          id: v.id,
-          produtoId: v.produtoId ?? raw.id,
-          nome: v.nome,
-          estoque: Number(v.estoque ?? 0),
-        }))
+      ? raw.variacoes.map(
+          (v: any): VariacaoProduto => ({
+            id: v.id,
+            produtoId: v.produtoId ?? raw.id,
+            nome: v.nome,
+            estoque: Number(v.estoque ?? 0),
+          }),
+        )
       : undefined,
   };
 }
@@ -73,7 +87,13 @@ function mapPedido(raw: any): Pedido {
       precoUnitario: Number(item.precoUnitario ?? 0),
     })),
     status: raw.status,
-    enderecoEntrega: raw.enderecoEntrega ?? { rua: '', numero: '', bairro: '', cidade: '', cep: '' },
+    enderecoEntrega: raw.enderecoEntrega ?? {
+      rua: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      cep: '',
+    },
     subtotal: Number(raw.subtotal ?? 0),
     taxaEntrega: Number(raw.taxaEntrega ?? 0),
     total: Number(raw.total ?? 0),
@@ -120,10 +140,11 @@ export const LojaService = {
     const { lojas } = await res.json();
     const t = termo.toLowerCase();
     return lojas
-      .filter((l: any) =>
-        l.nome?.toLowerCase().includes(t) ||
-        l.descricao?.toLowerCase().includes(t) ||
-        l.categoria?.toLowerCase().includes(t)
+      .filter(
+        (l: any) =>
+          l.nome?.toLowerCase().includes(t) ||
+          l.descricao?.toLowerCase().includes(t) ||
+          l.categoria?.toLowerCase().includes(t),
       )
       .map(mapLoja);
   },
@@ -193,20 +214,22 @@ export const AvaliacaoService = {
     const res = await fetch(`${API_URL}/avaliacoes/loja/${lojaId}`);
     if (!res.ok) return [];
     const { avaliacoes } = await res.json();
-    return (avaliacoes ?? []).map((a: any): AvaliacaoLoja => ({
-      id: a.id,
-      lojaId: a.lojaId,
-      usuarioId: a.usuarioId,
-      pedidoId: a.pedidoId,
-      nota: a.nota,
-      comentario: a.comentario ?? null,
-      criadoEm: a.criadoEm,
-      usuario: {
-        id: a.usuario?.id ?? '',
-        nome: a.usuario?.nome ?? 'Usuário',
-        avatarUrl: a.usuario?.avatarUrl ?? null,
-      },
-    }));
+    return (avaliacoes ?? []).map(
+      (a: any): AvaliacaoLoja => ({
+        id: a.id,
+        lojaId: a.lojaId,
+        usuarioId: a.usuarioId,
+        pedidoId: a.pedidoId,
+        nota: a.nota,
+        comentario: a.comentario ?? null,
+        criadoEm: a.criadoEm,
+        usuario: {
+          id: a.usuario?.id ?? '',
+          nome: a.usuario?.nome ?? 'Usuário',
+          avatarUrl: a.usuario?.avatarUrl ?? null,
+        },
+      }),
+    );
   },
 };
 
@@ -263,7 +286,10 @@ export const PedidoService = {
     return mapPedido(pedido);
   },
 
-  buscarLocalizacaoEntregador: async (pedidoId: string, token: string): Promise<{ lat: number; lng: number } | null> => {
+  buscarLocalizacaoEntregador: async (
+    pedidoId: string,
+    token: string,
+  ): Promise<{ lat: number; lng: number } | null> => {
     const res = await fetch(`${API_URL}/pedidos/${pedidoId}/localizacao-entregador`, {
       headers: authHeader(token),
     });
@@ -280,7 +306,7 @@ export const PedidoService = {
       metodoPagamento: 'pix' | 'cartao';
       itens: { produtoId: string; quantidade: number }[];
       obs?: string;
-    }
+    },
   ): Promise<Pedido> => {
     const res = await fetch(`${API_URL}/pedidos`, {
       method: 'POST',
@@ -297,11 +323,7 @@ export const PedidoService = {
 };
 
 export const LojistaService = {
-  listarPedidos: async (
-    lojaId: string,
-    token: string,
-    status?: string,
-  ): Promise<any[]> => {
+  listarPedidos: async (lojaId: string, token: string, status?: string): Promise<any[]> => {
     const url = status
       ? `${API_URL}/lojista/lojas/${lojaId}/pedidos?status=${encodeURIComponent(status)}`
       : `${API_URL}/lojista/lojas/${lojaId}/pedidos`;
@@ -390,7 +412,7 @@ export const LojistaService = {
     const form = new FormData();
     // blob:/data: URIs (Expo web) precisam de fetch→blob; file:/content: (native) usam { uri, type, name }
     if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
-      const blob = await fetch(imageUri).then(r => r.blob());
+      const blob = await fetch(imageUri).then((r) => r.blob());
       form.append(tipo, blob, `${tipo}.jpg`);
     } else {
       form.append(tipo, { uri: imageUri, type: 'image/jpeg', name: `${tipo}.jpg` } as any);
@@ -434,18 +456,18 @@ export const LojistaService = {
     const { newImageUris = [], existingImageUrls = [], ...rest } = dados;
 
     const form = new FormData();
-    if (rest.nome      !== undefined) form.append('nome',      rest.nome);
+    if (rest.nome !== undefined) form.append('nome', rest.nome);
     if (rest.descricao !== undefined) form.append('descricao', rest.descricao);
     if (rest.categoria !== undefined) form.append('categoria', rest.categoria);
-    if (rest.preco     !== undefined) form.append('preco',     String(rest.preco));
-    if (rest.estoque   !== undefined) form.append('estoque',   String(rest.estoque));
+    if (rest.preco !== undefined) form.append('preco', String(rest.preco));
+    if (rest.estoque !== undefined) form.append('estoque', String(rest.estoque));
     if (rest.disponivel !== undefined) form.append('disponivel', String(rest.disponivel));
     form.append('imagensExistentes', JSON.stringify(existingImageUrls));
 
     for (let i = 0; i < newImageUris.length; i++) {
       const uri = newImageUris[i];
       if (uri.startsWith('blob:') || uri.startsWith('data:')) {
-        const blob = await fetch(uri).then(r => r.blob());
+        const blob = await fetch(uri).then((r) => r.blob());
         form.append('imagens', blob, `imagem_${i}.jpg`);
       } else {
         form.append('imagens', { uri, type: 'image/jpeg', name: `imagem_${i}.jpg` } as any);
@@ -494,7 +516,7 @@ export const LojistaService = {
     formData.append('categoria', dados.categoria);
     formData.append('tags', JSON.stringify(dados.tags));
     if (dados.imageUri) {
-      const blob = await fetch(dados.imageUri).then(r => r.blob());
+      const blob = await fetch(dados.imageUri).then((r) => r.blob());
       formData.append('imagem', blob, 'produto.jpg');
     }
     const res = await fetch(`${API_URL}/lojista/produtos`, {
@@ -512,7 +534,7 @@ export const LojistaService = {
 
   analisarImagem: async (token: string, imageUri: string): Promise<any> => {
     const formData = new FormData();
-    const blob = await fetch(imageUri).then(r => r.blob());
+    const blob = await fetch(imageUri).then((r) => r.blob());
     formData.append('imagem', blob, 'produto.jpg');
     const res = await fetch(`${API_URL}/lojista/produtos/analisar`, {
       method: 'POST',
@@ -538,11 +560,7 @@ export const LojistaService = {
     return localizacao ?? null;
   },
 
-  listarTickets: async (
-    lojaId: string,
-    token: string,
-    status?: string,
-  ): Promise<any[]> => {
+  listarTickets: async (lojaId: string, token: string, status?: string): Promise<any[]> => {
     const url = status
       ? `${API_URL}/lojista/lojas/${lojaId}/tickets?status=${encodeURIComponent(status)}`
       : `${API_URL}/lojista/lojas/${lojaId}/tickets`;
@@ -619,19 +637,27 @@ export const LojistaService = {
   ): Promise<{ emAndamento: any[]; concluidas: any[] }> => {
     const [pronto, saiuEntrega, concluidas] = await Promise.all([
       (async () => {
-        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=pronto&limit=10`, { headers: authHeader(token) });
+        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=pronto&limit=10`, {
+          headers: authHeader(token),
+        });
         if (!r.ok) return [];
         const { pedidos } = await r.json();
         return (pedidos ?? []).filter((p: any) => p.entregador);
       })(),
       (async () => {
-        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=saiu_entrega&limit=10`, { headers: authHeader(token) });
+        const r = await fetch(
+          `${API_URL}/lojista/lojas/${lojaId}/pedidos?status=saiu_entrega&limit=10`,
+          { headers: authHeader(token) },
+        );
         if (!r.ok) return [];
         const { pedidos } = await r.json();
         return pedidos ?? [];
       })(),
       (async () => {
-        const r = await fetch(`${API_URL}/lojista/lojas/${lojaId}/pedidos?status=entregue&limit=20`, { headers: authHeader(token) });
+        const r = await fetch(
+          `${API_URL}/lojista/lojas/${lojaId}/pedidos?status=entregue&limit=20`,
+          { headers: authHeader(token) },
+        );
         if (!r.ok) return [];
         const { pedidos } = await r.json();
         return pedidos ?? [];
@@ -769,7 +795,9 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar status da corrida');
+      throw new Error(
+        typeof err.error === 'string' ? err.error : 'Erro ao atualizar status da corrida',
+      );
     }
   },
 
@@ -798,14 +826,18 @@ export const EntregadorService = {
     return entregas ?? [];
   },
 
-  uploadDocumentosIdentidade: async (token: string, frenteUri: string, versoUri: string): Promise<void> => {
+  uploadDocumentosIdentidade: async (
+    token: string,
+    frenteUri: string,
+    versoUri: string,
+  ): Promise<void> => {
     const [frenteBlob, versoBlob] = await Promise.all([
-      fetch(frenteUri).then(r => r.blob()),
-      fetch(versoUri).then(r => r.blob()),
+      fetch(frenteUri).then((r) => r.blob()),
+      fetch(versoUri).then((r) => r.blob()),
     ]);
     const form = new FormData();
     form.append('frente', frenteBlob, 'frente.jpg');
-    form.append('verso',  versoBlob,  'verso.jpg');
+    form.append('verso', versoBlob, 'verso.jpg');
     const res = await fetch(`${API_URL}/entregador/documentos/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -818,7 +850,7 @@ export const EntregadorService = {
   },
 
   atualizarFoto: async (token: string, imageUri: string): Promise<string> => {
-    const blob = await fetch(imageUri).then(r => r.blob());
+    const blob = await fetch(imageUri).then((r) => r.blob());
     const form = new FormData();
     form.append('foto', blob, 'perfil.jpg');
     const res = await fetch(`${API_URL}/entregador/foto`, {
@@ -836,7 +868,7 @@ export const EntregadorService = {
 
   cadastrarVeiculo: async (
     token: string,
-    dados: { placa: string; modelo: string; cor: string; ano: number }
+    dados: { placa: string; modelo: string; cor: string; ano: number },
   ): Promise<void> => {
     const res = await fetch(`${API_URL}/entregador/veiculo`, {
       method: 'POST',
@@ -851,7 +883,13 @@ export const EntregadorService = {
 
   atualizarDadosBancarios: async (
     token: string,
-    dados: { tipo: 'pix' | 'conta'; chavePix?: string; banco?: string; agencia?: string; conta?: string }
+    dados: {
+      tipo: 'pix' | 'conta';
+      chavePix?: string;
+      banco?: string;
+      agencia?: string;
+      conta?: string;
+    },
   ): Promise<void> => {
     const res = await fetch(`${API_URL}/entregador/dados-bancarios`, {
       method: 'POST',
@@ -864,7 +902,10 @@ export const EntregadorService = {
     }
   },
 
-  atualizarDadosPessoais: async (token: string, dados: { nome?: string; email?: string; telefone?: string }): Promise<void> => {
+  atualizarDadosPessoais: async (
+    token: string,
+    dados: { nome?: string; email?: string; telefone?: string },
+  ): Promise<void> => {
     const res = await fetch(`${API_URL}/entregador/dados-pessoais`, {
       method: 'PATCH',
       headers: { ...authHeader(token), 'Content-Type': 'application/json' },
@@ -899,8 +940,14 @@ export const EntregadorService = {
 
   solicitarTrocaVeiculo: async (
     token: string,
-    dados: { tipoTransporte: 'bike' | 'moto' | 'carro'; modelo: string; placa: string; cor: string; ano: number },
-    files?: { cnhUri?: string; docVeiculoUri?: string }
+    dados: {
+      tipoTransporte: 'bike' | 'moto' | 'carro';
+      modelo: string;
+      placa: string;
+      cor: string;
+      ano: number;
+    },
+    files?: { cnhUri?: string; docVeiculoUri?: string },
   ): Promise<{ status: 'aprovado' | 'pendente' }> => {
     const form = new FormData();
     form.append('tipoTransporte', dados.tipoTransporte);
@@ -915,7 +962,11 @@ export const EntregadorService = {
     }
     if (files?.docVeiculoUri) {
       const ext = files.docVeiculoUri.split('.').pop() ?? 'jpg';
-      form.append('docVeiculo', { uri: files.docVeiculoUri, type: `image/${ext}`, name: `doc.${ext}` } as any);
+      form.append('docVeiculo', {
+        uri: files.docVeiculoUri,
+        type: `image/${ext}`,
+        name: `doc.${ext}`,
+      } as any);
     }
 
     const res = await fetch(`${API_URL}/entregador/veiculo/trocar`, {
@@ -944,7 +995,12 @@ export const EntregadorService = {
     }
   },
 
-  enviarLocalizacao: async (token: string, pedidoId: string, lat: number, lng: number): Promise<void> => {
+  enviarLocalizacao: async (
+    token: string,
+    pedidoId: string,
+    lat: number,
+    lng: number,
+  ): Promise<void> => {
     await fetch(`${API_URL}/entregador/corridas/${pedidoId}/localizacao`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
@@ -1046,7 +1102,15 @@ export const EnderecoService = {
 
   criar: async (
     token: string,
-    dados: { apelido: string; rua: string; numero: string; bairro: string; cep: string; cidade: string; complemento?: string },
+    dados: {
+      apelido: string;
+      rua: string;
+      numero: string;
+      bairro: string;
+      cep: string;
+      cidade: string;
+      complemento?: string;
+    },
   ): Promise<EnderecoSalvo> => {
     const res = await fetch(`${API_URL}/enderecos`, {
       method: 'POST',
@@ -1061,7 +1125,15 @@ export const EnderecoService = {
   atualizar: async (
     token: string,
     id: string,
-    dados: { apelido?: string; rua?: string; numero?: string; bairro?: string; cep?: string; cidade?: string; complemento?: string },
+    dados: {
+      apelido?: string;
+      rua?: string;
+      numero?: string;
+      bairro?: string;
+      cep?: string;
+      cidade?: string;
+      complemento?: string;
+    },
   ): Promise<EnderecoSalvo> => {
     const res = await fetch(`${API_URL}/enderecos/${id}`, {
       method: 'PUT',
