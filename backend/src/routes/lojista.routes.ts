@@ -442,7 +442,7 @@ router.put('/produtos/:id', authMiddleware, authLojista, uploadImagem.array('ima
       );
     }
 
-    const todasImagens = [...existingUrls, ...newUrls];
+    const todasImagens = [...existingUrls, ...newUrls].filter(Boolean);
     if (todasImagens.length > 0) {
       dados.imagemUrl = todasImagens[0];
       dados.imagens   = todasImagens;

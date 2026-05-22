@@ -35,7 +35,7 @@ function mapProduto(raw: any): Produto {
     descricao: raw.descricao,
     preco: Number(raw.preco ?? 0),
     imagem: raw.imagemUrl ?? '',
-    imagens: Array.isArray(raw.imagens) ? raw.imagens : (raw.imagemUrl ? [raw.imagemUrl] : []),
+    imagens: (() => { const f = (Array.isArray(raw.imagens) ? raw.imagens : []).filter(Boolean); return f.length ? f : (raw.imagemUrl ? [raw.imagemUrl] : []); })(),
     categoria: raw.categoria ?? '',
     tags: Array.isArray(raw.tags) ? raw.tags : [],
     disponivel: raw.disponivel ?? true,
