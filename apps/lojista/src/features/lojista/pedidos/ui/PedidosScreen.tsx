@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, StatusBar, SafeAreaView, ActivityIndicator,
+  StyleSheet, Animated, StatusBar, SafeAreaView, ActivityIndicator, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
@@ -9,8 +9,7 @@ import { useAuthLojistaStore } from '../../../../store';
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
-import { usePedidosRealtime } from '@ajulabs/realtime';
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+import { usePedidoSound, SONS, type SomTipo } from './usePedidoSound';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -55,7 +54,11 @@ export function PedidosScreen() {
   const [filter, setFilter] = useState<'todos' | OrderStatus>('todos');
   const [screen, setScreen] = useState<Screen>('list');
   const [selected, setSelected] = useState<Order | null>(null);
+  const [showSomModal, setShowSomModal] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const { tocarSom, somAtual, salvarSom } = usePedidoSound();
+  const novosAnteriorRef = useRef(0);
+  const primeiraCarregadaRef = useRef(true);
 
   const fetchPedidos = useCallback(async () => {
     if (!lojaId || !token) { setLoading(false); return; }
@@ -70,16 +73,9 @@ export function PedidosScreen() {
 
   useEffect(() => {
     fetchPedidos();
-    const interval = setInterval(fetchPedidos, 60000);
+    const interval = setInterval(fetchPedidos, 30000);
     return () => clearInterval(interval);
   }, [fetchPedidos]);
-
-  usePedidosRealtime({
-    apiUrl: API_URL,
-    lojaId,
-    enabled: !!lojaId && !!token,
-    onNovoPedido: fetchPedidos,
-  });
 
   useEffect(() => {
     Animated.loop(
@@ -90,17 +86,29 @@ export function PedidosScreen() {
     ).start();
   }, []);
 
+  const novos = orders.filter(o => o.status === 'novo').length;
+
+  useEffect(() => {
+    if (primeiraCarregadaRef.current) {
+      primeiraCarregadaRef.current = false;
+      novosAnteriorRef.current = novos;
+      return;
+    }
+    if (novos > novosAnteriorRef.current) {
+      tocarSom();
+    }
+    novosAnteriorRef.current = novos;
+  }, [novos]);
+
   const advance = useCallback(async (id: string) => {
     const order = orders.find(o => o.id === id);
     if (!order || !token) return;
-
     setOrders(os => os.map(o => {
       if (o.id !== id) return o;
       const idx = FLOW.indexOf(o.status);
       const next = FLOW[idx + 1];
       return next ? { ...o, status: next } : o;
     }));
-
     if (order._id) {
       try {
         await LojistaService.avancarStatus(order._id, token);
@@ -111,7 +119,6 @@ export function PedidosScreen() {
     }
   }, [orders, token, fetchPedidos]);
 
-  const novos = orders.filter(o => o.status === 'novo').length;
   const list = filter === 'todos' ? orders : orders.filter(o => o.status === filter);
 
   const filters: { id: 'todos' | OrderStatus; label: string }[] = [
@@ -161,9 +168,14 @@ export function PedidosScreen() {
             <Text style={s.headerSub}>{lojaNome ?? 'Minha Loja'}</Text>
             <Text style={s.headerTitle}>Pedidos hoje</Text>
           </View>
-          <TouchableOpacity onPress={fetchPedidos} style={s.refreshBtn} activeOpacity={0.7}>
-            <Ionicons name="refresh" size={18} color="#9099B3" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity onPress={() => setShowSomModal(true)} style={s.refreshBtn} activeOpacity={0.7}>
+              <Ionicons name="musical-notes" size={18} color="#9099B3" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={fetchPedidos} style={s.refreshBtn} activeOpacity={0.7}>
+              <Ionicons name="refresh" size={18} color="#9099B3" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {novos > 0 && (
@@ -172,7 +184,7 @@ export function PedidosScreen() {
               <Ionicons name="notifications" size={16} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>{novos} pedido novo!</Text>
+              <Text style={s.alertTitle}>{novos} pedido{novos > 1 ? 's' : ''} novo{novos > 1 ? 's' : ''}!</Text>
               <Text style={s.alertSub}>Aceite rápido pra manter a avaliação alta.</Text>
             </View>
           </Animated.View>
@@ -220,20 +232,17 @@ export function PedidosScreen() {
                       </Text>
                     </View>
                   </View>
-
                   {o.itens.map((it, i) => (
                     <View key={i} style={s.itemRow}>
                       <Text style={s.itemName}><Text style={s.itemQty}>{it.qtd}×</Text> {it.nome}</Text>
                       <Text style={s.itemPrice}>{brl(it.preco * it.qtd)}</Text>
                     </View>
                   ))}
-
                   {o.obs && (
                     <View style={s.obs}>
                       <Text style={s.obsText}><Text style={{ fontWeight: '700' }}>Obs:</Text> {o.obs}</Text>
                     </View>
                   )}
-
                   <View style={s.cardBottom}>
                     <Text style={s.total}>{brl(o.total)}</Text>
                     {meta.next && (
@@ -263,7 +272,7 @@ export function PedidosScreen() {
                     {!meta.next && o.status === 'despachado' && (
                       <View style={s.dispatched}>
                         <Ionicons name="bicycle" size={14} color="#046C2E" />
-                        <Text style={s.dispatchedText}>{o.motoboy ?? 'Despachado'}</Text>
+                        <Text style={s.dispatchedText}>{(o as any).motoboy ?? 'Despachado'}</Text>
                       </View>
                     )}
                   </View>
@@ -273,6 +282,38 @@ export function PedidosScreen() {
           })}
         </ScrollView>
       )}
+
+      {/* Modal de seleção de som */}
+      <Modal visible={showSomModal} transparent animationType="slide" onRequestClose={() => setShowSomModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitulo}>Som de notificação</Text>
+              <TouchableOpacity onPress={() => setShowSomModal(false)}>
+                <Ionicons name="close" size={22} color="#000933" />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.modalSub}>Toque em cada opção para ouvir um preview</Text>
+            {SONS.map(som => (
+              <TouchableOpacity
+                key={som.id}
+                style={[s.somItem, somAtual === som.id && s.somItemAtivo]}
+                onPress={() => { tocarSom(som.id); salvarSom(som.id); }}
+                activeOpacity={0.8}
+              >
+                
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.somLabel, somAtual === som.id && { color: '#DE6708' }]}>{som.label}</Text>
+                  <Text style={s.somDesc}>{som.descricao}</Text>
+                </View>
+                {somAtual === som.id && (
+                  <Ionicons name="checkmark-circle" size={22} color="#DE6708" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -317,4 +358,15 @@ const s = StyleSheet.create({
   actionBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
   dispatched: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dispatchedText: { fontSize: 12, fontWeight: '600', color: '#046C2E' },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  modalTitulo: { fontSize: 18, fontWeight: '700', color: '#000933' },
+  modalSub: { fontSize: 12, color: '#9099B3', marginBottom: 16 },
+  somItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#E4E7F1', marginBottom: 10 },
+  somItemAtivo: { borderColor: '#DE6708', backgroundColor: '#FFF5EE' },
+  somEmoji: { fontSize: 28 },
+  somLabel: { fontSize: 14, fontWeight: '700', color: '#000933' },
+  somDesc: { fontSize: 12, color: '#9099B3', marginTop: 2 },
 });
