@@ -20,6 +20,12 @@
           "photosPermission": "Permitir acesso às fotos para atualizar imagem da loja",
           "cameraPermission": "Permitir acesso à câmera para fotografar a loja"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#000933"
+        }
       ]
     ],
     "scheme": "ajulabs-lojista"
