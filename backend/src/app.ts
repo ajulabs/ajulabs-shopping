@@ -17,6 +17,7 @@ import lojistaRoutes from './routes/lojista.routes';
 import ticketsRoutes from './routes/tickets.routes';
 import favoritosRoutes from './routes/favoritos.routes';
 import geocodeRoutes from './routes/geocode.routes';
+import pushRoutes from './routes/push.routes';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/v1/lojista', lojistaRoutes);
 app.use('/v1/tickets', ticketsRoutes);
 app.use('/v1/favoritos', favoritosRoutes);
 app.use('/v1/geocode', geocodeRoutes);
+app.use('/v1/push', pushRoutes);
 
 for (const prefix of [
   'auth',
@@ -60,6 +62,7 @@ for (const prefix of [
   'tickets',
   'favoritos',
   'geocode',
+  'push',
 ]) {
   app.use(`/${prefix}`, (req, res) => res.redirect(308, `/v1/${prefix}${req.url}`));
 }

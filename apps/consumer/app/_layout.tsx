@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '../src/store';
 import { SplashConsumer } from '../src/features/consumer/splash';
+import { usePushRegistration } from '../src/hooks';
 
 export default function RootLayout() {
   const isLoggedIn = useAuthStore(s => s.isLoggedIn);
@@ -9,6 +10,8 @@ export default function RootLayout() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  usePushRegistration();
 
   useEffect(() => {
     setMounted(true);

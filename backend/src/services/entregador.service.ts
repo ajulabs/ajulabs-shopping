@@ -3,6 +3,7 @@ import { getIo, setEntregadorLocalizacao } from '../utils/socket';
 import { uploadImagemEntregador, uploadDocumentoTrocaVeiculo } from '../utils/supabase';
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 import { assertValidImage } from '../lib/mimeValidator';
+import { notificarStatusPedido } from '../lib/pushNotifications';
 
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
@@ -312,6 +313,7 @@ export async function confirmarRetirada(entregadorId: string, pedidoId: string) 
   } catch {
     /* socket may not be initialized */
   }
+  void notificarStatusPedido(pedido.consumidorId, pedidoId, 'saiu_entrega');
 }
 
 export async function confirmarEntrega(entregadorId: string, pedidoId: string, codigo: string) {
@@ -339,6 +341,7 @@ export async function confirmarEntrega(entregadorId: string, pedidoId: string, c
   } catch {
     /* socket may not be initialized */
   }
+  void notificarStatusPedido(pedido.consumidorId, pedidoId, 'entregue');
 }
 
 const TRANSICOES_VALIDAS: Record<string, string> = { saiu_entrega: 'entregue' };
@@ -385,6 +388,7 @@ export async function updateStatusCorrida(
   } catch {
     /* socket may not be initialized */
   }
+  void notificarStatusPedido(atualizado.consumidorId, pedidoId, novoStatus);
 
   return atualizado.status;
 }

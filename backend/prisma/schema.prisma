@@ -29,8 +29,25 @@ model Usuario {
   supportTickets   SupportTicket[]
   favoritos        FavoritoProduto[]
   favoritosLojas   FavoritoLoja[]
+  dispositivosPush DispositivoPush[]
 
   @@map("usuarios")
+}
+
+model DispositivoPush {
+  id           String   @id @default(uuid())
+  usuarioId    String   @map("usuario_id")
+  expoToken    String   @unique @map("expo_token")
+  plataforma   String?
+  appTipo      String   @default("consumer") @map("app_tipo")
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, ativo])
+  @@map("dispositivos_push")
 }
 
 enum TipoTransporte {

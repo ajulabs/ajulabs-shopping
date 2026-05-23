@@ -11,6 +11,7 @@ import {
 } from '../utils/socket';
 import { assertValidImage } from '../lib/mimeValidator';
 import { logger } from '../lib/logger';
+import { notificarStatusPedido } from '../lib/pushNotifications';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -96,6 +97,7 @@ export async function avancarStatusPedido(pedidoId: string, lojistaId: string) {
   });
 
   emitPedidoAtualizado(atualizado.consumidorId, atualizado.id, proximoStatus, pedido.lojaId);
+  void notificarStatusPedido(atualizado.consumidorId, atualizado.id, proximoStatus);
   if (proximoStatus === 'pronto') {
     emitCorridaOferta({
       id: atualizado.id,
