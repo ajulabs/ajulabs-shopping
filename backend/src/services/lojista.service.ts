@@ -10,6 +10,7 @@ import {
   emitTicketStatus,
 } from '../utils/socket';
 import { assertValidImage } from '../lib/mimeValidator';
+import { geocodeByCep, geocodeByQuery } from '../lib/geocoder';
 import { logger } from '../lib/logger';
 import { notificarStatusPedido } from '../lib/pushNotifications';
 
@@ -210,11 +211,38 @@ export async function updateLoja(
   },
 ) {
   const { endereco, ...dadosSemEndereco } = dados;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let enderecoComCoords: any = endereco;
+  if (endereco) {
+    const coords =
+      (await geocodeByCep(endereco.cep ?? '')) ??
+      (await geocodeByQuery(`${endereco.rua}, ${endereco.bairro}, ${endereco.cidade}`));
+
+    if (coords) {
+      logger.info({ lojaId, coords }, '[lojista] endereço da loja geocodificado');
+      enderecoComCoords = {
+        ...endereco,
+        lat: coords.lat,
+        lng: coords.lng,
+        accuracy: 80,
+        geoSource: 'geocode',
+      };
+    } else {
+      logger.warn(
+        { lojaId, cep: endereco.cep },
+        '[lojista] não foi possível geocodificar endereço da loja',
+      );
+    }
+  }
+
   return prisma.loja.update({
     where: { id: lojaId },
     data: {
       ...dadosSemEndereco,
-      ...(endereco && { endereco: { upsert: { create: endereco, update: endereco } } }),
+      ...(enderecoComCoords && {
+        endereco: { upsert: { create: enderecoComCoords, update: enderecoComCoords } },
+      }),
     },
     include: { endereco: true },
   });

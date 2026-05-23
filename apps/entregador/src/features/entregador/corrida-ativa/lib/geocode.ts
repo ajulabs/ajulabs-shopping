@@ -1,6 +1,9 @@
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
 
+const NOM_HEADERS = { 'User-Agent': 'AjuLabs-Entregador/1.0 (lucassntcarvalho@gmail.com)' };
+
+// Coordenadas de centro de bairro — último recurso quando tudo falha
 const BAIRROS: Record<string, { lat: number; lng: number }> = {
   centro: { lat: -10.9172, lng: -37.0513 },
   jardins: { lat: -10.9453, lng: -37.0422 },
@@ -44,7 +47,7 @@ function normalize(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 }
 
-function bairroFallback(bairro: string): { lat: number; lng: number } | null {
+function bairroDict(bairro: string): { lat: number; lng: number } | null {
   const key = normalize(bairro);
   for (const [k, v] of Object.entries(BAIRROS)) {
     if (k === key || key.includes(k) || k.includes(key)) return v;
@@ -52,10 +55,39 @@ function bairroFallback(bairro: string): { lat: number; lng: number } | null {
   return null;
 }
 
+// P2: Tenta Nominatim diretamente para o bairro antes de usar dicionário
+async function bairroViaNominatim(bairro: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const q = encodeURIComponent(`${bairro}, Aracaju, Sergipe, Brasil`);
+    const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`;
+    const res = await fetch(url, { headers: NOM_HEADERS });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch {
+    /* ignora erros de rede */
+  }
+  return null;
+}
+
+async function fallbackPorBairro(bairro: string): Promise<{ lat: number; lng: number } | null> {
+  if (!bairro) return null;
+
+  // 1. Tenta Nominatim (mais preciso que dicionário estático)
+  const viaNominatim = await bairroViaNominatim(bairro);
+  if (viaNominatim) return viaNominatim;
+
+  // 2. Último recurso: dicionário hardcoded
+  return bairroDict(bairro);
+}
+
 export async function geocode(
   address: string,
   cep?: string,
 ): Promise<{ lat: number; lng: number } | null> {
+  // 1. Backend /v1/geocode (CEP + query com lógica robusta)
   try {
     const params = new URLSearchParams({ q: address });
     if (cep) params.set('cep', cep.replace(/\D/g, ''));
@@ -64,12 +96,15 @@ export async function geocode(
       const data = await res.json();
       if (typeof data.lat === 'number' && typeof data.lng === 'number') return data;
     }
-  } catch {}
+  } catch {
+    /* fallback a seguir */
+  }
 
+  // 2. Fallback: extrai bairro do endereço e tenta Nominatim → dicionário
   const parts = address
     .split(',')
     .map((p) => p.trim())
     .filter(Boolean);
-  const bairro = parts.length >= 2 ? parts[parts.length - 1] : '';
-  return bairroFallback(bairro);
+  const bairro = parts.length >= 2 ? parts[parts.length - 1] : (parts[0] ?? '');
+  return fallbackPorBairro(bairro);
 }

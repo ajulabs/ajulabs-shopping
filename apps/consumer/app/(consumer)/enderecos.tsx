@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Modal, TextInput,
-  StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,9 +32,20 @@ interface EnderecoForm {
   complemento: string;
 }
 
+interface EnderecoCoords {
+  lat: number;
+  lng: number;
+  geoSource: 'gps';
+}
+
 const FORM_VAZIO: EnderecoForm = {
-  apelido: '', rua: '', numero: '', bairro: '',
-  cep: '', cidade: 'Aracaju', complemento: '',
+  apelido: '',
+  rua: '',
+  numero: '',
+  bairro: '',
+  cep: '',
+  cidade: 'Aracaju',
+  complemento: '',
 };
 
 function formatCEP(value: string): string {
@@ -42,7 +62,7 @@ function iconeApelido(apelido: string): string {
 
 export default function EnderecosScreen() {
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
+  const token = useAuthStore((s) => s.token);
   const { isDark, bg, surf, border, borderL, text, textSec, backBtn, inputBg, iconBg } = useTheme();
 
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
@@ -56,9 +76,13 @@ export default function EnderecosScreen() {
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [buscandoLoc, setBuscandoLoc] = useState(false);
   const [erroLoc, setErroLoc] = useState('');
+  const [coords, setCoords] = useState<EnderecoCoords | null>(null);
 
   const carregar = useCallback(() => {
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     EnderecoService.listar(token)
       .then(setEnderecos)
@@ -66,10 +90,11 @@ export default function EnderecosScreen() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
 
-  const clearError = (field: string) =>
-    setErrors(e => ({ ...e, [field]: '' }));
+  const clearError = (field: string) => setErrors((e) => ({ ...e, [field]: '' }));
 
   const buscarCep = useCallback(async (digits: string) => {
     if (digits.length !== 8) return;
@@ -79,17 +104,17 @@ export default function EnderecosScreen() {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (data.erro) {
-        setErrors(e => ({ ...e, cep: 'CEP não encontrado.' }));
+        setErrors((e) => ({ ...e, cep: 'CEP não encontrado.' }));
         return;
       }
-      setForm(f => ({
+      setForm((f) => ({
         ...f,
         rua: data.logradouro || f.rua,
         bairro: data.bairro || f.bairro,
         cidade: data.localidade || f.cidade,
       }));
     } catch {
-      setErrors(e => ({ ...e, cep: 'Erro ao buscar CEP. Verifique sua conexão.' }));
+      setErrors((e) => ({ ...e, cep: 'Erro ao buscar CEP. Verifique sua conexão.' }));
     } finally {
       setBuscandoCep(false);
     }
@@ -98,6 +123,7 @@ export default function EnderecosScreen() {
   const usarLocalizacao = async () => {
     setBuscandoLoc(true);
     setErroLoc('');
+    setCoords(null);
     try {
       let latitude: number;
       let longitude: number;
@@ -107,8 +133,13 @@ export default function EnderecosScreen() {
           setErroLoc('Geolocalização não suportada neste navegador.');
           return;
         }
+        // P0: enableHighAccuracy: true para máxima precisão
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false }),
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 15000,
+            enableHighAccuracy: true,
+            maximumAge: 0,
+          }),
         );
         latitude = pos.coords.latitude;
         longitude = pos.coords.longitude;
@@ -118,31 +149,46 @@ export default function EnderecosScreen() {
           setErroLoc('Permita o acesso à localização nas configurações.');
           return;
         }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        // P0: BestForNavigation para máxima precisão no nativo
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.BestForNavigation,
+        });
         latitude = loc.coords.latitude;
         longitude = loc.coords.longitude;
       }
 
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-        { headers: { 'User-Agent': 'AjuLabsShopping/1.0' } },
-      );
+      // P1: Chama backend /by-coords que enriquece o CEP via ViaCEP
+      const API_URL =
+        (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
+      const res = await fetch(`${API_URL}/geocode/by-coords?lat=${latitude}&lng=${longitude}`);
+
+      if (!res.ok) {
+        setErroLoc('Não foi possível identificar seu endereço. Preencha manualmente.');
+        return;
+      }
+
       const data = await res.json();
-      const addr = data.address ?? {};
-      const cepRaw = (addr.postcode ?? '').replace(/\D/g, '').slice(0, 8);
-      setForm(f => ({
+
+      setForm((f) => ({
         ...f,
-        rua: addr.road || addr.pedestrian || addr.street || f.rua,
-        bairro: addr.suburb || addr.neighbourhood || addr.city_district || f.bairro,
-        cidade: addr.city || addr.town || addr.village || f.cidade,
-        cep: cepRaw || f.cep,
+        rua: data.rua || f.rua,
+        bairro: data.bairro || f.bairro,
+        cidade: data.cidade || f.cidade,
+        cep: data.cep || f.cep,
       }));
+
+      // Armazena coords para enviar ao salvar (P1: persistir no banco)
+      setCoords({ lat: latitude, lng: longitude, geoSource: 'gps' });
       setErrors({});
     } catch (e: any) {
-      const msg = e?.code === 1 ? 'Permissão de localização negada pelo navegador.'
-        : e?.code === 2 ? 'Localização indisponível. Tente novamente.'
-        : e?.code === 3 ? 'Tempo esgotado. Tente novamente.'
-        : 'Não foi possível obter sua localização.';
+      const msg =
+        e?.code === 1
+          ? 'Permissão de localização negada pelo navegador.'
+          : e?.code === 2
+            ? 'Localização indisponível. Tente novamente.'
+            : e?.code === 3
+              ? 'Tempo esgotado. Tente novamente.'
+              : 'Não foi possível obter sua localização.';
       setErroLoc(msg);
     } finally {
       setBuscandoLoc(false);
@@ -168,7 +214,7 @@ export default function EnderecosScreen() {
 
   const handleRemover = (addr: EnderecoSalvo) => {
     if (addr.padrao) {
-      const outro = enderecos.find(e => e.id !== addr.id);
+      const outro = enderecos.find((e) => e.id !== addr.id);
       if (!outro) {
         if (Platform.OS === 'web') {
           window.alert('Não é possível remover o único endereço cadastrado.');
@@ -188,12 +234,20 @@ export default function EnderecosScreen() {
         }
       };
       if (Platform.OS === 'web') {
-        if (window.confirm(`"${outro.apelido}" será definido como padrão e "${addr.apelido}" será removido. Continuar?`)) confirmar();
+        if (
+          window.confirm(
+            `"${outro.apelido}" será definido como padrão e "${addr.apelido}" será removido. Continuar?`,
+          )
+        )
+          confirmar();
       } else {
         Alert.alert(
           'Remover endereço padrão',
           `"${outro.apelido}" será definido como padrão e "${addr.apelido}" será removido. Continuar?`,
-          [{ text: 'Cancelar', style: 'cancel' }, { text: 'Remover', style: 'destructive', onPress: confirmar }],
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Remover', style: 'destructive', onPress: confirmar },
+          ],
         );
       }
       return;
@@ -201,9 +255,9 @@ export default function EnderecosScreen() {
 
     const confirmar = () => {
       if (!token) return;
-      EnderecoService.remover(token, addr.id).then(carregar).catch(() =>
-        Alert.alert('Erro', 'Não foi possível remover o endereço'),
-      );
+      EnderecoService.remover(token, addr.id)
+        .then(carregar)
+        .catch(() => Alert.alert('Erro', 'Não foi possível remover o endereço'));
     };
     if (Platform.OS === 'web') {
       if (window.confirm('Remover este endereço?')) confirmar();
@@ -218,7 +272,7 @@ export default function EnderecosScreen() {
   const handleDefinirPadrao = (id: string) => {
     if (!token) return;
     const anterior = enderecos;
-    setEnderecos(prev => prev.map(e => ({ ...e, padrao: e.id === id })));
+    setEnderecos((prev) => prev.map((e) => ({ ...e, padrao: e.id === id })));
     EnderecoService.definirPadrao(token, id).catch(() => setEnderecos(anterior));
   };
 
@@ -243,6 +297,8 @@ export default function EnderecosScreen() {
       ...form,
       cep: form.cep.replace(/\D/g, ''),
       complemento: form.complemento || undefined,
+      // P1: envia coords capturadas via GPS para persistir no banco
+      ...(coords ? { lat: coords.lat, lng: coords.lng, geoSource: coords.geoSource } : {}),
     };
 
     setSaving(true);
@@ -268,6 +324,7 @@ export default function EnderecosScreen() {
     setErrors({});
     setErroGeral('');
     setErroLoc('');
+    setCoords(null);
   };
 
   const mapAddress = form.rua && form.bairro ? `${form.rua}, ${form.bairro}` : '';
@@ -275,7 +332,10 @@ export default function EnderecosScreen() {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
-        <TouchableOpacity onPress={() => router.navigate('/(consumer)/perfil')} style={[styles.btnBack, { backgroundColor: backBtn }]}>
+        <TouchableOpacity
+          onPress={() => router.navigate('/(consumer)/perfil')}
+          style={[styles.btnBack, { backgroundColor: backBtn }]}
+        >
           <Ionicons name="chevron-back" size={20} color={text} />
         </TouchableOpacity>
         <Text style={[styles.titulo, { color: text }]}>Meus Endereços</Text>
@@ -289,7 +349,11 @@ export default function EnderecosScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {enderecos.length === 0 && (
             <View style={styles.vazio}>
-              <Ionicons name="location-outline" size={52} color={isDark ? 'rgba(255,255,255,0.2)' : colors.n300} />
+              <Ionicons
+                name="location-outline"
+                size={52}
+                color={isDark ? 'rgba(255,255,255,0.2)' : colors.n300}
+              />
               <Text style={[styles.vazioTitulo, { color: text }]}>Nenhum endereço salvo</Text>
               <Text style={[styles.vazioTxt, { color: textSec as string }]}>
                 Adicione um endereço para receber seus pedidos
@@ -297,10 +361,17 @@ export default function EnderecosScreen() {
             </View>
           )}
 
-          {enderecos.map(addr => (
-            <View key={addr.id} style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
+          {enderecos.map((addr) => (
+            <View
+              key={addr.id}
+              style={[styles.card, { backgroundColor: surf, borderColor: border }]}
+            >
               <View style={[styles.cardIconBox, { backgroundColor: iconBg }]}>
-                <Ionicons name={iconeApelido(addr.apelido) as any} size={18} color={colors.orange} />
+                <Ionicons
+                  name={iconeApelido(addr.apelido) as any}
+                  size={18}
+                  color={colors.orange}
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
@@ -325,14 +396,24 @@ export default function EnderecosScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => !addr.padrao && handleDefinirPadrao(addr.id)}
-                  style={[styles.actionBtn, { backgroundColor: addr.padrao ? colors.orange100 : backBtn }]}
+                  style={[
+                    styles.actionBtn,
+                    { backgroundColor: addr.padrao ? colors.orange100 : backBtn },
+                  ]}
                   activeOpacity={addr.padrao ? 1 : 0.7}
                 >
-                  <Ionicons name={addr.padrao ? 'star' : 'star-outline'} size={17} color={colors.orange} />
+                  <Ionicons
+                    name={addr.padrao ? 'star' : 'star-outline'}
+                    size={17}
+                    color={colors.orange}
+                  />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleRemover(addr)}
-                  style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(163,45,45,0.18)' : '#FCEBEB' }]}
+                  style={[
+                    styles.actionBtn,
+                    { backgroundColor: isDark ? 'rgba(163,45,45,0.18)' : '#FCEBEB' },
+                  ]}
                 >
                   <Ionicons name="trash-outline" size={17} color="#A32D2D" />
                 </TouchableOpacity>
@@ -340,7 +421,11 @@ export default function EnderecosScreen() {
             </View>
           ))}
 
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowModal(true)} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setShowModal(true)}
+            activeOpacity={0.85}
+          >
             <Ionicons name="add-circle-outline" size={20} color={colors.orange} />
             <Text style={styles.addBtnTxt}>Adicionar novo endereço</Text>
           </TouchableOpacity>
@@ -348,9 +433,14 @@ export default function EnderecosScreen() {
       )}
 
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={[styles.modal, { backgroundColor: bg }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: borderL, backgroundColor: surf }]}>
+            <View
+              style={[styles.modalHeader, { borderBottomColor: borderL, backgroundColor: surf }]}
+            >
               <Text style={[styles.modalTitulo, { color: text }]}>
                 {enderecoEditandoId ? 'Editar Endereço' : 'Novo Endereço'}
               </Text>
@@ -359,24 +449,29 @@ export default function EnderecosScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
-
+            <ScrollView
+              contentContainerStyle={styles.modalScroll}
+              showsVerticalScrollIndicator={false}
+            >
               <TouchableOpacity
                 style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
                 onPress={usarLocalizacao}
                 disabled={buscandoLoc}
                 activeOpacity={0.8}
               >
-                {buscandoLoc
-                  ? <ActivityIndicator size="small" color={colors.orange} />
-                  : <Ionicons name="navigate-outline" size={16} color={colors.orange} />
-                }
+                {buscandoLoc ? (
+                  <ActivityIndicator size="small" color={colors.orange} />
+                ) : (
+                  <Ionicons name="navigate-outline" size={16} color={colors.orange} />
+                )}
                 <Text style={styles.locBtnTxt}>
                   {buscandoLoc ? 'Buscando localização...' : 'Usar minha localização'}
                 </Text>
               </TouchableOpacity>
               {!!erroLoc && (
-                <View style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}>
+                <View
+                  style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}
+                >
                   <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
                   <Text style={styles.erroTxt}>{erroLoc}</Text>
                 </View>
@@ -384,9 +479,19 @@ export default function EnderecosScreen() {
 
               <Text style={[styles.fieldLabel, { color: textSec as string }]}>Apelido *</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.apelido ? '#E24B4A' : border, color: text }]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: inputBg,
+                    borderColor: errors.apelido ? '#E24B4A' : border,
+                    color: text,
+                  },
+                ]}
                 value={form.apelido}
-                onChangeText={v => { setForm(f => ({ ...f, apelido: v })); clearError('apelido'); }}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, apelido: v }));
+                  clearError('apelido');
+                }}
                 placeholder="Ex: Casa, Trabalho, Apartamento"
                 placeholderTextColor={textSec as string}
               />
@@ -395,11 +500,19 @@ export default function EnderecosScreen() {
               <Text style={[styles.fieldLabel, { color: textSec as string }]}>CEP *</Text>
               <View style={styles.cepRow}>
                 <TextInput
-                  style={[styles.input, styles.cepInput, { backgroundColor: inputBg, borderColor: errors.cep ? '#E24B4A' : border, color: text }]}
+                  style={[
+                    styles.input,
+                    styles.cepInput,
+                    {
+                      backgroundColor: inputBg,
+                      borderColor: errors.cep ? '#E24B4A' : border,
+                      color: text,
+                    },
+                  ]}
                   value={formatCEP(form.cep)}
-                  onChangeText={v => {
+                  onChangeText={(v) => {
                     const digits = v.replace(/\D/g, '').slice(0, 8);
-                    setForm(f => ({ ...f, cep: digits }));
+                    setForm((f) => ({ ...f, cep: digits }));
                     clearError('cep');
                     if (digits.length === 8) buscarCep(digits);
                   }}
@@ -416,9 +529,19 @@ export default function EnderecosScreen() {
 
               <Text style={[styles.fieldLabel, { color: textSec as string }]}>Rua / Avenida *</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.rua ? '#E24B4A' : border, color: text }]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: inputBg,
+                    borderColor: errors.rua ? '#E24B4A' : border,
+                    color: text,
+                  },
+                ]}
                 value={form.rua}
-                onChangeText={v => { setForm(f => ({ ...f, rua: v })); clearError('rua'); }}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, rua: v }));
+                  clearError('rua');
+                }}
                 placeholder="Ex: Av. Ivo do Prado"
                 placeholderTextColor={textSec as string}
               />
@@ -428,9 +551,19 @@ export default function EnderecosScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.fieldLabel, { color: textSec as string }]}>Número *</Text>
                   <TextInput
-                    style={[styles.input, { backgroundColor: inputBg, borderColor: errors.numero ? '#E24B4A' : border, color: text }]}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: inputBg,
+                        borderColor: errors.numero ? '#E24B4A' : border,
+                        color: text,
+                      },
+                    ]}
                     value={form.numero}
-                    onChangeText={v => { setForm(f => ({ ...f, numero: v })); clearError('numero'); }}
+                    onChangeText={(v) => {
+                      setForm((f) => ({ ...f, numero: v }));
+                      clearError('numero');
+                    }}
                     placeholder="123"
                     placeholderTextColor={textSec as string}
                     keyboardType="numeric"
@@ -440,9 +573,12 @@ export default function EnderecosScreen() {
                 <View style={{ flex: 2, marginLeft: 12 }}>
                   <Text style={[styles.fieldLabel, { color: textSec as string }]}>Complemento</Text>
                   <TextInput
-                    style={[styles.input, { backgroundColor: inputBg, borderColor: border, color: text }]}
+                    style={[
+                      styles.input,
+                      { backgroundColor: inputBg, borderColor: border, color: text },
+                    ]}
                     value={form.complemento}
-                    onChangeText={v => setForm(f => ({ ...f, complemento: v }))}
+                    onChangeText={(v) => setForm((f) => ({ ...f, complemento: v }))}
                     placeholder="Apto, Bloco..."
                     placeholderTextColor={textSec as string}
                   />
@@ -451,9 +587,19 @@ export default function EnderecosScreen() {
 
               <Text style={[styles.fieldLabel, { color: textSec as string }]}>Bairro *</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.bairro ? '#E24B4A' : border, color: text }]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: inputBg,
+                    borderColor: errors.bairro ? '#E24B4A' : border,
+                    color: text,
+                  },
+                ]}
                 value={form.bairro}
-                onChangeText={v => { setForm(f => ({ ...f, bairro: v })); clearError('bairro'); }}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, bairro: v }));
+                  clearError('bairro');
+                }}
                 placeholder="Ex: Centro"
                 placeholderTextColor={textSec as string}
               />
@@ -461,9 +607,19 @@ export default function EnderecosScreen() {
 
               <Text style={[styles.fieldLabel, { color: textSec as string }]}>Cidade *</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBg, borderColor: errors.cidade ? '#E24B4A' : border, color: text }]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: inputBg,
+                    borderColor: errors.cidade ? '#E24B4A' : border,
+                    color: text,
+                  },
+                ]}
                 value={form.cidade}
-                onChangeText={v => { setForm(f => ({ ...f, cidade: v })); clearError('cidade'); }}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, cidade: v }));
+                  clearError('cidade');
+                }}
                 placeholder="Aracaju"
                 placeholderTextColor={textSec as string}
               />
@@ -471,7 +627,9 @@ export default function EnderecosScreen() {
 
               {!!mapAddress && (
                 <View style={[styles.mapPreview, { borderColor: border }]}>
-                  <Text style={[styles.mapLabel, { color: textSec as string }]}>Preview do endereço</Text>
+                  <Text style={[styles.mapLabel, { color: textSec as string }]}>
+                    Preview do endereço
+                  </Text>
                   <View style={styles.mapBox}>
                     <AddressMap address={mapAddress} />
                   </View>
@@ -479,7 +637,9 @@ export default function EnderecosScreen() {
               )}
 
               {!!erroGeral && (
-                <View style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}>
+                <View
+                  style={[styles.erroBox, isDark && { backgroundColor: 'rgba(163,45,45,0.18)' }]}
+                >
                   <Ionicons name="alert-circle-outline" size={15} color="#A32D2D" />
                   <Text style={styles.erroTxt}>{erroGeral}</Text>
                 </View>
@@ -491,12 +651,13 @@ export default function EnderecosScreen() {
                 disabled={saving}
                 activeOpacity={0.85}
               >
-                {saving
-                  ? <ActivityIndicator color={colors.n0} />
-                  : <Text style={styles.saveBtnTxt}>
-                      {enderecoEditandoId ? 'Salvar alterações' : 'Salvar endereço'}
-                    </Text>
-                }
+                {saving ? (
+                  <ActivityIndicator color={colors.n0} />
+                ) : (
+                  <Text style={styles.saveBtnTxt}>
+                    {enderecoEditandoId ? 'Salvar alterações' : 'Salvar endereço'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -507,62 +668,147 @@ export default function EnderecosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1 },
-  header:         { flexDirection: 'row', alignItems: 'center', gap: 12,
-                    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                    borderBottomWidth: 1 },
-  btnBack:        { width: 38, height: 38, borderRadius: 19,
-                    alignItems: 'center', justifyContent: 'center' },
-  titulo:         { fontSize: 20, fontWeight: '700' },
-  center:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll:         { padding: 16, paddingBottom: 40 },
-  vazio:          { alignItems: 'center', paddingVertical: 56, gap: 10 },
-  vazioTitulo:    { fontSize: 17, fontWeight: '700' },
-  vazioTxt:       { fontSize: 13, textAlign: 'center' },
-  card:           { flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 14,
-                    borderRadius: 14, marginBottom: 12, borderWidth: 1 },
-  cardIconBox:    { width: 40, height: 40, borderRadius: 12,
-                    alignItems: 'center', justifyContent: 'center' },
-  cardTitleRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardApelido:    { fontSize: 15, fontWeight: '700' },
-  cardRua:        { fontSize: 13, marginTop: 3 },
-  cardBairro:     { fontSize: 12 },
-  badgePadrao:    { backgroundColor: colors.orange100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 52,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  btnBack: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titulo: { fontSize: 20, fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scroll: { padding: 16, paddingBottom: 40 },
+  vazio: { alignItems: 'center', paddingVertical: 56, gap: 10 },
+  vazioTitulo: { fontSize: 17, fontWeight: '700' },
+  vazioTxt: { fontSize: 13, textAlign: 'center' },
+  card: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  cardIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardApelido: { fontSize: 15, fontWeight: '700' },
+  cardRua: { fontSize: 13, marginTop: 3 },
+  cardBairro: { fontSize: 12 },
+  badgePadrao: {
+    backgroundColor: colors.orange100,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 99,
+  },
   badgePadraoTxt: { fontSize: 10, fontWeight: '600', color: colors.orange600 },
-  cardActions:    { gap: 8 },
-  actionBtn:      { width: 34, height: 34, borderRadius: 9,
-                    alignItems: 'center', justifyContent: 'center' },
-  addBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed',
-                    borderColor: colors.orange, marginTop: 4 },
-  addBtnTxt:      { fontSize: 14, fontWeight: '600', color: colors.orange },
-  modal:          { flex: 1 },
-  modalHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16,
-                    borderBottomWidth: 1 },
-  modalTitulo:    { fontSize: 18, fontWeight: '700' },
-  modalScroll:    { padding: 20 },
-  locBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    paddingVertical: 12, borderRadius: 12, borderWidth: 1.5,
-                    borderColor: colors.orange, backgroundColor: colors.orange100, marginBottom: 8 },
-  locBtnTxt:      { fontSize: 13, fontWeight: '600', color: colors.orange },
-  fieldLabel:     { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input:          { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14 },
-  fieldError:     { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
-  cepRow:         { flexDirection: 'row', alignItems: 'center' },
-  cepInput:       { flex: 1 },
-  cepLoader:      { marginLeft: 10 },
-  row2:           { flexDirection: 'row' },
-  erroBox:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14,
-                    padding: 12, backgroundColor: '#FCEBEB', borderRadius: 10 },
-  erroTxt:        { flex: 1, fontSize: 13, color: '#A32D2D' },
-  mapPreview:     { marginTop: 16, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
-  mapLabel:       { fontSize: 11, fontWeight: '600', paddingHorizontal: 12, paddingVertical: 8,
-                    textTransform: 'uppercase', letterSpacing: 0.4 },
-  mapBox:         { height: 150 },
-  saveBtn:        { backgroundColor: colors.orange, height: 52, borderRadius: 14, marginTop: 24,
-                    alignItems: 'center', justifyContent: 'center',
-                    shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
-  saveBtnTxt:     { color: colors.n0, fontSize: 15, fontWeight: '700' },
+  cardActions: { gap: 8 },
+  actionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.orange,
+    marginTop: 4,
+  },
+  addBtnTxt: { fontSize: 14, fontWeight: '600', color: colors.orange },
+  modal: { flex: 1 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitulo: { fontSize: 18, fontWeight: '700' },
+  modalScroll: { padding: 20 },
+  locBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.orange,
+    backgroundColor: colors.orange100,
+    marginBottom: 8,
+  },
+  locBtnTxt: { fontSize: 13, fontWeight: '600', color: colors.orange },
+  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+  },
+  fieldError: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
+  cepRow: { flexDirection: 'row', alignItems: 'center' },
+  cepInput: { flex: 1 },
+  cepLoader: { marginLeft: 10 },
+  row2: { flexDirection: 'row' },
+  erroBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    padding: 12,
+    backgroundColor: '#FCEBEB',
+    borderRadius: 10,
+  },
+  erroTxt: { flex: 1, fontSize: 13, color: '#A32D2D' },
+  mapPreview: { marginTop: 16, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  mapLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  mapBox: { height: 150 },
+  saveBtn: {
+    backgroundColor: colors.orange,
+    height: 52,
+    borderRadius: 14,
+    marginTop: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.orange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  saveBtnTxt: { color: colors.n0, fontSize: 15, fontWeight: '700' },
 });

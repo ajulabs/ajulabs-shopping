@@ -220,6 +220,10 @@ export interface EnderecoSalvo {
   bairroRaw?: string;
   cidade?: string;
   complemento?: string;
+  // coordenadas geocodificadas
+  lat?: number | null;
+  lng?: number | null;
+  geoSource?: string | null;
 }
 
 export type MetodoPagamento = 'pix' | 'cartao';
