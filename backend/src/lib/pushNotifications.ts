@@ -61,6 +61,7 @@ export async function notificarStatusPedido(
       title: copy.title,
       body: copy.bodyTpl(lojaNome),
       data: { type: 'pedido:status', pedidoId, status },
+      categoria: 'pedido_status',
     });
   } catch (err) {
     logger.error({ err, consumidorId, pedidoId, status }, 'falha ao notificar status pedido');
@@ -98,6 +99,7 @@ export async function notificarPedidoNovo(
       title: 'Novo pedido! 🛒',
       body: `${totalItens} ${totalItens === 1 ? 'item' : 'itens'} • ${totalFmt}`,
       data: { type: 'pedido:novo', pedidoId, lojaId },
+      categoria: 'pedido_novo',
     });
   } catch (err) {
     logger.error({ err, lojaId, pedidoId }, 'falha ao notificar pedido novo');
@@ -124,6 +126,7 @@ export async function notificarTicketNovo(
       title: 'Novo ticket de suporte',
       body: motivo.length > 100 ? `${motivo.slice(0, 97)}...` : motivo,
       data: { type: 'ticket:novo', ticketId, lojaId },
+      categoria: 'ticket_novo',
     });
   } catch (err) {
     logger.error({ err, lojaId, ticketId }, 'falha ao notificar ticket novo');
@@ -166,6 +169,7 @@ export async function notificarCorridaOferta(payload: CorridaOfertaPayload): Pro
           title,
           body,
           data: { type: 'corrida:oferta', pedidoId: payload.pedidoId },
+          categoria: 'corrida_oferta',
         }),
       ),
     );

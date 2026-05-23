@@ -1214,3 +1214,30 @@ export const PushService = {
     if (!res.ok) throw new Error('Erro ao desregistrar dispositivo de push');
   },
 };
+
+export interface NotificationPreference {
+  categoria: string;
+  label: string;
+  descricao: string;
+  ativo: boolean;
+}
+
+export const NotificationPreferencesService = {
+  listar: async (token: string): Promise<NotificationPreference[]> => {
+    const res = await fetch(`${API_URL}/notification-preferences`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) throw new Error('Erro ao buscar preferências de notificação');
+    const data = await res.json();
+    return data.preferencias ?? [];
+  },
+
+  atualizar: async (token: string, categoria: string, ativo: boolean): Promise<void> => {
+    const res = await fetch(`${API_URL}/notification-preferences`, {
+      method: 'PUT',
+      headers: { ...authHeader(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoria, ativo }),
+    });
+    if (!res.ok) throw new Error('Erro ao atualizar preferência de notificação');
+  },
+};
