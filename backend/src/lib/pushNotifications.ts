@@ -1,4 +1,4 @@
-import { enviarPushParaUsuario } from './pushSender';
+import { enviarPushParaConsumidor } from './pushSender';
 import { logger } from './logger';
 import { prisma } from '../utils/prisma';
 
@@ -53,7 +53,7 @@ export async function notificarStatusPedido(
     });
     const lojaNome = pedido?.loja?.nome ?? 'sua loja';
 
-    await enviarPushParaUsuario(consumidorId, {
+    await enviarPushParaConsumidor(consumidorId, {
       title: copy.title,
       body: copy.bodyTpl(lojaNome),
       data: { type: 'pedido:status', pedidoId, status },

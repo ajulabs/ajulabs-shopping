@@ -124,21 +124,32 @@ export async function enviarPush(messages: PushMessage | PushMessage[]): Promise
   }
 }
 
+type DonoDispositivo =
+  | { tipo: 'consumidor'; id: string }
+  | { tipo: 'lojista'; id: string }
+  | { tipo: 'entregador'; id: string };
+
+interface PushPayload {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}
+
 /**
- * Conveniência: envia o mesmo conteúdo para todos os dispositivos ativos
- * de um usuário (consumidor), respeitando o filtro de appTipo.
+ * Busca tokens ativos do dono e dispara push pra todos.
+ * Best-effort: nunca lança — falha de push não pode quebrar fluxos.
  */
-export async function enviarPushParaUsuario(
-  usuarioId: string,
-  payload: { title: string; body: string; data?: Record<string, unknown>; appTipo?: string },
-): Promise<void> {
+async function enviarPushParaDono(dono: DonoDispositivo, payload: PushPayload): Promise<void> {
   try {
+    const where =
+      dono.tipo === 'consumidor'
+        ? { consumidorId: dono.id, ativo: true }
+        : dono.tipo === 'lojista'
+          ? { lojistaId: dono.id, ativo: true }
+          : { entregadorId: dono.id, ativo: true };
+
     const dispositivos = await prisma.dispositivoPush.findMany({
-      where: {
-        usuarioId,
-        ativo: true,
-        appTipo: payload.appTipo ?? 'consumer',
-      },
+      where,
       select: { expoToken: true },
     });
     if (dispositivos.length === 0) return;
@@ -152,6 +163,31 @@ export async function enviarPushParaUsuario(
       })),
     );
   } catch (err) {
-    logger.error({ err, usuarioId }, 'falha ao enviar push para usuario');
+    logger.error({ err, dono }, 'falha ao enviar push para dono');
   }
+}
+
+/** Envia push pra todos os dispositivos ativos de um consumidor. */
+export function enviarPushParaConsumidor(consumidorId: string, payload: PushPayload): Promise<void> {
+  return enviarPushParaDono({ tipo: 'consumidor', id: consumidorId }, payload);
+}
+
+/** Envia push pra todos os dispositivos ativos de um lojista. */
+export function enviarPushParaLojista(lojistaId: string, payload: PushPayload): Promise<void> {
+  return enviarPushParaDono({ tipo: 'lojista', id: lojistaId }, payload);
+}
+
+/** Envia push pra todos os dispositivos ativos de um entregador. */
+export function enviarPushParaEntregador(entregadorId: string, payload: PushPayload): Promise<void> {
+  return enviarPushParaDono({ tipo: 'entregador', id: entregadorId }, payload);
+}
+
+/**
+ * @deprecated Use enviarPushParaConsumidor. Mantido por compat durante a transição.
+ */
+export function enviarPushParaUsuario(
+  usuarioId: string,
+  payload: PushPayload & { appTipo?: string },
+): Promise<void> {
+  return enviarPushParaConsumidor(usuarioId, payload);
 }

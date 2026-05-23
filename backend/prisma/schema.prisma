@@ -35,18 +35,24 @@ model Usuario {
 }
 
 model DispositivoPush {
-  id           String   @id @default(uuid())
-  usuarioId    String   @map("usuario_id")
-  expoToken    String   @unique @map("expo_token")
-  plataforma   String?
-  appTipo      String   @default("consumer") @map("app_tipo")
-  ativo        Boolean  @default(true)
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id            String   @id @default(uuid())
+  consumidorId  String?  @map("consumidor_id")
+  lojistaId     String?  @map("lojista_id")
+  entregadorId  String?  @map("entregador_id")
+  expoToken     String   @unique @map("expo_token")
+  plataforma    String?
+  appTipo       String   @default("consumer") @map("app_tipo")
+  ativo         Boolean  @default(true)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
 
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  consumidor Usuario?    @relation(fields: [consumidorId], references: [id], onDelete: Cascade)
+  lojista    Lojista?    @relation(fields: [lojistaId], references: [id], onDelete: Cascade)
+  entregador Entregador? @relation(fields: [entregadorId], references: [id], onDelete: Cascade)
 
-  @@index([usuarioId, ativo])
+  @@index([consumidorId, ativo])
+  @@index([lojistaId, ativo])
+  @@index([entregadorId, ativo])
   @@map("dispositivos_push")
 }
 
@@ -83,6 +89,7 @@ model Entregador {
   pedidos               Pedido[]
   saques                SolicitacaoSaque[]
   solicitacoesTrocaVeiculo SolicitacaoTrocaVeiculo[]
+  dispositivosPush      DispositivoPush[]
 
   @@map("entregadores")
 }
@@ -97,7 +104,8 @@ model Lojista {
   criadoEm        DateTime @default(now()) @map("criado_em")
   atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
-  lojas Loja[]
+  lojas            Loja[]
+  dispositivosPush DispositivoPush[]
 
   @@map("lojistas")
 }
