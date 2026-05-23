@@ -24,7 +24,10 @@ interface LeafletMapProps {
 }
 
 function loadLeaflet(cb: () => void) {
-  if ((window as any).L) { cb(); return; }
+  if ((window as any).L) {
+    cb();
+    return;
+  }
   if (!document.querySelector('link[data-leaflet-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -38,14 +41,19 @@ function loadLeaflet(cb: () => void) {
   document.head.appendChild(script);
 }
 
-async function fetchOsrmSimple(from: { lat: number; lng: number }, to: { lat: number; lng: number }): Promise<[number, number][]> {
+async function fetchOsrmSimple(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): Promise<[number, number][]> {
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
     const res = await fetch(url);
     const data = await res.json();
     const coords: number[][] = data.routes?.[0]?.geometry?.coordinates ?? [];
-    return coords.map(c => [c[1], c[0]]);
-  } catch { return []; }
+    return coords.map((c) => [c[1], c[0]]);
+  } catch {
+    return [];
+  }
 }
 
 function buildUserMarkerHtml(heading: number): string {
@@ -68,26 +76,43 @@ function buildUserMarkerHtml(heading: number): string {
 }
 
 export function LeafletMap({
-  center, zoom = 15, userLocation, markers = [],
-  routeCoords, routeTo, heading = 0, centerTrigger = 0, style,
+  center,
+  zoom = 15,
+  userLocation,
+  markers = [],
+  routeCoords,
+  routeTo,
+  heading = 0,
+  centerTrigger = 0,
+  style,
 }: LeafletMapProps) {
-  const uid    = useId().replace(/:/g, '');
-  const mapId  = `lmap-${uid}`;
-  const mapRef            = useRef<any>(null);
-  const userMarkerRef     = useRef<any>(null);
-  const routePolylineRef  = useRef<any>(null);
-  const lastRouteKeyRef   = useRef('');
+  const uid = useId().replace(/:/g, '');
+  const mapId = `lmap-${uid}`;
+  const mapRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
+  const routePolylineRef = useRef<any>(null);
+  const lastRouteKeyRef = useRef('');
 
   // ── Init map ─────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
+    let sizeTimer: ReturnType<typeof setTimeout> | null = null;
+
     loadLeaflet(() => {
+      if (cancelled) return;
       const el = document.getElementById(mapId);
       if (!el || mapRef.current) return;
 
       const L = (window as any).L;
-      const map = L.map(el, { zoomControl: true, attributionControl: false })
-        .setView([center.lat, center.lng], zoom);
-      setTimeout(() => map.invalidateSize(), 100);
+      const map = L.map(el, { zoomControl: true, attributionControl: false }).setView(
+        [center.lat, center.lng],
+        zoom,
+      );
+
+      // Guard: only call invalidateSize if the map hasn't been removed yet
+      sizeTimer = setTimeout(() => {
+        if (!cancelled && mapRef.current) map.invalidateSize();
+      }, 150);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -98,12 +123,19 @@ export function LeafletMap({
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       });
-      userMarkerRef.current = L.marker([center.lat, center.lng], { icon, zIndexOffset: 1000 }).addTo(map);
+      userMarkerRef.current = L.marker([center.lat, center.lng], {
+        icon,
+        zIndexOffset: 1000,
+      }).addTo(map);
 
       // Static markers (loja, cliente)
       markers.forEach((m) => {
         L.circleMarker([m.lat, m.lng], {
-          radius: 10, color: '#fff', weight: 2.5, fillColor: m.color, fillOpacity: 1,
+          radius: 10,
+          color: '#fff',
+          weight: 2.5,
+          fillColor: m.color,
+          fillOpacity: 1,
         }).addTo(map);
       });
 
@@ -111,8 +143,11 @@ export function LeafletMap({
     });
 
     return () => {
+      cancelled = true;
+      if (sizeTimer !== null) clearTimeout(sizeTimer);
       mapRef.current?.remove();
       mapRef.current = null;
+      userMarkerRef.current = null;
       routePolylineRef.current = null;
     };
   }, []);
@@ -155,13 +190,15 @@ export function LeafletMap({
       return;
     }
 
-    const latLngs: [number, number][] = routeCoords.map(c => [c.lat, c.lng]);
+    const latLngs: [number, number][] = routeCoords.map((c) => [c.lat, c.lng]);
 
     if (routePolylineRef.current) {
       routePolylineRef.current.setLatLngs(latLngs);
     } else {
       routePolylineRef.current = L.polyline(latLngs, {
-        color: '#209CEF', weight: 5, opacity: 0.85,
+        color: '#209CEF',
+        weight: 5,
+        opacity: 0.85,
       }).addTo(mapRef.current);
       routePolylineRef.current.bringToBack();
     }
@@ -176,7 +213,7 @@ export function LeafletMap({
     if (key === lastRouteKeyRef.current) return;
     lastRouteKeyRef.current = key;
 
-    fetchOsrmSimple(userLocation, routeTo).then(latLngs => {
+    fetchOsrmSimple(userLocation, routeTo).then((latLngs) => {
       if (!mapRef.current || latLngs.length < 2) return;
       const L = (window as any).L;
       if (!L) return;
@@ -184,7 +221,9 @@ export function LeafletMap({
         routePolylineRef.current.setLatLngs(latLngs);
       } else {
         routePolylineRef.current = L.polyline(latLngs, {
-          color: '#209CEF', weight: 5, opacity: 0.85,
+          color: '#209CEF',
+          weight: 5,
+          opacity: 0.85,
         }).addTo(mapRef.current);
         routePolylineRef.current.bringToBack();
       }
@@ -201,7 +240,10 @@ export function LeafletMap({
       id={mapId}
       style={{
         position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: '#1C2340',
         pointerEvents: 'auto',
         zIndex: 0,

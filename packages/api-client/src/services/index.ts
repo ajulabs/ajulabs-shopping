@@ -1036,6 +1036,9 @@ function mapEndereco(e: any): EnderecoSalvo {
     bairroRaw: e.bairro,
     cidade: e.cidade,
     complemento: e.complemento,
+    lat: e.lat ?? null,
+    lng: e.lng ?? null,
+    geoSource: e.geoSource ?? null,
   };
 }
 
@@ -1110,6 +1113,9 @@ export const EnderecoService = {
       cep: string;
       cidade: string;
       complemento?: string;
+      lat?: number;
+      lng?: number;
+      geoSource?: string;
     },
   ): Promise<EnderecoSalvo> => {
     const res = await fetch(`${API_URL}/enderecos`, {
@@ -1133,6 +1139,9 @@ export const EnderecoService = {
       cep?: string;
       cidade?: string;
       complemento?: string;
+      lat?: number;
+      lng?: number;
+      geoSource?: string;
     },
   ): Promise<EnderecoSalvo> => {
     const res = await fetch(`${API_URL}/enderecos/${id}`, {

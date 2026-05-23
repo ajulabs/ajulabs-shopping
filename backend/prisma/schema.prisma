@@ -238,6 +238,10 @@ model EnderecoLoja {
   cep         String
   cidade      String
   complemento String?
+  lat         Float?
+  lng         Float?
+  accuracy    Int?
+  geoSource   String?  @map("geo_source")
   criadoEm    DateTime @default(now()) @map("criado_em")
 
   loja Loja @relation(fields: [lojaId], references: [id], onDelete: Cascade)
@@ -349,6 +353,10 @@ model EnderecoUsuario {
   cidade      String
   complemento String?
   padrao      Boolean  @default(false)
+  lat         Float?
+  lng         Float?
+  accuracy    Int?
+  geoSource   String?  @map("geo_source")
   criadoEm    DateTime @default(now()) @map("criado_em")
 
   usuario Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
