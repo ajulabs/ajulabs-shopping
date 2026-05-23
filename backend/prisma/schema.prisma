@@ -30,6 +30,7 @@ model Usuario {
   favoritos        FavoritoProduto[]
   favoritosLojas   FavoritoLoja[]
   dispositivosPush DispositivoPush[]
+  prefsOptOut      PreferenciaNotificacaoOptOut[]
 
   @@map("usuarios")
 }
@@ -90,6 +91,7 @@ model Entregador {
   saques                SolicitacaoSaque[]
   solicitacoesTrocaVeiculo SolicitacaoTrocaVeiculo[]
   dispositivosPush      DispositivoPush[]
+  prefsOptOut           PreferenciaNotificacaoOptOut[]
 
   @@map("entregadores")
 }
@@ -106,8 +108,30 @@ model Lojista {
 
   lojas            Loja[]
   dispositivosPush DispositivoPush[]
+  prefsOptOut      PreferenciaNotificacaoOptOut[]
 
   @@map("lojistas")
+}
+
+model PreferenciaNotificacaoOptOut {
+  id            String   @id @default(uuid())
+  consumidorId  String?  @map("consumidor_id")
+  lojistaId     String?  @map("lojista_id")
+  entregadorId  String?  @map("entregador_id")
+  categoria     String
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  consumidor Usuario?    @relation(fields: [consumidorId], references: [id], onDelete: Cascade)
+  lojista    Lojista?    @relation(fields: [lojistaId], references: [id], onDelete: Cascade)
+  entregador Entregador? @relation(fields: [entregadorId], references: [id], onDelete: Cascade)
+
+  @@unique([consumidorId, categoria])
+  @@unique([lojistaId, categoria])
+  @@unique([entregadorId, categoria])
+  @@index([consumidorId])
+  @@index([lojistaId])
+  @@index([entregadorId])
+  @@map("preferencias_notificacao_opt_out")
 }
 
 // ========================================

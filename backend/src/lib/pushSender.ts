@@ -133,14 +133,53 @@ interface PushPayload {
   title: string;
   body: string;
   data?: Record<string, unknown>;
+  /**
+   * Categoria desta notificação. Se o dono tiver opt-out registrado pra esta
+   * categoria, o push é silenciosamente descartado.
+   *
+   * Opcional para compatibilidade com chamadas legadas (sem opt-out aplicado).
+   */
+  categoria?: string;
+}
+
+/**
+ * Checa se o dono optou por NÃO receber esta categoria.
+ * Retorna true se deve pular o envio.
+ */
+async function estaOptOut(dono: DonoDispositivo, categoria: string): Promise<boolean> {
+  try {
+    const where =
+      dono.tipo === 'consumidor'
+        ? { consumidorId: dono.id, categoria }
+        : dono.tipo === 'lojista'
+          ? { lojistaId: dono.id, categoria }
+          : { entregadorId: dono.id, categoria };
+
+    const linha = await prisma.preferenciaNotificacaoOptOut.findFirst({
+      where,
+      select: { id: true },
+    });
+    return linha !== null;
+  } catch (err) {
+    // Se a consulta falhar, NÃO bloqueia o push — pref é só uma camada
+    // de preferência, não pode quebrar a entrega.
+    logger.error({ err, dono, categoria }, 'falha ao consultar opt-out de notificacao');
+    return false;
+  }
 }
 
 /**
  * Busca tokens ativos do dono e dispara push pra todos.
+ * Se houver categoria + opt-out registrado, descarta silenciosamente.
  * Best-effort: nunca lança — falha de push não pode quebrar fluxos.
  */
 async function enviarPushParaDono(dono: DonoDispositivo, payload: PushPayload): Promise<void> {
   try {
+    if (payload.categoria && (await estaOptOut(dono, payload.categoria))) {
+      logger.debug({ dono, categoria: payload.categoria }, 'push descartado por opt-out');
+      return;
+    }
+
     const where =
       dono.tipo === 'consumidor'
         ? { consumidorId: dono.id, ativo: true }
