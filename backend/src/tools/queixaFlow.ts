@@ -8,6 +8,7 @@ import {
 } from '../utils/conversa';
 import { executarCriarTicket } from './executors';
 import { emitTicketNovo } from '../utils/socket';
+import { notificarTicketNovo } from '../lib/pushNotifications';
 
 // ─── Tipos de retorno ─────────────────────────────────────────────────────────
 
@@ -196,6 +197,7 @@ export async function processarConfirmacao(
       motivo: estado.motivo,
       consumidorId: usuarioId,
     });
+    void notificarTicketNovo(pedido.lojaId, ticket.id, estado.motivo);
   }
 
   await atualizarEstado(conversaId, null);

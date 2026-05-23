@@ -37,6 +37,12 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#FF6B00"
+        }
       ]
     ],
     "scheme": "ajulabs-entregador"

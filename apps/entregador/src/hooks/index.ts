@@ -1,0 +1,1 @@
+export { usePushRegistrationEntregador } from './usePushRegistrationEntregador';
