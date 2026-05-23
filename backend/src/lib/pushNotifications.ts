@@ -1,4 +1,8 @@
-import { enviarPushParaConsumidor, enviarPushParaLojista } from './pushSender';
+import {
+  enviarPushParaConsumidor,
+  enviarPushParaLojista,
+  enviarPushParaEntregador,
+} from './pushSender';
 import { logger } from './logger';
 import { prisma } from '../utils/prisma';
 
@@ -123,5 +127,49 @@ export async function notificarTicketNovo(
     });
   } catch (err) {
     logger.error({ err, lojaId, ticketId }, 'falha ao notificar ticket novo');
+  }
+}
+
+interface CorridaOfertaPayload {
+  pedidoId: string;
+  lojaNome: string;
+  taxaEntrega: number;
+}
+
+/**
+ * Avisa todos os entregadores online sobre uma nova corrida disponível.
+ *
+ * O socket realtime já notifica entregadores conectados. O push complementa
+ * para quem está com o app fechado mas continua online (o que define
+ * "disponível" hoje).
+ *
+ * Best-effort: nunca lança.
+ */
+export async function notificarCorridaOferta(payload: CorridaOfertaPayload): Promise<void> {
+  try {
+    const entregadores = await prisma.entregador.findMany({
+      where: { online: true, statusConta: 'ativo' },
+      select: { id: true },
+    });
+    if (entregadores.length === 0) return;
+
+    const taxaFmt = payload.taxaEntrega.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+    const title = 'Nova corrida disponível 🛵';
+    const body = `${payload.lojaNome} • Você recebe ${taxaFmt}`;
+
+    await Promise.all(
+      entregadores.map((e: { id: string }) =>
+        enviarPushParaEntregador(e.id, {
+          title,
+          body,
+          data: { type: 'corrida:oferta', pedidoId: payload.pedidoId },
+        }),
+      ),
+    );
+  } catch (err) {
+    logger.error({ err, pedidoId: payload.pedidoId }, 'falha ao notificar corrida oferta');
   }
 }
