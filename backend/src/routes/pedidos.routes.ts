@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { getEntregadorLocalizacao, emitPedidoNovo } from '../utils/socket';
+import { notificarPedidoNovo } from '../lib/pushNotifications';
 
 const router = Router();
 
@@ -131,6 +132,13 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
       total: Number(total),
       itens: (pedido.itens ?? []).map((i: any) => ({ nome: i.nomeSnapshot, quantidade: i.quantidade })),
       criadoEm: pedido.criadoEm,
+    });
+    void notificarPedidoNovo(dados.lojaId, pedido.id, {
+      total: Number(total),
+      itens: (pedido.itens ?? []).map((i: { nomeSnapshot: string; quantidade: number }) => ({
+        nome: i.nomeSnapshot,
+        quantidade: i.quantidade,
+      })),
     });
     res.status(201).json({ pedido });
   } catch (error) {

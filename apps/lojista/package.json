@@ -30,7 +30,10 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "~15.12.0",
     "react-native-web": "^0.21.0",
-    "expo-av": "~15.0.2"
+    "expo-av": "~15.0.2",
+    "expo-constants": "~18.0.10",
+    "expo-device": "~8.0.9",
+    "expo-notifications": "~0.32.17"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

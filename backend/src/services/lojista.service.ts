@@ -11,7 +11,7 @@ import {
 } from '../utils/socket';
 import { assertValidImage } from '../lib/mimeValidator';
 import { logger } from '../lib/logger';
-import { notificarStatusPedido } from '../lib/pushNotifications';
+import { notificarStatusPedido, notificarCorridaOferta } from '../lib/pushNotifications';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -104,6 +104,11 @@ export async function avancarStatusPedido(pedidoId: string, lojistaId: string) {
       lojaId: pedido.lojaId,
       lojaNome: pedido.loja?.nome ?? '',
       total: Number(atualizado.total ?? 0),
+      taxaEntrega: Number(atualizado.taxaEntrega ?? 0),
+    });
+    void notificarCorridaOferta({
+      pedidoId: atualizado.id,
+      lojaNome: pedido.loja?.nome ?? 'Loja',
       taxaEntrega: Number(atualizado.taxaEntrega ?? 0),
     });
   }

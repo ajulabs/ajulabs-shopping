@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthLojistaStore } from '../src/features/lojista/auth/model/store';
+import { usePushRegistrationLojista } from '../src/hooks';
 
 export default function RootLayout() {
   const isLoggedIn = useAuthLojistaStore(s => s.isLoggedIn);
   const segments = useSegments();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+
+  usePushRegistrationLojista();
 
   useEffect(() => { setMounted(true); }, []);
 

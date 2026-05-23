@@ -1,4 +1,8 @@
-import { enviarPushParaConsumidor } from './pushSender';
+import {
+  enviarPushParaConsumidor,
+  enviarPushParaLojista,
+  enviarPushParaEntregador,
+} from './pushSender';
 import { logger } from './logger';
 import { prisma } from '../utils/prisma';
 
@@ -60,5 +64,112 @@ export async function notificarStatusPedido(
     });
   } catch (err) {
     logger.error({ err, consumidorId, pedidoId, status }, 'falha ao notificar status pedido');
+  }
+}
+
+interface PedidoNovoPayload {
+  total: number;
+  itens: Array<{ nome: string; quantidade: number }>;
+}
+
+/**
+ * Avisa o lojista dono da loja sobre um novo pedido.
+ * Best-effort: nunca lança.
+ */
+export async function notificarPedidoNovo(
+  lojaId: string,
+  pedidoId: string,
+  payload: PedidoNovoPayload,
+): Promise<void> {
+  try {
+    const loja = await prisma.loja.findUnique({
+      where: { id: lojaId },
+      select: { nome: true, lojistaId: true },
+    });
+    if (!loja) return;
+
+    const totalItens = payload.itens.reduce((sum, i) => sum + i.quantidade, 0);
+    const totalFmt = payload.total.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+
+    await enviarPushParaLojista(loja.lojistaId, {
+      title: 'Novo pedido! 🛒',
+      body: `${totalItens} ${totalItens === 1 ? 'item' : 'itens'} • ${totalFmt}`,
+      data: { type: 'pedido:novo', pedidoId, lojaId },
+    });
+  } catch (err) {
+    logger.error({ err, lojaId, pedidoId }, 'falha ao notificar pedido novo');
+  }
+}
+
+/**
+ * Avisa o lojista dono da loja sobre um novo ticket de suporte aberto.
+ * Best-effort: nunca lança.
+ */
+export async function notificarTicketNovo(
+  lojaId: string,
+  ticketId: string,
+  motivo: string,
+): Promise<void> {
+  try {
+    const loja = await prisma.loja.findUnique({
+      where: { id: lojaId },
+      select: { lojistaId: true },
+    });
+    if (!loja) return;
+
+    await enviarPushParaLojista(loja.lojistaId, {
+      title: 'Novo ticket de suporte',
+      body: motivo.length > 100 ? `${motivo.slice(0, 97)}...` : motivo,
+      data: { type: 'ticket:novo', ticketId, lojaId },
+    });
+  } catch (err) {
+    logger.error({ err, lojaId, ticketId }, 'falha ao notificar ticket novo');
+  }
+}
+
+interface CorridaOfertaPayload {
+  pedidoId: string;
+  lojaNome: string;
+  taxaEntrega: number;
+}
+
+/**
+ * Avisa todos os entregadores online sobre uma nova corrida disponível.
+ *
+ * O socket realtime já notifica entregadores conectados. O push complementa
+ * para quem está com o app fechado mas continua online (o que define
+ * "disponível" hoje).
+ *
+ * Best-effort: nunca lança.
+ */
+export async function notificarCorridaOferta(payload: CorridaOfertaPayload): Promise<void> {
+  try {
+    const entregadores = await prisma.entregador.findMany({
+      where: { online: true, statusConta: 'ativo' },
+      select: { id: true },
+    });
+    if (entregadores.length === 0) return;
+
+    const taxaFmt = payload.taxaEntrega.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+    const title = 'Nova corrida disponível 🛵';
+    const body = `${payload.lojaNome} • Você recebe ${taxaFmt}`;
+
+    await Promise.all(
+      entregadores.map((e: { id: string }) =>
+        enviarPushParaEntregador(e.id, {
+          title,
+          body,
+          data: { type: 'corrida:oferta', pedidoId: payload.pedidoId },
+        }),
+      ),
+    );
+  } catch (err) {
+    logger.error({ err, pedidoId: payload.pedidoId }, 'falha ao notificar corrida oferta');
   }
 }
