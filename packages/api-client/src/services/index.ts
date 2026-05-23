@@ -1178,3 +1178,30 @@ export const TranscricaoService = {
     return data.texto;
   },
 };
+
+export const PushService = {
+  register: async (
+    token: string,
+    payload: {
+      expoToken: string;
+      plataforma?: 'ios' | 'android' | 'web';
+      appTipo?: 'consumer' | 'lojista' | 'entregador';
+    },
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/push/register`, {
+      method: 'POST',
+      headers: { ...authHeader(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Erro ao registrar dispositivo para push');
+  },
+
+  unregister: async (token: string, expoToken: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/push/unregister`, {
+      method: 'POST',
+      headers: { ...authHeader(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expoToken }),
+    });
+    if (!res.ok) throw new Error('Erro ao desregistrar dispositivo de push');
+  },
+};
