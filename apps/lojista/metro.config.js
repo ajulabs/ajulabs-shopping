@@ -13,4 +13,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// Força Metro a resolver pacotes pela entrada CommonJS (main) em vez
+// das exports/ESM, evitando erros de "import.meta" no bundle web
+// (zustand v5 expõe ESM com import.meta no middleware).
+config.resolver.unstable_enablePackageExports = false;
+
 module.exports = config;
