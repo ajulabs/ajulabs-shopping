@@ -5,24 +5,28 @@ import { useAuthLojistaStore } from '../src/features/lojista/auth/model/store';
 import { usePushRegistrationLojista } from '../src/hooks';
 
 export default function RootLayout() {
-  const isLoggedIn = useAuthLojistaStore(s => s.isLoggedIn);
+  const isLoggedIn = useAuthLojistaStore((s) => s.isLoggedIn);
+  const hasHydrated = useAuthLojistaStore((s) => s.hasHydrated);
   const segments = useSegments();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   usePushRegistrationLojista();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    // Espera storage carregar antes de redirecionar (evita piscar login).
+    if (!mounted || !hasHydrated) return;
     const inAuthGroup = segments[0] === '(auth)';
     if (!isLoggedIn && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isLoggedIn && inAuthGroup) {
       router.replace('/(lojista)/pedidos');
     }
-  }, [isLoggedIn, segments, mounted]);
+  }, [isLoggedIn, hasHydrated, segments, mounted]);
 
   return (
     <>

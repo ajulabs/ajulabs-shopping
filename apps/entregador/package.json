@@ -15,6 +15,7 @@
     "@ajulabs/theme": "workspace:*",
     "@ajulabs/types": "workspace:*",
     "@expo/vector-icons": "^15.0.3",
+    "@react-native-async-storage/async-storage": "^3.0.2",
     "expo": "~54.0.33",
     "expo-image-picker": "~17.0.11",
     "expo-location": "~19.0.8",

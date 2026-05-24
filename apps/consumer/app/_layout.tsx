@@ -5,7 +5,8 @@ import { SplashConsumer } from '../src/features/consumer/splash';
 import { usePushRegistration } from '../src/hooks';
 
 export default function RootLayout() {
-  const isLoggedIn = useAuthStore(s => s.isLoggedIn);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const segments = useSegments();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -18,7 +19,9 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    // Espera o storage carregar antes de decidir redirect, senão pisca
+    // a tela de login mesmo pra usuário logado.
+    if (!mounted || !hasHydrated) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -27,7 +30,7 @@ export default function RootLayout() {
     } else if (isLoggedIn && inAuthGroup) {
       router.replace('/(consumer)/chat');
     }
-  }, [isLoggedIn, segments, mounted]);
+  }, [isLoggedIn, hasHydrated, segments, mounted]);
 
   if (isLoggedIn && showSplash) {
     return <SplashConsumer onDone={() => setShowSplash(false)} />;
