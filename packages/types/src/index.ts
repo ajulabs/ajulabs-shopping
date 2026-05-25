@@ -159,7 +159,7 @@ export interface PedidoCard {
 }
 
 export interface RespostaAju {
-  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido';
+  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido' | 'ticketCriado';
   texto: string;
   produtos?: ProdutoCard[];
   sugestoes?: string[];
