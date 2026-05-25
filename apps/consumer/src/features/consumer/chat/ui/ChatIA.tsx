@@ -5,15 +5,24 @@ import { ChatMsg } from './ChatMsg';
 import { ChatInput } from './ChatInput';
 import { matchAju } from '@ajulabs/api-client';
 import {
-  View, Text, TouchableOpacity, KeyboardAvoidingView, Platform,
-  Animated, StyleSheet, Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
+  StyleSheet,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
 import { useAuthStore } from '../../../../store';
 import { useTranscricao } from '../model/useTranscricao';
+import { useTicketRealtime } from '@ajulabs/realtime';
 import * as SecureStore from 'expo-secure-store';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const ONBOARDING_KEY = 'aju_onboarding_v1';
 
@@ -32,31 +41,63 @@ const storage = {
   },
 };
 
-const SUGESTOES_INICIAIS = [
-  'Tênis preto até R$200',
-  'Presente pra mamãe',
-  'Fone bluetooth',
-];
+const SUGESTOES_INICIAIS = ['Tênis preto até R$200', 'Presente pra mamãe', 'Fone bluetooth'];
 
 const MENSAGEM_INICIAL: MensagemChat = {
   id: '0',
   remetente: 'aju',
-  conteudo: 'Oi! Sou a Aju, sua personal shopper aqui de Aracaju. Me diz o que tá procurando que eu acho nas lojas daqui.',
+  conteudo:
+    'Oi! Sou a Aju, sua personal shopper aqui de Aracaju. Me diz o que tá procurando que eu acho nas lojas daqui.',
   criadaEm: new Date().toISOString(),
 };
 
-const CAPABILITIES: { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; title: string; desc: string }[] = [
-  { icon: 'search-outline',       color: '#f97316', title: 'Buscar Produtos',  desc: 'Descreva o que quer e encontro produtos similares por você' },
-  { icon: 'receipt-outline',      color: '#2563EB', title: 'Rastrear Pedidos', desc: 'Saiba exatamente onde está seu pedido e quando chega' },
-  { icon: 'alert-circle-outline', color: '#DC2626', title: 'Fazer Reclamação', desc: 'Produto com defeito, não chegou ou diferente? Resolvemos em 24h' },
-  { icon: 'chatbubble-outline',   color: '#7C3AED', title: 'Tirar Dúvidas',    desc: 'Pergunte sobre políticas, entrega, trocas, etc' },
+const CAPABILITIES: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+  title: string;
+  desc: string;
+}[] = [
+  {
+    icon: 'search-outline',
+    color: '#f97316',
+    title: 'Buscar Produtos',
+    desc: 'Descreva o que quer e encontro produtos similares por você',
+  },
+  {
+    icon: 'receipt-outline',
+    color: '#2563EB',
+    title: 'Rastrear Pedidos',
+    desc: 'Saiba exatamente onde está seu pedido e quando chega',
+  },
+  {
+    icon: 'alert-circle-outline',
+    color: '#DC2626',
+    title: 'Fazer Reclamação',
+    desc: 'Produto com defeito, não chegou ou diferente? Resolvemos em 24h',
+  },
+  {
+    icon: 'chatbubble-outline',
+    color: '#7C3AED',
+    title: 'Tirar Dúvidas',
+    desc: 'Pergunte sobre políticas, entrega, trocas, etc',
+  },
 ];
 
-const QUICK_ACTIONS: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; msg: string; color: string }[] = [
-  { icon: 'search-outline',        label: 'Buscar',  msg: 'Quero buscar produtos',           color: '#f97316' },
-  { icon: 'receipt-outline',       label: 'Pedidos', msg: 'Quero ver meus pedidos',           color: '#2563EB' },
-  { icon: 'alert-circle-outline',  label: 'Reclamar', msg: 'Tive um problema com meu pedido', color: '#DC2626' },
-  { icon: 'help-circle-outline',   label: 'Dúvidas', msg: 'Tenho uma dúvida',                 color: '#7C3AED' },
+const QUICK_ACTIONS: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  msg: string;
+  color: string;
+}[] = [
+  { icon: 'search-outline', label: 'Buscar', msg: 'Quero buscar produtos', color: '#f97316' },
+  { icon: 'receipt-outline', label: 'Pedidos', msg: 'Quero ver meus pedidos', color: '#2563EB' },
+  {
+    icon: 'alert-circle-outline',
+    label: 'Reclamar',
+    msg: 'Tive um problema com meu pedido',
+    color: '#DC2626',
+  },
+  { icon: 'help-circle-outline', label: 'Dúvidas', msg: 'Tenho uma dúvida', color: '#7C3AED' },
 ];
 
 export function ChatIA() {
@@ -72,22 +113,48 @@ export function ChatIA() {
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
   const router = useRouter();
   const token = useAuthStore((s) => s.token) ?? '';
+  const userId = useAuthStore((s) => s.userId);
   const { gravando, transcrevendo, toggleGravacao } = useTranscricao();
 
+  useTicketRealtime({
+    apiUrl: API_URL,
+    ticketId: null,
+    roomId: userId ?? null,
+    roomType: 'usuario',
+    enabled: !!userId,
+    onNovo: () => {
+      const balao: MensagemChat = {
+        id: `ticket-criado-${Date.now()}`,
+        remetente: 'aju',
+        conteudo:
+          'Ticket aberto com sucesso! Vou acompanhar sua solicitação e te aviso sobre qualquer atualização.',
+        resposta: { tipo: 'ticketCriado', texto: '' },
+        criadaEm: new Date().toISOString(),
+      };
+      setMensagens((prev) => [...prev, balao]);
+    },
+  });
+
   useEffect(() => {
-    storage.getItem(ONBOARDING_KEY).then(done => {
+    storage.getItem(ONBOARDING_KEY).then((done) => {
       if (!done) {
         setShowWelcome(true);
-        Animated.timing(welcomeOpacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+        Animated.timing(welcomeOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }).start();
       }
     });
   }, []);
 
   function dismissWelcome() {
-    Animated.timing(welcomeOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
-      setShowWelcome(false);
-      storage.setItem(ONBOARDING_KEY, '1').catch(() => {});
-    });
+    Animated.timing(welcomeOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(
+      () => {
+        setShowWelcome(false);
+        storage.setItem(ONBOARDING_KEY, '1').catch(() => {});
+      },
+    );
   }
 
   async function enviarMensagem(texto: string, pedidoSelecionadoId?: string) {
@@ -110,11 +177,16 @@ export function ChatIA() {
       setConversaId(resposta.conversaId);
     }
 
+    const isTicketCriado =
+      /TKT-\d+/i.test(resposta.texto) ||
+      resposta.texto.toLowerCase().includes('ticket registrado') ||
+      resposta.texto.toLowerCase().includes('ticket aberto');
+
     const msgAju: MensagemChat = {
       id: (Date.now() + 1).toString(),
       remetente: 'aju',
       conteudo: resposta.texto,
-      resposta,
+      resposta: isTicketCriado ? { ...resposta, tipo: 'ticketCriado' } : resposta,
       criadaEm: new Date().toISOString(),
     };
 
@@ -137,24 +209,31 @@ export function ChatIA() {
     >
       <View style={{ flex: 1 }}>
         {/* Header */}
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 16,
-          paddingTop: 56,
-          paddingBottom: 16,
-          backgroundColor: surf,
-          borderBottomWidth: 1,
-          borderBottomColor: borderL,
-        }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingTop: 56,
+            paddingBottom: 16,
+            backgroundColor: surf,
+            borderBottomWidth: 1,
+            borderBottomColor: borderL,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{
-              width: 42, height: 42, borderRadius: 21,
-              backgroundColor: '#f97316',
-              alignItems: 'center', justifyContent: 'center',
-              marginRight: 10,
-            }}>
+            <View
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                backgroundColor: '#f97316',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}
+            >
               <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>A</Text>
             </View>
             <View>
@@ -168,9 +247,12 @@ export function ChatIA() {
             <TouchableOpacity
               onPress={() => setShowHelp(true)}
               style={{
-                width: 34, height: 34, borderRadius: 17,
+                width: 34,
+                height: 34,
+                borderRadius: 17,
                 backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : colors.n100,
-                alignItems: 'center', justifyContent: 'center',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
               activeOpacity={0.7}
             >
@@ -191,10 +273,13 @@ export function ChatIA() {
 
         {/* Quick Actions */}
         <View style={[s.quickRow, { backgroundColor: bg }]}>
-          {QUICK_ACTIONS.map(a => (
+          {QUICK_ACTIONS.map((a) => (
             <TouchableOpacity
               key={a.label}
-              onPress={() => { setInputValue(''); enviarMensagem(a.msg); }}
+              onPress={() => {
+                setInputValue('');
+                enviarMensagem(a.msg);
+              }}
               disabled={carregando}
               style={[
                 s.quickBtn,
@@ -221,10 +306,16 @@ export function ChatIA() {
           disabled={carregando}
         />
 
-        <Text style={{ textAlign: 'center', fontSize: 11, color: textSec, paddingBottom: 16, backgroundColor: bg }}>
-          IA com{' '}
-          <Text style={{ color: '#f97316', fontWeight: '500' }}>lojas reais</Text>
-          {' '}de Aracaju
+        <Text
+          style={{
+            textAlign: 'center',
+            fontSize: 11,
+            color: textSec,
+            paddingBottom: 16,
+            backgroundColor: bg,
+          }}
+        >
+          IA com <Text style={{ color: '#f97316', fontWeight: '500' }}>lojas reais</Text> de Aracaju
         </Text>
       </View>
 
@@ -237,7 +328,7 @@ export function ChatIA() {
               Sua personal shopper de Aracaju
             </Text>
 
-            {CAPABILITIES.map(c => (
+            {CAPABILITIES.map((c) => (
               <View key={c.title} style={s.capRow}>
                 <View style={[s.capIconWrap, { backgroundColor: c.color + '18' }]}>
                   <Ionicons name={c.icon} size={18} color={c.color} />
@@ -257,13 +348,18 @@ export function ChatIA() {
       )}
 
       {/* Help Modal */}
-      <Modal visible={showHelp} transparent animationType="fade" onRequestClose={() => setShowHelp(false)}>
+      <Modal
+        visible={showHelp}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowHelp(false)}
+      >
         <View style={s.overlay}>
           <View style={[s.card, { backgroundColor: isDark ? colors.surfDark : colors.n0 }]}>
             <Text style={[s.helpTitle, { color: text }]}> O que Aju pode fazer?</Text>
             <View style={[s.divider, { backgroundColor: borderL }]} />
 
-            {CAPABILITIES.map(c => (
+            {CAPABILITIES.map((c) => (
               <View key={c.title} style={s.capRow}>
                 <View style={[s.capIconWrap, { backgroundColor: c.color + '18' }]}>
                   <Ionicons name={c.icon} size={18} color={c.color} />
@@ -290,23 +386,54 @@ export function ChatIA() {
 }
 
 const s = StyleSheet.create({
-  overlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)',
-                  justifyContent: 'center', alignItems: 'center', padding: 24, zIndex: 100 },
-  card:         { borderRadius: 24, padding: 24, width: '100%', maxWidth: 360 },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    zIndex: 100,
+  },
+  card: { borderRadius: 24, padding: 24, width: '100%', maxWidth: 360 },
   welcomeTitle: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  welcomeSub:   { fontSize: 13, marginBottom: 20 },
-  helpTitle:    { fontSize: 18, fontWeight: '800', marginBottom: 4 },
-  divider:      { height: 1, marginVertical: 14 },
-  capRow:       { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  capIconWrap:  { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  capTitle:     { fontSize: 14, fontWeight: '700' },
-  capDesc:      { fontSize: 12, marginTop: 2 },
-  primaryBtn:   { marginTop: 8, backgroundColor: colors.orange, borderRadius: 14,
-                  paddingVertical: 14, alignItems: 'center' },
+  welcomeSub: { fontSize: 13, marginBottom: 20 },
+  helpTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  divider: { height: 1, marginVertical: 14 },
+  capRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  capIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  capTitle: { fontSize: 14, fontWeight: '700' },
+  capDesc: { fontSize: 12, marginTop: 2 },
+  primaryBtn: {
+    marginTop: 8,
+    backgroundColor: colors.orange,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
   primaryBtnTxt: { fontSize: 15, fontWeight: '700', color: colors.n0 },
-  quickRow:     { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  quickBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                  gap: 5, borderRadius: 10, paddingVertical: 8, borderWidth: 1 },
-  quickIconWrap: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  quickLabel:   { fontSize: 11.5, fontWeight: '600' },
+  quickRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  quickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    borderRadius: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  quickIconWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: { fontSize: 11.5, fontWeight: '600' },
 });

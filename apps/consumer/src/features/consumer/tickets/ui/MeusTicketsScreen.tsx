@@ -1,7 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -10,30 +14,41 @@ import { colors } from '@ajulabs/theme';
 import { ConsumerTicketService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
-import { TicketConsumidor, TicketStatus, STATUS_META, tempoRelativo, mapTicketConsumidor } from '../model/data';
+import {
+  TicketConsumidor,
+  TicketStatus,
+  STATUS_META,
+  tempoRelativo,
+  mapTicketConsumidor,
+} from '../model/data';
 import { useTicketRealtime } from '@ajulabs/realtime';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const FILTERS: { id: 'todos' | TicketStatus; label: string }[] = [
-  { id: 'todos',        label: 'Todos' },
-  { id: 'aberto',       label: 'Abertos' },
+  { id: 'todos', label: 'Todos' },
+  { id: 'aberto', label: 'Abertos' },
   { id: 'em_andamento', label: 'Em andamento' },
-  { id: 'resolvido',    label: 'Resolvidos' },
+  { id: 'resolvido', label: 'Resolvidos' },
 ];
 
-export function MeusTicketsScreen() {
-  const router  = useRouter();
-  const token   = useAuthStore(s => s.token);
-  const userId  = useAuthStore(s => s.userId);
+export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
+  const router = useRouter();
+  const canGoBack = router.canGoBack();
+  const handleBack = onBack ?? (canGoBack ? () => router.back() : undefined);
+  const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.userId);
   const { bg, surf, borderL, text, textSec, textMut } = useTheme();
 
   const [tickets, setTickets] = useState<TicketConsumidor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter]   = useState<'todos' | TicketStatus>('todos');
+  const [filter, setFilter] = useState<'todos' | TicketStatus>('todos');
 
   const fetch = useCallback(async () => {
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
       const raw = await ConsumerTicketService.listar(token);
       setTickets(raw.map(mapTicketConsumidor));
@@ -41,10 +56,18 @@ export function MeusTicketsScreen() {
     setLoading(false);
   }, [token]);
 
+  useEffect(() => {
+    if (onBack) {
+      fetch();
+    }
+  }, [onBack, fetch]);
+
   useFocusEffect(
     useCallback(() => {
-      fetch();
-    }, [fetch])
+      if (!onBack) {
+        fetch();
+      }
+    }, [onBack, fetch]),
   );
 
   useTicketRealtime({
@@ -53,34 +76,50 @@ export function MeusTicketsScreen() {
     roomId: userId ?? null,
     roomType: 'usuario',
     enabled: !!userId,
+    onNovo: () => {
+      fetch();
+    },
     onStatus: ({ ticketId, status }) => {
-      setTickets(prev => prev.map(t =>
-        t.id === ticketId ? { ...t, status: status as TicketStatus } : t
-      ));
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, status: status as TicketStatus } : t)),
+      );
     },
     onMensagem: (msg) => {
-      setTickets(prev => prev.map(t =>
-        t.id === msg.ticketId
-          ? { ...t, mensagens: [...t.mensagens, {
-              id: msg.id,
-              remetente: msg.remetente as 'consumidor' | 'lojista',
-              texto: msg.texto,
-              criadoEm: msg.criadoEm,
-            }] }
-          : t
-      ));
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === msg.ticketId
+            ? {
+                ...t,
+                mensagens: [
+                  ...t.mensagens,
+                  {
+                    id: msg.id,
+                    remetente: msg.remetente as 'consumidor' | 'lojista',
+                    texto: msg.texto,
+                    criadoEm: msg.criadoEm,
+                  },
+                ],
+              }
+            : t,
+        ),
+      );
     },
   });
 
-  const list = filter === 'todos' ? tickets : tickets.filter(t => t.status === filter);
+  const list = filter === 'todos' ? tickets : tickets.filter((t) => t.status === filter);
   const countFor = (id: 'todos' | TicketStatus) =>
-    id === 'todos' ? tickets.length : tickets.filter(t => t.status === id).length;
+    id === 'todos' ? tickets.length : tickets.filter((t) => t.status === id).length;
 
-  const abertos = tickets.filter(t => t.status === 'aberto').length;
+  const abertos = tickets.filter((t) => t.status === 'aberto').length;
 
   if (loading) {
     return (
-      <View style={[s.container, { backgroundColor: bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          s.container,
+          { backgroundColor: bg, justifyContent: 'center', alignItems: 'center' },
+        ]}
+      >
         <ActivityIndicator size="large" color={colors.orange} />
       </View>
     );
@@ -89,23 +128,33 @@ export function MeusTicketsScreen() {
   return (
     <View style={[s.container, { backgroundColor: bg }]}>
       <View style={[s.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
-        <Text style={[s.titulo, { color: text }]}>Meus Tickets</Text>
+        <View style={s.tituloRow}>
+          {handleBack && (
+            <TouchableOpacity onPress={handleBack} style={s.backBtn} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={22} color={text} />
+            </TouchableOpacity>
+          )}
+          <Text style={[s.titulo, { color: text }]}>Meus Tickets</Text>
+        </View>
         <Text style={[s.subtitulo, { color: textSec as string }]}>
-          {tickets.length === 0 ? 'Nenhum ticket ainda' : `${tickets.length} ${tickets.length === 1 ? 'ticket' : 'tickets'}`}
+          {tickets.length === 0
+            ? 'Nenhum ticket ainda'
+            : `${tickets.length} ${tickets.length === 1 ? 'ticket' : 'tickets'}`}
         </Text>
 
         {abertos > 0 && (
           <View style={s.alertRow}>
             <Ionicons name="alert-circle" size={14} color="#DC2626" />
             <Text style={s.alertTxt}>
-              {abertos} {abertos === 1 ? 'ticket aguardando resposta' : 'tickets aguardando resposta'}
+              {abertos}{' '}
+              {abertos === 1 ? 'ticket aguardando resposta' : 'tickets aguardando resposta'}
             </Text>
           </View>
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll}>
-          {FILTERS.map(f => {
-            const count  = countFor(f.id);
+          {FILTERS.map((f) => {
+            const count = countFor(f.id);
             const active = filter === f.id;
             return (
               <TouchableOpacity
@@ -135,12 +184,18 @@ export function MeusTicketsScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {list.map(ticket => {
+          {list.map((ticket) => {
             const meta = STATUS_META[ticket.status];
             return (
               <TouchableOpacity
                 key={ticket.id}
-                style={[s.card, { backgroundColor: surf, borderColor: ticket.status === 'aberto' ? '#DC2626' : borderL }]}
+                style={[
+                  s.card,
+                  {
+                    backgroundColor: surf,
+                    borderColor: ticket.status === 'aberto' ? '#DC2626' : borderL,
+                  },
+                ]}
                 onPress={() => router.push(`/(consumer)/tickets/${ticket.id}` as any)}
                 activeOpacity={0.8}
               >
@@ -157,7 +212,9 @@ export function MeusTicketsScreen() {
                   </View>
                 </View>
 
-                <Text style={[s.motivo, { color: text }]} numberOfLines={2}>{ticket.motivo}</Text>
+                <Text style={[s.motivo, { color: text }]} numberOfLines={2}>
+                  {ticket.motivo}
+                </Text>
 
                 <View style={s.cardBottom}>
                   <Text style={[s.tempo, { color: textMut as string }]}>
@@ -184,34 +241,69 @@ export function MeusTicketsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  header:    { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 0, borderBottomWidth: 1 },
-  titulo:    { fontSize: 20, fontWeight: '700' },
+  header: { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 0, borderBottomWidth: 1 },
+  tituloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.n100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titulo: { fontSize: 20, fontWeight: '700' },
   subtitulo: { fontSize: 12, marginTop: 2, marginBottom: 10 },
-  alertRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
-  alertTxt:  { fontSize: 12, color: '#DC2626', fontWeight: '600' },
+  alertRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
+  alertTxt: { fontSize: 12, color: '#DC2626', fontWeight: '600' },
   filtersScroll: { marginBottom: 14 },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12,
-               paddingVertical: 6, borderRadius: 99, backgroundColor: colors.n100, marginRight: 8 },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 99,
+    backgroundColor: colors.n100,
+    marginRight: 8,
+  },
   filterBtnActive: { backgroundColor: colors.navy },
   filterLabel: { fontSize: 12, fontWeight: '600', color: colors.navy },
-  filterBadge: { minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 99,
-                 backgroundColor: colors.n0, alignItems: 'center', justifyContent: 'center' },
+  filterBadge: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 99,
+    backgroundColor: colors.n0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
   filterBadgeTxt: { fontSize: 10, fontWeight: '700', color: colors.n500 },
-  scroll:    { padding: 16, paddingBottom: 24 },
-  vazio:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
+  scroll: { padding: 16, paddingBottom: 24 },
+  vazio: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
   vazioTitulo: { fontSize: 17, fontWeight: '700' },
-  vazioTxt:  { fontSize: 13, textAlign: 'center' },
-  card:      { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
-  cardTop:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  vazioTxt: { fontSize: 13, textAlign: 'center' },
+  card: { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
   protocolo: { fontSize: 14, fontWeight: '700' },
-  lojaNome:  { fontSize: 12, marginTop: 1 },
-  badge:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8,
-               paddingVertical: 3, borderRadius: 99 },
-  badgeTxt:  { fontSize: 11, fontWeight: '600' },
-  motivo:    { fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  lojaNome: { fontSize: 12, marginTop: 1 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  badgeTxt: { fontSize: 11, fontWeight: '600' },
+  motivo: { fontSize: 13, lineHeight: 19, marginBottom: 10 },
   cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tempo:     { fontSize: 11.5, flex: 1 },
-  msgRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  msgCount:  { fontSize: 11.5 },
+  tempo: { fontSize: 11.5, flex: 1 },
+  msgRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  msgCount: { fontSize: 11.5 },
 });

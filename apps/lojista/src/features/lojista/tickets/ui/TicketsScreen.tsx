@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
@@ -17,18 +23,21 @@ function dataCurta(iso: string) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-export function TicketsScreen() {
-  const token  = useAuthLojistaStore(s => s.token);
-  const lojaId = useAuthLojistaStore(s => s.lojaId);
-  const lojaNome = useAuthLojistaStore(s => s.lojaNome);
+export function TicketsScreen({ onBack }: { onBack?: () => void }) {
+  const token = useAuthLojistaStore((s) => s.token);
+  const lojaId = useAuthLojistaStore((s) => s.lojaId);
+  const lojaNome = useAuthLojistaStore((s) => s.lojaNome);
 
-  const [tickets, setTickets]     = useState<Ticket[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState<'todos' | TicketStatus>('todos');
-  const [selected, setSelected]   = useState<Ticket | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'todos' | TicketStatus>('todos');
+  const [selected, setSelected] = useState<Ticket | null>(null);
 
   const fetchTickets = useCallback(async () => {
-    if (!lojaId || !token) { setLoading(false); return; }
+    if (!lojaId || !token) {
+      setLoading(false);
+      return;
+    }
     try {
       const raw = await LojistaService.listarTickets(lojaId, token);
       setTickets(raw.map(mapTicket));
@@ -56,7 +65,7 @@ export function TicketsScreen() {
   });
 
   const handleTicketUpdate = useCallback((updated: Ticket) => {
-    setTickets(ts => ts.map(t => t.id === updated.id ? updated : t));
+    setTickets((ts) => ts.map((t) => (t.id === updated.id ? updated : t)));
     setSelected(updated);
   }, []);
 
@@ -71,12 +80,12 @@ export function TicketsScreen() {
     );
   }
 
-  const list = filter === 'todos' ? tickets : tickets.filter(t => t.status === filter);
+  const list = filter === 'todos' ? tickets : tickets.filter((t) => t.status === filter);
 
   const countFor = (id: 'todos' | TicketStatus) =>
-    id === 'todos' ? tickets.length : tickets.filter(t => t.status === id).length;
+    id === 'todos' ? tickets.length : tickets.filter((t) => t.status === id).length;
 
-  const abertos = tickets.filter(t => t.status === 'aberto').length;
+  const abertos = tickets.filter((t) => t.status === 'aberto').length;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -86,7 +95,14 @@ export function TicketsScreen() {
         <View style={s.headerTop}>
           <View>
             <Text style={s.headerSub}>{lojaNome ?? 'Minha Loja'}</Text>
-            <Text style={s.headerTitle}>Tickets</Text>
+            <View style={s.tituloRow}>
+              {onBack && (
+                <TouchableOpacity onPress={onBack} style={s.backBtn} activeOpacity={0.7}>
+                  <Ionicons name="chevron-back" size={22} color="#000933" />
+                </TouchableOpacity>
+              )}
+              <Text style={s.headerTitle}>Tickets</Text>
+            </View>
           </View>
           <TouchableOpacity onPress={fetchTickets} style={s.refreshBtn} activeOpacity={0.7}>
             <Ionicons name="refresh" size={18} color="#9099B3" />
@@ -99,15 +115,17 @@ export function TicketsScreen() {
               <Ionicons name="alert-circle" size={16} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>{abertos} ticket{abertos > 1 ? 's' : ''} aberto{abertos > 1 ? 's' : ''}</Text>
+              <Text style={s.alertTitle}>
+                {abertos} ticket{abertos > 1 ? 's' : ''} aberto{abertos > 1 ? 's' : ''}
+              </Text>
               <Text style={s.alertSub}>Aguardando análise</Text>
             </View>
           </View>
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll}>
-          {FILTERS.map(f => {
-            const count  = countFor(f.id);
+          {FILTERS.map((f) => {
+            const count = countFor(f.id);
             const active = filter === f.id;
             return (
               <TouchableOpacity
@@ -117,7 +135,9 @@ export function TicketsScreen() {
               >
                 <Text style={[s.filterLabel, active && s.filterLabelActive]}>{f.label}</Text>
                 <View style={[s.filterCount, active && s.filterCountActive]}>
-                  <Text style={[s.filterCountText, active && s.filterCountTextActive]}>{count}</Text>
+                  <Text style={[s.filterCountText, active && s.filterCountTextActive]}>
+                    {count}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -137,7 +157,7 @@ export function TicketsScreen() {
               <Text style={s.empty}>Nenhum ticket nesse filtro</Text>
             </View>
           )}
-          {list.map(ticket => {
+          {list.map((ticket) => {
             const meta = STATUS_META[ticket.status];
             return (
               <TouchableOpacity
@@ -166,15 +186,25 @@ export function TicketsScreen() {
                     </View>
                   </View>
 
-                  <Text style={s.motivo} numberOfLines={2}>{ticket.motivo}</Text>
+                  <Text style={s.motivo} numberOfLines={2}>
+                    {ticket.motivo}
+                  </Text>
 
                   <View style={s.cardBottom}>
                     {ticket.pedido && (
                       <Text style={s.pedidoInfo}>
-                        Pedido · {ticket.pedido.itens.slice(0, 2).map(i =>
-                          i.quantidade > 1 ? `${i.nomeSnapshot} x${i.quantidade}` : i.nomeSnapshot
-                        ).join(', ')}
-                        {ticket.pedido.itens.length > 2 ? ` +${ticket.pedido.itens.length - 2}` : ''}
+                        Pedido ·{' '}
+                        {ticket.pedido.itens
+                          .slice(0, 2)
+                          .map((i) =>
+                            i.quantidade > 1
+                              ? `${i.nomeSnapshot} x${i.quantidade}`
+                              : i.nomeSnapshot,
+                          )
+                          .join(', ')}
+                        {ticket.pedido.itens.length > 2
+                          ? ` +${ticket.pedido.itens.length - 2}`
+                          : ''}
                       </Text>
                     )}
                     <Text style={s.data}>{dataCurta(ticket.criadoEm)}</Text>
@@ -190,40 +220,120 @@ export function TicketsScreen() {
 }
 
 const s = StyleSheet.create({
-  safe:       { flex: 1, backgroundColor: '#F6F7FB' },
-  header:     { backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 16, borderBottomWidth: 1, borderBottomColor: '#E4E7F1' },
-  headerTop:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerSub:  { fontSize: 11, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  safe: { flex: 1, backgroundColor: '#F6F7FB' },
+  header: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E7F1',
+  },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerSub: {
+    fontSize: 11,
+    color: '#9099B3',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#000933', marginTop: 2 },
-  refreshBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0F1F7', alignItems: 'center', justifyContent: 'center' },
-  alertBanner: { marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: '#DC2626', flexDirection: 'row', alignItems: 'center', gap: 10 },
-  alertIcon:  { width: 32, height: 32, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  tituloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F1F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F1F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertBanner: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#DC2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  alertIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 99,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   alertTitle: { fontSize: 13, fontWeight: '600', color: '#fff' },
-  alertSub:   { fontSize: 11, color: '#fff', opacity: 0.9, marginTop: 1 },
+  alertSub: { fontSize: 11, color: '#fff', opacity: 0.9, marginTop: 1 },
   filtersScroll: { marginTop: 14, marginBottom: 14 },
-  filterBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99, backgroundColor: '#F0F1F7', marginRight: 8 },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 99,
+    backgroundColor: '#F0F1F7',
+    marginRight: 8,
+  },
   filterBtnActive: { backgroundColor: '#000933' },
   filterLabel: { fontSize: 12.5, fontWeight: '600', color: '#000933' },
   filterLabelActive: { color: '#fff' },
-  filterCount: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 99, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  filterCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 99,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filterCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
   filterCountText: { fontSize: 10, fontWeight: '700', color: '#9099B3' },
   filterCountTextActive: { color: '#fff' },
-  list:       { flex: 1 },
-  emptyWrap:  { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  empty:      { textAlign: 'center', color: '#9099B3', fontSize: 13 },
-  card:       { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#E4E7F1' },
+  list: { flex: 1 },
+  emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 10 },
+  empty: { textAlign: 'center', color: '#9099B3', fontSize: 13 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+  },
   cardUrgente: { borderColor: '#DC2626', borderWidth: 1.5 },
-  cardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
   protocolRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  protocolo:  { fontSize: 15, fontWeight: '700', color: '#000933' },
-  urgenteBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#DC2626', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 99 },
+  protocolo: { fontSize: 15, fontWeight: '700', color: '#000933' },
+  urgenteBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 99,
+  },
   urgenteText: { fontSize: 9, fontWeight: '700', color: '#fff' },
   consumidor: { fontSize: 12, color: '#9099B3' },
-  badge:      { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99, alignSelf: 'flex-start' },
-  badgeText:  { fontSize: 11, fontWeight: '700' },
-  motivo:     { fontSize: 13, color: '#000933', lineHeight: 19, marginBottom: 10 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99, alignSelf: 'flex-start' },
+  badgeText: { fontSize: 11, fontWeight: '700' },
+  motivo: { fontSize: 13, color: '#000933', lineHeight: 19, marginBottom: 10 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pedidoInfo: { fontSize: 11.5, color: '#9099B3', flex: 1, marginRight: 8 },
-  data:       { fontSize: 11.5, color: '#C8CDE0', fontWeight: '600' },
+  data: { fontSize: 11.5, color: '#C8CDE0', fontWeight: '600' },
 });
