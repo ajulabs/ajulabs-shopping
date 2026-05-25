@@ -1,11 +1,9 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
-
-const TOKEN_KEY = 'entregador_auth_token';
-const SESSION_KEY = 'entregador_auth_session';
 
 interface DadosRegistro {
   nome: string;
@@ -25,106 +23,23 @@ interface AuthEntregadorState {
   email: string | null;
   entregadorId: string | null;
   fotoUrl: string | null;
-  hydrated: boolean;
+  /**
+   * True quando o estado já foi carregado do AsyncStorage. Usado pelo
+   * RootLayout pra evitar piscar a tela de login enquanto o storage
+   * ainda está sendo lido.
+   */
+  hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
+
   login: (cpf: string, senha: string) => Promise<void>;
   registrar: (dados: DadosRegistro) => Promise<void>;
   logout: () => void;
-  hydrate: () => Promise<void>;
-  setFotoUrl: (url: string) => Promise<void>;
+  setFotoUrl: (url: string) => void;
 }
 
-async function salvarSessao(token: string, entregador: any) {
-  await AsyncStorage.setItem(TOKEN_KEY, token);
-  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(entregador));
-}
-
-async function limparSessao() {
-  await AsyncStorage.removeItem(TOKEN_KEY).catch(() => {});
-  await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
-}
-
-export const useAuthEntregadorStore = create<AuthEntregadorState>((set, get) => ({
-  isLoggedIn: false,
-  needsOnboarding: false,
-  token: null,
-  cpf: null,
-  nome: null,
-  email: null,
-  entregadorId: null,
-  fotoUrl: null,
-  hydrated: false,
-
-  hydrate: async () => {
-    if (get().hydrated) return;
-    try {
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
-      const sessionRaw = await AsyncStorage.getItem(SESSION_KEY);
-      if (token && sessionRaw) {
-        const entregador = JSON.parse(sessionRaw);
-        set({
-          isLoggedIn: true,
-          token,
-          entregadorId: entregador.id ?? null,
-          nome: entregador.nome ?? null,
-          cpf: entregador.cpf ?? null,
-          email: entregador.email ?? null,
-          fotoUrl: entregador.fotoUrl ?? null,
-        });
-      }
-    } catch {
-      // sessão corrompida — começa do zero
-    } finally {
-      set({ hydrated: true });
-    }
-  },
-
-  login: async (cpf, senha) => {
-    const resp = await fetch(`${API_URL}auth/entregador/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cpf, senha }),
-    });
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : 'CPF ou senha inválidos');
-    }
-    await salvarSessao(data.token, { ...data.entregador, cpf });
-    set({
-      isLoggedIn: true,
-      needsOnboarding: false,
-      token: data.token,
-      entregadorId: data.entregador.id,
-      nome: data.entregador.nome,
-      fotoUrl: data.entregador.fotoUrl ?? null,
-      cpf,
-    });
-  },
-
-  registrar: async (dados) => {
-    const resp = await fetch(`${API_URL}auth/entregador/registrar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dados),
-    });
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao cadastrar');
-    }
-    await salvarSessao(data.token, { ...data.entregador, cpf: dados.cpf, email: dados.email });
-    set({
-      isLoggedIn: true,
-      needsOnboarding: false,
-      token: data.token,
-      entregadorId: data.entregador.id,
-      nome: data.entregador.nome,
-      cpf: dados.cpf,
-      email: dados.email,
-    });
-  },
-
-  logout: async () => {
-    await limparSessao();
-    set({
+export const useAuthEntregadorStore = create<AuthEntregadorState>()(
+  persist(
+    (set) => ({
       isLoggedIn: false,
       needsOnboarding: false,
       token: null,
@@ -133,15 +48,83 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>((set, get) => 
       email: null,
       entregadorId: null,
       fotoUrl: null,
-    });
-  },
+      hasHydrated: false,
+      setHasHydrated: (v: boolean) => set({ hasHydrated: v }),
 
-  setFotoUrl: async (url: string) => {
-    const sessionRaw = await AsyncStorage.getItem(SESSION_KEY).catch(() => null);
-    if (sessionRaw) {
-      const session = JSON.parse(sessionRaw);
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, fotoUrl: url }));
-    }
-    set({ fotoUrl: url });
-  },
-}));
+      login: async (cpf, senha) => {
+        const resp = await fetch(`${API_URL}auth/entregador/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cpf, senha }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'CPF ou senha inválidos');
+        }
+        set({
+          isLoggedIn: true,
+          needsOnboarding: false,
+          token: data.token,
+          entregadorId: data.entregador.id,
+          nome: data.entregador.nome,
+          fotoUrl: data.entregador.fotoUrl ?? null,
+          cpf,
+        });
+      },
+
+      registrar: async (dados) => {
+        const resp = await fetch(`${API_URL}auth/entregador/registrar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao cadastrar');
+        }
+        set({
+          isLoggedIn: true,
+          needsOnboarding: false,
+          token: data.token,
+          entregadorId: data.entregador.id,
+          nome: data.entregador.nome,
+          cpf: dados.cpf,
+          email: dados.email,
+        });
+      },
+
+      logout: () => {
+        set({
+          isLoggedIn: false,
+          needsOnboarding: false,
+          token: null,
+          cpf: null,
+          nome: null,
+          email: null,
+          entregadorId: null,
+          fotoUrl: null,
+        });
+      },
+
+      setFotoUrl: (url: string) => {
+        set({ fotoUrl: url });
+      },
+    }),
+    {
+      name: 'ajulabs-entregador-auth',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        isLoggedIn: state.isLoggedIn,
+        token: state.token,
+        cpf: state.cpf,
+        nome: state.nome,
+        email: state.email,
+        entregadorId: state.entregadorId,
+        fotoUrl: state.fotoUrl,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    },
+  ),
+);

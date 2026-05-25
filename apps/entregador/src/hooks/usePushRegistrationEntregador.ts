@@ -16,6 +16,10 @@ Notifications.setNotificationHandler({
 });
 
 async function obterExpoPushToken(): Promise<string | null> {
+  // Push web requer VAPID key configurada em app.json. Até lá, silencia
+  // no web pra não poluir o console com erros nada actionable.
+  if (Platform.OS === 'web') return null;
+
   if (!Device.isDevice) {
     if (__DEV__) console.warn('[push-entregador] emuladores não recebem push');
     return null;
