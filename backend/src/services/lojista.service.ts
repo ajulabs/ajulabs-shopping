@@ -259,7 +259,7 @@ export async function analisarImagemProduto(file: Express.Multer.File) {
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 500,
+    max_tokens: 800,
     response_format: { type: 'json_object' },
     messages: [
       {
@@ -274,15 +274,22 @@ export async function analisarImagemProduto(file: Express.Multer.File) {
             text: `Analise esta imagem de produto para um marketplace local de Aracaju, Sergipe.
 Responda APENAS com JSON válido, sem markdown.
 
-Formato obrigatório:
+Campos obrigatórios:
 {
   "nome": "nome comercial do produto (máx 60 caracteres)",
-  "categoria": "uma de: Alimentos, Bebidas, Roupas, Calçados, Eletrônicos, Farmácia, Mercado, Outros",
+  "categoria": "use EXATAMENTE um destes valores: Eletrônicos - Celular / Smartphone | Eletrônicos - Notebook / Computador | Eletrônicos - Tablet | Eletrônicos - Fone / Headphone | Eletrônicos - Eletrodoméstico | Calçados - Masculino | Calçados - Feminino | Calçados - Infantil | Roupas - Feminino | Roupas - Masculino | Roupas - Infantil | Acessórios - Bolsa / Mochila | Acessórios - Joias / Bijuterias | Acessórios - Relógio | Beleza - Maquiagem | Beleza - Perfumaria | Beleza - Cabelos | Esporte - Futebol | Esporte - Academia / Fitness | Casa / Deco - Móveis | Casa / Deco - Decoração | Casa / Deco - Utilidades | Alimentos - Geral | Alimentos - Bebidas | Alimentos - Doces / Confeitaria | Outros",
   "descricao": "descrição atraente em 1-2 frases (máx 150 caracteres)",
   "tags": ["tag1", "tag2", "tag3"],
-  "preco": "preço sugerido em reais como string com vírgula, ex: 49,90",
-  "estoque": "quantidade inicial sugerida como string, ex: 10"
-}`,
+  "preco": "preço sugerido em reais como string, ex: 49,90",
+  "estoque": "quantidade sugerida como string, ex: 10"
+}
+
+Campos opcionais — inclua apenas se visível ou aplicável ao produto:
+- "cor": array de cores detectadas. Valores permitidos: Preto, Branco, Azul, Rosa, Vermelho, Verde, Amarelo, Cinza, Bege, Marrom, Nude, Prata, Dourado, Rosê, Coral, Marinho, Inox
+- "tipo": tipo da peça (roupas) ou tipo de produto (beleza). Valores: Vestido, Blusa, Calça, Saia, Short, Casaco, Camisa, Camiseta, Bermuda, Moletom, Jaqueta, Base, Batom, Blush, Sombra, Rímel, Perfume, Colônia, Shampoo, Condicionador, Máscara
+- "armazenamento": array para eletrônicos com memória. Valores: 64GB, 128GB, 256GB, 512GB, 1TB
+- "material": array para joias/acessórios. Valores: Ouro, Prata, Rosê, Aço, Banhado a Ouro
+- "volume": array para perfumes/cosméticos. Valores: 30ml, 50ml, 75ml, 100ml, 200ml`,
           },
         ],
       },
