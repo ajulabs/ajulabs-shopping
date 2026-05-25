@@ -1,12 +1,15 @@
 import { useState, useCallback } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
-import { TipoProdutoValue, derivarCategoriaString } from '../model/tipoProdutos';
+import {
+  TipoProdutoValue,
+  derivarCategoriaString,
+  inferirTipoProduto,
+} from '../model/tipoProdutos';
 import { Stepper } from './NovoProdutoStepper';
 import { CaptureStage } from './NovoProdutoCaptureStage';
 import { AnalyzingStage } from './NovoProdutoAnalyzingStage';
@@ -21,26 +24,32 @@ interface NovoProdutoProps {
 }
 
 const EMPTY_DATA: ProductData = {
-  nome: '', categoria: '', descricao: '', tags: [],
-  preco: '', estoque: '', variacoes: [], tipoProduto: null,
+  nome: '',
+  categoria: '',
+  descricao: '',
+  tags: [],
+  preco: '',
+  estoque: '',
+  variacoes: [],
+  tipoProduto: null,
 };
 
 export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoProps) {
-  const token  = useAuthLojistaStore(s => s.token);
-  const lojaId = useAuthLojistaStore(s => s.lojaId);
+  const token = useAuthLojistaStore((s) => s.token);
+  const lojaId = useAuthLojistaStore((s) => s.lojaId);
 
-  const [stage, setStage]               = useState<Stage>('capture');
-  const [saving, setSaving]             = useState(false);
-  const [imageUri, setImageUri]         = useState<string | null>(null);
-  const [showSuccess, setShowSuccess]   = useState(false);
+  const [stage, setStage] = useState<Stage>('capture');
+  const [saving, setSaving] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [publishedName, setPublishedName] = useState('');
-  const [productData, setProductData]   = useState<ProductData>(EMPTY_DATA);
+  const [productData, setProductData] = useState<ProductData>(EMPTY_DATA);
 
-  const textColor = dark ? colors.n0    : colors.navy;
-  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const bgMain    = dark ? '#0B0F22'    : colors.n50;
-  const surface   = dark ? '#111638'    : colors.n0;
-  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const textColor = dark ? colors.n0 : colors.navy;
+  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const bgMain = dark ? '#0B0F22' : colors.n50;
+  const surface = dark ? '#111638' : colors.n0;
+  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
   const stepIndex = stage === 'capture' ? 0 : stage === 'analyzing' ? 1 : 2;
 
@@ -50,34 +59,71 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     setProductData(EMPTY_DATA);
   }, []);
 
-  const handleCapture = useCallback(async (uri: string) => {
-    setImageUri(uri);
-    setStage('analyzing');
-    try {
-      const data = await LojistaService.analisarImagem(token!, uri);
-      setProductData({
-        nome: data.nome ?? '',
-        categoria: data.categoria ?? '',
-        descricao: data.descricao ?? '',
-        tags: Array.isArray(data.tags) ? data.tags : [],
-        preco: data.preco ?? '',
-        estoque: data.estoque ?? '',
-        variacoes: [],
-        tipoProduto: null,
-      });
-    } catch {
-      Alert.alert('Aviso', 'Não foi possível analisar a imagem. Preencha os dados manualmente.');
-    } finally {
-      setStage('edit');
-    }
-  }, [token]);
+  const handleCapture = useCallback(
+    async (uri: string) => {
+      setImageUri(uri);
+      setStage('analyzing');
+      try {
+        const data = await LojistaService.analisarImagem(token!, uri);
+        setProductData({
+          nome: data.nome ?? '',
+          categoria: data.categoria ?? '',
+          descricao: data.descricao ?? '',
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          preco: data.preco ?? '',
+          estoque: data.estoque ?? '',
+          variacoes: [],
+          tipoProduto: inferirTipoProduto(data as Record<string, unknown>),
+        });
+      } catch {
+        Alert.alert('Aviso', 'Não foi possível analisar a imagem. Preencha os dados manualmente.');
+      } finally {
+        setStage('edit');
+      }
+    },
+    [token],
+  );
 
-  const handleChange = useCallback((
-    key: keyof ProductData,
-    value: string | string[] | TipoProdutoValue | null,
-  ) => {
-    setProductData(prev => ({ ...prev, [key]: value }));
+  const handleTrocarFoto = useCallback(() => {
+    Alert.alert('Trocar foto', 'Escolha uma opção', [
+      {
+        text: 'Câmera',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert(
+              'Permissão necessária',
+              'Precisamos de acesso à câmera para fotografar o produto.',
+            );
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+          if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
+        },
+      },
+      {
+        text: 'Galeria',
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+          if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
+        },
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }, []);
+
+  const handleChange = useCallback(
+    (key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => {
+      setProductData((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   const handlePublicar = useCallback(async () => {
     if (!token || !lojaId) {
@@ -86,10 +132,6 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     }
     const preco = parseFloat(productData.preco.replace(',', '.'));
     const estoque = parseInt(productData.estoque, 10);
-    if (isNaN(preco) || preco <= 0) {
-      Alert.alert('Erro', 'Informe um preço válido.');
-      return;
-    }
     const categoriaFinal = productData.tipoProduto
       ? derivarCategoriaString(productData.tipoProduto)
       : productData.categoria;
@@ -133,7 +175,11 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     <View style={[styles.container, { backgroundColor: bgMain }]}>
       <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
         {(isEdit || onVoltar) && (
-          <TouchableOpacity style={styles.backBtn} onPress={isEdit ? handleVoltar : onVoltar} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={isEdit ? handleVoltar : onVoltar}
+            activeOpacity={0.7}
+          >
             <Ionicons name="chevron-back" size={22} color={textColor} />
           </TouchableOpacity>
         )}
@@ -147,7 +193,9 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
         </View>
       </View>
 
-      <View style={[styles.stepperWrapper, { backgroundColor: surface, borderBottomColor: border }]}>
+      <View
+        style={[styles.stepperWrapper, { backgroundColor: surface, borderBottomColor: border }]}
+      >
         <Stepper current={stepIndex} />
       </View>
 
@@ -162,12 +210,18 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
           data={productData}
           onChange={handleChange}
           onPublicar={handlePublicar}
+          onTrocarFoto={handleTrocarFoto}
           saving={saving}
           imageUri={imageUri}
         />
       )}
 
-      <Modal visible={showSuccess} transparent animationType="fade" onRequestClose={handleSuccessOk}>
+      <Modal
+        visible={showSuccess}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSuccessOk}
+      >
         <View style={styles.successOverlay}>
           <View style={styles.successBox}>
             <View style={styles.successIconWrap}>
@@ -178,7 +232,11 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
               <Text style={{ fontWeight: '700' }}>"{publishedName}"</Text>
               {' foi adicionado à sua vitrine com sucesso.'}
             </Text>
-            <TouchableOpacity style={styles.successBtn} onPress={handleSuccessOk} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.successBtn}
+              onPress={handleSuccessOk}
+              activeOpacity={0.8}
+            >
               <Text style={styles.successBtnText}>Continuar</Text>
             </TouchableOpacity>
           </View>
@@ -189,26 +247,62 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
 }
 
 const styles = StyleSheet.create({
-  container:       { flex: 1 },
-  header:          { flexDirection: 'row', alignItems: 'center', gap: 10,
-                     paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1 },
-  backBtn:         { width: 34, height: 34, borderRadius: 17,
-                     backgroundColor: 'rgba(0,0,0,0.06)',
-                     alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  headerInfo:      { flex: 1 },
-  headerTitle:     { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
-  headerSub:       { fontSize: 12, color: '#6B7390', marginTop: 1 },
-  stepperWrapper:  { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
-  successOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-                     justifyContent: 'center', alignItems: 'center', padding: 24 },
-  successBox:      { backgroundColor: '#fff', borderRadius: 24, padding: 28,
-                     width: '100%', alignItems: 'center', gap: 10 },
-  successIconWrap: { width: 88, height: 88, borderRadius: 44,
-                     backgroundColor: '#FFF3E8',
-                     alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  successTitle:    { fontSize: 22, fontWeight: '800', color: '#000933', letterSpacing: -0.4 },
-  successMsg:      { fontSize: 14, color: '#6B7390', textAlign: 'center', lineHeight: 20 },
-  successBtn:      { marginTop: 8, width: '100%', height: 50, borderRadius: 14,
-                     backgroundColor: '#F2760F', alignItems: 'center', justifyContent: 'center' },
-  successBtnText:  { fontSize: 15, fontWeight: '700', color: '#fff' },
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  headerInfo: { flex: 1 },
+  headerTitle: { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
+  headerSub: { fontSize: 12, color: '#6B7390', marginTop: 1 },
+  stepperWrapper: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  successBox: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    alignItems: 'center',
+    gap: 10,
+  },
+  successIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#FFF3E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  successTitle: { fontSize: 22, fontWeight: '800', color: '#000933', letterSpacing: -0.4 },
+  successMsg: { fontSize: 14, color: '#6B7390', textAlign: 'center', lineHeight: 20 },
+  successBtn: {
+    marginTop: 8,
+    width: '100%',
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: '#F2760F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
