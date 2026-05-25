@@ -219,10 +219,30 @@ const CORRIDA_INCLUDE = {
     select: {
       id: true,
       nome: true,
-      endereco: { select: { rua: true, numero: true, bairro: true, cidade: true, cep: true } },
+      endereco: {
+        select: {
+          rua: true,
+          numero: true,
+          bairro: true,
+          cidade: true,
+          cep: true,
+          lat: true,
+          lng: true,
+        },
+      },
     },
   },
-  enderecoEntrega: { select: { rua: true, numero: true, bairro: true, cidade: true, cep: true } },
+  enderecoEntrega: {
+    select: {
+      rua: true,
+      numero: true,
+      bairro: true,
+      cidade: true,
+      cep: true,
+      lat: true,
+      lng: true,
+    },
+  },
   itens: { select: { quantidade: true, nomeSnapshot: true, precoUnitario: true } },
   consumidor: { select: { nome: true, telefone: true } },
 } as const;
@@ -279,7 +299,24 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
     where: { id: pedidoId },
     data: { entregadorId },
     include: {
-      loja: { select: { id: true, nome: true, telefone: true } },
+      loja: {
+        select: {
+          id: true,
+          nome: true,
+          telefone: true,
+          endereco: {
+            select: {
+              rua: true,
+              numero: true,
+              bairro: true,
+              cidade: true,
+              cep: true,
+              lat: true,
+              lng: true,
+            },
+          },
+        },
+      },
       enderecoEntrega: true,
       itens: { select: { quantidade: true, nomeSnapshot: true, precoUnitario: true } },
       consumidor: { select: { nome: true, telefone: true } },
