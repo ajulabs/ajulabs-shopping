@@ -18,10 +18,10 @@ interface CartState {
   itensPorLoja: Record<string, ItemCarrinho[]>;
   lojasCache: Record<string, Loja>;
 
-  adicionar: (produto: Produto) => void;
-  remover: (produtoId: string) => void;
-  aumentar: (produtoId: string) => void;
-  diminuir: (produtoId: string) => void;
+  adicionar: (produto: Produto, variacaoId?: string, variacaoNome?: string) => void;
+  remover: (produtoId: string, variacaoId?: string) => void;
+  aumentar: (produtoId: string, variacaoId?: string) => void;
+  diminuir: (produtoId: string, variacaoId?: string) => void;
   limparLoja: (lojaId: string) => void;
   limparTudo: () => void;
   cachearLoja: (loja: Loja) => void;
@@ -33,61 +33,69 @@ export const useCartStore = create<CartState>()(
       itensPorLoja: {},
       lojasCache: {},
 
-      adicionar: (produto) => {
+      adicionar: (produto, variacaoId, variacaoNome) => {
         const { itensPorLoja } = get();
         const itensAtuais = itensPorLoja[produto.lojaId] ?? [];
-        const existente = itensAtuais.find((i) => i.produto.id === produto.id);
+        const existente = itensAtuais.find(
+          (i) => i.produto.id === produto.id && i.variacaoId === variacaoId,
+        );
 
         const novosItens = existente
           ? itensAtuais.map((i) =>
-              i.produto.id === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i,
+              i.produto.id === produto.id && i.variacaoId === variacaoId
+                ? { ...i, quantidade: i.quantidade + 1 }
+                : i,
             )
-          : [...itensAtuais, { produto, quantidade: 1 }];
+          : [...itensAtuais, { produto, quantidade: 1, variacaoId, variacaoNome }];
 
-        set({
-          itensPorLoja: { ...itensPorLoja, [produto.lojaId]: novosItens },
-        });
+        set({ itensPorLoja: { ...itensPorLoja, [produto.lojaId]: novosItens } });
       },
 
-      remover: (produtoId) => {
+      remover: (produtoId, variacaoId) => {
         const { itensPorLoja } = get();
         const novo: Record<string, ItemCarrinho[]> = {};
         for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
-          const filtrados = itens.filter((i) => i.produto.id !== produtoId);
+          const filtrados = itens.filter(
+            (i) => !(i.produto.id === produtoId && i.variacaoId === variacaoId),
+          );
           if (filtrados.length > 0) novo[lojaId] = filtrados;
         }
         set({ itensPorLoja: novo });
       },
 
-      aumentar: (produtoId) => {
+      aumentar: (produtoId, variacaoId) => {
         const { itensPorLoja } = get();
         const novo: Record<string, ItemCarrinho[]> = {};
         for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
           novo[lojaId] = itens.map((i) =>
-            i.produto.id === produtoId ? { ...i, quantidade: i.quantidade + 1 } : i,
+            i.produto.id === produtoId && i.variacaoId === variacaoId
+              ? { ...i, quantidade: i.quantidade + 1 }
+              : i,
           );
         }
         set({ itensPorLoja: novo });
       },
 
-      diminuir: (produtoId) => {
+      diminuir: (produtoId, variacaoId) => {
         const { itensPorLoja } = get();
         let alvo: ItemCarrinho | undefined;
         for (const itens of Object.values(itensPorLoja)) {
-          alvo = itens.find((i) => i.produto.id === produtoId);
+          alvo = itens.find((i) => i.produto.id === produtoId && i.variacaoId === variacaoId);
           if (alvo) break;
         }
         if (!alvo) return;
 
         if (alvo.quantidade <= 1) {
-          get().remover(produtoId);
+          get().remover(produtoId, variacaoId);
           return;
         }
 
         const novo: Record<string, ItemCarrinho[]> = {};
         for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
           novo[lojaId] = itens.map((i) =>
-            i.produto.id === produtoId ? { ...i, quantidade: i.quantidade - 1 } : i,
+            i.produto.id === produtoId && i.variacaoId === variacaoId
+              ? { ...i, quantidade: i.quantidade - 1 }
+              : i,
           );
         }
         set({ itensPorLoja: novo });
@@ -136,9 +144,7 @@ export function calcularGrupos(
   return grupos;
 }
 
-export function calcularQuantidadeItens(
-  itensPorLoja: Record<string, ItemCarrinho[]>,
-): number {
+export function calcularQuantidadeItens(itensPorLoja: Record<string, ItemCarrinho[]>): number {
   let total = 0;
   for (const itens of Object.values(itensPorLoja)) {
     for (const item of itens) total += item.quantidade;
