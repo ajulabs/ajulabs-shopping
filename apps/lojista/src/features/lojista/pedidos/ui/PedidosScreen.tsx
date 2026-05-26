@@ -12,7 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LojistaService } from '@ajulabs/api-client';
+import { LojistaService, ApiUnauthorizedError } from '@ajulabs/api-client';
 import { useAuthLojistaStore } from '../../../../store';
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
@@ -61,6 +61,7 @@ export function PedidosScreen() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'todos' | OrderStatus>('todos');
   const [screen, setScreen] = useState<Screen>('list');
   const [selected, setSelected] = useState<Order | null>(null);
@@ -72,15 +73,28 @@ export function PedidosScreen() {
   const primeiraCarregadaRef = useRef(true);
 
   const fetchPedidos = useCallback(async () => {
-    if (!lojaId || !token) {
+    if (!lojaId) {
+      setLoading(false);
+      setError('loja_null');
+      return;
+    }
+    if (!token) {
       setLoading(false);
       return;
     }
     try {
       const raw = await LojistaService.listarPedidos(lojaId, token);
       setOrders(raw.map(mapPedidoToOrder));
+      setError(null);
     } catch (err) {
-      console.error('[PedidosScreen] fetchPedidos error:', err);
+      if (err instanceof ApiUnauthorizedError) {
+        // Dispara refresh — quando o token atualizar no store o componente
+        // re-renderiza com novo token e o useEffect chama fetchPedidos novamente.
+        useAuthLojistaStore.getState().refreshAccessToken();
+      } else {
+        console.error('[PedidosScreen] fetchPedidos error:', err);
+        setError('Não foi possível carregar pedidos.');
+      }
     }
     setLoading(false);
   }, [lojaId, token]);
@@ -89,7 +103,7 @@ export function PedidosScreen() {
     if (!lojaId || !token) return;
     try {
       const raw = await LojistaService.listarTickets(lojaId, token);
-      setOpenTickets(raw.filter((t: any) => t.status !== 'resolvido').length);
+      setOpenTickets(raw.filter((t: any) => t.status === 'aberto').length);
     } catch {
       /* silencioso — badge opcional */
     }
@@ -166,6 +180,54 @@ export function PedidosScreen() {
     inputRange: [0, 1],
     outputRange: ['#DE6708', '#FFD0A8'],
   });
+
+  if (!loading && error === 'loja_null') {
+    return (
+      <SafeAreaView style={s.safe}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Ionicons name="storefront-outline" size={56} color="#9099B3" />
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: '700',
+              color: '#000933',
+              marginTop: 20,
+              textAlign: 'center',
+            }}
+          >
+            Loja não configurada
+          </Text>
+          <Text
+            style={{
+              fontSize: 13,
+              color: '#9099B3',
+              textAlign: 'center',
+              marginTop: 8,
+              lineHeight: 20,
+            }}
+          >
+            Sua conta não tem uma loja associada. Faça login novamente para resolver o problema.
+          </Text>
+          <TouchableOpacity
+            style={{
+              marginTop: 28,
+              backgroundColor: '#DE6708',
+              borderRadius: 12,
+              paddingHorizontal: 28,
+              paddingVertical: 13,
+            }}
+            onPress={() => useAuthLojistaStore.getState().logout()}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+              Fazer login novamente
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (screen === 'tickets') {
     return <TicketsScreen onBack={() => setScreen('list')} />;
@@ -278,6 +340,26 @@ export function PedidosScreen() {
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#DE6708" />
+        </View>
+      ) : error && error !== 'loja_null' ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Ionicons name="cloud-offline-outline" size={40} color="#9099B3" />
+          <Text style={{ color: '#9099B3', fontSize: 13, marginTop: 12, textAlign: 'center' }}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            onPress={fetchPedidos}
+            style={{
+              marginTop: 16,
+              backgroundColor: '#000933',
+              borderRadius: 10,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Tentar novamente</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView style={s.list} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>

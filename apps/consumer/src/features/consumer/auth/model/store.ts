@@ -16,6 +16,7 @@ interface DadosRegistro {
 interface AuthState {
   isLoggedIn: boolean;
   token: string | null;
+  refreshToken: string | null;
   telefone: string | null;
   email: string | null;
   nome: string | null;
@@ -37,13 +38,15 @@ interface AuthState {
   registrarNome: (nome: string) => void;
   setAvatarUrl: (url: string | null) => void;
   logout: () => void;
+  refreshAccessToken: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isLoggedIn: false,
       token: null,
+      refreshToken: null,
       telefone: null,
       email: null,
       nome: null,
@@ -69,10 +72,11 @@ export const useAuthStore = create<AuthState>()(
           throw new Error(errorMsg);
         }
 
-        const { token, usuario } = await res.json();
+        const { token, refreshToken, usuario } = await res.json();
         set({
           isLoggedIn: true,
           token,
+          refreshToken: refreshToken ?? null,
           userId: usuario.id,
           nome: usuario.nome,
           telefone: usuario.telefone,
@@ -109,10 +113,11 @@ export const useAuthStore = create<AuthState>()(
           throw new Error(errorMsg);
         }
 
-        const { token, usuario } = await res.json();
+        const { token, refreshToken, usuario } = await res.json();
         set({
           isLoggedIn: true,
           token,
+          refreshToken: refreshToken ?? null,
           userId: usuario.id,
           nome: usuario.nome,
           telefone: usuario.telefone,
@@ -146,6 +151,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           isLoggedIn: false,
           token: null,
+          refreshToken: null,
           telefone: null,
           email: null,
           nome: null,
@@ -154,15 +160,39 @@ export const useAuthStore = create<AuthState>()(
           codigoVerificado: false,
         });
       },
+
+      refreshAccessToken: async () => {
+        const { refreshToken } = get();
+        if (!refreshToken) {
+          get().logout();
+          return false;
+        }
+        try {
+          const res = await fetch(`${API_URL}auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (!res.ok) {
+            get().logout();
+            return false;
+          }
+          const { token: newToken, refreshToken: newRefreshToken } = await res.json();
+          set({ token: newToken, refreshToken: newRefreshToken ?? null });
+          return true;
+        } catch {
+          get().logout();
+          return false;
+        }
+      },
     }),
     {
       name: 'ajulabs-consumer-auth',
       storage: createJSONStorage(() => AsyncStorage),
-      // Só persiste o que faz sentido: login + identidade.
-      // Não salva codigoVerificado nem hasHydrated.
       partialize: (state) => ({
         isLoggedIn: state.isLoggedIn,
         token: state.token,
+        refreshToken: state.refreshToken,
         userId: state.userId,
         nome: state.nome,
         telefone: state.telefone,

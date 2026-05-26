@@ -16,6 +16,7 @@ interface DadosRegistroLojista {
 interface AuthLojistaState {
   isLoggedIn: boolean;
   token: string | null;
+  refreshToken: string | null;
   lojistaId: string | null;
   lojaId: string | null;
   lojaNome: string | null;
@@ -27,13 +28,15 @@ interface AuthLojistaState {
   login: (cnpj: string, senha: string) => Promise<void>;
   registrar: (dados: DadosRegistroLojista) => Promise<void>;
   logout: () => void;
+  refreshAccessToken: () => Promise<boolean>;
 }
 
 export const useAuthLojistaStore = create<AuthLojistaState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isLoggedIn: false,
       token: null,
+      refreshToken: null,
       lojistaId: null,
       lojaId: null,
       lojaNome: null,
@@ -51,15 +54,15 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
 
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          const errorMsg =
-            typeof data.error === 'string' ? data.error : 'CNPJ ou senha inválidos';
+          const errorMsg = typeof data.error === 'string' ? data.error : 'CNPJ ou senha inválidos';
           throw new Error(errorMsg);
         }
 
-        const { token, lojista } = await res.json();
+        const { token, refreshToken, lojista } = await res.json();
         set({
           isLoggedIn: true,
           token,
+          refreshToken: refreshToken ?? null,
           lojistaId: lojista.id,
           lojaId: lojista.lojaId ?? null,
           lojaNome: lojista.lojaNome ?? null,
@@ -90,10 +93,11 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
           throw new Error(errorMsg);
         }
 
-        const { token, lojista } = await res.json();
+        const { token, refreshToken, lojista } = await res.json();
         set({
           isLoggedIn: true,
           token,
+          refreshToken: refreshToken ?? null,
           lojistaId: lojista.id,
           lojaId: lojista.lojaId ?? null,
           lojaNome: lojista.lojaNome ?? null,
@@ -106,12 +110,38 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
         set({
           isLoggedIn: false,
           token: null,
+          refreshToken: null,
           lojistaId: null,
           lojaId: null,
           lojaNome: null,
           nomeResponsavel: null,
           email: null,
         });
+      },
+
+      refreshAccessToken: async () => {
+        const { refreshToken } = get();
+        if (!refreshToken) {
+          get().logout();
+          return false;
+        }
+        try {
+          const res = await fetch(`${API_URL}auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (!res.ok) {
+            get().logout();
+            return false;
+          }
+          const { token: newToken, refreshToken: newRefreshToken } = await res.json();
+          set({ token: newToken, refreshToken: newRefreshToken ?? null });
+          return true;
+        } catch {
+          get().logout();
+          return false;
+        }
       },
     }),
     {
@@ -120,6 +150,7 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
       partialize: (state) => ({
         isLoggedIn: state.isLoggedIn,
         token: state.token,
+        refreshToken: state.refreshToken,
         lojistaId: state.lojistaId,
         lojaId: state.lojaId,
         lojaNome: state.lojaNome,

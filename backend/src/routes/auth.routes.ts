@@ -271,10 +271,28 @@ router.post('/lojista/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
-    const loja = await prisma.loja.findFirst({
+    let loja = await prisma.loja.findFirst({
       where: { lojistaId: lojista.id },
+      orderBy: { criadoEm: 'asc' },
       select: { id: true, nome: true },
     });
+
+    if (!loja) {
+      loja = await prisma.loja.create({
+        data: {
+          lojistaId: lojista.id,
+          nome: lojista.nomeResponsavel,
+          descricao: '',
+          categoria: '',
+          telefone: lojista.telefone,
+          tempoEntregaMin: 30,
+          tempoEntregaMax: 60,
+          taxaEntrega: 0,
+        },
+        select: { id: true, nome: true },
+      });
+      logger.warn({ lojistaId: lojista.id }, 'Loja criada automaticamente no login');
+    }
 
     const tokenPayload = { id: lojista.id, tipo: 'lojista' as const };
     const token = gerarToken(tokenPayload);
