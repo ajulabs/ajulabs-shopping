@@ -34,9 +34,16 @@ interface ActiveScreenProps {
   initialStage?: Stage;
   onFinish: () => void;
   onBack?: (currentStage: Stage) => void;
+  onOpenChat?: (pedidoId: string) => void;
 }
 
-export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScreenProps) {
+export function ActiveScreen({
+  ride,
+  initialStage,
+  onFinish,
+  onBack,
+  onOpenChat,
+}: ActiveScreenProps) {
   const token = useAuthEntregadorStore((s) => s.token);
   const entregadorId = useAuthEntregadorStore((s) => s.entregadorId);
   const [stage, setStage] = useState<Stage>(initialStage ?? 'to-store');
@@ -352,7 +359,12 @@ export function ActiveScreen({ ride, initialStage, onFinish, onBack }: ActiveScr
           >
             <Ionicons name="call" size={20} color="#002B12" />
           </TouchableOpacity>
-          <TouchableOpacity style={[s.fab, { backgroundColor: '#FFFFFF' }]} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[s.fab, { backgroundColor: '#FFFFFF' }, !onOpenChat && { opacity: 0.4 }]}
+            activeOpacity={0.8}
+            onPress={() => onOpenChat?.(ride.id)}
+            disabled={!onOpenChat}
+          >
             <Ionicons name="chatbubble" size={20} color="#000933" />
           </TouchableOpacity>
         </View>

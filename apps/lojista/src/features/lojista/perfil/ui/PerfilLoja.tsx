@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
+import { useRouter } from 'expo-router';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
 
@@ -420,6 +421,7 @@ function CategoriaPicker({
 }
 
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
+  const router = useRouter();
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const logout = useAuthLojistaStore((s) => s.logout);
@@ -962,6 +964,15 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.conversasBtn}
+          onPress={() => router.push('/(lojista)/conversas')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="chatbubbles-outline" size={18} color="#0B6FAE" />
+          <Text style={styles.conversasBtnText}>Conversas</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
           <Ionicons name="log-out-outline" size={18} color="#E24B4A" />
           <Text style={styles.logoutBtnText}>Sair da conta</Text>
@@ -1195,6 +1206,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   logoutBtnText: { fontSize: 15, fontWeight: '700', color: '#E24B4A' },
+  conversasBtn: {
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#0B6FAE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  conversasBtnText: { fontSize: 15, fontWeight: '700', color: '#0B6FAE' },
 
   // Modal de logout
   modalOverlay: {

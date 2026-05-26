@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedido } from '@ajulabs/types';
@@ -11,6 +18,8 @@ import { TrackingTimeline } from './TrackingTimeline';
 import { DeliveryMap } from '../../../../components/DeliveryMap';
 import { useEntregadorTracking } from '../hooks/useEntregadorTracking';
 
+const CHAT_STATUSES = ['confirmado', 'preparando', 'pronto', 'saiu_entrega'];
+
 const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
 const ACTIVE_STATUSES = ['pronto', 'saiu_entrega'];
@@ -21,8 +30,8 @@ interface Props {
 
 export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
-  const userId = useAuthStore(s => s.userId);
+  const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.userId);
   const { isDark, bg, surf, border, borderL, text, textSec, textMut, backBtn, iconBg } = useTheme();
   const avatarBg = isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
 
@@ -30,15 +39,22 @@ export function TrackingScreen({ pedidoId }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
-    PedidoService.buscarPorId(pedidoId, token).then(data => {
-      setPedido(data);
+    if (!token) {
       setLoading(false);
-    }).catch(() => setLoading(false));
+      return;
+    }
+    PedidoService.buscarPorId(pedidoId, token)
+      .then((data) => {
+        setPedido(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
 
     const interval = setInterval(() => {
       PedidoService.buscarPorId(pedidoId, token)
-        .then(data => { if (data) setPedido(data); })
+        .then((data) => {
+          if (data) setPedido(data);
+        })
         .catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
@@ -56,7 +72,12 @@ export function TrackingScreen({ pedidoId }: Props) {
 
   if (loading || !pedido) {
     return (
-      <View style={[styles.container, { backgroundColor: bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: bg, justifyContent: 'center', alignItems: 'center' },
+        ]}
+      >
         <ActivityIndicator size="large" color={colors.orange} />
       </View>
     );
@@ -80,7 +101,9 @@ export function TrackingScreen({ pedidoId }: Props) {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitulo, { color: text }]}>Acompanhar pedido</Text>
-          <Text style={[styles.headerSub, { color: textSec as string }]}>{pedido.id.toUpperCase()}</Text>
+          <Text style={[styles.headerSub, { color: textSec as string }]}>
+            {pedido.id.toUpperCase()}
+          </Text>
         </View>
       </View>
 
@@ -94,10 +117,36 @@ export function TrackingScreen({ pedidoId }: Props) {
             </View>
           ) : (
             <View style={[styles.liveBadge, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-              <ActivityIndicator size="small" color="#fff" style={{ transform: [{ scale: 0.6 }] }} />
+              <ActivityIndicator
+                size="small"
+                color="#fff"
+                style={{ transform: [{ scale: 0.6 }] }}
+              />
               <Text style={styles.liveText}>Localizando...</Text>
             </View>
           )}
+        </View>
+      )}
+
+      {/* FABs de chat */}
+      {CHAT_STATUSES.includes(pedido.status) && (
+        <View style={styles.fabContainer}>
+          {pedido.status === 'saiu_entrega' && pedido.entregador && (
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={() => router.push(`/(consumer)/chat-pedido/${pedido.id}`)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="bicycle-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => router.push(`/(consumer)/chat-pedido/${pedido.id}`)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="storefront-outline" size={18} color="#fff" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -121,7 +170,9 @@ export function TrackingScreen({ pedidoId }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.entregadorNome, { color: text }]}>{pedido.entregador.nome}</Text>
-              <Text style={[styles.entregadorTipo, { color: textSec as string }]}>{pedido.entregador.tipoTransporte ?? 'Entregador'}</Text>
+              <Text style={[styles.entregadorTipo, { color: textSec as string }]}>
+                {pedido.entregador.tipoTransporte ?? 'Entregador'}
+              </Text>
             </View>
             {entregadorLocation && (
               <View style={styles.locBadge}>
@@ -174,7 +225,9 @@ export function TrackingScreen({ pedidoId }: Props) {
             <View key={i} style={styles.itemRow}>
               <Text style={styles.itemQtd}>{item.quantidade}x</Text>
               <Text style={[styles.itemNome, { flex: 1, color: text }]}>{item.produto.nome}</Text>
-              <Text style={[styles.itemPreco, { color: text }]}>{fmt(item.precoUnitario * item.quantidade)}</Text>
+              <Text style={[styles.itemPreco, { color: text }]}>
+                {fmt(item.precoUnitario * item.quantidade)}
+              </Text>
             </View>
           ))}
           <View style={[styles.divider, { backgroundColor: borderL }]} />
@@ -189,7 +242,8 @@ export function TrackingScreen({ pedidoId }: Props) {
           <View style={{ flex: 1 }}>
             <Text style={[styles.enderecoTitulo, { color: text }]}>Endereço de entrega</Text>
             <Text style={[styles.enderecoTxt, { color: textSec as string }]}>
-              {pedido.enderecoEntrega.rua}, {pedido.enderecoEntrega.numero} · {pedido.enderecoEntrega.bairro}
+              {pedido.enderecoEntrega.rua}, {pedido.enderecoEntrega.numero} ·{' '}
+              {pedido.enderecoEntrega.bairro}
             </Text>
           </View>
         </View>
@@ -199,69 +253,171 @@ export function TrackingScreen({ pedidoId }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container:        { flex: 1 },
-  header:           { flexDirection: 'row', alignItems: 'center', gap: 8,
-                      paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14, borderBottomWidth: 1 },
-  btnBack:          { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  headerTitulo:     { fontSize: 18, fontWeight: '700' },
-  headerSub:        { fontSize: 12, marginTop: 1 },
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 52,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  btnBack: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitulo: { fontSize: 18, fontWeight: '700' },
+  headerSub: { fontSize: 12, marginTop: 1 },
 
-  mapContainer:     { height: 220, position: 'relative' },
-  liveBadge:        { position: 'absolute', top: 10, right: 10,
-                      flexDirection: 'row', alignItems: 'center', gap: 5,
-                      backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20,
-                      paddingHorizontal: 10, paddingVertical: 5 },
-  liveDot:          { width: 7, height: 7, borderRadius: 4, backgroundColor: '#39FF89' },
-  liveText:         { fontSize: 11, fontWeight: '700', color: '#fff' },
+  mapContainer: { height: 220, position: 'relative' },
+  liveBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#39FF89' },
+  liveText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
-  scroll:           { padding: 16, paddingBottom: 24 },
+  scroll: { padding: 16, paddingBottom: 24 },
 
-  etaCard:          { flexDirection: 'row', alignItems: 'center', gap: 12,
-                      borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
-  etaIconBox:       { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  etaLabel:         { fontSize: 11, fontWeight: '500' },
-  etaValue:         { fontSize: 18, fontWeight: '700' },
+  etaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  etaIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  etaLabel: { fontSize: 11, fontWeight: '500' },
+  etaValue: { fontSize: 18, fontWeight: '700' },
 
-  entregadorCard:   { flexDirection: 'row', alignItems: 'center', gap: 10,
-                      borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
-  entregadorAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  entregadorNome:   { fontSize: 14, fontWeight: '700' },
-  entregadorTipo:   { fontSize: 12, marginTop: 1, textTransform: 'capitalize' },
-  locBadge:         { flexDirection: 'row', alignItems: 'center', gap: 4,
-                      backgroundColor: '#E8FFF3', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
-  locDot:           { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
-  locTxt:           { fontSize: 11, fontWeight: '600', color: '#16A34A' },
+  entregadorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  entregadorAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  entregadorNome: { fontSize: 14, fontWeight: '700' },
+  entregadorTipo: { fontSize: 12, marginTop: 1, textTransform: 'capitalize' },
+  locBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E8FFF3',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  locDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  locTxt: { fontSize: 11, fontWeight: '600', color: '#16A34A' },
 
-  timelineCard:     { borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
-  lojaRow:          { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 14, borderBottomWidth: 1 },
-  lojaAvatar:       { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  lojaNome:         { fontSize: 14, fontWeight: '700' },
-  lojaDesc:         { fontSize: 12, marginTop: 1 },
+  timelineCard: { borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
+  lojaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  lojaAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lojaNome: { fontSize: 14, fontWeight: '700' },
+  lojaDesc: { fontSize: 12, marginTop: 1 },
 
-  codigoCard:       { borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 2, borderColor: colors.orange },
-  codigoHeader:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
-  codigoTitulo:     { fontSize: 13, fontWeight: '700' },
-  codigoDigitos:    { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 12 },
-  codigoDigito:     { width: 56, height: 64, borderRadius: 14, backgroundColor: colors.orange,
-                      alignItems: 'center', justifyContent: 'center',
-                      shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  codigoDigitoTxt:  { fontSize: 30, fontWeight: '900', color: '#fff' },
-  codigoHint:       { fontSize: 12, textAlign: 'center' },
+  codigoCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: colors.orange,
+  },
+  codigoHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  codigoTitulo: { fontSize: 13, fontWeight: '700' },
+  codigoDigitos: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 12 },
+  codigoDigito: {
+    width: 56,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.orange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  codigoDigitoTxt: { fontSize: 30, fontWeight: '900', color: '#fff' },
+  codigoHint: { fontSize: 12, textAlign: 'center' },
 
-  resumoCard:       { borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
-  resumoTitulo:     { fontSize: 13, fontWeight: '600', marginBottom: 10 },
-  itemRow:          { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  itemQtd:          { fontSize: 12, fontWeight: '600', color: colors.orange, minWidth: 24 },
-  itemNome:         { fontSize: 13 },
-  itemPreco:        { fontSize: 13, fontWeight: '500' },
-  divider:          { height: 1, marginVertical: 10 },
-  totalRow:         { flexDirection: 'row', justifyContent: 'space-between' },
-  totalLabel:       { fontSize: 14, fontWeight: '700' },
-  totalValue:       { fontSize: 16, fontWeight: '800' },
+  resumoCard: { borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1 },
+  resumoTitulo: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  itemQtd: { fontSize: 12, fontWeight: '600', color: colors.orange, minWidth: 24 },
+  itemNome: { fontSize: 13 },
+  itemPreco: { fontSize: 13, fontWeight: '500' },
+  divider: { height: 1, marginVertical: 10 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  totalLabel: { fontSize: 14, fontWeight: '700' },
+  totalValue: { fontSize: 16, fontWeight: '800' },
 
-  enderecoCard:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-                      borderRadius: 14, padding: 14, borderWidth: 1 },
-  enderecoTitulo:   { fontSize: 12, fontWeight: '600' },
-  enderecoTxt:      { fontSize: 12, marginTop: 2 },
+  enderecoCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+  },
+  enderecoTitulo: { fontSize: 12, fontWeight: '600' },
+  enderecoTxt: { fontSize: 12, marginTop: 2 },
+
+  fabContainer: { position: 'absolute', right: 16, bottom: 24, zIndex: 10, gap: 12 },
+  fab: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
 });

@@ -17,8 +17,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
-
-export type PerfilNavDestino = 'documentos' | 'veiculo' | 'dados-bancarios' | 'notificacoes' | 'seguranca';
+export type PerfilNavDestino =
+  | 'documentos'
+  | 'veiculo'
+  | 'dados-bancarios'
+  | 'notificacoes'
+  | 'seguranca'
+  | 'conversas';
 
 interface ProfileScreenProps {
   onLogout: () => void;
@@ -26,10 +31,10 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
-  const token = useAuthEntregadorStore(s => s.token);
-  const nomeStore = useAuthEntregadorStore(s => s.nome);
-  const fotoUrl = useAuthEntregadorStore(s => s.fotoUrl);
-  const setFotoUrl = useAuthEntregadorStore(s => s.setFotoUrl);
+  const token = useAuthEntregadorStore((s) => s.token);
+  const nomeStore = useAuthEntregadorStore((s) => s.nome);
+  const fotoUrl = useAuthEntregadorStore((s) => s.fotoUrl);
+  const setFotoUrl = useAuthEntregadorStore((s) => s.setFotoUrl);
 
   const [loading, setLoading] = useState(true);
   const [perfil, setPerfil] = useState<any>(null);
@@ -38,17 +43,19 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
   const [photoExpanded, setPhotoExpanded] = useState(false);
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
-    Promise.all([
-      EntregadorService.buscarPerfil(token),
-      EntregadorService.buscarGanhos(token),
-    ]).then(([p, g]) => {
-      setPerfil(p);
-      setGanhos(g);
-      // Sync fotoUrl: usa o retorno da API como fonte de verdade
-      const apiFoto = p?.entregador?.fotoUrl ?? null;
-      if (apiFoto && apiFoto !== fotoUrl) setFotoUrl(apiFoto);
-    }).finally(() => setLoading(false));
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    Promise.all([EntregadorService.buscarPerfil(token), EntregadorService.buscarGanhos(token)])
+      .then(([p, g]) => {
+        setPerfil(p);
+        setGanhos(g);
+        // Sync fotoUrl: usa o retorno da API como fonte de verdade
+        const apiFoto = p?.entregador?.fotoUrl ?? null;
+        if (apiFoto && apiFoto !== fotoUrl) setFotoUrl(apiFoto);
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
   const handleTrocarFoto = useCallback(async () => {
@@ -73,61 +80,84 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
     }
   }, [token, setFotoUrl]);
 
-  const handleMenuPress = useCallback((label: string) => {
-    switch (label) {
-      case 'Documentos':
-        onNavigate('documentos');
-        break;
-      case 'Veículo':
-        onNavigate('veiculo');
-        break;
-      case 'Dados bancários':
-        onNavigate('dados-bancarios');
-        break;
-      case 'Notificações':
-        onNavigate('notificacoes');
-        break;
-      case 'Segurança':
-        onNavigate('seguranca');
-        break;
-      case 'Ajuda e suporte':
-        Alert.alert(
-          'Ajuda e suporte',
-          'Entre em contato com nossa equipe:',
-          [
+  const handleMenuPress = useCallback(
+    (label: string) => {
+      switch (label) {
+        case 'Documentos':
+          onNavigate('documentos');
+          break;
+        case 'Veículo':
+          onNavigate('veiculo');
+          break;
+        case 'Dados bancários':
+          onNavigate('dados-bancarios');
+          break;
+        case 'Notificações':
+          onNavigate('notificacoes');
+          break;
+        case 'Segurança':
+          onNavigate('seguranca');
+          break;
+        case 'Conversas':
+          onNavigate('conversas');
+          break;
+        case 'Ajuda e suporte':
+          Alert.alert('Ajuda e suporte', 'Entre em contato com nossa equipe:', [
             { text: 'Cancelar', style: 'cancel' },
             { text: 'WhatsApp', onPress: () => Linking.openURL('https://wa.me/5579999999999') },
             { text: 'Email', onPress: () => Linking.openURL('mailto:suporte@ajulabs.com') },
-          ]
-        );
-        break;
-    }
-  }, [perfil, onNavigate]);
+          ]);
+          break;
+      }
+    },
+    [perfil, onNavigate],
+  );
 
   const menuItems = [
-    { icon: 'document-text', label: 'Documentos', extra: perfil?.onboarding?.documentosAprovados ? 'Verificado' : undefined, extraColor: '#039855' },
-    { icon: 'car-sport',     label: 'Veículo',     extra: perfil?.entregador?.veiculo ? perfil.entregador.veiculo.modelo : undefined, extraColor: '#9099B3' },
-    { icon: 'wallet',        label: 'Dados bancários' },
+    { icon: 'chatbubbles', label: 'Conversas' },
+    {
+      icon: 'document-text',
+      label: 'Documentos',
+      extra: perfil?.onboarding?.documentosAprovados ? 'Verificado' : undefined,
+      extraColor: '#039855',
+    },
+    {
+      icon: 'car-sport',
+      label: 'Veículo',
+      extra: perfil?.entregador?.veiculo ? perfil.entregador.veiculo.modelo : undefined,
+      extraColor: '#9099B3',
+    },
+    { icon: 'wallet', label: 'Dados bancários' },
     { icon: 'notifications', label: 'Notificações' },
     { icon: 'shield-checkmark', label: 'Segurança' },
-    { icon: 'help-circle',   label: 'Ajuda e suporte' },
+    { icon: 'help-circle', label: 'Ajuda e suporte' },
   ] as const;
 
   const nome = perfil?.entregador?.nome ?? nomeStore ?? 'Entregador';
-  const initials = nome.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const initials = nome
+    .split(' ')
+    .map((w: string) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
-  const veiculo        = perfil?.entregador?.veiculo;
-  const tipoTransporte = (perfil?.entregador?.tipoTransporte ?? 'moto') as 'moto' | 'carro' | 'bike';
-  const veiculoLabel   = veiculo
+  const veiculo = perfil?.entregador?.veiculo;
+  const tipoTransporte = (perfil?.entregador?.tipoTransporte ?? 'moto') as
+    | 'moto'
+    | 'carro'
+    | 'bike';
+  const veiculoLabel = veiculo
     ? veiculo.placa !== 'BICICLETA'
       ? `${veiculo.modelo} · ${veiculo.placa}`
       : 'Bicicleta'
     : null;
 
   // Foto: prefer API data (synced to store), fallback to store
-  const fotoPerfil    = fotoUrl ?? perfil?.entregador?.fotoUrl ?? null;
+  const fotoPerfil = fotoUrl ?? perfil?.entregador?.fotoUrl ?? null;
   const totalEntregas = ganhos?.allTime?.corridas ?? 0;
-  const ganhoTotal    = ganhos?.allTime?.total ? `R$${Number(ganhos.allTime.total).toFixed(0)}` : 'R$0';
+  const ganhoTotal = ganhos?.allTime?.total
+    ? `R$${Number(ganhos.allTime.total).toFixed(0)}`
+    : 'R$0';
   const corridasSemana = ganhos?.semana?.corridas ?? 0;
 
   return (
@@ -157,10 +187,19 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
               <Text style={s.heroName}>{nome}</Text>
               {veiculoLabel ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                  {tipoTransporte === 'moto'
-                    ? <MaterialCommunityIcons name="motorbike" size={13} color="rgba(255,255,255,0.7)" />
-                    : <Ionicons name={tipoTransporte === 'bike' ? 'bicycle' : 'car'} size={12} color="rgba(255,255,255,0.7)" />
-                  }
+                  {tipoTransporte === 'moto' ? (
+                    <MaterialCommunityIcons
+                      name="motorbike"
+                      size={13}
+                      color="rgba(255,255,255,0.7)"
+                    />
+                  ) : (
+                    <Ionicons
+                      name={tipoTransporte === 'bike' ? 'bicycle' : 'car'}
+                      size={12}
+                      color="rgba(255,255,255,0.7)"
+                    />
+                  )}
                   <Text style={s.heroTransporte}>{veiculoLabel}</Text>
                 </View>
               ) : null}
@@ -208,7 +247,9 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
               <Text style={s.menuLabel}>{item.label}</Text>
               {'extra' in item && item.extra && (
                 <View style={[s.extraBadge, { backgroundColor: 'rgba(3,152,85,0.1)' }]}>
-                  <Text style={[s.extraText, { color: (item as any).extraColor }]}>{item.extra}</Text>
+                  <Text style={[s.extraText, { color: (item as any).extraColor }]}>
+                    {item.extra}
+                  </Text>
                 </View>
               )}
               <Ionicons name="chevron-forward" size={16} color="#9099B3" />
@@ -216,16 +257,29 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
           ))}
         </View>
 
-        <TouchableOpacity style={s.logoutBtn} onPress={() => setLogoutVisible(true)} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.logoutBtn}
+          onPress={() => setLogoutVisible(true)}
+          activeOpacity={0.8}
+        >
           <Text style={s.logoutText}>Sair</Text>
         </TouchableOpacity>
 
         <Text style={s.version}>AjuLabs · Entregador v1.0</Text>
       </ScrollView>
 
-      <Modal visible={photoExpanded} transparent animationType="fade" onRequestClose={() => setPhotoExpanded(false)}>
+      <Modal
+        visible={photoExpanded}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoExpanded(false)}
+      >
         <View style={s.photoOverlay}>
-          <TouchableOpacity style={s.photoClose} onPress={() => setPhotoExpanded(false)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.photoClose}
+            onPress={() => setPhotoExpanded(false)}
+            activeOpacity={0.8}
+          >
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           {fotoPerfil && (
@@ -233,7 +287,10 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
           )}
           <TouchableOpacity
             style={s.photoTrocarBtn}
-            onPress={() => { setPhotoExpanded(false); handleTrocarFoto(); }}
+            onPress={() => {
+              setPhotoExpanded(false);
+              handleTrocarFoto();
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="camera" size={16} color="#FFFFFF" />
@@ -242,7 +299,12 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
         </View>
       </Modal>
 
-      <Modal visible={logoutVisible} transparent animationType="fade" onRequestClose={() => setLogoutVisible(false)}>
+      <Modal
+        visible={logoutVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutVisible(false)}
+      >
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <View style={s.modalIconWrap}>
@@ -250,10 +312,21 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
             </View>
             <Text style={s.modalTitle}>Sair da conta</Text>
             <Text style={s.modalMsg}>Tem certeza que deseja sair da sua conta?</Text>
-            <TouchableOpacity style={s.modalBtnSair} onPress={() => { setLogoutVisible(false); onLogout(); }} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.modalBtnSair}
+              onPress={() => {
+                setLogoutVisible(false);
+                onLogout();
+              }}
+              activeOpacity={0.8}
+            >
               <Text style={s.modalBtnSairText}>Sim, quero sair</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.modalBtnCancel} onPress={() => setLogoutVisible(false)} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.modalBtnCancel}
+              onPress={() => setLogoutVisible(false)}
+              activeOpacity={0.8}
+            >
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -373,7 +446,13 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#000933', marginBottom: 6 },
-  modalMsg: { fontSize: 13, color: '#9099B3', textAlign: 'center', marginBottom: 22, lineHeight: 19 },
+  modalMsg: {
+    fontSize: 13,
+    color: '#9099B3',
+    textAlign: 'center',
+    marginBottom: 22,
+    lineHeight: 19,
+  },
   modalBtnSair: {
     width: '100%',
     backgroundColor: '#E14B3C',

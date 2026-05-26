@@ -1,0 +1,307 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  SafeAreaView,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { PedidoChatService } from '@ajulabs/api-client';
+import { useChatPedidoRealtime } from '@ajulabs/realtime';
+import type { ChatMensagemPedido, TipoParticipanteChat } from '@ajulabs/types';
+import { useAuthLojistaStore } from '../../../src/store';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+
+type Destinatario = 'CONSUMER' | 'ENTREGADOR';
+
+export default function ChatPedidoLojistaScreen() {
+  const { pedidoId } = useLocalSearchParams<{ pedidoId: string }>();
+  const router = useRouter();
+  const token = useAuthLojistaStore((s) => s.token);
+  const lojaId = useAuthLojistaStore((s) => s.lojaId);
+
+  const [chat, setChat] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [destinatario, setDestinatario] = useState<Destinatario>('CONSUMER');
+  const [mensagens, setMensagens] = useState<ChatMensagemPedido[]>([]);
+  const [input, setInput] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const carregarChat = useCallback(async () => {
+    if (!token || !pedidoId) return;
+    const data = await PedidoChatService.buscarChat(pedidoId, token);
+    if (data) {
+      setChat(data);
+      setMensagens(data.mensagens ?? []);
+      await PedidoChatService.marcarLido(pedidoId, token);
+    }
+    setLoading(false);
+  }, [pedidoId, token]);
+
+  useEffect(() => {
+    carregarChat();
+  }, [carregarChat]);
+
+  useChatPedidoRealtime({
+    apiUrl: API_URL,
+    pedidoId: pedidoId ?? null,
+    roomId: lojaId ?? null,
+    roomType: 'lojista',
+    enabled: !!lojaId,
+    onMensagem: (payload) => {
+      setMensagens((prev) => {
+        if (prev.find((m) => m.id === payload.mensagem.id)) return prev;
+        return [...prev, payload.mensagem as ChatMensagemPedido];
+      });
+      scrollRef.current?.scrollToEnd({ animated: true });
+    },
+  });
+
+  useEffect(() => {
+    if (mensagens.length > 0) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
+    }
+  }, [mensagens.length]);
+
+  const enviar = async () => {
+    if (!input.trim() || enviando || !token || !pedidoId) return;
+    const texto = input.trim();
+    setInput('');
+    setEnviando(true);
+    try {
+      const msg = await PedidoChatService.enviarMensagem(pedidoId, token, texto, destinatario);
+      setMensagens((prev) => {
+        if (prev.find((m) => m.id === msg.id)) return prev;
+        return [...prev, msg as ChatMensagemPedido];
+      });
+      scrollRef.current?.scrollToEnd({ animated: true });
+    } catch {
+      setInput(texto);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const hasEntregador = chat?.participantes?.includes('ENTREGADOR');
+  const chatEncerrado = chat?.status === 'encerrado';
+  const msgsFiltradas = mensagens.filter(
+    (m) =>
+      (m.remetenteType === 'LOJISTA' && m.destinatarioType === destinatario) ||
+      (m.destinatarioType === 'LOJISTA' && m.remetenteType === destinatario),
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#DE6708" />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={s.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={20} color="#000933" />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>
+            {destinatario === 'CONSUMER'
+              ? (chat?.consumidorNome ?? 'Cliente')
+              : (chat?.entregadorNome ?? 'Entregador')}
+          </Text>
+          {chatEncerrado && <Text style={s.encerradoTag}>Encerrado</Text>}
+        </View>
+
+        {hasEntregador && (
+          <View style={s.seletor}>
+            {(['CONSUMER', 'ENTREGADOR'] as Destinatario[]).map((p) => (
+              <TouchableOpacity
+                key={p}
+                style={[s.seletorBtn, destinatario === p && s.seletorBtnAtivo]}
+                onPress={() => setDestinatario(p)}
+              >
+                <Ionicons
+                  name={p === 'CONSUMER' ? 'person-outline' : 'bicycle-outline'}
+                  size={14}
+                  color={destinatario === p ? '#fff' : '#000933'}
+                />
+                <Text style={[s.seletorTxt, { color: destinatario === p ? '#fff' : '#000933' }]}>
+                  {p === 'CONSUMER' ? 'Cliente' : 'Entregador'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={s.msgs}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {msgsFiltradas.length === 0 && (
+            <View style={s.msgsEmpty}>
+              <Text style={s.msgsEmptyTxt}>Nenhuma mensagem ainda</Text>
+            </View>
+          )}
+          {msgsFiltradas.map((m) => {
+            const minha = m.remetenteType === 'LOJISTA';
+            return (
+              <View key={m.id} style={[s.msgWrapper, minha ? s.msgRight : s.msgLeft]}>
+                {!minha && <Text style={s.msgNome}>{m.remetenteNome}</Text>}
+                <View style={[s.bubble, minha ? s.bubbleMinha : s.bubbleDeles]}>
+                  <Text style={[s.bubbleTxt, { color: minha ? '#fff' : '#000933' }]}>
+                    {m.conteudo}
+                  </Text>
+                </View>
+                <Text style={s.hora}>
+                  {new Date(m.criadoEm).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {!chatEncerrado ? (
+          <View style={s.inputRow}>
+            <TextInput
+              style={s.input}
+              placeholder="Digite uma mensagem..."
+              placeholderTextColor="#9099B3"
+              value={input}
+              onChangeText={setInput}
+              multiline
+              maxLength={1000}
+              returnKeyType="send"
+              onSubmitEditing={enviar}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!input.trim() || enviando) && { opacity: 0.5 }]}
+              onPress={enviar}
+              disabled={!input.trim() || enviando}
+            >
+              {enviando ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={18} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={s.encerradoBanner}>
+            <Ionicons name="lock-closed-outline" size={14} color="#9099B3" />
+            <Text style={s.encerradoBannerTxt}>Pedido finalizado — chat encerrado</Text>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F6F7FB' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    backgroundColor: '#F6F7FB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E7F1',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E4E7F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#000933' },
+  encerradoTag: { fontSize: 11, color: '#9099B3' },
+  seletor: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E7F1',
+    backgroundColor: '#fff',
+  },
+  seletorBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  seletorBtnAtivo: { backgroundColor: '#DE6708' },
+  seletorTxt: { fontSize: 13, fontWeight: '600' },
+  msgs: { padding: 16, gap: 8, paddingBottom: 8 },
+  msgsEmpty: { alignItems: 'center', marginTop: 40 },
+  msgsEmptyTxt: { fontSize: 13, color: '#9099B3' },
+  msgWrapper: { maxWidth: '80%', gap: 3 },
+  msgRight: { alignSelf: 'flex-end', alignItems: 'flex-end' },
+  msgLeft: { alignSelf: 'flex-start', alignItems: 'flex-start' },
+  msgNome: { fontSize: 11, fontWeight: '600', color: '#9099B3', marginLeft: 4 },
+  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleMinha: { backgroundColor: '#DE6708' },
+  bubbleDeles: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E4E7F1' },
+  bubbleTxt: { fontSize: 14, lineHeight: 20 },
+  hora: { fontSize: 10, color: '#9099B3', marginHorizontal: 4 },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E4E7F1',
+  },
+  input: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    maxHeight: 100,
+    backgroundColor: '#F0F1F7',
+    color: '#000933',
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DE6708',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  encerradoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: 14,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E4E7F1',
+  },
+  encerradoBannerTxt: { fontSize: 13, color: '#9099B3' },
+});

@@ -236,3 +236,40 @@ export interface ResumoCheckout {
   metodoPagamento: MetodoPagamento;
   enderecoId: string;
 }
+
+// ─── Chat entre participantes do pedido ───────────────────────
+
+export type TipoParticipanteChat = 'CONSUMER' | 'LOJISTA' | 'ENTREGADOR';
+
+export interface ChatMensagemPedido {
+  id: string;
+  chatId: string;
+  conteudo: string;
+  remetenteType: TipoParticipanteChat;
+  remetenteId: string;
+  destinatarioType: TipoParticipanteChat;
+  destinatarioId: string;
+  remetenteNome?: string;
+  lido: boolean;
+  criadoEm: string;
+}
+
+export interface ChatPedidoInfo {
+  id: string;
+  pedidoId: string;
+  status: 'ativo' | 'encerrado';
+  participantes: TipoParticipanteChat[];
+  mensagens: ChatMensagemPedido[];
+  lojaNome?: string;
+  lojaLogo?: string;
+  entregadorNome?: string;
+  consumidorNome?: string;
+  ultimaMensagem?: ChatMensagemPedido;
+  naoLidas?: number;
+}
+
+export interface ChatMensagemNovaPayload {
+  chatId: string;
+  pedidoId: string;
+  mensagem: ChatMensagemPedido;
+}

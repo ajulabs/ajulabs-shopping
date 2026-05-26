@@ -1,7 +1,12 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, StatusBar,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Order, STATUS_META } from '../data';
@@ -13,16 +18,29 @@ interface Props {
   onBack: () => void;
   onAdvance: () => void;
   onDispatch: () => void;
+  onChatConsumer?: () => void;
+  onChatEntregador?: () => void;
 }
 
-export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
+export function OrderDetail({
+  order,
+  onBack,
+  onAdvance,
+  onDispatch,
+  onChatConsumer,
+  onChatEntregador,
+}: Props) {
   const baseMeta = STATUS_META[order.status];
   const isEntregadorAcaminho = order.status === 'pronto' && !!order.entregadorId;
   const meta = isEntregadorAcaminho
     ? { ...baseMeta, label: 'Entregador a caminho', color: '#0369A1', bg: '#E0F2FE' }
     : baseMeta;
 
-  const initials = order.cliente.split(' ').map(w => w[0]).join('').slice(0, 2);
+  const initials = order.cliente
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2);
 
   const statusIcon: Record<string, any> = {
     novo: 'time-outline',
@@ -50,7 +68,9 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>{order.id}</Text>
-          <Text style={s.headerSub}>{order.hora} · {order.cliente}</Text>
+          <Text style={s.headerSub}>
+            {order.hora} · {order.cliente}
+          </Text>
         </View>
         <TouchableOpacity style={s.phoneBtn}>
           <Ionicons name="call-outline" size={18} color="#000933" />
@@ -58,7 +78,6 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={{ paddingBottom: 100 }}>
-
         <View style={[s.statusBanner, { backgroundColor: meta.bg }]}>
           <View style={[s.statusIcon, { backgroundColor: meta.color }]}>
             <Ionicons name={statusIcon[order.status]} size={22} color="#fff" />
@@ -79,7 +98,7 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
               <Text style={s.clientName}>{order.cliente}</Text>
               <Text style={s.clientDist}>{order.distancia} de distância</Text>
             </View>
-            <TouchableOpacity style={s.iconBtnGray}>
+            <TouchableOpacity style={s.iconBtnGray} onPress={onChatConsumer}>
               <Ionicons name="chatbubble-outline" size={16} color="#000933" />
             </TouchableOpacity>
             <TouchableOpacity style={s.iconBtnGreen}>
@@ -121,7 +140,7 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
         <View style={[s.card, { marginTop: 16 }]}>
           <View style={s.summaryRow}>
             <Text style={s.summaryLabel}>Subtotal</Text>
-            <Text style={s.summaryValue}>{brl(order.total - 8.90)}</Text>
+            <Text style={s.summaryValue}>{brl(order.total - 8.9)}</Text>
           </View>
           <View style={s.summaryRow}>
             <Text style={s.summaryLabel}>Taxa de entrega</Text>
@@ -137,8 +156,8 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
           </View>
           <Text style={s.platformFee}>
             Você recebe{' '}
-            <Text style={{ color: '#046C2E', fontWeight: '700' }}>{brl(order.total * 0.88)}</Text>
-            {' '}depois da taxa da plataforma (12%).
+            <Text style={{ color: '#046C2E', fontWeight: '700' }}>{brl(order.total * 0.88)}</Text>{' '}
+            depois da taxa da plataforma (12%).
           </Text>
         </View>
       </ScrollView>
@@ -147,7 +166,7 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
         <View style={s.stickyBtn}>
           <TouchableOpacity
             style={s.ctaBtn}
-            onPress={() => order.status === 'pronto' ? onDispatch() : onAdvance()}
+            onPress={() => (order.status === 'pronto' ? onDispatch() : onAdvance())}
             activeOpacity={0.85}
           >
             <Text style={s.ctaBtnText}>{meta.next}</Text>
@@ -161,45 +180,159 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch }: Props) {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: '#F6F7FB' },
-  backBtn: { width: 38, height: 38, borderRadius: 99, backgroundColor: '#E4E7F1', alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    backgroundColor: '#F6F7FB',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 99,
+    backgroundColor: '#E4E7F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#000933' },
   headerSub: { fontSize: 12, color: '#9099B3', marginTop: 1 },
-  phoneBtn: { width: 38, height: 38, borderRadius: 99, backgroundColor: '#E4E7F1', alignItems: 'center', justifyContent: 'center' },
+  phoneBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 99,
+    backgroundColor: '#E4E7F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scroll: { flex: 1, paddingHorizontal: 16 },
-  statusBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, marginBottom: 16 },
-  statusIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
+  },
+  statusIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statusLabel: { fontSize: 16, fontWeight: '700' },
   statusSub: { fontSize: 11.5, opacity: 0.85, marginTop: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#9099B3', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#E4E7F1', padding: 12, marginBottom: 14 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9099B3',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+    padding: 12,
+    marginBottom: 14,
+  },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: { width: 42, height: 42, borderRadius: 99, backgroundColor: '#FFF0E6', alignItems: 'center', justifyContent: 'center' },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 99,
+    backgroundColor: '#FFF0E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarText: { fontSize: 14, fontWeight: '700', color: '#B34D00' },
   clientName: { fontSize: 14, fontWeight: '600', color: '#000933' },
   clientDist: { fontSize: 11.5, color: '#9099B3', marginTop: 2 },
-  iconBtnGray: { width: 38, height: 38, borderRadius: 99, backgroundColor: '#F0F1F7', alignItems: 'center', justifyContent: 'center' },
-  iconBtnGreen: { width: 38, height: 38, borderRadius: 99, backgroundColor: '#39FF89', alignItems: 'center', justifyContent: 'center' },
-  addressRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E4E7F1' },
+  iconBtnGray: {
+    width: 38,
+    height: 38,
+    borderRadius: 99,
+    backgroundColor: '#F0F1F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnGreen: {
+    width: 38,
+    height: 38,
+    borderRadius: 99,
+    backgroundColor: '#39FF89',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E4E7F1',
+  },
   addressText: { fontSize: 12.5, color: '#000933', lineHeight: 18, flex: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   itemBorder: { borderBottomWidth: 1, borderBottomColor: '#E4E7F1' },
-  qtyBadge: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FFF0E6', alignItems: 'center', justifyContent: 'center' },
+  qtyBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFF0E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   qtyText: { fontSize: 14, fontWeight: '700', color: '#B34D00' },
   itemName: { fontSize: 13.5, fontWeight: '600', color: '#000933' },
   itemEach: { fontSize: 11.5, color: '#9099B3' },
   itemTotal: { fontSize: 14, fontWeight: '700', color: '#000933' },
-  obsCard: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: 12, backgroundColor: '#FFF0E6', marginBottom: 4 },
+  obsCard: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFF0E6',
+    marginBottom: 4,
+  },
   obsTitle: { fontSize: 12, fontWeight: '700', color: '#B34D00', marginBottom: 2 },
   obsText: { fontSize: 12.5, color: '#B34D00', lineHeight: 18 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   summaryLabel: { fontSize: 13, color: '#9099B3' },
   summaryValue: { fontSize: 13, color: '#000933' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, marginTop: 8, borderTopWidth: 1, borderTopColor: '#E4E7F1' },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E4E7F1',
+  },
   totalLabel: { fontSize: 16, fontWeight: '700', color: '#000933' },
   totalValue: { fontSize: 20, fontWeight: '700', color: '#000933' },
   platformFee: { fontSize: 11, color: '#9099B3', marginTop: 8, lineHeight: 16 },
-  stickyBtn: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E4E7F1' },
-  ctaBtn: { backgroundColor: '#DE6708', borderRadius: 14, height: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stickyBtn: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E4E7F1',
+  },
+  ctaBtn: {
+    backgroundColor: '#DE6708',
+    borderRadius: 14,
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   ctaBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });

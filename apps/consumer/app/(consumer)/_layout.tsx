@@ -110,6 +110,11 @@ export default function ConsumerLayout() {
       <Tabs.Screen name="favoritos" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="notificacoes" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="ajustes" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="conversas" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen
+        name="chat-pedido/[pedidoId]"
+        options={{ href: null, tabBarStyle: { display: 'none' } }}
+      />
     </Tabs>
   );
 }

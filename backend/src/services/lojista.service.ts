@@ -99,6 +99,17 @@ export async function avancarStatusPedido(pedidoId: string, lojistaId: string) {
 
   emitPedidoAtualizado(atualizado.consumidorId, atualizado.id, proximoStatus, pedido.lojaId);
   void notificarStatusPedido(atualizado.consumidorId, atualizado.id, proximoStatus);
+
+  if (proximoStatus === 'confirmado') {
+    await prisma.chatPedido
+      .upsert({
+        where: { pedidoId: pedidoId },
+        create: { pedidoId },
+        update: {},
+      })
+      .catch(() => {});
+  }
+
   if (proximoStatus === 'pronto') {
     emitCorridaOferta({
       id: atualizado.id,
