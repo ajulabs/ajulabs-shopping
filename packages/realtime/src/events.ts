@@ -1,4 +1,9 @@
-import type { LocationPayload, StatusPayload, ChatMensagemNovaPayload } from '@ajulabs/types';
+import type {
+  LocationPayload,
+  StatusPayload,
+  ChatMensagemNovaPayload,
+  VariacaoProduto,
+} from '@ajulabs/types';
 
 export type { LocationPayload, StatusPayload, ChatMensagemNovaPayload };
 
@@ -32,6 +37,11 @@ export interface TicketNovoPayload {
   consumidorId: string;
 }
 
+export interface ProdutoVariacaoPayload {
+  produtoId: string;
+  variacoes: VariacaoProduto[];
+}
+
 export interface ServerEvents {
   'localizacao:entregador': (payload: LocationPayload) => void;
   'pedido:status': (payload: StatusPayload) => void;
@@ -42,6 +52,7 @@ export interface ServerEvents {
   'ticket:status': (payload: { ticketId: string; status: string }) => void;
   'ticket:novo': (payload: TicketNovoPayload) => void;
   'chat:mensagem:nova': (payload: ChatMensagemNovaPayload) => void;
+  'produto:variacoes': (payload: ProdutoVariacaoPayload) => void;
 }
 
 export interface ClientEvents {

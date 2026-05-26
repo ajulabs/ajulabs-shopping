@@ -331,7 +331,8 @@ model VariacaoProduto {
   nome      String
   estoque   Int
 
-  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produto Produto      @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  itens   ItemPedido[]
 
   @@map("variacoes_produto")
 }
@@ -445,12 +446,15 @@ model ItemPedido {
   id            String  @id @default(uuid())
   pedidoId      String  @map("pedido_id")
   produtoId     String  @map("produto_id")
+  variacaoId    String? @map("variacao_id")
   nomeSnapshot  String  @map("nome_snapshot")
+  variacaoNome  String? @map("variacao_nome")
   precoUnitario Decimal @map("preco_unitario") @db.Decimal(10, 2)
   quantidade    Int
 
-  pedido  Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  produto Produto @relation(fields: [produtoId], references: [id])
+  pedido   Pedido           @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto  Produto          @relation(fields: [produtoId], references: [id])
+  variacao VariacaoProduto? @relation(fields: [variacaoId], references: [id])
 
   @@map("itens_pedido")
 }

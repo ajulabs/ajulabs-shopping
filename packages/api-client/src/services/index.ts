@@ -451,9 +451,10 @@ export const LojistaService = {
       disponivel?: boolean;
       existingImageUrls?: string[];
       newImageUris?: string[];
+      variacoes?: { nome: string; estoque: number }[];
     },
   ): Promise<void> => {
-    const { newImageUris = [], existingImageUrls = [], ...rest } = dados;
+    const { newImageUris = [], existingImageUrls = [], variacoes, ...rest } = dados;
 
     const form = new FormData();
     if (rest.nome !== undefined) form.append('nome', rest.nome);
@@ -462,6 +463,7 @@ export const LojistaService = {
     if (rest.preco !== undefined) form.append('preco', String(rest.preco));
     if (rest.estoque !== undefined) form.append('estoque', String(rest.estoque));
     if (rest.disponivel !== undefined) form.append('disponivel', String(rest.disponivel));
+    if (variacoes !== undefined) form.append('variacoes', JSON.stringify(variacoes));
     form.append('imagensExistentes', JSON.stringify(existingImageUrls));
 
     for (let i = 0; i < newImageUris.length; i++) {
@@ -505,6 +507,7 @@ export const LojistaService = {
       categoria: string;
       tags: string[];
       imageUri?: string;
+      variacoes?: { nome: string; estoque: number }[];
     },
   ): Promise<any> => {
     const formData = new FormData();
@@ -515,6 +518,9 @@ export const LojistaService = {
     formData.append('estoque', String(dados.estoque));
     formData.append('categoria', dados.categoria);
     formData.append('tags', JSON.stringify(dados.tags));
+    if (dados.variacoes?.length) {
+      formData.append('variacoes', JSON.stringify(dados.variacoes));
+    }
     if (dados.imageUri) {
       const blob = await fetch(dados.imageUri).then((r) => r.blob());
       formData.append('imagem', blob, 'produto.jpg');

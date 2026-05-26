@@ -27,6 +27,11 @@ const lojaUpdateSchema = z.object({
     .optional(),
 });
 
+const variacaoSchema = z.object({
+  nome: z.string().min(1),
+  estoque: z.number().int().nonnegative(),
+});
+
 const produtoFormSchema = z.object({
   lojaId: z.string().uuid(),
   nome: z.string().min(2),
@@ -51,6 +56,17 @@ const produtoFormSchema = z.object({
       }
     })
     .pipe(z.array(z.string())),
+  variacoes: z
+    .string()
+    .optional()
+    .transform((v) => {
+      try {
+        return JSON.parse(v ?? '[]');
+      } catch {
+        return [];
+      }
+    })
+    .pipe(z.array(variacaoSchema)),
 });
 
 // ── Pedidos ───────────────────────────────────────────────────────────────────
@@ -151,9 +167,9 @@ router.post(
   authLojista,
   upload.single('imagem'),
   async (req: AuthRequest, res) => {
-    const dados = produtoFormSchema.parse(req.body);
-    await svc.verificarDonoLoja(dados.lojaId, req.user!.id);
-    const produto = await svc.criarProduto(dados, req.file);
+    const { variacoes = [], ...dadosSemVar } = produtoFormSchema.parse(req.body);
+    await svc.verificarDonoLoja(dadosSemVar.lojaId, req.user!.id);
+    const produto = await svc.criarProduto(dadosSemVar, req.file, variacoes);
     res.status(201).json({ produto });
   },
 );
@@ -171,6 +187,14 @@ router.put(
     } catch {
       /* invalid JSON defaults to [] */
     }
+    let variacoes: { nome: string; estoque: number }[] | undefined;
+    if (body.variacoes !== undefined) {
+      try {
+        variacoes = JSON.parse(body.variacoes);
+      } catch {
+        variacoes = [];
+      }
+    }
     const files = req.files as Express.Multer.File[] | undefined;
     const produto = await svc.updateProduto(
       req.params.id,
@@ -178,6 +202,7 @@ router.put(
       body,
       imagensExistentes,
       files,
+      variacoes,
     );
     res.json({ produto });
   },

@@ -9,16 +9,14 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
-import { useAuthEntregadorStore } from '../../../../store';
+import { useAuthLojistaStore } from '../../../../store';
 
-interface Props {
-  onBack: () => void;
-}
-
-export function NotificacoesScreen({ onBack }: Props) {
-  const token = useAuthEntregadorStore((s) => s.token);
+export function NotificacoesScreen() {
+  const router = useRouter();
+  const token = useAuthLojistaStore((s) => s.token);
   const [preferencias, setPreferencias] = useState<NotificationPreference[]>([]);
   const [loading, setLoading] = useState(true);
   // Categorias com toggle em voo — desativa o Switch só na que está salvando
@@ -49,7 +47,6 @@ export function NotificacoesScreen({ onBack }: Props) {
   const toggle = useCallback(
     async (categoria: string, ativo: boolean) => {
       if (!token) return;
-      // Otimista: atualiza UI imediatamente
       setPreferencias((prev) => prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)));
       setSalvando((prev) => new Set(prev).add(categoria));
       try {
@@ -76,7 +73,7 @@ export function NotificacoesScreen({ onBack }: Props) {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={20} color="#000933" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Notificações</Text>
@@ -90,13 +87,11 @@ export function NotificacoesScreen({ onBack }: Props) {
 
       {loading ? (
         <View style={s.centerLoader}>
-          <ActivityIndicator color="#F2760F" />
+          <ActivityIndicator color="#DE6708" />
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          <Text style={s.desc}>
-            Escolha quais notificações deseja receber. Você pode alterar a qualquer momento.
-          </Text>
+          <Text style={s.desc}>Escolha quais notificações você quer receber sobre sua loja.</Text>
 
           {!!erro && (
             <View style={s.erroBox}>
@@ -121,7 +116,7 @@ export function NotificacoesScreen({ onBack }: Props) {
                   ]}
                 >
                   <View style={s.rowIcon}>
-                    <Ionicons name="notifications" size={18} color="#F2760F" />
+                    <Ionicons name="notifications" size={18} color="#DE6708" />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={s.rowTitle}>{p.label}</Text>
@@ -131,8 +126,8 @@ export function NotificacoesScreen({ onBack }: Props) {
                     value={p.ativo}
                     disabled={salvando.has(p.categoria)}
                     onValueChange={(v) => toggle(p.categoria, v)}
-                    trackColor={{ false: '#E4E7F1', true: 'rgba(242,118,15,0.35)' }}
-                    thumbColor={p.ativo ? '#F2760F' : '#FFFFFF'}
+                    trackColor={{ false: '#E4E7F1', true: 'rgba(222,103,8,0.35)' }}
+                    thumbColor={p.ativo ? '#DE6708' : '#FFFFFF'}
                   />
                 </View>
               ))}
@@ -142,7 +137,8 @@ export function NotificacoesScreen({ onBack }: Props) {
           <View style={s.infoBox}>
             <Ionicons name="information-circle" size={16} color="#209CEF" />
             <Text style={s.infoText}>
-              Recomendamos manter ativadas — você pode perder corridas se desligar.
+              Você não vai perder novos pedidos — eles continuam aparecendo na tela mesmo com a
+              notificação desligada.
             </Text>
           </View>
         </ScrollView>
@@ -197,7 +193,7 @@ const s = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#FEF0E3',
+    backgroundColor: '#FFF0E6',
     alignItems: 'center',
     justifyContent: 'center',
   },

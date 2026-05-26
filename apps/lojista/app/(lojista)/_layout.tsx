@@ -58,6 +58,7 @@ export default function LojistaLayout() {
         name="chat-pedido/[pedidoId]"
         options={{ href: null, tabBarStyle: { display: 'none' } }}
       />
+      <Tabs.Screen name="notificacoes" options={{ href: null }} />
       <Tabs.Screen
         name="logistica"
         options={{

@@ -5,11 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
-import {
-  TipoProdutoValue,
-  derivarCategoriaString,
-  inferirTipoProduto,
-} from '../model/tipoProdutos';
+import { derivarCategoriaString, inferirTipoProduto } from '../model/tipoProdutos';
 import { Stepper } from './NovoProdutoStepper';
 import { CaptureStage } from './NovoProdutoCaptureStage';
 import { AnalyzingStage } from './NovoProdutoAnalyzingStage';
@@ -32,6 +28,7 @@ const EMPTY_DATA: ProductData = {
   estoque: '',
   variacoes: [],
   tipoProduto: null,
+  variacoesEstoque: [],
 };
 
 export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoProps) {
@@ -74,6 +71,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
           estoque: data.estoque ?? '',
           variacoes: [],
           tipoProduto: inferirTipoProduto(data as Record<string, unknown>),
+          variacoesEstoque: [],
         });
       } catch {
         Alert.alert('Aviso', 'Não foi possível analisar a imagem. Preencha os dados manualmente.');
@@ -119,7 +117,7 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
   }, []);
 
   const handleChange = useCallback(
-    (key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => {
+    (key: keyof ProductData, value: ProductData[keyof ProductData]) => {
       setProductData((prev) => ({ ...prev, [key]: value }));
     },
     [],
@@ -131,7 +129,10 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
       return;
     }
     const preco = parseFloat(productData.preco.replace(',', '.'));
-    const estoque = parseInt(productData.estoque, 10);
+    const hasVariacoes = productData.variacoesEstoque.length > 0;
+    const estoqueTotal = hasVariacoes
+      ? productData.variacoesEstoque.reduce((s, v) => s + (v.estoque || 0), 0)
+      : parseInt(productData.estoque, 10);
     const categoriaFinal = productData.tipoProduto
       ? derivarCategoriaString(productData.tipoProduto)
       : productData.categoria;
@@ -142,10 +143,11 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
         nome: productData.nome,
         descricao: productData.descricao,
         preco,
-        estoque: isNaN(estoque) ? 0 : estoque,
+        estoque: isNaN(estoqueTotal) ? 0 : estoqueTotal,
         categoria: categoriaFinal,
         tags: productData.tags,
         imageUri: imageUri ?? undefined,
+        variacoes: hasVariacoes ? productData.variacoesEstoque : undefined,
       });
       onPublicar?.(productData);
       setPublishedName(productData.nome);

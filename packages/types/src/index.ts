@@ -84,6 +84,8 @@ export interface Loja {
 export interface ItemCarrinho {
   produto: Produto;
   quantidade: number;
+  variacaoId?: string;
+  variacaoNome?: string;
 }
 
 export interface Carrinho {

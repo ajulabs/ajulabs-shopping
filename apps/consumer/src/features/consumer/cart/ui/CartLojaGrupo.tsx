@@ -8,15 +8,14 @@ import { useTheme } from '../../../../hooks';
 interface Props {
   numero: number;
   grupo: GrupoLoja;
-  onAumentar: (produtoId: string) => void;
-  onDiminuir: (produtoId: string) => void;
+  onAumentar: (produtoId: string, variacaoId?: string) => void;
+  onDiminuir: (produtoId: string, variacaoId?: string) => void;
 }
 
 export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir }: Props) {
   const fmtMoney = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
-  const fretetxt = grupo.taxaEntrega === 0
-    ? 'Frete grátis'
-    : `Frete ${fmtMoney(grupo.taxaEntrega)}`;
+  const fretetxt =
+    grupo.taxaEntrega === 0 ? 'Frete grátis' : `Frete ${fmtMoney(grupo.taxaEntrega)}`;
 
   const { isDark, surf, border, borderL, text, textSec } = useTheme();
   const subBg = isDark ? 'rgba(255,255,255,0.03)' : '#FAFBFE';
@@ -39,9 +38,9 @@ export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir }: Props) 
       </View>
 
       <View style={styles.itens}>
-        {grupo.itens.map(item => (
+        {grupo.itens.map((item) => (
           <CartItemRow
-            key={item.produto.id}
+            key={`${item.produto.id}:${item.variacaoId ?? ''}`}
             item={item}
             onAumentar={onAumentar}
             onDiminuir={onDiminuir}
@@ -58,18 +57,35 @@ export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir }: Props) 
 }
 
 const styles = StyleSheet.create({
-  card:          { borderRadius: 14, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
-  header:        { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12,
-                   borderBottomWidth: 1 },
-  numeroBolha:   { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.orange100,
-                   alignItems: 'center', justifyContent: 'center' },
-  numeroTxt:     { color: colors.orange600, fontSize: 13, fontWeight: '700' },
-  lojaNome:      { fontSize: 14, fontWeight: '700' },
-  metaRow:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  metaTxt:       { fontSize: 11.5 },
-  itens:         { paddingHorizontal: 12 },
-  subtotalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                   paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1 },
+  card: { borderRadius: 14, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderBottomWidth: 1,
+  },
+  numeroBolha: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.orange100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numeroTxt: { color: colors.orange600, fontSize: 13, fontWeight: '700' },
+  lojaNome: { fontSize: 14, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  metaTxt: { fontSize: 11.5 },
+  itens: { paddingHorizontal: 12 },
+  subtotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
   subtotalLabel: { fontSize: 12 },
   subtotalValue: { fontSize: 13, fontWeight: '700' },
 });

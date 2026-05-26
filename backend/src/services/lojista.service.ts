@@ -8,6 +8,7 @@ import {
   emitCorridaOferta,
   emitTicketMensagem,
   emitTicketStatus,
+  emitProdutoVariacoes,
 } from '../utils/socket';
 import { assertValidImage } from '../lib/mimeValidator';
 import { geocodeByCep, geocodeByQuery } from '../lib/geocoder';
@@ -354,6 +355,7 @@ export async function criarProduto(
     tags: string[];
   },
   file?: Express.Multer.File,
+  variacoes: { nome: string; estoque: number }[] = [],
 ) {
   let imagemUrl = '';
   if (file) {
@@ -363,7 +365,17 @@ export async function criarProduto(
   }
 
   const produto = await prisma.produto.create({
-    data: { ...dados, imagemUrl, imagens: imagemUrl ? [imagemUrl] : [] },
+    data: {
+      ...dados,
+      imagemUrl,
+      imagens: imagemUrl ? [imagemUrl] : [],
+      ...(variacoes.length > 0 && {
+        variacoes: {
+          create: variacoes.map((v) => ({ nome: v.nome, estoque: v.estoque })),
+        },
+      }),
+    },
+    include: { variacoes: true },
   });
 
   embedirProduto(produto.id).catch((err) =>
@@ -379,6 +391,7 @@ export async function updateProduto(
   body: Record<string, string | undefined>,
   imagensExistentes: string[],
   files?: Express.Multer.File[],
+  variacoes?: { nome: string; estoque: number }[],
 ) {
   const produto = await prisma.produto.findUnique({
     where: { id: produtoId },
@@ -397,6 +410,10 @@ export async function updateProduto(
   if (body.estoque !== undefined && body.estoque !== '') dados.estoque = parseInt(body.estoque, 10);
   if (body.disponivel !== undefined) dados.disponivel = body.disponivel === 'true';
 
+  if (variacoes !== undefined && variacoes.length > 0) {
+    dados.estoque = variacoes.reduce((s, v) => s + v.estoque, 0);
+  }
+
   let newUrls: string[] = [];
   if (files && files.length > 0) {
     files.forEach((f) => assertValidImage(f.buffer));
@@ -409,7 +426,29 @@ export async function updateProduto(
     dados.imagens = todasImagens;
   }
 
-  const atualizado = await prisma.produto.update({ where: { id: produtoId }, data: dados });
+  let atualizado;
+  if (variacoes !== undefined) {
+    atualizado = await prisma.$transaction(async (tx) => {
+      await tx.variacaoProduto.deleteMany({ where: { produtoId } });
+      return tx.produto.update({
+        where: { id: produtoId },
+        data: {
+          ...dados,
+          ...(variacoes.length > 0 && {
+            variacoes: { create: variacoes.map((v) => ({ nome: v.nome, estoque: v.estoque })) },
+          }),
+        },
+        include: { variacoes: true },
+      });
+    });
+    emitProdutoVariacoes(produto.lojaId, produtoId, atualizado.variacoes);
+  } else {
+    atualizado = await prisma.produto.update({
+      where: { id: produtoId },
+      data: dados,
+      include: { variacoes: true },
+    });
+  }
 
   embedirProduto(atualizado.id).catch((err) =>
     logger.error({ err, produtoId: atualizado.id }, '[embedding] falhou'),

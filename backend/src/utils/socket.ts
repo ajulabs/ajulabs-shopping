@@ -210,3 +210,11 @@ export function emitChatMensagem(
     /* intentional */
   }
 }
+
+export function emitProdutoVariacoes(lojaId: string, produtoId: string, variacoes: object[]): void {
+  try {
+    getIo().to(`loja:${lojaId}`).emit('produto:variacoes', { produtoId, variacoes });
+  } catch {
+    /* intentional */
+  }
+}
