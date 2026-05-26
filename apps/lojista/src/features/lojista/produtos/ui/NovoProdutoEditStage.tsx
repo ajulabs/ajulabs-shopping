@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
 import { TipoProdutoSelector } from './TipoProdutoSelector';
-import { TIPOS_PRODUTO, TipoProdutoValue } from '../model/tipoProdutos';
+import { TIPOS_PRODUTO, TipoProdutoValue, EspecConfig } from '../model/tipoProdutos';
+
+export interface VariacaoEstoque {
+  nome: string;
+  estoque: number;
+}
 
 export interface ProductData {
   nome: string;
@@ -23,11 +28,40 @@ export interface ProductData {
   estoque: string;
   variacoes: string[];
   tipoProduto: TipoProdutoValue | null;
+  variacoesEstoque: VariacaoEstoque[];
 }
 
 type FieldKey = 'nome' | 'tipoProduto' | 'descricao' | 'preco' | 'estoque';
 
 const FIELD_ORDER: FieldKey[] = ['nome', 'tipoProduto', 'descricao', 'preco', 'estoque'];
+
+// ─── Lógica de geração de variações ─────────────────────────────
+
+function getMultiSpecs(tipoProduto: TipoProdutoValue | null): EspecConfig[] {
+  if (!tipoProduto?.catId || !tipoProduto?.subcatId) return [];
+  const cat = TIPOS_PRODUTO.find((c) => c.id === tipoProduto.catId);
+  const subcat = cat?.subcats.find((s) => s.id === tipoProduto.subcatId);
+  return (subcat?.specs ?? []).filter((s) => s.multiplo);
+}
+
+function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[] {
+  const multiSpecs = getMultiSpecs(tipoProduto);
+  if (!tipoProduto) return [];
+  const eixos = multiSpecs
+    .map((s) => tipoProduto.specs[s.id] ?? [])
+    .filter((vals) => vals.length > 0);
+  if (eixos.length === 0) return [];
+  let combos: string[][] = [[]];
+  for (const vals of eixos) {
+    combos = combos.flatMap((combo) => vals.map((v) => [...combo, v]));
+  }
+  return combos.map((combo) => combo.join(' · '));
+}
+
+function syncVariacoes(novosTipos: string[], anterior: VariacaoEstoque[]): VariacaoEstoque[] {
+  const mapa = Object.fromEntries(anterior.map((v) => [v.nome, v.estoque]));
+  return novosTipos.map((nome) => ({ nome, estoque: mapa[nome] ?? 0 }));
+}
 
 function getMissingSpecs(tipoProduto: TipoProdutoValue | null): string[] {
   if (!tipoProduto?.catId || !tipoProduto?.subcatId) return [];
@@ -49,14 +83,148 @@ function validate(data: ProductData): {
   if (!data.descricao.trim()) errors.descricao = 'Informe uma descrição';
   const preco = parseFloat(data.preco.replace(',', '.'));
   if (!data.preco.trim() || isNaN(preco) || preco <= 0) errors.preco = 'Informe um preço válido';
-  const estoque = parseInt(data.estoque, 10);
-  if (!data.estoque.trim() || isNaN(estoque) || estoque < 0)
-    errors.estoque = 'Informe a quantidade em estoque';
   const missingSpecs = getMissingSpecs(data.tipoProduto);
   if (missingSpecs.length > 0 && !errors.tipoProduto)
-    errors.tipoProduto = 'Preencha todas as variações do produto';
+    errors.tipoProduto = 'Preencha todas as especificações do produto';
+  // estoque global só é obrigatório quando não há variações
+  if (data.variacoesEstoque.length === 0) {
+    const estoque = parseInt(data.estoque, 10);
+    if (!data.estoque.trim() || isNaN(estoque) || estoque < 0)
+      errors.estoque = 'Informe a quantidade em estoque';
+  }
   return { errors, missingSpecs };
 }
+
+// ─── VariacoesSection ─────────────────────────────────────────
+
+function VariacoesSection({
+  variacoes,
+  onChange,
+}: {
+  variacoes: VariacaoEstoque[];
+  onChange: (v: VariacaoEstoque[]) => void;
+}) {
+  const totalEstoque = variacoes.reduce((s, v) => s + (v.estoque || 0), 0);
+
+  const updateEstoque = (nome: string, raw: string) => {
+    const val = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+    onChange(variacoes.map((v) => (v.nome === nome ? { ...v, estoque: isNaN(val) ? 0 : val } : v)));
+  };
+
+  return (
+    <View style={varStyles.container}>
+      <View style={varStyles.headerRow}>
+        <View style={varStyles.headerLeft}>
+          <Ionicons name="grid-outline" size={14} color={colors.orange600} />
+          <Text style={varStyles.title}>Variações do produto</Text>
+        </View>
+        <View style={varStyles.totalBadge}>
+          <Text style={varStyles.totalText}>Total: {totalEstoque} un.</Text>
+        </View>
+      </View>
+
+      <View style={varStyles.tableHeader}>
+        <Text style={[varStyles.colLabel, { flex: 1 }]}>Combinação</Text>
+        <Text style={[varStyles.colLabel, { width: 90, textAlign: 'right' }]}>Estoque</Text>
+      </View>
+
+      {variacoes.map((v, idx) => (
+        <View key={v.nome} style={[varStyles.row, idx % 2 === 0 && varStyles.rowAlt]}>
+          <Text style={varStyles.nomeTxt} numberOfLines={1}>
+            {v.nome}
+          </Text>
+          <TextInput
+            style={varStyles.estoqueInput}
+            value={v.estoque === 0 ? '' : String(v.estoque)}
+            onChangeText={(raw) => updateEstoque(v.nome, raw)}
+            placeholder="0"
+            placeholderTextColor={colors.n300}
+            keyboardType="number-pad"
+            maxLength={5}
+          />
+        </View>
+      ))}
+
+      <Text style={varStyles.hint}>
+        Deixe 0 para variações sem estoque. O total é somado automaticamente.
+      </Text>
+    </View>
+  );
+}
+
+const varStyles = StyleSheet.create({
+  container: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#FFD4A8',
+    backgroundColor: '#FFFAF5',
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.orange100,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFD4A8',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  title: { fontSize: 13, fontWeight: '700', color: colors.orange600 },
+  totalBadge: {
+    backgroundColor: colors.orange600,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+  },
+  totalText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  tableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.n100,
+  },
+  colLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.n500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  rowAlt: { backgroundColor: 'rgba(0,0,0,0.015)' },
+  nomeTxt: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.navy },
+  estoqueInput: {
+    width: 90,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    backgroundColor: '#fff',
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  hint: {
+    fontSize: 11,
+    color: colors.n500,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 4,
+  },
+});
+
+// ─── EditStage ────────────────────────────────────────────────
 
 export function EditStage({
   data,
@@ -67,7 +235,10 @@ export function EditStage({
   imageUri,
 }: {
   data: ProductData;
-  onChange: (key: keyof ProductData, value: string | string[] | TipoProdutoValue | null) => void;
+  onChange: (
+    key: keyof ProductData,
+    value: string | string[] | TipoProdutoValue | null | VariacaoEstoque[],
+  ) => void;
   onPublicar: () => void;
   onTrocarFoto?: () => void;
   saving?: boolean;
@@ -83,9 +254,23 @@ export function EditStage({
   const selectorWrapY = useRef(0);
   const specPositions = useRef<Record<string, number>>({});
 
+  // Re-gera variações quando tipoProduto muda
+  useEffect(() => {
+    const nomes = gerarCombinacoes(data.tipoProduto);
+    if (nomes.length === 0 && data.variacoesEstoque.length === 0) return;
+    const synced = syncVariacoes(nomes, data.variacoesEstoque);
+    // só chama se realmente mudou
+    const mudou =
+      synced.length !== data.variacoesEstoque.length ||
+      synced.some((v, i) => v.nome !== data.variacoesEstoque[i]?.nome);
+    if (mudou) onChange('variacoesEstoque', synced);
+  }, [data.tipoProduto]);
+
+  const hasVariacoes = data.variacoesEstoque.length > 0;
+
   const handleChange = useCallback(
     <K extends keyof ProductData>(key: K, value: ProductData[K]) => {
-      onChange(key, value as string | string[] | TipoProdutoValue | null);
+      onChange(key, value as string | string[] | TipoProdutoValue | null | VariacaoEstoque[]);
       if (key in errors)
         setErrors((prev) => {
           const next = { ...prev };
@@ -108,8 +293,6 @@ export function EditStage({
       const tipoProdutoIdx = FIELD_ORDER.indexOf('tipoProduto');
       const firstFieldKey = FIELD_ORDER.find((k) => errs[k]);
       const firstFieldIdx = firstFieldKey ? FIELD_ORDER.indexOf(firstFieldKey) : Infinity;
-      // se o primeiro erro é 'nome' (antes do selector), vai pra ele
-      // em todos os outros casos com specs faltando, vai pro spec exato
       if (missing.length > 0 && firstFieldIdx >= tipoProdutoIdx) {
         const specY =
           (fieldPositions.current['tipoProduto'] ?? 0) +
@@ -224,6 +407,17 @@ export function EditStage({
         {errors.tipoProduto && <Text style={styles.errorText}>{errors.tipoProduto}</Text>}
       </View>
 
+      {/* Variações geradas automaticamente pelo produto cartesiano */}
+      {hasVariacoes && (
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Variações do produto</Text>
+          <VariacoesSection
+            variacoes={data.variacoesEstoque}
+            onChange={(v) => handleChange('variacoesEstoque', v)}
+          />
+        </View>
+      )}
+
       <View style={styles.fieldGroup} onLayout={recordY('descricao')}>
         <Text style={[styles.fieldLabel, errors.descricao && styles.labelError]}>Descrição</Text>
         <TextInput
@@ -265,6 +459,7 @@ export function EditStage({
         </View>
       </View>
 
+      {/* Preço sempre visível; estoque global só quando não há variações */}
       <View style={styles.rowFields} onLayout={recordY('preco')}>
         <View style={[styles.fieldGroup, { flex: 1 }]}>
           <Text style={[styles.fieldLabel, errors.preco && styles.labelError]}>Preço (R$)</Text>
@@ -277,18 +472,33 @@ export function EditStage({
           />
           {errors.preco && <Text style={styles.errorText}>{errors.preco}</Text>}
         </View>
-        <View style={[styles.fieldGroup, { flex: 1 }]} onLayout={recordY('estoque')}>
-          <Text style={[styles.fieldLabel, errors.estoque && styles.labelError]}>Estoque</Text>
-          <TextInput
-            style={[styles.input, errors.estoque && styles.inputError]}
-            value={data.estoque}
-            onChangeText={(v) => handleChange('estoque', v.replace(/[^0-9]/g, ''))}
-            placeholder="0"
-            keyboardType="number-pad"
-          />
-          {errors.estoque && <Text style={styles.errorText}>{errors.estoque}</Text>}
-        </View>
+
+        {!hasVariacoes && (
+          <View style={[styles.fieldGroup, { flex: 1 }]} onLayout={recordY('estoque')}>
+            <Text style={[styles.fieldLabel, errors.estoque && styles.labelError]}>Estoque</Text>
+            <TextInput
+              style={[styles.input, errors.estoque && styles.inputError]}
+              value={data.estoque}
+              onChangeText={(v) => handleChange('estoque', v.replace(/[^0-9]/g, ''))}
+              placeholder="0"
+              keyboardType="number-pad"
+            />
+            {errors.estoque && <Text style={styles.errorText}>{errors.estoque}</Text>}
+          </View>
+        )}
       </View>
+
+      {hasVariacoes && (
+        <View style={styles.estoqueAutoRow}>
+          <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+          <Text style={styles.estoqueAutoText}>
+            Estoque total calculado pelas variações:{' '}
+            <Text style={{ fontWeight: '700' }}>
+              {data.variacoesEstoque.reduce((s, v) => s + (v.estoque || 0), 0)} unidades
+            </Text>
+          </Text>
+        </View>
+      )}
 
       <TouchableOpacity
         style={[styles.publishBtn, saving && { opacity: 0.7 }]}
@@ -391,6 +601,15 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   trocarFotoText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  estoqueAutoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 10,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 10,
+  },
+  estoqueAutoText: { fontSize: 12, color: '#15803D', flex: 1 },
   publishBtn: {
     height: 50,
     borderRadius: 14,

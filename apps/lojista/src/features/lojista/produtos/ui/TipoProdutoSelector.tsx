@@ -49,8 +49,15 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
 
   const toggleSpec = (specId: string, opt: string) => {
     if (!value || !value.subcatId) return;
+    const specCfg = subcat?.specs.find((s) => s.id === specId);
     const current = value.specs[specId] ?? [];
-    const next = current.includes(opt) ? [] : [opt];
+    const next = specCfg?.multiplo
+      ? current.includes(opt)
+        ? current.filter((v) => v !== opt)
+        : [...current, opt]
+      : current.includes(opt)
+        ? []
+        : [opt];
     onChange({ ...value, specs: { ...value.specs, [specId]: next } });
   };
 
@@ -266,7 +273,9 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                     {spec.label}
                     {missingSpecs.includes(spec.id) ? ' *' : ''}
                   </Text>
-                  <Text style={styles.specHint}>Escolha um</Text>
+                  <Text style={styles.specHint}>
+                    {spec.multiplo ? 'Selecione um ou mais' : 'Escolha um'}
+                  </Text>
                 </View>
                 <View style={styles.chipsWrap}>
                   {spec.opcoes.map((opt) => {
