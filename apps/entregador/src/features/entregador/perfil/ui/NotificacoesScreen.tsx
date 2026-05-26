@@ -10,10 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  NotificationPreferencesService,
-  type NotificationPreference,
-} from '@ajulabs/api-client';
+import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../../../store';
 
 interface Props {
@@ -53,9 +50,7 @@ export function NotificacoesScreen({ onBack }: Props) {
     async (categoria: string, ativo: boolean) => {
       if (!token) return;
       // Otimista: atualiza UI imediatamente
-      setPreferencias((prev) =>
-        prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)),
-      );
+      setPreferencias((prev) => prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)));
       setSalvando((prev) => new Set(prev).add(categoria));
       try {
         await NotificationPreferencesService.atualizar(token, categoria, ativo);
@@ -111,9 +106,7 @@ export function NotificacoesScreen({ onBack }: Props) {
           )}
 
           {preferencias.length === 0 && !erro ? (
-            <Text style={[s.desc, { textAlign: 'center' }]}>
-              Nenhuma preferência disponível.
-            </Text>
+            <Text style={[s.desc, { textAlign: 'center' }]}>Nenhuma preferência disponível.</Text>
           ) : (
             <View style={s.card}>
               {preferencias.map((p, i) => (

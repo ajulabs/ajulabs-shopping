@@ -19,6 +19,7 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
+import { useRouter } from 'expo-router';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
 
@@ -965,13 +966,27 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={styles.conversasBtn}
+          onPress={() => router.push('/(lojista)/conversas')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="chatbubbles-outline" size={18} color="#0B6FAE" />
+          <Text style={styles.conversasBtnText}>Conversas</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.notificacoesBtn}
           onPress={() => router.push('/(lojista)/notificacoes')}
           activeOpacity={0.85}
         >
           <Ionicons name="notifications-outline" size={18} color="#000933" />
           <Text style={styles.notificacoesBtnText}>Notificações</Text>
-          <Ionicons name="chevron-forward" size={16} color="#9099B3" style={{ marginLeft: 'auto' }} />
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color="#9099B3"
+            style={{ marginLeft: 'auto' }}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
@@ -1220,6 +1235,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   logoutBtnText: { fontSize: 15, fontWeight: '700', color: '#E24B4A' },
+  conversasBtn: {
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#0B6FAE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  conversasBtnText: { fontSize: 15, fontWeight: '700', color: '#0B6FAE' },
 
   // Modal de logout
   modalOverlay: {

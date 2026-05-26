@@ -1,6 +1,11 @@
-import type { LocationPayload, StatusPayload, VariacaoProduto } from '@ajulabs/types';
+import type {
+  LocationPayload,
+  StatusPayload,
+  ChatMensagemNovaPayload,
+  VariacaoProduto,
+} from '@ajulabs/types';
 
-export type { LocationPayload, StatusPayload };
+export type { LocationPayload, StatusPayload, ChatMensagemNovaPayload };
 
 export interface TicketMensagemPayload {
   id: string;
@@ -46,6 +51,7 @@ export interface ServerEvents {
   'ticket:mensagem': (payload: TicketMensagemPayload) => void;
   'ticket:status': (payload: { ticketId: string; status: string }) => void;
   'ticket:novo': (payload: TicketNovoPayload) => void;
+  'chat:mensagem:nova': (payload: ChatMensagemNovaPayload) => void;
   'produto:variacoes': (payload: ProdutoVariacaoPayload) => void;
 }
 

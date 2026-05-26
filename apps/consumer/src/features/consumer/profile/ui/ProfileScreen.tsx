@@ -10,7 +10,7 @@ import { useTheme } from '../../../../hooks';
 
 export function ProfileScreen() {
   const router = useRouter();
-  const logout = useAuthStore(s => s.logout);
+  const logout = useAuthStore((s) => s.logout);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
 
@@ -35,6 +35,11 @@ export function ProfileScreen() {
       icon: 'heart-outline',
       label: 'Favoritos',
       onPress: () => router.push('/(consumer)/favoritos'),
+    },
+    {
+      icon: 'chatbubbles-outline',
+      label: 'Conversas',
+      onPress: () => router.push('/(consumer)/conversas'),
     },
   ];
 
@@ -92,7 +97,12 @@ export function ProfileScreen() {
         </Text>
       </ScrollView>
 
-      <Modal visible={logoutVisible} transparent animationType="fade" onRequestClose={() => setLogoutVisible(false)}>
+      <Modal
+        visible={logoutVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { backgroundColor: surf }]}>
             <View style={styles.modalIconWrap}>
@@ -104,13 +114,19 @@ export function ProfileScreen() {
             </Text>
             <TouchableOpacity
               style={styles.modalBtnSair}
-              onPress={() => { setLogoutVisible(false); logout(); }}
+              onPress={() => {
+                setLogoutVisible(false);
+                logout();
+              }}
               activeOpacity={0.8}
             >
               <Text style={styles.modalBtnSairText}>Sim, quero sair</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modalBtnCancel, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.n100 }]}
+              style={[
+                styles.modalBtnCancel,
+                { borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.n100 },
+              ]}
               onPress={() => setLogoutVisible(false)}
               activeOpacity={0.8}
             >
@@ -124,20 +140,26 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1 },
+  container: { flex: 1 },
 
-  header:     { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                borderBottomWidth: 1 },
-  titulo:     { fontSize: 20, fontWeight: '700' },
+  header: { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14, borderBottomWidth: 1 },
+  titulo: { fontSize: 20, fontWeight: '700' },
 
-  scroll:     { padding: 16, paddingBottom: 40 },
+  scroll: { padding: 16, paddingBottom: 40 },
 
-  logoutBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                gap: 8, marginTop: 20, paddingVertical: 14,
-                backgroundColor: '#FCEBEB', borderRadius: 14 },
-  logoutTxt:  { fontSize: 14, fontWeight: '600', color: '#A32D2D' },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 14,
+    backgroundColor: '#FCEBEB',
+    borderRadius: 14,
+  },
+  logoutTxt: { fontSize: 14, fontWeight: '600', color: '#A32D2D' },
 
-  footer:     { textAlign: 'center', marginTop: 20, fontSize: 11, letterSpacing: 0.3 },
+  footer: { textAlign: 'center', marginTop: 20, fontSize: 11, letterSpacing: 0.3 },
 
   modalOverlay: {
     flex: 1,

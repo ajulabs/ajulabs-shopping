@@ -41,7 +41,7 @@ export function setEntregadorLocalizacao(
     getIo().to(`usuario:${consumidorId}`).emit('localizacao:entregador', payload);
     if (lojaId) getIo().to(`loja:${lojaId}`).emit('localizacao:entregador', payload);
   } catch {
-    /* socket not initialized */
+    /* intentional */
   }
 }
 
@@ -113,7 +113,7 @@ export function initSocket(server: http.Server): Server {
             );
           }
         } catch {
-          /* ignore DB lookup failure */
+          /* intentional */
         }
       },
     );
@@ -131,7 +131,7 @@ export function emitPedidoNovo(lojaId: string, payload: object): void {
   try {
     getIo().to(`loja:${lojaId}`).emit('pedido:novo', payload);
   } catch {
-    /* ignore */
+    /* intentional */
   }
 }
 
@@ -146,7 +146,7 @@ export function emitPedidoAtualizado(
     io.to(`usuario:${consumidorId}`).emit('pedido:atualizado', { pedidoId, status });
     if (lojaId) io.to(`loja:${lojaId}`).emit('pedido:atualizado', { pedidoId, status });
   } catch {
-    /* ignore */
+    /* intentional */
   }
 }
 
@@ -154,7 +154,7 @@ export function emitCorridaOferta(payload: object): void {
   try {
     getIo().to('entregadores').emit('corrida:oferta', payload);
   } catch {
-    /* ignore */
+    /* intentional */
   }
 }
 
@@ -172,7 +172,7 @@ export function emitTicketMensagem(
       io.to(`usuario:${consumidorId}`).emit('ticket:mensagem', mensagem);
     }
   } catch {
-    /* ignore */
+    /* intentional */
   }
 }
 
@@ -180,7 +180,7 @@ export function emitTicketStatus(consumidorId: string, ticketId: string, status:
   try {
     getIo().to(`usuario:${consumidorId}`).emit('ticket:status', { ticketId, status });
   } catch {
-    /* ignore */
+    /* intentional */
   }
 }
 
@@ -188,7 +188,26 @@ export function emitTicketNovo(lojaId: string, payload: object): void {
   try {
     getIo().to(`loja:${lojaId}`).emit('ticket:novo', payload);
   } catch {
-    /* ignore */
+    /* intentional */
+  }
+}
+
+export function emitChatMensagem(
+  destinatarioType: 'CONSUMER' | 'LOJISTA' | 'ENTREGADOR',
+  destinatarioId: string,
+  payload: object,
+): void {
+  try {
+    const io = getIo();
+    if (destinatarioType === 'CONSUMER') {
+      io.to(`usuario:${destinatarioId}`).emit('chat:mensagem:nova', payload);
+    } else if (destinatarioType === 'LOJISTA') {
+      io.to(`loja:${destinatarioId}`).emit('chat:mensagem:nova', payload);
+    } else {
+      io.to(`entregador:${destinatarioId}`).emit('chat:mensagem:nova', payload);
+    }
+  } catch {
+    /* intentional */
   }
 }
 
@@ -196,6 +215,6 @@ export function emitProdutoVariacoes(lojaId: string, produtoId: string, variacoe
   try {
     getIo().to(`loja:${lojaId}`).emit('produto:variacoes', { produtoId, variacoes });
   } catch {
-    /* ignore */
+    /* intentional */
   }
 }

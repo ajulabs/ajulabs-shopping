@@ -19,6 +19,7 @@ import favoritosRoutes from './routes/favoritos.routes';
 import geocodeRoutes from './routes/geocode.routes';
 import pushRoutes from './routes/push.routes';
 import notificationPreferencesRoutes from './routes/notificationPreferences.routes';
+import pedidoChatRoutes from './routes/pedido-chat.routes';
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/v1/favoritos', favoritosRoutes);
 app.use('/v1/geocode', geocodeRoutes);
 app.use('/v1/push', pushRoutes);
 app.use('/v1/notification-preferences', notificationPreferencesRoutes);
+app.use('/v1/pedido-chat', pedidoChatRoutes);
 
 for (const prefix of [
   'auth',
@@ -66,6 +68,7 @@ for (const prefix of [
   'geocode',
   'push',
   'notification-preferences',
+  'pedido-chat',
 ]) {
   app.use(`/${prefix}`, (req, res) => res.redirect(308, `/v1/${prefix}${req.url}`));
 }

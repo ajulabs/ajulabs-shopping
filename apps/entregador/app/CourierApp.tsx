@@ -3,7 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../src/features/entregador/home';
 import { ActiveScreen, type Stage } from '../src/features/entregador/corrida-ativa';
-import { EntregasAndamentoScreen, type ActiveRideWithStage } from '../src/features/entregador/andamento/ui/EntregasAndamentoScreen';
+import {
+  EntregasAndamentoScreen,
+  type ActiveRideWithStage,
+} from '../src/features/entregador/andamento/ui/EntregasAndamentoScreen';
 import { EarningsScreen } from '../src/features/entregador/ganhos';
 import { ProfileScreen } from '../src/features/entregador/perfil';
 import { DadosBancariosScreen } from '../src/features/entregador/perfil/ui/DadosBancariosScreen';
@@ -11,6 +14,8 @@ import { DocumentosScreen } from '../src/features/entregador/perfil/ui/Documento
 import { NotificacoesScreen } from '../src/features/entregador/perfil/ui/NotificacoesScreen';
 import { SegurancaScreen } from '../src/features/entregador/perfil/ui/SegurancaScreen';
 import { VeiculoScreen } from '../src/features/entregador/perfil/ui/VeiculoScreen';
+import { ConversasEntregadorScreen } from '../src/features/entregador/chat/ui/ConversasEntregadorScreen';
+import { ChatPedidoEntregadorScreen } from '../src/features/entregador/chat/ui/ChatPedidoEntregadorScreen';
 import { OnboardingScreen } from '../src/features/entregador/onboarding';
 import { useAuthEntregadorStore } from '../src/store';
 import { EntregadorService } from '@ajulabs/api-client';
@@ -108,17 +113,43 @@ type Screen =
   | 'veiculo'
   | 'dados-bancarios'
   | 'notificacoes'
-  | 'seguranca';
+  | 'seguranca'
+  | 'conversas'
+  | 'chat';
 
 function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', padding: 30 }}
+      style={{
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 30,
+      }}
     >
-      <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#39FF89', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+      <View
+        style={{
+          width: 100,
+          height: 100,
+          borderRadius: 50,
+          backgroundColor: '#39FF89',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 20,
+        }}
+      >
         <Ionicons name="checkmark" size={48} color="#002B12" />
       </View>
-      <Text style={{ fontSize: 26, fontWeight: '800', color: '#000933', marginBottom: 10, textAlign: 'center' }}>
+      <Text
+        style={{
+          fontSize: 26,
+          fontWeight: '800',
+          color: '#000933',
+          marginBottom: 10,
+          textAlign: 'center',
+        }}
+      >
         Cadastro enviado!
       </Text>
       <View style={{ alignItems: 'center', maxWidth: 280, marginBottom: 28, gap: 4 }}>
@@ -128,7 +159,12 @@ function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
         <Ionicons name="car-sport" size={18} color="#9099B3" />
       </View>
       <TouchableOpacity
-        style={{ backgroundColor: '#F2760F', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 40 }}
+        style={{
+          backgroundColor: '#F2760F',
+          borderRadius: 14,
+          paddingVertical: 16,
+          paddingHorizontal: 40,
+        }}
         onPress={onContinue}
         activeOpacity={0.85}
       >
@@ -139,12 +175,13 @@ function ApprovalScreen({ onContinue }: { onContinue: () => void }) {
 }
 
 export function CourierApp() {
-  const needsOnboarding = useAuthEntregadorStore(s => s.needsOnboarding);
-  const logout = useAuthEntregadorStore(s => s.logout);
-  const token = useAuthEntregadorStore(s => s.token);
+  const needsOnboarding = useAuthEntregadorStore((s) => s.needsOnboarding);
+  const logout = useAuthEntregadorStore((s) => s.logout);
+  const token = useAuthEntregadorStore((s) => s.token);
 
   const [screen, setScreen] = useState<Screen>(needsOnboarding ? 'onboarding' : 'main');
   const [tab, setTab] = useState<Tab>('home');
+  const [chatPedidoId, setChatPedidoId] = useState<string | null>(null);
 
   // Múltiplas entregas (máx 2)
   const [activeRides, setActiveRides] = useState<ActiveRideWithStage[]>([]);
@@ -152,48 +189,54 @@ export function CourierApp() {
 
   useEffect(() => {
     if (!token) return;
-    EntregadorService.buscarCorridasAtivas(token).then(corridas => {
-      if (corridas.length === 0) return;
-      const rides: ActiveRideWithStage[] = corridas.map((raw: any) => ({
-        id: raw.id,
-        loja: {
-          nome: raw.loja?.nome ?? '–',
-          endereco: raw.loja?.endereco ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}` : '–',
-          bairro: raw.loja?.endereco?.bairro ?? '–',
-        },
-        cliente: {
-          nome: raw.consumidor?.nome ?? 'Cliente',
-          telefone: raw.consumidor?.telefone ?? undefined,
-          endereco: raw.enderecoEntrega ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}` : '–',
-          bairro: raw.enderecoEntrega?.bairro ?? '–',
-        },
-        ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
-        distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
-        duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
-        codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),
-        stage: raw.status === 'saiu_entrega' ? 'to-customer' : 'to-store',
-      }));
-      setActiveRides(prev => {
-        const existingIds = new Set(prev.map(r => r.id));
-        const newRides = rides.filter(r => !existingIds.has(r.id));
-        return [...prev, ...newRides];
-      });
-    }).catch(() => {});
+    EntregadorService.buscarCorridasAtivas(token)
+      .then((corridas) => {
+        if (corridas.length === 0) return;
+        const rides: ActiveRideWithStage[] = corridas.map((raw: any) => ({
+          id: raw.id,
+          loja: {
+            nome: raw.loja?.nome ?? '–',
+            endereco: raw.loja?.endereco
+              ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}`
+              : '–',
+            bairro: raw.loja?.endereco?.bairro ?? '–',
+          },
+          cliente: {
+            nome: raw.consumidor?.nome ?? 'Cliente',
+            telefone: raw.consumidor?.telefone ?? undefined,
+            endereco: raw.enderecoEntrega
+              ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}`
+              : '–',
+            bairro: raw.enderecoEntrega?.bairro ?? '–',
+          },
+          ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
+          distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
+          duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
+          codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),
+          stage: raw.status === 'saiu_entrega' ? 'to-customer' : 'to-store',
+        }));
+        setActiveRides((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const newRides = rides.filter((r) => !existingIds.has(r.id));
+          return [...prev, ...newRides];
+        });
+      })
+      .catch(() => {});
   }, [token]);
 
-  const selectedRide = activeRides.find(r => r.id === selectedRideId) ?? null;
+  const selectedRide = activeRides.find((r) => r.id === selectedRideId) ?? null;
 
   const handleAcceptRide = (ride: Omit<ActiveRideWithStage, 'stage'>) => {
     if (activeRides.length >= 2) return;
     const newRide: ActiveRideWithStage = { ...ride, stage: 'to-store' };
-    setActiveRides(prev => [...prev, newRide]);
+    setActiveRides((prev) => [...prev, newRide]);
     setSelectedRideId(newRide.id);
     setScreen('active');
   };
 
   const handleActiveBack = (currentStage: Stage) => {
-    setActiveRides(prev =>
-      prev.map(r => r.id === selectedRideId ? { ...r, stage: currentStage } : r)
+    setActiveRides((prev) =>
+      prev.map((r) => (r.id === selectedRideId ? { ...r, stage: currentStage } : r)),
     );
     setSelectedRideId(null);
     setScreen('main');
@@ -201,7 +244,7 @@ export function CourierApp() {
   };
 
   const handleActiveFinish = () => {
-    const remaining = activeRides.filter(r => r.id !== selectedRideId);
+    const remaining = activeRides.filter((r) => r.id !== selectedRideId);
     setActiveRides(remaining);
     setSelectedRideId(null);
     setScreen('main');
@@ -226,10 +269,25 @@ export function CourierApp() {
 
   if (screen === 'approval') return <ApprovalScreen onContinue={() => setScreen('main')} />;
   if (screen === 'documentos') return <DocumentosScreen onBack={() => setScreen('main')} />;
-  if (screen === 'dados-bancarios') return <DadosBancariosScreen onBack={() => setScreen('main')} />;
+  if (screen === 'dados-bancarios')
+    return <DadosBancariosScreen onBack={() => setScreen('main')} />;
   if (screen === 'notificacoes') return <NotificacoesScreen onBack={() => setScreen('main')} />;
   if (screen === 'seguranca') return <SegurancaScreen onBack={() => setScreen('main')} />;
   if (screen === 'veiculo') return <VeiculoScreen onBack={() => setScreen('main')} />;
+  if (screen === 'conversas')
+    return (
+      <ConversasEntregadorScreen
+        onBack={() => setScreen('main')}
+        onAbrirChat={(pedidoId) => {
+          setChatPedidoId(pedidoId);
+          setScreen('chat');
+        }}
+      />
+    );
+  if (screen === 'chat' && chatPedidoId)
+    return (
+      <ChatPedidoEntregadorScreen pedidoId={chatPedidoId} onBack={() => setScreen('conversas')} />
+    );
 
   if (screen === 'active' && selectedRide) {
     return (
@@ -238,6 +296,10 @@ export function CourierApp() {
         initialStage={selectedRide.stage}
         onBack={handleActiveBack}
         onFinish={handleActiveFinish}
+        onOpenChat={(pedidoId) => {
+          setChatPedidoId(pedidoId);
+          setScreen('chat');
+        }}
       />
     );
   }
@@ -249,14 +311,20 @@ export function CourierApp() {
           <HomeScreen onAcceptRide={handleAcceptRide} activeRidesCount={activeRides.length} />
         </View>
         {tab === 'entregas' && (
-          <EntregasAndamentoScreen
-            rides={activeRides}
-            onSelectRide={handleSelectRide}
-          />
+          <EntregasAndamentoScreen rides={activeRides} onSelectRide={handleSelectRide} />
         )}
         {tab === 'ganhos' && <EarningsScreen />}
         {tab === 'perfil' && (
-          <ProfileScreen onLogout={logout} onNavigate={(dest) => setScreen(dest)} />
+          <ProfileScreen
+            onLogout={logout}
+            onNavigate={(dest) => {
+              if (dest === 'conversas') {
+                setScreen('conversas');
+                return;
+              }
+              setScreen(dest);
+            }}
+          />
         )}
       </View>
       <CourierNav tab={tab} onChange={setTab} activeCount={activeRides.length} />

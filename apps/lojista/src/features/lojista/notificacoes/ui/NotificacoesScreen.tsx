@@ -11,10 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  NotificationPreferencesService,
-  type NotificationPreference,
-} from '@ajulabs/api-client';
+import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
 import { useAuthLojistaStore } from '../../../../store';
 
 export function NotificacoesScreen() {
@@ -50,9 +47,7 @@ export function NotificacoesScreen() {
   const toggle = useCallback(
     async (categoria: string, ativo: boolean) => {
       if (!token) return;
-      setPreferencias((prev) =>
-        prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)),
-      );
+      setPreferencias((prev) => prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)));
       setSalvando((prev) => new Set(prev).add(categoria));
       try {
         await NotificationPreferencesService.atualizar(token, categoria, ativo);
@@ -96,9 +91,7 @@ export function NotificacoesScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          <Text style={s.desc}>
-            Escolha quais notificações você quer receber sobre sua loja.
-          </Text>
+          <Text style={s.desc}>Escolha quais notificações você quer receber sobre sua loja.</Text>
 
           {!!erro && (
             <View style={s.erroBox}>
@@ -108,9 +101,7 @@ export function NotificacoesScreen() {
           )}
 
           {preferencias.length === 0 && !erro ? (
-            <Text style={[s.desc, { textAlign: 'center' }]}>
-              Nenhuma preferência disponível.
-            </Text>
+            <Text style={[s.desc, { textAlign: 'center' }]}>Nenhuma preferência disponível.</Text>
           ) : (
             <View style={s.card}>
               {preferencias.map((p, i) => (
@@ -146,7 +137,8 @@ export function NotificacoesScreen() {
           <View style={s.infoBox}>
             <Ionicons name="information-circle" size={16} color="#209CEF" />
             <Text style={s.infoText}>
-              Você não vai perder novos pedidos — eles continuam aparecendo na tela mesmo com a notificação desligada.
+              Você não vai perder novos pedidos — eles continuam aparecendo na tela mesmo com a
+              notificação desligada.
             </Text>
           </View>
         </ScrollView>

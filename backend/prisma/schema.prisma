@@ -437,6 +437,7 @@ model Pedido {
   entregaRealizada EntregaRealizada?
   avaliacao        AvaliacaoLoja?
   supportTickets   SupportTicket[]
+  chat             ChatPedido?
 
   @@map("pedidos")
 }
@@ -570,7 +571,52 @@ model TicketNota {
 }
 
 // ========================================
-// 8. GANHOS DO ENTREGADOR
+// 8. CHAT ENTRE PARTICIPANTES DO PEDIDO
+// ========================================
+
+enum TipoParticipanteChat {
+  CONSUMER
+  LOJISTA
+  ENTREGADOR
+}
+
+enum StatusChatPedido {
+  ativo
+  encerrado
+}
+
+model ChatPedido {
+  id        String           @id @default(uuid())
+  pedidoId  String           @unique @map("pedido_id")
+  status    StatusChatPedido @default(ativo)
+  criadoEm  DateTime         @default(now()) @map("criado_em")
+
+  pedido    Pedido               @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  mensagens ChatMensagemPedido[]
+
+  @@map("chats_pedido")
+}
+
+model ChatMensagemPedido {
+  id               String               @id @default(uuid())
+  chatId           String               @map("chat_id")
+  conteudo         String
+  remetenteType    TipoParticipanteChat @map("remetente_type")
+  remetenteId      String               @map("remetente_id")
+  destinatarioType TipoParticipanteChat @map("destinatario_type")
+  destinatarioId   String               @map("destinatario_id")
+  lido             Boolean              @default(false)
+  criadoEm         DateTime             @default(now()) @map("criado_em")
+
+  chat ChatPedido @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, criadoEm])
+  @@index([destinatarioId, destinatarioType, lido])
+  @@map("chat_mensagens_pedido")
+}
+
+// ========================================
+// 9. GANHOS DO ENTREGADOR
 // ========================================
 
 model EntregaRealizada {

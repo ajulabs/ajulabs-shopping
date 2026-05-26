@@ -1247,3 +1247,49 @@ export const NotificationPreferencesService = {
     if (!res.ok) throw new Error('Erro ao atualizar preferência de notificação');
   },
 };
+
+export const PedidoChatService = {
+  buscarChat: async (pedidoId: string, token: string): Promise<any | null> => {
+    const res = await fetch(`${API_URL}/pedido-chat/pedido/${pedidoId}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { chat } = await res.json();
+    return chat ?? null;
+  },
+
+  enviarMensagem: async (
+    pedidoId: string,
+    token: string,
+    conteudo: string,
+    destinatarioType: 'CONSUMER' | 'LOJISTA' | 'ENTREGADOR',
+  ): Promise<any> => {
+    const res = await fetch(`${API_URL}/pedido-chat/pedido/${pedidoId}/mensagem`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ conteudo, destinatarioType }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar mensagem');
+    }
+    const { mensagem } = await res.json();
+    return mensagem;
+  },
+
+  buscarHistorico: async (token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/pedido-chat/historico`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { chats } = await res.json();
+    return chats ?? [];
+  },
+
+  marcarLido: async (pedidoId: string, token: string): Promise<void> => {
+    await fetch(`${API_URL}/pedido-chat/pedido/${pedidoId}/lido`, {
+      method: 'PUT',
+      headers: authHeader(token),
+    }).catch(() => {});
+  },
+};

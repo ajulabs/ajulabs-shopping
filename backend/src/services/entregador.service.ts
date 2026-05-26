@@ -371,6 +371,13 @@ export async function confirmarEntrega(entregadorId: string, pedidoId: string, c
     update: { valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
   });
 
+  await prisma.chatPedido
+    .updateMany({
+      where: { pedidoId, status: 'ativo' },
+      data: { status: 'encerrado' },
+    })
+    .catch(() => {});
+
   try {
     getIo()
       .to(`usuario:${pedido.consumidorId}`)

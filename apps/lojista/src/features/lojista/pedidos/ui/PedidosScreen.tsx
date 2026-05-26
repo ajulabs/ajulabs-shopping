@@ -19,10 +19,11 @@ import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
 import { usePedidoSound, SONS, type SomTipo } from './usePedidoSound';
 import { TicketsScreen } from '../../tickets/ui/TicketsScreen';
+import { ChatPedidoScreen } from './ChatPedidoScreen';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-type Screen = 'list' | 'detail' | 'delivery' | 'tickets';
+type Screen = 'list' | 'detail' | 'delivery' | 'tickets' | 'chat';
 
 function mapPedidoToOrder(raw: any): Order {
   const status: OrderStatus = ORDER_STATUS_MAP[raw.status as string] ?? 'preparando';
@@ -170,6 +171,12 @@ export function PedidosScreen() {
     return <TicketsScreen onBack={() => setScreen('list')} />;
   }
 
+  if (screen === 'chat' && selected) {
+    return (
+      <ChatPedidoScreen pedidoId={selected._id ?? selected.id} onBack={() => setScreen('detail')} />
+    );
+  }
+
   if (screen === 'detail' && selected) {
     const currentOrder = orders.find((o) => o.id === selected.id)!;
     return (
@@ -178,6 +185,7 @@ export function PedidosScreen() {
         onBack={() => setScreen('list')}
         onAdvance={() => advance(currentOrder.id)}
         onDispatch={() => setScreen('delivery')}
+        onChatConsumer={() => setScreen('chat')}
       />
     );
   }
