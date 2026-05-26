@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuthEntregadorStore } from '../src/store';
 import { usePushRegistrationEntregador } from '../src/hooks';
+import { setupNotificationChannels } from '../src/tasks/notificationChannels';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -14,6 +15,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     setMounted(true);
+    // Cria canal Android customizado pra alerta de corrida (som alto,
+    // ignora silencioso, vibração longa). No-op em iOS/web.
+    setupNotificationChannels().catch(() => {});
   }, []);
 
   useEffect(() => {

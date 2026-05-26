@@ -136,6 +136,29 @@ router.patch('/status', async (req: AuthRequest, res: Response) => {
   res.json({ online: isOnline });
 });
 
+/**
+ * Heartbeat de localização do entregador online.
+ *
+ * Chamado pelo app aproximadamente a cada 1 min enquanto o entregador
+ * está online (sem corrida ativa). Atualiza a última posição reportada
+ * para que o backend possa ofertar corridas para os entregadores mais
+ * próximos sem depender de socket aberto.
+ *
+ * Durante uma corrida ativa, o app envia posição via socket
+ * `localizacao:update` com frequência muito maior (a cada 5s), então
+ * essa rota só é usada no modo "online idle".
+ */
+router.post('/heartbeat', async (req: AuthRequest, res: Response) => {
+  const { lat, lng } = z
+    .object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    })
+    .parse(req.body);
+  await svc.atualizarHeartbeat(req.user!.id, lat, lng);
+  res.json({ ok: true });
+});
+
 // ── Corridas ──────────────────────────────────────────────────────────────────
 
 router.get('/corridas/ativas', async (req: AuthRequest, res: Response) => {

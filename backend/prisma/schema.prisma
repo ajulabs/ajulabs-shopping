@@ -80,6 +80,15 @@ model Entregador {
   tipoTransporte TipoTransporte @map("tipo_transporte")
   statusConta    StatusConta    @default(pendente) @map("status_conta")
   online         Boolean        @default(false)
+  /**
+   * Última posição reportada pelo app quando o entregador está online.
+   * Atualizada via POST /v1/entregador/heartbeat aproximadamente a cada
+   * 1 minuto. Permite ao backend ofertar corridas para os entregadores
+   * mais próximos sem depender de socket aberto.
+   */
+  ultimaLat      Float?         @map("ultima_lat")
+  ultimaLng      Float?         @map("ultima_lng")
+  ultimoHeartbeat DateTime?     @map("ultimo_heartbeat")
   criadoEm       DateTime       @default(now()) @map("criado_em")
   atualizadoEm   DateTime       @updatedAt @map("atualizado_em")
 

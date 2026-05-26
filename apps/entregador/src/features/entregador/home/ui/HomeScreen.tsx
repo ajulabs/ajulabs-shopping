@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 import { useCorridasRealtime } from '@ajulabs/realtime';
+import { startIdleTracking, stopIdleTracking } from '../../../../tasks/locationTask';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 import { LeafletMap } from '../../../../components/LeafletMap';
 
@@ -215,7 +216,18 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
       if (token) {
         await EntregadorService.atualizarOnline(token, value).catch(() => {});
       }
-      if (value) buscarGanhos();
+      if (value) {
+        buscarGanhos();
+        // Inicia foreground service de localização leve (1 min) — permite
+        // ao backend ofertar corridas para os entregadores mais próximos
+        // mesmo com app em segundo plano. Pare-stop simétrico no offline.
+        if (token) {
+          startIdleTracking({ token, apiUrl: API_URL }).catch(() => {});
+        }
+      } else {
+        // Ao ficar offline, para o foreground service.
+        stopIdleTracking().catch(() => {});
+      }
     },
     [token, buscarGanhos],
   );

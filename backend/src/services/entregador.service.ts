@@ -212,6 +212,27 @@ export async function updateStatus(entregadorId: string, online: boolean) {
   return entregador.online;
 }
 
+/**
+ * Atualiza a última posição reportada pelo entregador no modo "online idle"
+ * (sem corrida ativa). Best-effort — não bloqueia caso o entregador não
+ * exista mais (improvável, mas evita 500 se a conta foi deletada).
+ */
+export async function atualizarHeartbeat(entregadorId: string, lat: number, lng: number) {
+  try {
+    await prisma.entregador.update({
+      where: { id: entregadorId },
+      data: {
+        ultimaLat: lat,
+        ultimaLng: lng,
+        ultimoHeartbeat: new Date(),
+      },
+    });
+  } catch {
+    // Entregador pode ter sido deletado entre o auth check e o update;
+    // não vale a pena propagar erro.
+  }
+}
+
 // ── Corridas ──────────────────────────────────────────────────────────────────
 
 const CORRIDA_INCLUDE = {
