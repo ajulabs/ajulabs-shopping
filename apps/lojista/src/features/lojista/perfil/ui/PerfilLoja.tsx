@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
 import { colors } from '../../../../theme';
@@ -420,6 +421,7 @@ function CategoriaPicker({
 }
 
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
+  const router = useRouter();
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const logout = useAuthLojistaStore((s) => s.logout);
@@ -962,6 +964,16 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.notificacoesBtn}
+          onPress={() => router.push('/(lojista)/notificacoes')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="notifications-outline" size={18} color="#000933" />
+          <Text style={styles.notificacoesBtnText}>Notificações</Text>
+          <Ionicons name="chevron-forward" size={16} color="#9099B3" style={{ marginLeft: 'auto' }} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
           <Ionicons name="log-out-outline" size={18} color="#E24B4A" />
           <Text style={styles.logoutBtnText}>Sair da conta</Text>
@@ -1183,6 +1195,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  notificacoesBtn: {
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginTop: 18,
+  },
+  notificacoesBtnText: { fontSize: 14, fontWeight: '600', color: '#000933' },
   logoutBtn: {
     height: 50,
     borderRadius: 14,

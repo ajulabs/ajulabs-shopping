@@ -53,6 +53,7 @@ export default function LojistaLayout() {
         }}
       />
       <Tabs.Screen name="tickets" options={{ href: null }} />
+      <Tabs.Screen name="notificacoes" options={{ href: null }} />
       <Tabs.Screen
         name="logistica"
         options={{
