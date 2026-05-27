@@ -170,6 +170,10 @@ export async function notificarCorridaOferta(payload: CorridaOfertaPayload): Pro
           body,
           data: { type: 'corrida:oferta', pedidoId: payload.pedidoId },
           categoria: 'corrida_oferta',
+          // Canal Android custom: som alto, ignora silencioso, full-screen intent.
+          // Configurado no app em src/tasks/notificationChannels.ts.
+          channelId: 'ride-alerts',
+          priority: 'high',
         }),
       ),
     );

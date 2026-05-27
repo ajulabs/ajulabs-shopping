@@ -140,6 +140,17 @@ interface PushPayload {
    * Opcional para compatibilidade com chamadas legadas (sem opt-out aplicado).
    */
   categoria?: string;
+  /**
+   * Canal Android (configurado no app via Notifications.setNotificationChannelAsync).
+   * Permite usar canais com som customizado, importância MAX, full-screen intent etc.
+   * Ignorado em iOS — iOS usa categorias/critical alerts via entitlement.
+   */
+  channelId?: string;
+  /**
+   * Prioridade do push: 'high' acorda o dispositivo imediatamente.
+   * Use em alertas críticos (corrida nova). Default = 'default'.
+   */
+  priority?: 'default' | 'normal' | 'high';
 }
 
 /**
@@ -199,6 +210,8 @@ async function enviarPushParaDono(dono: DonoDispositivo, payload: PushPayload): 
         title: payload.title,
         body: payload.body,
         data: payload.data,
+        channelId: payload.channelId,
+        priority: payload.priority,
       })),
     );
   } catch (err) {

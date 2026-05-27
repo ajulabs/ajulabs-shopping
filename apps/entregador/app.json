@@ -10,10 +10,15 @@
       "bundleIdentifier": "com.ajulabs.entregador",
       "infoPlist": {
         "UIBackgroundModes": [
-          "location"
+          "location",
+          "fetch",
+          "remote-notification"
         ],
         "NSLocationAlwaysAndWhenInUseUsageDescription": "O AjuLabs Entregador usa sua localização para navegação GPS durante as entregas.",
         "NSLocationWhenInUseUsageDescription": "O AjuLabs Entregador usa sua localização para navegação GPS durante as entregas."
+      },
+      "entitlements": {
+        "_comment": "Para tocar som mesmo em modo silencioso (modelo Uber/iFood), pedir 'com.apple.developer.usernotifications.critical-alerts' à Apple via developer.apple.com → Contact → Critical Alerts. Sem esse entitlement o som padrão é usado."
       }
     },
     "android": {
@@ -23,7 +28,11 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "USE_FULL_SCREEN_INTENT",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS"
       ]
     },
     "plugins": [
@@ -41,7 +50,8 @@
       [
         "expo-notifications",
         {
-          "color": "#FF6B00"
+          "color": "#FF6B00",
+          "sounds": ["./assets/corrida-alert.mp3"]
         }
       ]
     ],

@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 import { PushService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../store';
 
@@ -69,9 +70,40 @@ async function obterExpoPushToken(): Promise<string | null> {
  * do entregador.
  */
 export function usePushRegistrationEntregador(): void {
+  const router = useRouter();
   const token = useAuthEntregadorStore(s => s.token);
   const entregadorId = useAuthEntregadorStore(s => s.entregadorId);
   const tokenRegistradoRef = useRef<string | null>(null);
+
+  // Listener: quando o entregador toca numa notificação de corrida,
+  // navega para a tela full-screen. Funciona tanto se o app estava em
+  // background (cold start tratado em getLastNotificationResponseAsync)
+  // quanto se está aberto.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    function handleResponse(response: Notifications.NotificationResponse) {
+      const data = response.notification.request.content.data as {
+        type?: string;
+        pedidoId?: string;
+      };
+      if (data?.type === 'corrida:oferta' && data.pedidoId) {
+        router.push(`/nova-corrida/${data.pedidoId}` as never);
+      }
+    }
+
+    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
+
+    // Caso o app tenha sido aberto a partir da notificação (cold start),
+    // pega a última resposta de notificação e roteia.
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) handleResponse(response);
+      })
+      .catch(() => {});
+
+    return () => sub.remove();
+  }, [router]);
 
   useEffect(() => {
     if (!token || !entregadorId) {

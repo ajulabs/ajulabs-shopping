@@ -18,7 +18,11 @@ import { EntregadorService } from '@ajulabs/api-client';
 import { useLocationEmitter } from '@ajulabs/realtime';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 import { DeliveryTrackingMap } from '@ajulabs/maps';
-import { startBackgroundTracking, stopBackgroundTracking } from '../../../../tasks/locationTask';
+import {
+  startBackgroundTracking,
+  stopBackgroundTracking,
+  stopIdleTracking,
+} from '../../../../tasks/locationTask';
 import { STAGES, STAGE_LABEL, type Stage, type ActiveRide } from '../model/types';
 import { geocode } from '../lib/geocode';
 import { fmtDist, fmtEta, fmtSpeed, maneuverIcon, brl } from '../lib/formatters';
@@ -190,6 +194,9 @@ export function ActiveScreen({
       stopBackgroundTracking();
       return;
     }
+    // Para o tracking idle (leve, 1 min) e inicia o pesado (5s) durante
+    // a corrida ativa. Os dois tasks não devem rodar simultaneamente.
+    stopIdleTracking().catch(() => {});
     startBackgroundTracking({ pedidoId: ride.id, apiUrl: API_URL });
     return () => {
       stopBackgroundTracking();

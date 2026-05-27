@@ -742,6 +742,19 @@ export const EntregadorService = {
     }
   },
 
+  /**
+   * Envia um heartbeat com a última posição do entregador. Usado a cada
+   * ~1 min pelo modo "online idle" do app (foreground service Android).
+   * Best-effort: erros são silenciosos para não interromper o tracking.
+   */
+  heartbeat: async (token: string, lat: number, lng: number): Promise<void> => {
+    await fetch(`${API_URL}/entregador/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lat, lng }),
+    }).catch(() => {});
+  },
+
   buscarCorridasDisponiveis: async (token: string): Promise<any[]> => {
     const res = await fetch(`${API_URL}/entregador/corridas/disponivel`, {
       headers: authHeader(token),
