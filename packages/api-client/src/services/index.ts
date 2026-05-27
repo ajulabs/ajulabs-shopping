@@ -9,6 +9,14 @@ import {
 } from '@ajulabs/types';
 export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 
+export class ApiUnauthorizedError extends Error {
+  status = 401 as const;
+  constructor() {
+    super('Sessão expirada. Faça login novamente.');
+    this.name = 'ApiUnauthorizedError';
+  }
+}
+
 declare const process: { env: Record<string, string | undefined> };
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
@@ -272,6 +280,7 @@ export const PedidoService = {
     const res = await fetch(`${API_URL}/pedidos`, {
       headers: authHeader(token),
     });
+    if (res.status === 401) throw new ApiUnauthorizedError();
     if (!res.ok) throw new Error('Erro ao buscar pedidos');
     const { pedidos } = await res.json();
     return pedidos.map(mapPedido);
@@ -328,7 +337,8 @@ export const LojistaService = {
       ? `${API_URL}/lojista/lojas/${lojaId}/pedidos?status=${encodeURIComponent(status)}`
       : `${API_URL}/lojista/lojas/${lojaId}/pedidos`;
     const res = await fetch(url, { headers: authHeader(token) });
-    if (!res.ok) return [];
+    if (res.status === 401) throw new ApiUnauthorizedError();
+    if (!res.ok) throw new Error(`Erro ao buscar pedidos (${res.status})`);
     const { pedidos } = await res.json();
     return pedidos ?? [];
   },
@@ -768,10 +778,8 @@ export const EntregadorService = {
     const res = await fetch(`${API_URL}/entregador/corridas/ativas`, {
       headers: authHeader(token),
     });
-    if (!res.ok) {
-      console.error(`[EntregadorService] buscarCorridasAtivas → ${res.status}`);
-      return [];
-    }
+    if (res.status === 401) throw new ApiUnauthorizedError();
+    if (!res.ok) throw new Error(`Erro ao buscar corridas ativas (${res.status})`);
     const { corridas } = await res.json();
     return corridas ?? [];
   },

@@ -18,6 +18,7 @@ interface AuthEntregadorState {
   isLoggedIn: boolean;
   needsOnboarding: boolean;
   token: string | null;
+  refreshToken: string | null;
   cpf: string | null;
   nome: string | null;
   email: string | null;
@@ -35,14 +36,16 @@ interface AuthEntregadorState {
   registrar: (dados: DadosRegistro) => Promise<void>;
   logout: () => void;
   setFotoUrl: (url: string) => void;
+  refreshAccessToken: () => Promise<boolean>;
 }
 
 export const useAuthEntregadorStore = create<AuthEntregadorState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isLoggedIn: false,
       needsOnboarding: false,
       token: null,
+      refreshToken: null,
       cpf: null,
       nome: null,
       email: null,
@@ -65,6 +68,7 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
           isLoggedIn: true,
           needsOnboarding: false,
           token: data.token,
+          refreshToken: data.refreshToken ?? null,
           entregadorId: data.entregador.id,
           nome: data.entregador.nome,
           fotoUrl: data.entregador.fotoUrl ?? null,
@@ -86,6 +90,7 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
           isLoggedIn: true,
           needsOnboarding: false,
           token: data.token,
+          refreshToken: data.refreshToken ?? null,
           entregadorId: data.entregador.id,
           nome: data.entregador.nome,
           cpf: dados.cpf,
@@ -98,6 +103,7 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
           isLoggedIn: false,
           needsOnboarding: false,
           token: null,
+          refreshToken: null,
           cpf: null,
           nome: null,
           email: null,
@@ -109,6 +115,31 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
       setFotoUrl: (url: string) => {
         set({ fotoUrl: url });
       },
+
+      refreshAccessToken: async () => {
+        const { refreshToken } = get();
+        if (!refreshToken) {
+          get().logout();
+          return false;
+        }
+        try {
+          const res = await fetch(`${API_URL}auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (!res.ok) {
+            get().logout();
+            return false;
+          }
+          const { token: newToken, refreshToken: newRefreshToken } = await res.json();
+          set({ token: newToken, refreshToken: newRefreshToken ?? null });
+          return true;
+        } catch {
+          get().logout();
+          return false;
+        }
+      },
     }),
     {
       name: 'ajulabs-entregador-auth',
@@ -116,6 +147,7 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
       partialize: (state) => ({
         isLoggedIn: state.isLoggedIn,
         token: state.token,
+        refreshToken: state.refreshToken,
         cpf: state.cpf,
         nome: state.nome,
         email: state.email,

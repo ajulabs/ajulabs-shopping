@@ -19,7 +19,6 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService } from '@ajulabs/api-client';
-import { useRouter } from 'expo-router';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
 
