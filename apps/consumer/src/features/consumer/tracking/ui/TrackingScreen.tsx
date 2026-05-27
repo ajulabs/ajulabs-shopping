@@ -128,28 +128,6 @@ export function TrackingScreen({ pedidoId }: Props) {
         </View>
       )}
 
-      {/* FABs de chat */}
-      {CHAT_STATUSES.includes(pedido.status) && (
-        <View style={styles.fabContainer}>
-          {pedido.status === 'saiu_entrega' && pedido.entregador && (
-            <TouchableOpacity
-              style={styles.fab}
-              onPress={() => router.push(`/(consumer)/chat-pedido/${pedido.id}`)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="bicycle-outline" size={18} color="#fff" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => router.push(`/(consumer)/chat-pedido/${pedido.id}`)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="storefront-outline" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      )}
-
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {isAtivo && etaMin && (
           <View style={[styles.etaCard, { backgroundColor: surf, borderColor: border }]}>
@@ -180,6 +158,18 @@ export function TrackingScreen({ pedidoId }: Props) {
                 <Text style={styles.locTxt}>Rastreando</Text>
               </View>
             )}
+            <TouchableOpacity
+              style={styles.chatBubbleBtn}
+              onPress={() =>
+                router.push({
+                  pathname: '/(consumer)/chat-pedido/[pedidoId]',
+                  params: { pedidoId: pedido.id, destinatario: 'ENTREGADOR' },
+                })
+              }
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chatbubble-ellipses" size={16} color={colors.orange} />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -194,6 +184,20 @@ export function TrackingScreen({ pedidoId }: Props) {
                 {pedido.itens.reduce((a, i) => a + i.quantidade, 0)} itens · {fmt(pedido.total)}
               </Text>
             </View>
+            {CHAT_STATUSES.includes(pedido.status) && (
+              <TouchableOpacity
+                style={styles.chatBubbleBtn}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(consumer)/chat-pedido/[pedidoId]',
+                    params: { pedidoId: pedido.id, destinatario: 'LOJISTA' },
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubble-ellipses" size={16} color={colors.orange} />
+              </TouchableOpacity>
+            )}
           </View>
           <View style={{ marginTop: 14 }}>
             <TrackingTimeline status={pedido.status} />
@@ -406,18 +410,15 @@ const styles = StyleSheet.create({
   enderecoTitulo: { fontSize: 12, fontWeight: '600' },
   enderecoTxt: { fontSize: 12, marginTop: 2 },
 
-  fabContainer: { position: 'absolute', right: 16, bottom: 24, zIndex: 10, gap: 12 },
-  fab: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.orange,
+  chatBubbleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFF0E6',
+    borderWidth: 1,
+    borderColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
+    marginLeft: 8,
   },
 });

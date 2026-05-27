@@ -1292,7 +1292,8 @@ export const PedidoChatService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar mensagem');
+      const msg = typeof err.error === 'string' ? err.error : 'Erro ao enviar mensagem';
+      throw new Error(`[${res.status}] ${msg}`);
     }
     const { mensagem } = await res.json();
     return mensagem;
