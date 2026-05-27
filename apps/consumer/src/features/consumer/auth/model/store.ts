@@ -173,15 +173,20 @@ export const useAuthStore = create<AuthState>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken }),
           });
-          if (!res.ok) {
+          if (res.status === 401) {
+            // Refresh token expirado ou inválido — desloga
             get().logout();
+            return false;
+          }
+          if (!res.ok) {
+            // Erro de servidor (5xx) ou rede — mantém sessão, tenta de novo depois
             return false;
           }
           const { token: newToken, refreshToken: newRefreshToken } = await res.json();
           set({ token: newToken, refreshToken: newRefreshToken ?? null });
           return true;
         } catch {
-          get().logout();
+          // Sem conexão — mantém sessão, app tenta funcionar com token atual
           return false;
         }
       },

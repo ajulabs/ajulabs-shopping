@@ -4,14 +4,32 @@ import { prisma } from '../utils/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { isExpoPushToken } from '../lib/pushSender';
 import { logger } from '../lib/logger';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
 
+const pushRegisterSpec = {
+  name: 'POST_push_register',
+  input: {
+    expoToken: { required: true, type: 'string' },
+    plataforma: { required: false, type: 'enum', constraints: ["'ios' | 'android' | 'web'"] },
+    appTipo: {
+      required: false,
+      type: 'enum',
+      constraints: ["'consumer' | 'lojista' | 'entregador'"],
+    },
+  },
+} as const;
+
+const pushUnregisterSpec = {
+  name: 'POST_push_unregister',
+  input: {
+    expoToken: { required: true, type: 'string' },
+  },
+} as const;
+
 const registerSchema = z.object({
-  expoToken: z
-    .string()
-    .min(1)
-    .refine(isExpoPushToken, { message: 'Token Expo inválido' }),
+  expoToken: z.string().min(1).refine(isExpoPushToken, { message: 'Token Expo inválido' }),
   plataforma: z.enum(['ios', 'android', 'web']).optional(),
   appTipo: z.enum(['consumer', 'lojista', 'entregador']).optional(),
 });
@@ -41,32 +59,37 @@ function ownerFieldsFor(req: AuthRequest) {
  * isso evita que um cliente malicioso registre token em nome de outro tipo.
  * Idempotente: se o token já existir, atualiza dono/ativo/plataforma.
  */
-router.post('/register', authMiddleware, async (req: AuthRequest, res) => {
-  const data = registerSchema.parse(req.body);
-  const fields = ownerFieldsFor(req);
+router.post(
+  '/register',
+  authMiddleware,
+  specValidatorMiddleware(pushRegisterSpec),
+  async (req: AuthRequest, res) => {
+    const data = registerSchema.parse(req.body);
+    const fields = ownerFieldsFor(req);
 
-  const dispositivo = await prisma.dispositivoPush.upsert({
-    where: { expoToken: data.expoToken },
-    create: {
-      ...fields,
-      expoToken: data.expoToken,
-      plataforma: data.plataforma,
-      ativo: true,
-    },
-    update: {
-      ...fields,
-      plataforma: data.plataforma,
-      ativo: true,
-    },
-    select: { id: true, expoToken: true, ativo: true },
-  });
+    const dispositivo = await prisma.dispositivoPush.upsert({
+      where: { expoToken: data.expoToken },
+      create: {
+        ...fields,
+        expoToken: data.expoToken,
+        plataforma: data.plataforma,
+        ativo: true,
+      },
+      update: {
+        ...fields,
+        plataforma: data.plataforma,
+        ativo: true,
+      },
+      select: { id: true, expoToken: true, ativo: true },
+    });
 
-  logger.info(
-    { tipo: req.user!.tipo, donoId: req.user!.id, dispositivoId: dispositivo.id },
-    'push token registrado',
-  );
-  res.json(dispositivo);
-});
+    logger.info(
+      { tipo: req.user!.tipo, donoId: req.user!.id, dispositivoId: dispositivo.id },
+      'push token registrado',
+    );
+    res.json(dispositivo);
+  },
+);
 
 const unregisterSchema = z.object({
   expoToken: z.string().min(1),
@@ -76,13 +99,18 @@ const unregisterSchema = z.object({
  * POST /v1/push/unregister
  * Marca o token como inativo. Usado no logout.
  */
-router.post('/unregister', authMiddleware, async (req: AuthRequest, res) => {
-  const { expoToken } = unregisterSchema.parse(req.body);
-  await prisma.dispositivoPush.updateMany({
-    where: { expoToken },
-    data: { ativo: false },
-  });
-  res.json({ ok: true });
-});
+router.post(
+  '/unregister',
+  authMiddleware,
+  specValidatorMiddleware(pushUnregisterSpec),
+  async (req: AuthRequest, res) => {
+    const { expoToken } = unregisterSchema.parse(req.body);
+    await prisma.dispositivoPush.updateMany({
+      where: { expoToken },
+      data: { ativo: false },
+    });
+    res.json({ ok: true });
+  },
+);
 
 export default router;

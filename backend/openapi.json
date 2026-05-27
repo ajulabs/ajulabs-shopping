@@ -1,0 +1,1692 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AjuLabs Shopping API",
+    "version": "1.0.0",
+    "description": "Marketplace local de Aracaju/SE — consumidores, lojistas e entregadores.\n\nAutenticação via Bearer JWT obtido em /v1/auth/*/login.",
+    "contact": {
+      "name": "AjuLabs",
+      "email": "contato@ajulabs.com"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001",
+      "description": "Local"
+    },
+    {
+      "url": "https://api.ajulabs.com",
+      "description": "Produção"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT obtido via /v1/auth/*/login"
+      }
+    }
+  },
+  "paths": {
+    "/v1/auth/usuario/registrar": {
+      "post": {
+        "operationId": "POST_auth_usuario_registrar",
+        "summary": "Registra novo consumidor no marketplace AjuLabs",
+        "description": "Registra novo consumidor no marketplace AjuLabs.",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: Dados inválidos (Zod)"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "429": {
+            "description": "RATE_LIMIT: Muitas tentativas. Aguarde antes de tentar novamente."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nome",
+                  "cpf",
+                  "telefone",
+                  "email",
+                  "senha"
+                ],
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "description": "min 2 caracteres"
+                  },
+                  "cpf": {
+                    "type": "string",
+                    "description": "CPF válido (dígitos verificadores), aceita formatado \"000.000.000-00\" ou somente dígitos"
+                  },
+                  "telefone": {
+                    "type": "string",
+                    "description": "formato +55XXXXXXXXXXX (13 dígitos após +55), ex: +5579999998888"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "email válido"
+                  },
+                  "senha": {
+                    "type": "string",
+                    "description": "min 8 caracteres, ao menos 1 letra maiúscula, ao menos 1 número"
+                  }
+                }
+              },
+              "example": {
+                "nome": "Maria Silva",
+                "cpf": "123.456.789-09",
+                "telefone": "+5579999998888",
+                "email": "maria@example.com",
+                "senha": "Senha@123"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/usuario/login": {
+      "post": {
+        "operationId": "POST_auth_usuario_login",
+        "summary": "Autentica consumidor com CPF e senha, retorna JWT",
+        "description": "Autentica consumidor com CPF e senha, retorna JWT.",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: Dados inválidos"
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS: CPF ou senha inválidos"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "429": {
+            "description": "RATE_LIMIT: Muitas tentativas de login"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cpf",
+                  "senha"
+                ],
+                "properties": {
+                  "cpf": {
+                    "type": "string",
+                    "description": "aceita formatado ou somente dígitos"
+                  },
+                  "senha": {
+                    "type": "string",
+                    "description": "min 1 caractere"
+                  }
+                }
+              },
+              "example": {
+                "cpf": "123.456.789-09",
+                "senha": "Senha@123"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/lojista/registrar": {
+      "post": {
+        "operationId": "POST_auth_lojista_registrar",
+        "summary": "Registra novo lojista e cria automaticamente a loja inicial",
+        "description": "Registra novo lojista e cria automaticamente a loja inicial.",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: Dados inválidos"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "429": {
+            "description": "RATE_LIMIT: Muitas tentativas"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cnpj",
+                  "nomeResponsavel",
+                  "email",
+                  "senha",
+                  "telefone"
+                ],
+                "properties": {
+                  "cnpj": {
+                    "type": "string",
+                    "description": "CNPJ válido (14 dígitos), aceita formatado ou somente dígitos"
+                  },
+                  "nomeResponsavel": {
+                    "type": "string",
+                    "description": "min 2 caracteres"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "email válido"
+                  },
+                  "senha": {
+                    "type": "string",
+                    "description": "min 8 chars, 1 maiúscula, 1 número"
+                  },
+                  "telefone": {
+                    "type": "string",
+                    "description": "formato +55XXXXXXXXXXX"
+                  }
+                }
+              },
+              "example": {
+                "cnpj": "11.222.333/0001-81",
+                "nomeResponsavel": "Carlos Andrade",
+                "email": "carlos@loja.com",
+                "senha": "Loja@2024",
+                "telefone": "+5579988887777"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/lojista/login": {
+      "post": {
+        "operationId": "POST_auth_lojista_login",
+        "summary": "Autentica lojista com email OU CNPJ + senha",
+        "description": "Autentica lojista com email OU CNPJ + senha. Cria loja automaticamente se não existir.",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "MISSING_IDENTIFIER: Informe email ou CNPJ"
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS: Credenciais inválidas"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "429": {
+            "description": "RATE_LIMIT: Muitas tentativas de login"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "senha"
+                ],
+                "properties": {
+                  "identificador": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "email ou CNPJ — campo novo"
+                  },
+                  "cnpj": {
+                    "type": "string",
+                    "description": "CNPJ — campo legado, usar identificador preferencialmente"
+                  },
+                  "senha": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "identificador": "carlos@loja.com",
+                "senha": "Loja@2024"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/entregador/registrar": {
+      "post": {
+        "operationId": "POST_auth_entregador_registrar",
+        "summary": "Registra novo entregador no AjuLabs",
+        "description": "Registra novo entregador no AjuLabs.",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "WEAK_PASSWORD: Senha fraca"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "429": {
+            "description": "RATE_LIMIT: Muitas tentativas"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nome",
+                  "cpf",
+                  "telefone",
+                  "email",
+                  "senha",
+                  "tipoTransporte"
+                ],
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "description": "min 2 caracteres"
+                  },
+                  "cpf": {
+                    "type": "string",
+                    "description": "CPF válido"
+                  },
+                  "telefone": {
+                    "type": "string",
+                    "description": "formato +55XXXXXXXXXXX"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "email válido"
+                  },
+                  "senha": {
+                    "type": "string",
+                    "description": "min 8 chars, 1 maiúscula, 1 número"
+                  },
+                  "tipoTransporte": {
+                    "type": "string",
+                    "enum": [
+                      "bike",
+                      "moto",
+                      "carro"
+                    ],
+                    "description": "'bike' | 'moto' | 'carro'"
+                  }
+                }
+              },
+              "example": {
+                "nome": "Pedro Lima",
+                "cpf": "987.654.321-00",
+                "telefone": "+5579977775555",
+                "email": "pedro@moto.com",
+                "senha": "Moto@2024",
+                "tipoTransporte": "moto"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "operationId": "POST_auth_refresh",
+        "summary": "Renova o JWT de acesso usando um refreshToken válido",
+        "description": "Renova o JWT de acesso usando um refreshToken válido. Funciona para todos os tipos de usuário (consumidor, lojista, entregador).",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: refreshToken ausente"
+          },
+          "401": {
+            "description": "INVALID_REFRESH_TOKEN: Refresh token inválido ou expirado"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "JWT válido não expirado"
+                  }
+                }
+              },
+              "example": {
+                "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pedidos": {
+      "post": {
+        "operationId": "POST_pedidos",
+        "summary": "Cria novo pedido com validação de estoque por variação",
+        "description": "Cria novo pedido com validação de estoque por variação. Calcula total com desconto de 5% para pagamento via PIX. Decrementa estoque atomicamente em transação.",
+        "tags": [
+          "pedidos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: Dados inválidos (Zod)"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "404": {
+            "description": "LOJA_NAO_ENCONTRADA: Loja não encontrada"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao criar pedido"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "lojaId",
+                  "enderecoEntregaId",
+                  "metodoPagamento",
+                  "itens"
+                ],
+                "properties": {
+                  "lojaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "uuid, loja deve existir"
+                  },
+                  "enderecoEntregaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "uuid, pertence ao usuário"
+                  },
+                  "metodoPagamento": {
+                    "type": "string",
+                    "enum": [
+                      "pix",
+                      "cartao"
+                    ],
+                    "description": "'pix' | 'cartao'"
+                  },
+                  "obs": {
+                    "type": "string",
+                    "description": "observações opcionais"
+                  },
+                  "itens": {
+                    "type": "array",
+                    "items": {},
+                    "description": "min 1 item"
+                  }
+                }
+              },
+              "example": {
+                "lojaId": "loja_xyz789",
+                "enderecoEntregaId": "end_abc123",
+                "metodoPagamento": "pix",
+                "itens": [
+                  {
+                    "produtoId": "prod_camiseta",
+                    "variacaoId": "var_tam_M",
+                    "quantidade": 1
+                  },
+                  {
+                    "produtoId": "prod_tenis",
+                    "quantidade": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "GET_pedidos",
+        "summary": "Lista todos os pedidos do consumidor autenticado, do mais recente ao mais antigo",
+        "description": "Lista todos os pedidos do consumidor autenticado, do mais recente ao mais antigo.",
+        "tags": [
+          "pedidos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar pedidos"
+          }
+        }
+      }
+    },
+    "/v1/pedidos/{id}": {
+      "get": {
+        "operationId": "GET_pedidos_id",
+        "summary": "Retorna detalhes completos de um pedido específico do consumidor autenticado",
+        "description": "Retorna detalhes completos de um pedido específico do consumidor autenticado.",
+        "tags": [
+          "pedidos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Acesso negado — pedido pertence a outro usuário"
+          },
+          "404": {
+            "description": "NOT_FOUND: Pedido não encontrado"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar pedido"
+          }
+        }
+      }
+    },
+    "/v1/pedidos/{id}/rastrear": {
+      "post": {
+        "operationId": "POST_pedidos_id_rastrear",
+        "summary": "Retorna dados completos de rastreamento em tempo real de um pedido, incluindo loja, entregador e histórico de status",
+        "description": "Retorna dados completos de rastreamento em tempo real de um pedido, incluindo loja, entregador e histórico de status.",
+        "tags": [
+          "pedidos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Acesso negado"
+          },
+          "404": {
+            "description": "NOT_FOUND: Pedido não encontrado"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar rastreamento"
+          }
+        }
+      }
+    },
+    "/v1/produtos": {
+      "post": {
+        "operationId": "POST_produtos",
+        "summary": "Cria produto simples (sem imagem, sem variações via rota pública)",
+        "description": "Cria produto simples (sem imagem, sem variações via rota pública). Para criação com imagem e variações, usar POST /lojista/produtos.",
+        "tags": [
+          "produtos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: Dados inválidos (preco deve ser positivo, etc.)"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Acesso negado a esta loja"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao criar produto"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "lojaId",
+                  "nome",
+                  "descricao",
+                  "preco",
+                  "estoque",
+                  "imagemUrl",
+                  "categoria"
+                ],
+                "properties": {
+                  "lojaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "uuid, loja pertence ao lojista"
+                  },
+                  "nome": {
+                    "type": "string",
+                    "description": "min 2 caracteres"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "preco": {
+                    "type": "number",
+                    "description": "positivo (> 0)"
+                  },
+                  "estoque": {
+                    "type": "number",
+                    "description": "int, nonnegative (>= 0)"
+                  },
+                  "imagemUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL válida"
+                  },
+                  "categoria": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {},
+                    "description": "string[], default []"
+                  },
+                  "destaque": {
+                    "type": "boolean",
+                    "description": "default false"
+                  }
+                }
+              },
+              "example": {
+                "lojaId": "loja_xyz789",
+                "nome": "Camiseta Básica Branca",
+                "descricao": "Camiseta 100% algodão, corte regular",
+                "preco": 39.9,
+                "estoque": 50,
+                "imagemUrl": "https://storage.ajulabs.com/produtos/camiseta-branca.jpg",
+                "categoria": "vestuario",
+                "tags": [
+                  "camiseta",
+                  "algodao",
+                  "basica"
+                ],
+                "destaque": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/produtos/{id}": {
+      "get": {
+        "operationId": "GET_produtos_id",
+        "summary": "Retorna detalhes de um produto específico incluindo variações",
+        "description": "Retorna detalhes de um produto específico incluindo variações. Rota pública.",
+        "tags": [
+          "produtos"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "404": {
+            "description": "NOT_FOUND: Produto não encontrado"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar produto"
+          }
+        }
+      },
+      "put": {
+        "operationId": "PUT_produtos_id",
+        "summary": "Atualiza dados de um produto",
+        "description": "Atualiza dados de um produto. Para atualizar com imagens e variações, usar PUT /lojista/produtos/:id.",
+        "tags": [
+          "produtos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Acesso negado — produto não pertence ao lojista"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao atualizar produto"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "preco": {
+                    "type": "number",
+                    "description": "positivo"
+                  },
+                  "estoque": {
+                    "type": "number",
+                    "description": "int, nonnegative"
+                  },
+                  "disponivel": {
+                    "type": "boolean"
+                  },
+                  "destaque": {
+                    "type": "boolean"
+                  },
+                  "categoria": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {}
+                  }
+                }
+              },
+              "example": {
+                "id": "prod_camiseta",
+                "preco": 44.9,
+                "disponivel": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lojista/produtos/{id}": {
+      "put": {
+        "operationId": "PUT_lojista_produtos_id",
+        "summary": "Atualiza produto do lojista incluindo imagens (multipart) e variações",
+        "description": "Atualiza produto do lojista incluindo imagens (multipart) e variações. Faz upload das novas imagens para o storage e remove as que não estão na lista de imagensExistentes.",
+        "tags": [
+          "lojista"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "FILE_TOO_LARGE: Arquivo maior que 10MB"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Produto não pertence ao lojista"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao atualizar produto"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "description": "form-data field"
+                  },
+                  "descricao": {
+                    "type": "string",
+                    "description": "form-data field"
+                  },
+                  "preco": {
+                    "type": "string",
+                    "description": "form-data field — número em formato string"
+                  },
+                  "estoque": {
+                    "type": "string",
+                    "description": "form-data field — inteiro em formato string"
+                  },
+                  "categoria": {
+                    "type": "string",
+                    "description": "form-data field"
+                  },
+                  "disponivel": {
+                    "type": "string",
+                    "description": "'true' | 'false'"
+                  },
+                  "imagensExistentes": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "JSON stringified string[] — URLs das imagens a manter"
+                  },
+                  "variacoes": {
+                    "type": "string",
+                    "description": "JSON stringified [{nome, estoque}][] — substitui todas as variações"
+                  }
+                }
+              },
+              "example": {
+                "id": "prod_camiseta",
+                "preco": "44.9",
+                "variacoes": "[{\"nome\":\"P\",\"estoque\":5},{\"nome\":\"M\",\"estoque\":5},{\"nome\":\"G\",\"estoque\":5},{\"nome\":\"GG\",\"estoque\":3}]"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lojas": {
+      "get": {
+        "operationId": "GET_lojas",
+        "summary": "Lista todas as lojas do marketplace, opcionalmente filtradas por categoria",
+        "description": "Lista todas as lojas do marketplace, opcionalmente filtradas por categoria. Ordenadas por avaliação. Rota pública.",
+        "tags": [
+          "lojas"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "categoria",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar lojas"
+          }
+        }
+      }
+    },
+    "/v1/lojas/{id}": {
+      "get": {
+        "operationId": "GET_lojas_id",
+        "summary": "Retorna detalhes completos de uma loja incluindo horários e produtos disponíveis",
+        "description": "Retorna detalhes completos de uma loja incluindo horários e produtos disponíveis. Rota pública.",
+        "tags": [
+          "lojas"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "404": {
+            "description": "NOT_FOUND: Loja não encontrada"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar loja"
+          }
+        }
+      }
+    },
+    "/v1/lojas/{id}/produtos": {
+      "get": {
+        "operationId": "GET_lojas_id_produtos",
+        "summary": "Lista produtos de uma loja com paginação e filtros por categoria",
+        "description": "Lista produtos de uma loja com paginação e filtros por categoria. Inclui variações. Rota pública.",
+        "tags": [
+          "lojas"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "categoria",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "404": {
+            "description": "NOT_FOUND: Loja não encontrada"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar produtos"
+          }
+        }
+      }
+    },
+    "/v1/tickets": {
+      "get": {
+        "operationId": "POST_tickets",
+        "summary": "Lista todos os tickets de suporte do consumidor autenticado",
+        "description": "Lista todos os tickets de suporte do consumidor autenticado. Filtro opcional por status.",
+        "tags": [
+          "tickets"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar tickets"
+          }
+        }
+      }
+    },
+    "/v1/tickets/{id}/mensagens": {
+      "post": {
+        "operationId": "POST_tickets_id_mensagens",
+        "summary": "Consumidor envia follow-up em ticket existente",
+        "description": "Consumidor envia follow-up em ticket existente. Emite WebSocket para o lojista.",
+        "tags": [
+          "tickets"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "TEXTO_VAZIO: Texto obrigatório"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "404": {
+            "description": "NOT_FOUND: Ticket não encontrado"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao enviar mensagem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "texto"
+                ],
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "description": "min 1 caractere (trim)"
+                  }
+                }
+              },
+              "example": {
+                "id": "tkt_abc123",
+                "texto": "Tenho a foto do produto danificado, como envio?"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lojista/pedidos/{id}/status": {
+      "patch": {
+        "operationId": "PATCH_lojista_pedidos_id_status",
+        "summary": "Avança o status do pedido para o próximo estado na sequência",
+        "description": "Avança o status do pedido para o próximo estado na sequência. Emite WebSocket pedido:atualizado e oferta de corrida para entregadores.",
+        "tags": [
+          "lojista"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "STATUS_TERMINAL: Pedido já está em status terminal"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Pedido não pertence ao lojista"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao atualizar status"
+          }
+        }
+      }
+    },
+    "/v1/lojista/lojas/{id}/dashboard": {
+      "get": {
+        "operationId": "GET_lojista_lojas_id_dashboard",
+        "summary": "Retorna métricas do dashboard para o painel do lojista: pedidos hoje, faturamento, produtos mais vendidos",
+        "description": "Retorna métricas do dashboard para o painel do lojista: pedidos hoje, faturamento, produtos mais vendidos.",
+        "tags": [
+          "lojista"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Loja não pertence ao lojista"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao buscar dashboard"
+          }
+        }
+      }
+    },
+    "/v1/enderecos": {
+      "post": {
+        "operationId": "POST_enderecos",
+        "summary": "Cria novo endereço de entrega para o consumidor",
+        "description": "Cria novo endereço de entrega para o consumidor. Valida CEP via ViaCEP e geolocaliza automaticamente (GPS > CEP > endereço textual).",
+        "tags": [
+          "enderecos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: Dados inválidos (Zod)"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "apelido",
+                  "rua",
+                  "numero",
+                  "bairro",
+                  "cep",
+                  "cidade"
+                ],
+                "properties": {
+                  "apelido": {
+                    "type": "string",
+                    "description": "min 1 caractere, ex: \"Casa\", \"Trabalho\""
+                  },
+                  "rua": {
+                    "type": "string",
+                    "description": "min 1 caractere"
+                  },
+                  "numero": {
+                    "type": "string",
+                    "description": "min 1 caractere"
+                  },
+                  "bairro": {
+                    "type": "string",
+                    "description": "min 1 caractere"
+                  },
+                  "cep": {
+                    "type": "string",
+                    "description": "exatamente 8 dígitos numéricos, ex: \"49000010\", validado via ViaCEP"
+                  },
+                  "cidade": {
+                    "type": "string",
+                    "description": "min 1 caractere"
+                  },
+                  "complemento": {
+                    "type": "string",
+                    "description": "ex: \"Apto 201\""
+                  },
+                  "lat": {
+                    "type": "number",
+                    "description": "coordenada GPS do dispositivo"
+                  },
+                  "lng": {
+                    "type": "number",
+                    "description": "coordenada GPS do dispositivo"
+                  },
+                  "geoSource": {
+                    "type": "string",
+                    "enum": [
+                      "gps",
+                      "geocode",
+                      "manual"
+                    ],
+                    "description": "'gps' | 'geocode' | 'manual'"
+                  }
+                }
+              },
+              "example": {
+                "apelido": "Casa",
+                "rua": "Rua das Flores",
+                "numero": "100",
+                "bairro": "Salgado",
+                "cep": "49000010",
+                "cidade": "Aracaju",
+                "complemento": "Apto 201"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/avaliacoes": {
+      "post": {
+        "operationId": "POST_avaliacoes",
+        "summary": "Consumidor avalia a loja após pedido entregue",
+        "description": "Consumidor avalia a loja após pedido entregue. Atualiza a média de avaliação da loja atomicamente.",
+        "tags": [
+          "avaliacoes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "INVALID_NOTA: Nota deve ser inteira entre 1 e 5"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "FORBIDDEN: Acesso negado: pedido pertence a outro usuário"
+          },
+          "404": {
+            "description": "NOT_FOUND_LOJA: Loja não encontrada"
+          },
+          "409": {
+            "description": "ALREADY_RATED: Este pedido já foi avaliado"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao criar avaliação"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "pedidoId",
+                  "nota"
+                ],
+                "properties": {
+                  "pedidoId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "uuid, pedido entregue e não avaliado"
+                  },
+                  "nota": {
+                    "type": "number",
+                    "description": "int, min 1, max 5"
+                  },
+                  "comentario": {
+                    "type": "string",
+                    "description": "max 500 caracteres"
+                  }
+                }
+              },
+              "example": {
+                "pedidoId": "ped_abc123",
+                "nota": 5,
+                "comentario": "Entrega super rápida e produto excelente!"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/entregador/corridas/{pedidoId}/aceitar": {
+      "post": {
+        "operationId": "POST_entregador_corridas_pedidoId_aceitar",
+        "summary": "Entregador aceita uma oferta de corrida",
+        "description": "Entregador aceita uma oferta de corrida. Associa o entregador ao pedido e notifica consumidor e lojista.",
+        "tags": [
+          "entregador"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pedidoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "ENTREGADOR_OFFLINE: Entregador precisa estar online"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao aceitar corrida"
+          }
+        }
+      }
+    },
+    "/v1/entregador/corridas/{pedidoId}/confirmar-entrega": {
+      "post": {
+        "operationId": "POST_entregador_corridas_pedidoId_confirmar_entrega",
+        "summary": "Entregador confirma entrega usando o código de 4 dígitos fornecido pelo consumidor",
+        "description": "Entregador confirma entrega usando o código de 4 dígitos fornecido pelo consumidor. Conclui a corrida.",
+        "tags": [
+          "entregador"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pedidoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "INVALID_CODE: Código de entrega inválido"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "404": {
+            "description": "PEDIDO_NAO_ENCONTRADO: Pedido não encontrado"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao confirmar entrega"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "codigo"
+                ],
+                "properties": {
+                  "codigo": {
+                    "type": "string",
+                    "description": "min 1 caractere, 4 dígitos que correspondem ao codigoEntrega do pedido"
+                  }
+                }
+              },
+              "example": {
+                "pedidoId": "ped_abc123",
+                "codigo": "8888"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/entregador/heartbeat": {
+      "post": {
+        "operationId": "POST_entregador_heartbeat",
+        "summary": "Heartbeat de localização do entregador no modo \"online idle\" (sem corrida ativa)",
+        "description": "Heartbeat de localização do entregador no modo \"online idle\" (sem corrida ativa). Atualiza última posição para oferta de corridas próximas. Chamado a cada ~1 minuto pelo app.",
+        "tags": [
+          "entregador"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "INVALID_COORDS: Coordenadas inválidas (lat: -90..90, lng: -180..180)"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao atualizar localização"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "lat",
+                  "lng"
+                ],
+                "properties": {
+                  "lat": {
+                    "type": "number",
+                    "description": "float, min -90, max 90"
+                  },
+                  "lng": {
+                    "type": "number",
+                    "description": "float, min -180, max 180"
+                  }
+                }
+              },
+              "example": {
+                "lat": -10.9776,
+                "lng": -37.049
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import multer from 'multer';
 import { authMiddleware, authEntregador, AuthRequest } from '../middleware/auth';
 import * as svc from '../services/entregador.service';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const uploadDocs = multer({
@@ -23,6 +24,94 @@ const uploadTroca = multer({
 const router = Router();
 router.use(authMiddleware, authEntregador);
 
+const dadosPessoaisSpec = {
+  name: 'PATCH_entregador_dados_pessoais',
+  input: {
+    nome: { required: false, type: 'string' },
+    email: { required: false, type: 'string' },
+    telefone: { required: false, type: 'string' },
+  },
+} as const;
+
+const senhaSpec = {
+  name: 'PATCH_entregador_senha',
+  input: {
+    senhaAtual: { required: true, type: 'string' },
+    novaSenha: { required: true, type: 'string' },
+  },
+} as const;
+
+const veiculoSpec = {
+  name: 'POST_entregador_veiculo',
+  input: {
+    placa: { required: true, type: 'string' },
+    modelo: { required: true, type: 'string' },
+    cor: { required: true, type: 'string' },
+    ano: { required: true, type: 'number', constraints: ['int'] },
+  },
+} as const;
+
+const dadosBancariosSpec = {
+  name: 'POST_entregador_dados_bancarios',
+  input: {
+    tipo: { required: true, type: 'enum', constraints: ["'pix' | 'conta'"] },
+    chavePix: { required: false, type: 'string' },
+    banco: { required: false, type: 'string' },
+    agencia: { required: false, type: 'string' },
+    conta: { required: false, type: 'string' },
+  },
+} as const;
+
+const statusSpec = {
+  name: 'PATCH_entregador_status',
+  input: {
+    online: { required: true, type: 'boolean' },
+  },
+} as const;
+
+const heartbeatSpec = {
+  name: 'POST_entregador_heartbeat',
+  input: {
+    lat: { required: true, type: 'number', constraints: ['-90 a 90'] },
+    lng: { required: true, type: 'number', constraints: ['-180 a 180'] },
+  },
+} as const;
+
+const confirmarEntregaSpec = {
+  name: 'POST_entregador_corridas_pedidoId_confirmar_entrega',
+  input: {
+    codigo: {
+      required: true,
+      type: 'string',
+      constraints: ['4 dígitos — últimos 4 do telefone do consumidor'],
+    },
+  },
+} as const;
+
+const corridaStatusSpec = {
+  name: 'PATCH_entregador_corridas_status',
+  input: {
+    status: { required: true, type: 'enum', constraints: ["'saiu_entrega' | 'entregue'"] },
+  },
+} as const;
+
+const localizacaoSpec = {
+  name: 'POST_entregador_corridas_localizacao',
+  input: {
+    lat: { required: true, type: 'number' },
+    lng: { required: true, type: 'number' },
+    heading: { required: false, type: 'number' },
+    speedKmh: { required: false, type: 'number' },
+  },
+} as const;
+
+const saqueSpec = {
+  name: 'POST_entregador_saque',
+  input: {
+    valor: { required: true, type: 'number', constraints: ['min 10'] },
+  },
+} as const;
+
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
 router.get('/perfil', async (req: AuthRequest, res: Response) => {
@@ -36,28 +125,36 @@ router.patch('/foto', upload.single('foto'), async (req: AuthRequest, res: Respo
   res.json({ fotoUrl });
 });
 
-router.patch('/dados-pessoais', async (req: AuthRequest, res: Response) => {
-  const dados = z
-    .object({
-      nome: z.string().min(2).optional(),
-      email: z.string().email().optional(),
-      telefone: z.string().min(10).optional(),
-    })
-    .parse(req.body);
-  const entregador = await svc.updateDadosPessoais(req.user!.id, dados);
-  res.json({ entregador });
-});
+router.patch(
+  '/dados-pessoais',
+  specValidatorMiddleware(dadosPessoaisSpec),
+  async (req: AuthRequest, res: Response) => {
+    const dados = z
+      .object({
+        nome: z.string().min(2).optional(),
+        email: z.string().email().optional(),
+        telefone: z.string().min(10).optional(),
+      })
+      .parse(req.body);
+    const entregador = await svc.updateDadosPessoais(req.user!.id, dados);
+    res.json({ entregador });
+  },
+);
 
-router.patch('/senha', async (req: AuthRequest, res: Response) => {
-  const { senhaAtual, novaSenha } = z
-    .object({
-      senhaAtual: z.string().min(1),
-      novaSenha: z.string().min(6),
-    })
-    .parse(req.body);
-  await svc.updateSenha(req.user!.id, senhaAtual, novaSenha);
-  res.json({ success: true });
-});
+router.patch(
+  '/senha',
+  specValidatorMiddleware(senhaSpec),
+  async (req: AuthRequest, res: Response) => {
+    const { senhaAtual, novaSenha } = z
+      .object({
+        senhaAtual: z.string().min(1),
+        novaSenha: z.string().min(6),
+      })
+      .parse(req.body);
+    await svc.updateSenha(req.user!.id, senhaAtual, novaSenha);
+    res.json({ success: true });
+  },
+);
 
 // ── Documentos ────────────────────────────────────────────────────────────────
 
@@ -72,22 +169,26 @@ router.post('/documentos/upload', uploadDocs, async (req: AuthRequest, res: Resp
 
 // ── Veículo ───────────────────────────────────────────────────────────────────
 
-router.post('/veiculo', async (req: AuthRequest, res: Response) => {
-  const dados = z
-    .object({
-      placa: z.string().min(7).max(8),
-      modelo: z.string().min(1),
-      cor: z.string().min(1),
-      ano: z
-        .number()
-        .int()
-        .min(1950)
-        .max(new Date().getFullYear() + 1),
-    })
-    .parse(req.body);
-  const veiculo = await svc.cadastrarVeiculo(req.user!.id, dados);
-  res.status(201).json({ veiculo });
-});
+router.post(
+  '/veiculo',
+  specValidatorMiddleware(veiculoSpec),
+  async (req: AuthRequest, res: Response) => {
+    const dados = z
+      .object({
+        placa: z.string().min(7).max(8),
+        modelo: z.string().min(1),
+        cor: z.string().min(1),
+        ano: z
+          .number()
+          .int()
+          .min(1950)
+          .max(new Date().getFullYear() + 1),
+      })
+      .parse(req.body);
+    const veiculo = await svc.cadastrarVeiculo(req.user!.id, dados);
+    res.status(201).json({ veiculo });
+  },
+);
 
 router.get('/veiculo/trocar', async (req: AuthRequest, res: Response) => {
   const solicitacao = await svc.getSolicitacaoTrocaPendente(req.user!.id);
@@ -111,30 +212,38 @@ router.post('/veiculo/trocar', uploadTroca, async (req: AuthRequest, res: Respon
 
 // ── Dados bancários ───────────────────────────────────────────────────────────
 
-router.post('/dados-bancarios', async (req: AuthRequest, res: Response) => {
-  const dados = z
-    .object({
-      tipo: z.enum(['pix', 'conta']),
-      chavePix: z.string().optional(),
-      banco: z.string().optional(),
-      agencia: z.string().optional(),
-      conta: z.string().optional(),
-    })
-    .refine((d) => (d.tipo === 'pix' ? !!d.chavePix : !!d.banco && !!d.agencia && !!d.conta), {
-      message: 'Para tipo "pix" envie chavePix; para "conta" envie banco, agencia e conta.',
-    })
-    .parse(req.body);
-  const dadosBancarios = await svc.cadastrarDadosBancarios(req.user!.id, dados);
-  res.status(201).json({ dadosBancarios });
-});
+router.post(
+  '/dados-bancarios',
+  specValidatorMiddleware(dadosBancariosSpec),
+  async (req: AuthRequest, res: Response) => {
+    const dados = z
+      .object({
+        tipo: z.enum(['pix', 'conta']),
+        chavePix: z.string().optional(),
+        banco: z.string().optional(),
+        agencia: z.string().optional(),
+        conta: z.string().optional(),
+      })
+      .refine((d) => (d.tipo === 'pix' ? !!d.chavePix : !!d.banco && !!d.agencia && !!d.conta), {
+        message: 'Para tipo "pix" envie chavePix; para "conta" envie banco, agencia e conta.',
+      })
+      .parse(req.body);
+    const dadosBancarios = await svc.cadastrarDadosBancarios(req.user!.id, dados);
+    res.status(201).json({ dadosBancarios });
+  },
+);
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
-router.patch('/status', async (req: AuthRequest, res: Response) => {
-  const { online } = z.object({ online: z.boolean() }).parse(req.body);
-  const isOnline = await svc.updateStatus(req.user!.id, online);
-  res.json({ online: isOnline });
-});
+router.patch(
+  '/status',
+  specValidatorMiddleware(statusSpec),
+  async (req: AuthRequest, res: Response) => {
+    const { online } = z.object({ online: z.boolean() }).parse(req.body);
+    const isOnline = await svc.updateStatus(req.user!.id, online);
+    res.json({ online: isOnline });
+  },
+);
 
 /**
  * Heartbeat de localização do entregador online.
@@ -148,16 +257,20 @@ router.patch('/status', async (req: AuthRequest, res: Response) => {
  * `localizacao:update` com frequência muito maior (a cada 5s), então
  * essa rota só é usada no modo "online idle".
  */
-router.post('/heartbeat', async (req: AuthRequest, res: Response) => {
-  const { lat, lng } = z
-    .object({
-      lat: z.number().min(-90).max(90),
-      lng: z.number().min(-180).max(180),
-    })
-    .parse(req.body);
-  await svc.atualizarHeartbeat(req.user!.id, lat, lng);
-  res.json({ ok: true });
-});
+router.post(
+  '/heartbeat',
+  specValidatorMiddleware(heartbeatSpec),
+  async (req: AuthRequest, res: Response) => {
+    const { lat, lng } = z
+      .object({
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+      })
+      .parse(req.body);
+    await svc.atualizarHeartbeat(req.user!.id, lat, lng);
+    res.json({ ok: true });
+  },
+);
 
 // ── Corridas ──────────────────────────────────────────────────────────────────
 
@@ -185,30 +298,42 @@ router.post('/corridas/:pedidoId/confirmar-retirada', async (req: AuthRequest, r
   res.json({ ok: true });
 });
 
-router.post('/corridas/:pedidoId/confirmar-entrega', async (req: AuthRequest, res: Response) => {
-  const { codigo } = z.object({ codigo: z.string().min(1) }).parse(req.body);
-  await svc.confirmarEntrega(req.user!.id, req.params.pedidoId, codigo);
-  res.json({ ok: true });
-});
+router.post(
+  '/corridas/:pedidoId/confirmar-entrega',
+  specValidatorMiddleware(confirmarEntregaSpec),
+  async (req: AuthRequest, res: Response) => {
+    const { codigo } = z.object({ codigo: z.string().min(1) }).parse(req.body);
+    await svc.confirmarEntrega(req.user!.id, req.params.pedidoId, codigo);
+    res.json({ ok: true });
+  },
+);
 
-router.patch('/corridas/:pedidoId/status', async (req: AuthRequest, res: Response) => {
-  const { status } = z.object({ status: z.enum(['saiu_entrega', 'entregue']) }).parse(req.body);
-  const novoStatus = await svc.updateStatusCorrida(req.user!.id, req.params.pedidoId, status);
-  res.json({ status: novoStatus });
-});
+router.patch(
+  '/corridas/:pedidoId/status',
+  specValidatorMiddleware(corridaStatusSpec),
+  async (req: AuthRequest, res: Response) => {
+    const { status } = z.object({ status: z.enum(['saiu_entrega', 'entregue']) }).parse(req.body);
+    const novoStatus = await svc.updateStatusCorrida(req.user!.id, req.params.pedidoId, status);
+    res.json({ status: novoStatus });
+  },
+);
 
-router.post('/corridas/:pedidoId/localizacao', async (req: AuthRequest, res: Response) => {
-  const coords = z
-    .object({
-      lat: z.number(),
-      lng: z.number(),
-      heading: z.number().optional(),
-      speedKmh: z.number().optional(),
-    })
-    .parse(req.body);
-  await svc.updateLocalizacao(req.user!.id, req.params.pedidoId, coords);
-  res.json({ ok: true });
-});
+router.post(
+  '/corridas/:pedidoId/localizacao',
+  specValidatorMiddleware(localizacaoSpec),
+  async (req: AuthRequest, res: Response) => {
+    const coords = z
+      .object({
+        lat: z.number(),
+        lng: z.number(),
+        heading: z.number().optional(),
+        speedKmh: z.number().optional(),
+      })
+      .parse(req.body);
+    await svc.updateLocalizacao(req.user!.id, req.params.pedidoId, coords);
+    res.json({ ok: true });
+  },
+);
 
 // ── Ganhos & Entregas ─────────────────────────────────────────────────────────
 
@@ -224,11 +349,15 @@ router.get('/entregas', async (req: AuthRequest, res: Response) => {
 
 // ── Saques ────────────────────────────────────────────────────────────────────
 
-router.post('/saque', async (req: AuthRequest, res: Response) => {
-  const { valor } = z.object({ valor: z.number().min(10) }).parse(req.body);
-  const data = await svc.solicitarSaque(req.user!.id, valor);
-  res.status(201).json(data);
-});
+router.post(
+  '/saque',
+  specValidatorMiddleware(saqueSpec),
+  async (req: AuthRequest, res: Response) => {
+    const { valor } = z.object({ valor: z.number().min(10) }).parse(req.body);
+    const data = await svc.solicitarSaque(req.user!.id, valor);
+    res.status(201).json(data);
+  },
+);
 
 router.get('/saques', async (req: AuthRequest, res: Response) => {
   const saques = await svc.getSaques(req.user!.id);
