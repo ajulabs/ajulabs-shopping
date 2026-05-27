@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
 
@@ -17,25 +18,46 @@ const criarProdutoSchema = z.object({
   destaque: z.boolean().default(false),
 });
 
+const criarProdutoSpec = {
+  name: 'POST_produtos',
+  input: {
+    lojaId: { required: true, type: 'string', constraints: ['uuid'] },
+    nome: { required: true, type: 'string', constraints: ['min 2 caracteres'] },
+    descricao: { required: true, type: 'string' },
+    preco: { required: true, type: 'number', constraints: ['positivo'] },
+    estoque: { required: true, type: 'number', constraints: ['int, nonnegative'] },
+    imagemUrl: { required: true, type: 'string', constraints: ['URL válida'] },
+    categoria: { required: true, type: 'string' },
+    tags: { required: false, type: 'array' },
+    destaque: { required: false, type: 'boolean' },
+  },
+} as const;
+
 // POST /produtos - Criar produto (lojista autenticado)
-router.post('/', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  try {
-    const dados = criarProdutoSchema.parse(req.body);
+router.post(
+  '/',
+  authMiddleware,
+  authLojista,
+  specValidatorMiddleware(criarProdutoSpec),
+  async (req: AuthRequest, res) => {
+    try {
+      const dados = criarProdutoSchema.parse(req.body);
 
-    const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
+      const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
 
-    if (!loja || loja.lojistaId !== req.user!.id) {
-      return res.status(403).json({ error: 'Acesso negado a esta loja' });
+      if (!loja || loja.lojistaId !== req.user!.id) {
+        return res.status(403).json({ error: 'Acesso negado a esta loja' });
+      }
+
+      const produto = await prisma.produto.create({ data: dados });
+
+      res.status(201).json({ produto });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      res.status(500).json({ error: 'Erro ao criar produto' });
     }
-
-    const produto = await prisma.produto.create({ data: dados });
-
-    res.status(201).json({ produto });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    res.status(500).json({ error: 'Erro ao criar produto' });
-  }
-});
+  },
+);
 
 // GET /produtos/:id - Detalhes do produto (público)
 router.get('/:id', async (req, res) => {

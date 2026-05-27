@@ -6,10 +6,19 @@ import { prisma } from '../utils/prisma';
 import { cpfSchema, cnpjSchema, senhaForteSchema, emailSchema } from '../utils/validacoes';
 import { authLimiter } from '../lib/rateLimiter';
 import { logger } from '../lib/logger';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
 
 router.use(authLimiter);
+
+const loginUsuarioSpec = {
+  name: 'POST_auth_usuario_login',
+  input: {
+    cpf: { required: true, type: 'string' },
+    senha: { required: true, type: 'string' },
+  },
+} as const;
 
 // ========================================
 // CONSUMIDOR
@@ -65,7 +74,7 @@ router.post('/usuario/registrar', async (req, res) => {
   }
 });
 
-router.post('/usuario/login', async (req, res) => {
+router.post('/usuario/login', specValidatorMiddleware(loginUsuarioSpec), async (req, res) => {
   try {
     const { cpf, senha } = z
       .object({
