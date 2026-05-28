@@ -159,8 +159,9 @@ function main() {
       license: { name: 'MIT' },
     },
     servers: [
-      { url: 'http://localhost:3001', description: 'Local' },
-      { url: 'https://api.ajulabs.com', description: 'Produção' },
+      { url: 'http://localhost:3000', description: 'Local' },
+      { url: 'https://ajulabs-shopping-sit.up.railway.app', description: 'SIT' },
+      { url: 'https://prolific-happiness-prod.up.railway.app', description: 'Produção' },
     ],
     components: {
       securitySchemes: {
