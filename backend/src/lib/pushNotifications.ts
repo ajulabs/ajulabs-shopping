@@ -181,3 +181,60 @@ export async function notificarCorridaOferta(payload: CorridaOfertaPayload): Pro
     logger.error({ err, pedidoId: payload.pedidoId }, 'falha ao notificar corrida oferta');
   }
 }
+
+interface ChatMensagemPayload {
+  destinatarioType: 'CONSUMER' | 'LOJISTA' | 'ENTREGADOR';
+  destinatarioId: string;
+  remetenteNome: string;
+  conteudo: string;
+  pedidoId: string;
+  chatId: string;
+}
+
+/**
+ * Notifica o destinatário de uma mensagem nova no chat de pedido.
+ *
+ * O app verifica `data.type === 'chat:mensagem'` e navega pra tela do
+ * chat correspondente quando o usuário toca na notificação. O próprio
+ * app também é responsável por descartar a notificação caso o chat já
+ * esteja aberto (evita duplicar com a entrega em tempo real via socket).
+ *
+ * Best-effort: nunca lança.
+ */
+export async function notificarChatMensagem(payload: ChatMensagemPayload): Promise<void> {
+  try {
+    const title = `Mensagem de ${payload.remetenteNome}`;
+    // Limita preview do conteúdo pra notificação ficar legível.
+    const body =
+      payload.conteudo.length > 80
+        ? `${payload.conteudo.slice(0, 77)}...`
+        : payload.conteudo;
+
+    const data = {
+      type: 'chat:mensagem',
+      pedidoId: payload.pedidoId,
+      chatId: payload.chatId,
+    };
+
+    const pushPayload = {
+      title,
+      body,
+      data,
+      categoria: 'chat_pedido',
+      priority: 'high' as const,
+    };
+
+    if (payload.destinatarioType === 'CONSUMER') {
+      await enviarPushParaConsumidor(payload.destinatarioId, pushPayload);
+    } else if (payload.destinatarioType === 'LOJISTA') {
+      await enviarPushParaLojista(payload.destinatarioId, pushPayload);
+    } else {
+      await enviarPushParaEntregador(payload.destinatarioId, pushPayload);
+    }
+  } catch (err) {
+    logger.error(
+      { err, pedidoId: payload.pedidoId, chatId: payload.chatId },
+      'falha ao notificar chat mensagem',
+    );
+  }
+}
