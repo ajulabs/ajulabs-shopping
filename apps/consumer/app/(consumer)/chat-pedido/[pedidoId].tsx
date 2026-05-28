@@ -19,6 +19,7 @@ import { useChatPedidoRealtime } from '@ajulabs/realtime';
 import type { ChatMensagemPedido, TipoParticipanteChat } from '@ajulabs/types';
 import { useTheme } from '../../../src/hooks';
 import { useAuthStore } from '../../../src/store';
+import { setCurrentChatPedido } from '../../../src/utils/currentChat';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -58,6 +59,17 @@ export default function ChatPedidoScreen() {
   useEffect(() => {
     carregarChat();
   }, [carregarChat]);
+
+  // Marca este chat como "aberto" enquanto a tela está montada. O listener
+  // de push em usePushRegistration descarta notificações de chat:mensagem
+  // quando o pedidoId bate, evitando barulho desnecessário.
+  useEffect(() => {
+    if (!pedidoId) return;
+    setCurrentChatPedido(pedidoId);
+    return () => {
+      setCurrentChatPedido(null);
+    };
+  }, [pedidoId]);
 
   useChatPedidoRealtime({
     apiUrl: API_URL,

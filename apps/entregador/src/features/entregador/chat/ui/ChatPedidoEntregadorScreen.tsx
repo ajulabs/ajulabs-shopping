@@ -17,6 +17,7 @@ import { PedidoChatService } from '@ajulabs/api-client';
 import { useChatPedidoRealtime } from '@ajulabs/realtime';
 import type { ChatMensagemPedido } from '@ajulabs/types';
 import { useAuthEntregadorStore } from '../../auth/model/store';
+import { setCurrentChatPedido } from '../../../../utils/currentChat';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -65,6 +66,14 @@ export function ChatPedidoEntregadorScreen({
   useEffect(() => {
     carregarChat();
   }, [carregarChat]);
+
+  // Marca este chat como aberto enquanto a tela está montada.
+  useEffect(() => {
+    setCurrentChatPedido(pedidoId);
+    return () => {
+      setCurrentChatPedido(null);
+    };
+  }, [pedidoId]);
 
   useChatPedidoRealtime({
     apiUrl: API_URL,

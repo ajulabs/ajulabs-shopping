@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { emitChatMensagem } from '../utils/socket';
+import { notificarChatMensagem } from '../lib/pushNotifications';
 
 const router = Router();
 
@@ -258,6 +259,18 @@ router.post('/pedido/:pedidoId/mensagem', async (req: AuthRequest, res) => {
     };
 
     emitChatMensagem(destinatarioType, destinatarioId, payload);
+
+    // Push notification — best-effort, em paralelo. Não bloqueia a resposta.
+    // O app do destinatário descarta a notificação se o chat alvo já estiver
+    // aberto, pra não duplicar com a entrega em tempo real via socket.
+    void notificarChatMensagem({
+      destinatarioType,
+      destinatarioId,
+      remetenteNome,
+      conteudo,
+      pedidoId: chat.pedidoId,
+      chatId: chat.id,
+    });
 
     res.status(201).json({ mensagem: payload.mensagem });
   } catch (err) {

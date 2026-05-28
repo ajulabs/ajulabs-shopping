@@ -6,14 +6,30 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { PushService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../store';
+import { getCurrentChatPedido } from '../utils/currentChat';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    // Se a notificação é de chat e o usuário está nessa tela específica,
+    // descarta (o socket já entrega em tempo real).
+    const data = notification.request.content.data as
+      | { type?: string; pedidoId?: string }
+      | undefined;
+    if (data?.type === 'chat:mensagem' && data.pedidoId === getCurrentChatPedido()) {
+      return {
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+    return {
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 async function obterExpoPushToken(): Promise<string | null> {
@@ -89,6 +105,10 @@ export function usePushRegistrationEntregador(): void {
       };
       if (data?.type === 'corrida:oferta' && data.pedidoId) {
         router.push(`/nova-corrida/${data.pedidoId}` as never);
+      } else if (data?.type === 'chat:mensagem' && data.pedidoId) {
+        // Entregador acessa o chat via CourierApp (state interno) ou via
+        // tab Conversas. Empurra a rota raiz e o app resolve o estado.
+        router.push(`/?openChatPedidoId=${data.pedidoId}` as never);
       }
     }
 
