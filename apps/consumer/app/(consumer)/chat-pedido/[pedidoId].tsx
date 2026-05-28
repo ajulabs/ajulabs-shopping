@@ -19,13 +19,17 @@ import { useChatPedidoRealtime } from '@ajulabs/realtime';
 import type { ChatMensagemPedido, TipoParticipanteChat } from '@ajulabs/types';
 import { useTheme } from '../../../src/hooks';
 import { useAuthStore } from '../../../src/store';
+import { setCurrentChatPedido } from '../../../src/utils/currentChat';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 type Participante = 'LOJISTA' | 'ENTREGADOR';
 
 export default function ChatPedidoScreen() {
-  const { pedidoId } = useLocalSearchParams<{ pedidoId: string }>();
+  const { pedidoId, destinatario: destinatarioParam } = useLocalSearchParams<{
+    pedidoId: string;
+    destinatario?: string;
+  }>();
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
@@ -33,7 +37,9 @@ export default function ChatPedidoScreen() {
 
   const [chat, setChat] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [destinatario, setDestinatario] = useState<Participante>('LOJISTA');
+  const [destinatario, setDestinatario] = useState<Participante>(
+    destinatarioParam === 'ENTREGADOR' ? 'ENTREGADOR' : 'LOJISTA',
+  );
   const [mensagens, setMensagens] = useState<ChatMensagemPedido[]>([]);
   const [input, setInput] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -45,8 +51,7 @@ export default function ChatPedidoScreen() {
     if (data) {
       setChat(data);
       setMensagens(data.mensagens ?? []);
-      if (data.participantes?.includes('ENTREGADOR')) setDestinatario('ENTREGADOR');
-      await PedidoChatService.marcarLido(pedidoId, token);
+      PedidoChatService.marcarLido(pedidoId, token).catch(() => {});
     }
     setLoading(false);
   }, [pedidoId, token]);
@@ -54,6 +59,17 @@ export default function ChatPedidoScreen() {
   useEffect(() => {
     carregarChat();
   }, [carregarChat]);
+
+  // Marca este chat como "aberto" enquanto a tela está montada. O listener
+  // de push em usePushRegistration descarta notificações de chat:mensagem
+  // quando o pedidoId bate, evitando barulho desnecessário.
+  useEffect(() => {
+    if (!pedidoId) return;
+    setCurrentChatPedido(pedidoId);
+    return () => {
+      setCurrentChatPedido(null);
+    };
+  }, [pedidoId]);
 
   useChatPedidoRealtime({
     apiUrl: API_URL,

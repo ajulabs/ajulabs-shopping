@@ -3,9 +3,9 @@ import * as Location from 'expo-location';
 
 export interface NavStep {
   instruction: string;
-  distance: number;    // metros até a manobra
-  duration: number;    // segundos estimados desta etapa
-  modifier?: string;   // 'left', 'right', 'straight', etc.
+  distance: number; // metros até a manobra
+  duration: number; // segundos estimados desta etapa
+  modifier?: string; // 'left', 'right', 'straight', etc.
   location: { lat: number; lng: number };
 }
 
@@ -27,10 +27,10 @@ export interface NavState {
 // ── Haversine ─────────────────────────────────────────────
 function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371000;
-  const φ1 = a.lat * Math.PI / 180;
-  const φ2 = b.lat * Math.PI / 180;
-  const Δφ = (b.lat - a.lat) * Math.PI / 180;
-  const Δλ = (b.lng - a.lng) * Math.PI / 180;
+  const φ1 = (a.lat * Math.PI) / 180;
+  const φ2 = (b.lat * Math.PI) / 180;
+  const Δφ = ((b.lat - a.lat) * Math.PI) / 180;
+  const Δλ = ((b.lng - a.lng) * Math.PI) / 180;
   const x = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
@@ -45,14 +45,14 @@ function buildInstruction(type: string, modifier?: string, name?: string): strin
   if (type === 'on ramp') return `Acesse a rampa${street}`;
   if (type === 'off ramp') return `Saia pela rampa${street}`;
   const map: Record<string, string> = {
-    'left':        'Vire à esquerda',
-    'right':       'Vire à direita',
-    'straight':    'Siga em frente',
+    left: 'Vire à esquerda',
+    right: 'Vire à direita',
+    straight: 'Siga em frente',
     'slight left': 'Mantenha à esquerda',
-    'slight right':'Mantenha à direita',
-    'sharp left':  'Curva acentuada à esquerda',
+    'slight right': 'Mantenha à direita',
+    'sharp left': 'Curva acentuada à esquerda',
     'sharp right': 'Curva acentuada à direita',
-    'uturn':       'Faça retorno',
+    uturn: 'Faça retorno',
   };
   return (map[modifier ?? ''] ?? 'Continue') + street;
 }
@@ -69,8 +69,9 @@ async function fetchOsrmFull(from: { lat: number; lng: number }, to: { lat: numb
   const route = data.routes?.[0];
   if (!route) throw new Error('Rota não encontrada');
 
-  const coords: { lat: number; lng: number }[] =
-    (route.geometry.coordinates as number[][]).map(c => ({ lat: c[1], lng: c[0] }));
+  const coords: { lat: number; lng: number }[] = (route.geometry.coordinates as number[][]).map(
+    (c) => ({ lat: c[1], lng: c[0] }),
+  );
 
   const steps: NavStep[] = [];
   for (const leg of route.legs ?? []) {
@@ -105,36 +106,36 @@ function nearestIdx(
   let bestDist = Infinity;
   for (let i = start; i <= end; i++) {
     const d = haversine(pos, coords[i]);
-    if (d < bestDist) { bestDist = d; bestIdx = i; }
+    if (d < bestDist) {
+      bestDist = d;
+      bestIdx = i;
+    }
   }
   return { idx: bestIdx, dist: bestDist };
 }
 
 // ── Hook ───────────────────────────────────────────────────
-export function useNavigation(
-  destination: { lat: number; lng: number } | null,
-  active: boolean,
-) {
+export function useNavigation(destination: { lat: number; lng: number } | null, active: boolean) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [heading, setHeading]           = useState(0);
-  const [speedKmh, setSpeedKmh]         = useState(0);
-  const [routeCoords, setRouteCoords]   = useState<{ lat: number; lng: number }[]>([]);
-  const [steps, setSteps]               = useState<NavStep[]>([]);
-  const [stepIdx, setStepIdx]           = useState(0);
-  const [distanceToStep, setDistanceToStep]   = useState(0);
-  const [etaSeconds, setEtaSeconds]           = useState(0);
+  const [heading, setHeading] = useState(0);
+  const [speedKmh, setSpeedKmh] = useState(0);
+  const [routeCoords, setRouteCoords] = useState<{ lat: number; lng: number }[]>([]);
+  const [steps, setSteps] = useState<NavStep[]>([]);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [distanceToStep, setDistanceToStep] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState(0);
   const [distanceRemaining, setDistanceRemaining] = useState(0);
-  const [isOffRoute, setIsOffRoute]     = useState(false);
-  const [routeReady, setRouteReady]     = useState(false);
+  const [isOffRoute, setIsOffRoute] = useState(false);
+  const [routeReady, setRouteReady] = useState(false);
 
   // Refs — accessed inside GPS callback without stale closure
-  const routeCoordsRef  = useRef<{ lat: number; lng: number }[]>([]);
-  const stepsRef        = useRef<NavStep[]>([]);
-  const stepIdxRef      = useRef(0);
-  const progressIdxRef  = useRef(0);
-  const destRef         = useRef(destination);
-  const fetchKeyRef     = useRef('');
-  const fetchingRef     = useRef(false);
+  const routeCoordsRef = useRef<{ lat: number; lng: number }[]>([]);
+  const stepsRef = useRef<NavStep[]>([]);
+  const stepIdxRef = useRef(0);
+  const progressIdxRef = useRef(0);
+  const destRef = useRef(destination);
+  const fetchKeyRef = useRef('');
+  const fetchingRef = useRef(false);
 
   destRef.current = destination;
 
@@ -152,8 +153,8 @@ export function useNavigation(
       const result = await fetchOsrmFull(from, dest);
 
       routeCoordsRef.current = result.coords;
-      stepsRef.current       = result.steps;
-      stepIdxRef.current     = 0;
+      stepsRef.current = result.steps;
+      stepIdxRef.current = 0;
       progressIdxRef.current = 0;
 
       setRouteCoords(result.coords);
@@ -173,74 +174,94 @@ export function useNavigation(
   }, []);
 
   // ── GPS watch ────────────────────────────────────────────
+  const navSubRef = useRef<Location.LocationSubscription | null>(null);
   useEffect(() => {
     if (!active) return;
-    let sub: Location.LocationSubscription | null = null;
+    let cancelled = false;
 
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
 
-      sub = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5,
-          timeInterval: 1000,
-        },
-        (loc) => {
-          const pos  = { lat: loc.coords.latitude, lng: loc.coords.longitude };
-          const hdg  = Math.max(0, loc.coords.heading ?? 0);
-          const spd  = Math.max(0, (loc.coords.speed ?? 0) * 3.6);
+        const sub = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.BestForNavigation,
+            distanceInterval: 5,
+            timeInterval: 1000,
+          },
+          (loc) => {
+            const pos = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+            const hdg = Math.max(0, loc.coords.heading ?? 0);
+            const spd = Math.max(0, (loc.coords.speed ?? 0) * 3.6);
 
-          setUserLocation(pos);
-          setHeading(hdg);
-          setSpeedKmh(spd);
+            setUserLocation(pos);
+            setHeading(hdg);
+            setSpeedKmh(spd);
 
-          const coords = routeCoordsRef.current;
-          const steps  = stepsRef.current;
+            const coords = routeCoordsRef.current;
+            const steps = stepsRef.current;
 
-          // First fix: fetch route immediately
-          if (coords.length === 0) {
-            fetchRoute(pos);
-            return;
-          }
-
-          // Off-route detection
-          const { idx: nearIdx, dist: nearDist } = nearestIdx(pos, coords, progressIdxRef.current);
-          if (nearDist > 80) {
-            setIsOffRoute(true);
-            fetchKeyRef.current = '';
-            fetchRoute(pos);
-            return;
-          }
-
-          progressIdxRef.current = nearIdx;
-
-          // Advance step when within 25m of the maneuver point
-          const sIdx = stepIdxRef.current;
-          if (steps.length > sIdx) {
-            const dToStep = haversine(pos, steps[sIdx].location);
-            setDistanceToStep(dToStep);
-            if (dToStep < 25 && sIdx + 1 < steps.length) {
-              stepIdxRef.current = sIdx + 1;
-              setStepIdx(sIdx + 1);
+            // First fix: fetch route immediately
+            if (coords.length === 0) {
+              fetchRoute(pos);
+              return;
             }
-          }
 
-          // Update ETA from remaining steps
-          const currentSIdx = stepIdxRef.current;
-          const remainingEta = steps.slice(currentSIdx).reduce((a, s) => a + s.duration, 0);
-          setEtaSeconds(remainingEta);
+            // Off-route detection
+            const { idx: nearIdx, dist: nearDist } = nearestIdx(
+              pos,
+              coords,
+              progressIdxRef.current,
+            );
+            if (nearDist > 80) {
+              setIsOffRoute(true);
+              fetchKeyRef.current = '';
+              fetchRoute(pos);
+              return;
+            }
 
-          // Straight-line distance to destination as distance remaining indicator
-          if (destRef.current) {
-            setDistanceRemaining(haversine(pos, destRef.current));
-          }
+            progressIdxRef.current = nearIdx;
+
+            // Advance step when within 25m of the maneuver point
+            const sIdx = stepIdxRef.current;
+            if (steps.length > sIdx) {
+              const dToStep = haversine(pos, steps[sIdx].location);
+              setDistanceToStep(dToStep);
+              if (dToStep < 25 && sIdx + 1 < steps.length) {
+                stepIdxRef.current = sIdx + 1;
+                setStepIdx(sIdx + 1);
+              }
+            }
+
+            // Update ETA from remaining steps
+            const currentSIdx = stepIdxRef.current;
+            const remainingEta = steps.slice(currentSIdx).reduce((a, s) => a + s.duration, 0);
+            setEtaSeconds(remainingEta);
+
+            // Straight-line distance to destination as distance remaining indicator
+            if (destRef.current) {
+              setDistanceRemaining(haversine(pos, destRef.current));
+            }
+          },
+        );
+        if (cancelled) {
+          try {
+            sub.remove();
+          } catch {}
+        } else {
+          navSubRef.current = sub;
         }
-      );
+      } catch {}
     })();
 
-    return () => { sub?.remove(); };
+    return () => {
+      cancelled = true;
+      try {
+        navSubRef.current?.remove();
+      } catch {}
+      navSubRef.current = null;
+    };
   }, [active, fetchRoute]);
 
   // Refetch when destination changes and we have a position
@@ -249,7 +270,7 @@ export function useNavigation(
       fetchKeyRef.current = '';
       fetchRoute(userLocation);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination?.lat, destination?.lng]);
 
   return {
@@ -259,7 +280,7 @@ export function useNavigation(
     routeCoords,
     steps,
     currentStep: steps[stepIdx] ?? null,
-    nextStep:    steps[stepIdx + 1] ?? null,
+    nextStep: steps[stepIdx + 1] ?? null,
     distanceToStep,
     etaSeconds,
     distanceRemaining,

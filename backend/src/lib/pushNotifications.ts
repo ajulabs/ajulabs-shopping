@@ -11,32 +11,33 @@ import { prisma } from '../utils/prisma';
  * Status 'aguardando' não é notificado (é o estado inicial, quando o
  * próprio consumidor acabou de criar o pedido).
  */
-const COPY_STATUS_PEDIDO: Record<string, { title: string; bodyTpl: (lojaNome: string) => string }> = {
-  confirmado: {
-    title: 'Pedido confirmado',
-    bodyTpl: loja => `${loja} aceitou seu pedido e já vai começar a preparar.`,
-  },
-  preparando: {
-    title: 'Preparando seu pedido',
-    bodyTpl: loja => `${loja} está preparando seu pedido. Já já fica pronto!`,
-  },
-  pronto: {
-    title: 'Pedido pronto!',
-    bodyTpl: loja => `Seu pedido na ${loja} está pronto e aguardando entregador.`,
-  },
-  saiu_entrega: {
-    title: 'Saiu para entrega 🛵',
-    bodyTpl: loja => `Seu pedido da ${loja} já está a caminho!`,
-  },
-  entregue: {
-    title: 'Pedido entregue 🎉',
-    bodyTpl: loja => `Seu pedido da ${loja} foi entregue. Bom proveito!`,
-  },
-  cancelado: {
-    title: 'Pedido cancelado',
-    bodyTpl: loja => `Seu pedido na ${loja} foi cancelado.`,
-  },
-};
+const COPY_STATUS_PEDIDO: Record<string, { title: string; bodyTpl: (lojaNome: string) => string }> =
+  {
+    confirmado: {
+      title: 'Pedido confirmado',
+      bodyTpl: (loja) => `${loja} aceitou seu pedido e já vai começar a preparar.`,
+    },
+    preparando: {
+      title: 'Preparando seu pedido',
+      bodyTpl: (loja) => `${loja} está preparando seu pedido. Já já fica pronto!`,
+    },
+    pronto: {
+      title: 'Pedido pronto!',
+      bodyTpl: (loja) => `Seu pedido na ${loja} está pronto e aguardando entregador.`,
+    },
+    saiu_entrega: {
+      title: 'Saiu para entrega 🛵',
+      bodyTpl: (loja) => `Seu pedido da ${loja} já está a caminho!`,
+    },
+    entregue: {
+      title: 'Pedido entregue 🎉',
+      bodyTpl: (loja) => `Seu pedido da ${loja} foi entregue. Bom proveito!`,
+    },
+    cancelado: {
+      title: 'Pedido cancelado',
+      bodyTpl: (loja) => `Seu pedido na ${loja} foi cancelado.`,
+    },
+  };
 
 /**
  * Envia push ao consumidor sobre mudança de status do pedido.
@@ -179,5 +180,60 @@ export async function notificarCorridaOferta(payload: CorridaOfertaPayload): Pro
     );
   } catch (err) {
     logger.error({ err, pedidoId: payload.pedidoId }, 'falha ao notificar corrida oferta');
+  }
+}
+
+interface ChatMensagemPayload {
+  destinatarioType: 'CONSUMER' | 'LOJISTA' | 'ENTREGADOR';
+  destinatarioId: string;
+  remetenteNome: string;
+  conteudo: string;
+  pedidoId: string;
+  chatId: string;
+}
+
+/**
+ * Notifica o destinatário de uma mensagem nova no chat de pedido.
+ *
+ * O app verifica `data.type === 'chat:mensagem'` e navega pra tela do
+ * chat correspondente quando o usuário toca na notificação. O próprio
+ * app também é responsável por descartar a notificação caso o chat já
+ * esteja aberto (evita duplicar com a entrega em tempo real via socket).
+ *
+ * Best-effort: nunca lança.
+ */
+export async function notificarChatMensagem(payload: ChatMensagemPayload): Promise<void> {
+  try {
+    const title = `Mensagem de ${payload.remetenteNome}`;
+    // Limita preview do conteúdo pra notificação ficar legível.
+    const body =
+      payload.conteudo.length > 80 ? `${payload.conteudo.slice(0, 77)}...` : payload.conteudo;
+
+    const data = {
+      type: 'chat:mensagem',
+      pedidoId: payload.pedidoId,
+      chatId: payload.chatId,
+    };
+
+    const pushPayload = {
+      title,
+      body,
+      data,
+      categoria: 'chat_pedido',
+      priority: 'high' as const,
+    };
+
+    if (payload.destinatarioType === 'CONSUMER') {
+      await enviarPushParaConsumidor(payload.destinatarioId, pushPayload);
+    } else if (payload.destinatarioType === 'LOJISTA') {
+      await enviarPushParaLojista(payload.destinatarioId, pushPayload);
+    } else {
+      await enviarPushParaEntregador(payload.destinatarioId, pushPayload);
+    }
+  } catch (err) {
+    logger.error(
+      { err, pedidoId: payload.pedidoId, chatId: payload.chatId },
+      'falha ao notificar chat mensagem',
+    );
   }
 }

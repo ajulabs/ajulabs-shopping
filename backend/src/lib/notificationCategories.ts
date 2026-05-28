@@ -10,25 +10,28 @@
  * 3. (Opcional) Exponha na UI de preferências do app correspondente
  */
 
-export type NotifCategoriaConsumer =
-  | 'pedido_status'
-  | 'promocoes';
+export type NotifCategoriaConsumer = 'pedido_status' | 'promocoes' | 'chat_pedido';
 
-export type NotifCategoriaLojista =
-  | 'pedido_novo'
-  | 'ticket_novo';
+export type NotifCategoriaLojista = 'pedido_novo' | 'ticket_novo' | 'chat_pedido';
 
-export type NotifCategoriaEntregador =
-  | 'corrida_oferta';
+export type NotifCategoriaEntregador = 'corrida_oferta' | 'chat_pedido';
 
 export type NotifCategoria =
   | NotifCategoriaConsumer
   | NotifCategoriaLojista
   | NotifCategoriaEntregador;
 
-export const CATEGORIAS_CONSUMER: NotifCategoriaConsumer[] = ['pedido_status', 'promocoes'];
-export const CATEGORIAS_LOJISTA: NotifCategoriaLojista[] = ['pedido_novo', 'ticket_novo'];
-export const CATEGORIAS_ENTREGADOR: NotifCategoriaEntregador[] = ['corrida_oferta'];
+export const CATEGORIAS_CONSUMER: NotifCategoriaConsumer[] = [
+  'pedido_status',
+  'promocoes',
+  'chat_pedido',
+];
+export const CATEGORIAS_LOJISTA: NotifCategoriaLojista[] = [
+  'pedido_novo',
+  'ticket_novo',
+  'chat_pedido',
+];
+export const CATEGORIAS_ENTREGADOR: NotifCategoriaEntregador[] = ['corrida_oferta', 'chat_pedido'];
 
 /**
  * Lista de categorias válidas para um tipo de dono. Útil para validação
@@ -69,5 +72,9 @@ export const CATEGORIA_META: Record<NotifCategoria, { label: string; descricao: 
   corrida_oferta: {
     label: 'Nova corrida',
     descricao: 'Aviso quando uma entrega fica disponível na região',
+  },
+  chat_pedido: {
+    label: 'Mensagens do chat',
+    descricao: 'Aviso quando você recebe uma mensagem no chat de um pedido',
   },
 };

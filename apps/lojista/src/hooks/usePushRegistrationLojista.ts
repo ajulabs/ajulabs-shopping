@@ -3,16 +3,31 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 import { PushService } from '@ajulabs/api-client';
 import { useAuthLojistaStore } from '../features/lojista/auth/model/store';
+import { getCurrentChatPedido } from '../utils/currentChat';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data as
+      | { type?: string; pedidoId?: string }
+      | undefined;
+    if (data?.type === 'chat:mensagem' && data.pedidoId === getCurrentChatPedido()) {
+      return {
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+    return {
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 async function obterExpoPushToken(): Promise<string | null> {
@@ -68,9 +83,34 @@ async function obterExpoPushToken(): Promise<string | null> {
  * Mesma lógica do hook do consumer, ajustado para o auth store do lojista.
  */
 export function usePushRegistrationLojista(): void {
-  const token = useAuthLojistaStore(s => s.token);
-  const lojistaId = useAuthLojistaStore(s => s.lojistaId);
+  const router = useRouter();
+  const token = useAuthLojistaStore((s) => s.token);
+  const lojistaId = useAuthLojistaStore((s) => s.lojistaId);
   const tokenRegistradoRef = useRef<string | null>(null);
+
+  // Tap em notificação de chat → navega para a tela do chat.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    function handleResponse(response: Notifications.NotificationResponse) {
+      const data = response.notification.request.content.data as {
+        type?: string;
+        pedidoId?: string;
+      };
+      if (data?.type === 'chat:mensagem' && data.pedidoId) {
+        router.push(`/(lojista)/chat-pedido/${data.pedidoId}` as never);
+      }
+    }
+
+    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) handleResponse(response);
+      })
+      .catch(() => {});
+
+    return () => sub.remove();
+  }, [router]);
 
   useEffect(() => {
     if (!token || !lojistaId) {

@@ -10,12 +10,14 @@ import {
   Platform,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PedidoChatService } from '@ajulabs/api-client';
 import { useChatPedidoRealtime } from '@ajulabs/realtime';
 import type { ChatMensagemPedido } from '@ajulabs/types';
 import { useAuthEntregadorStore } from '../../auth/model/store';
+import { setCurrentChatPedido } from '../../../../utils/currentChat';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -41,15 +43,22 @@ export function ChatPedidoEntregadorScreen({
   const [mensagens, setMensagens] = useState<ChatMensagemPedido[]>([]);
   const [input, setInput] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const carregarChat = useCallback(async () => {
     if (!token) return;
-    const data = await PedidoChatService.buscarChat(pedidoId, token);
-    if (data) {
-      setChat(data);
-      setMensagens(data.mensagens ?? []);
-      await PedidoChatService.marcarLido(pedidoId, token);
+    try {
+      const data = await PedidoChatService.buscarChat(pedidoId, token);
+      if (data) {
+        setChat(data);
+        setMensagens(data.mensagens ?? []);
+        PedidoChatService.marcarLido(pedidoId, token).catch(() => {});
+      } else {
+        console.warn('[ChatEntregador] buscarChat retornou null. pedidoId:', pedidoId);
+      }
+    } catch (e: any) {
+      console.error('[ChatEntregador] buscarChat error:', e?.message);
     }
     setLoading(false);
   }, [pedidoId, token]);
@@ -57,6 +66,14 @@ export function ChatPedidoEntregadorScreen({
   useEffect(() => {
     carregarChat();
   }, [carregarChat]);
+
+  // Marca este chat como aberto enquanto a tela está montada.
+  useEffect(() => {
+    setCurrentChatPedido(pedidoId);
+    return () => {
+      setCurrentChatPedido(null);
+    };
+  }, [pedidoId]);
 
   useChatPedidoRealtime({
     apiUrl: API_URL,
@@ -83,16 +100,26 @@ export function ChatPedidoEntregadorScreen({
     if (!input.trim() || enviando || !token) return;
     const texto = input.trim();
     setInput('');
+    setErroEnvio(null);
     setEnviando(true);
+    console.log('[ChatEntregador] enviando:', {
+      pedidoId,
+      destinatario,
+      texto: texto.slice(0, 20),
+    });
     try {
       const msg = await PedidoChatService.enviarMensagem(pedidoId, token, texto, destinatario);
+      console.log('[ChatEntregador] mensagem enviada:', msg?.id);
       setMensagens((prev) => {
         if (prev.find((m) => m.id === msg.id)) return prev;
         return [...prev, msg as ChatMensagemPedido];
       });
       scrollRef.current?.scrollToEnd({ animated: true });
-    } catch {
+    } catch (e: any) {
       setInput(texto);
+      const msg = e?.message ?? 'Erro ao enviar mensagem';
+      console.error('[ChatEntregador] enviarMensagem error:', msg, { pedidoId, destinatario });
+      setErroEnvio(msg);
     } finally {
       setEnviando(false);
     }
@@ -183,6 +210,13 @@ export function ChatPedidoEntregadorScreen({
             );
           })}
         </ScrollView>
+
+        {erroEnvio && (
+          <View style={s.erroRow}>
+            <Ionicons name="alert-circle-outline" size={14} color="#B91C1C" />
+            <Text style={s.erroTxt}>{erroEnvio}</Text>
+          </View>
+        )}
 
         {!chatEncerrado ? (
           <View style={s.inputRow}>
@@ -310,4 +344,13 @@ const s = StyleSheet.create({
     borderTopColor: '#E4E7F1',
   },
   encerradoBannerTxt: { fontSize: 13, color: '#9099B3' },
+  erroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  erroTxt: { fontSize: 12, color: '#B91C1C', flex: 1 },
 });
