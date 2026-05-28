@@ -166,23 +166,41 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
   const ARACAJU = { lat: -10.9167, lng: -37.05 };
 
   useEffect(() => {
-    let sub: Location.LocationSubscription | null = null;
+    let cancelled = false;
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-      sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
-        (l) => setUserLocation({ lat: l.coords.latitude, lng: l.coords.longitude }),
-      );
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!cancelled) setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        const sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
+          (l) => {
+            if (!cancelled) setUserLocation({ lat: l.coords.latitude, lng: l.coords.longitude });
+          },
+        );
+        if (cancelled) {
+          try {
+            sub.remove();
+          } catch {}
+        } else {
+          locationSubRef.current = sub;
+        }
+      } catch {}
     })();
     return () => {
-      sub?.remove();
+      cancelled = true;
+      try {
+        locationSubRef.current?.remove();
+      } catch {}
+      locationSubRef.current = null;
     };
   }, []);
 

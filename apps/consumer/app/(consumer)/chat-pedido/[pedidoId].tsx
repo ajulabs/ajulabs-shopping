@@ -25,7 +25,10 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').rep
 type Participante = 'LOJISTA' | 'ENTREGADOR';
 
 export default function ChatPedidoScreen() {
-  const { pedidoId } = useLocalSearchParams<{ pedidoId: string }>();
+  const { pedidoId, destinatario: destinatarioParam } = useLocalSearchParams<{
+    pedidoId: string;
+    destinatario?: string;
+  }>();
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
@@ -33,7 +36,9 @@ export default function ChatPedidoScreen() {
 
   const [chat, setChat] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [destinatario, setDestinatario] = useState<Participante>('LOJISTA');
+  const [destinatario, setDestinatario] = useState<Participante>(
+    destinatarioParam === 'ENTREGADOR' ? 'ENTREGADOR' : 'LOJISTA',
+  );
   const [mensagens, setMensagens] = useState<ChatMensagemPedido[]>([]);
   const [input, setInput] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -45,8 +50,7 @@ export default function ChatPedidoScreen() {
     if (data) {
       setChat(data);
       setMensagens(data.mensagens ?? []);
-      if (data.participantes?.includes('ENTREGADOR')) setDestinatario('ENTREGADOR');
-      await PedidoChatService.marcarLido(pedidoId, token);
+      PedidoChatService.marcarLido(pedidoId, token).catch(() => {});
     }
     setLoading(false);
   }, [pedidoId, token]);

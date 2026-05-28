@@ -47,28 +47,28 @@ export function useNavigation(
     stepAdvanceDistance = 25,
   } = config ?? {};
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [heading, setHeading]           = useState(0);
-  const [speedKmh, setSpeedKmh]         = useState(0);
-  const [routeCoords, setRouteCoords]   = useState<{ lat: number; lng: number }[]>([]);
-  const [steps, setSteps]               = useState<NavStep[]>([]);
-  const [stepIdx, setStepIdx]           = useState(0);
-  const [distanceToStep, setDistanceToStep]   = useState(0);
-  const [etaSeconds, setEtaSeconds]           = useState(0);
+  const [heading, setHeading] = useState(0);
+  const [speedKmh, setSpeedKmh] = useState(0);
+  const [routeCoords, setRouteCoords] = useState<{ lat: number; lng: number }[]>([]);
+  const [steps, setSteps] = useState<NavStep[]>([]);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [distanceToStep, setDistanceToStep] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState(0);
   const [distanceRemaining, setDistanceRemaining] = useState(0);
-  const [isOffRoute, setIsOffRoute]     = useState(false);
-  const [routeReady, setRouteReady]     = useState(false);
+  const [isOffRoute, setIsOffRoute] = useState(false);
+  const [routeReady, setRouteReady] = useState(false);
 
-  const routeCoordsRef    = useRef<{ lat: number; lng: number }[]>([]);
-  const stepsRef          = useRef<NavStep[]>([]);
-  const stepIdxRef        = useRef(0);
-  const progressIdxRef    = useRef(0);
-  const destRef           = useRef(destination);
-  const fetchKeyRef       = useRef('');
-  const fetchingRef       = useRef(false);
-  const userLocationRef   = useRef<{ lat: number; lng: number } | null>(null);
-  const routeReadyRef     = useRef(false);
+  const routeCoordsRef = useRef<{ lat: number; lng: number }[]>([]);
+  const stepsRef = useRef<NavStep[]>([]);
+  const stepIdxRef = useRef(0);
+  const progressIdxRef = useRef(0);
+  const destRef = useRef(destination);
+  const fetchKeyRef = useRef('');
+  const fetchingRef = useRef(false);
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const routeReadyRef = useRef(false);
 
-  destRef.current       = destination;
+  destRef.current = destination;
   routeReadyRef.current = routeReady;
 
   const fetchRoute = useCallback(async (from: { lat: number; lng: number }) => {
@@ -84,8 +84,8 @@ export function useNavigation(
       const result = await fetchOsrmFull(from, dest);
 
       routeCoordsRef.current = result.coords;
-      stepsRef.current       = result.steps;
-      stepIdxRef.current     = 0;
+      stepsRef.current = result.steps;
+      stepIdxRef.current = 0;
       progressIdxRef.current = 0;
 
       setRouteCoords(result.coords);
@@ -104,74 +104,95 @@ export function useNavigation(
     }
   }, []);
 
+  const navSubRef = useRef<Location.LocationSubscription | null>(null);
   useEffect(() => {
     if (!active) return;
-    let sub: Location.LocationSubscription | null = null;
+    let cancelled = false;
 
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
 
-      sub = await Location.watchPositionAsync(
-        {
-          accuracy: accuracyMode === 'high'
-            ? Location.Accuracy.BestForNavigation
-            : Location.Accuracy.Balanced,
-          distanceInterval,
-          timeInterval,
-        },
-        (loc) => {
-          const pos  = { lat: loc.coords.latitude, lng: loc.coords.longitude };
-          const hdg  = Math.max(0, loc.coords.heading ?? 0);
-          const spd  = Math.max(0, (loc.coords.speed ?? 0) * 3.6);
+        const sub = await Location.watchPositionAsync(
+          {
+            accuracy:
+              accuracyMode === 'high'
+                ? Location.Accuracy.BestForNavigation
+                : Location.Accuracy.Balanced,
+            distanceInterval,
+            timeInterval,
+          },
+          (loc) => {
+            const pos = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+            const hdg = Math.max(0, loc.coords.heading ?? 0);
+            const spd = Math.max(0, (loc.coords.speed ?? 0) * 3.6);
 
-          setUserLocation(pos);
-          userLocationRef.current = pos;
-          setHeading(hdg);
-          setSpeedKmh(spd);
+            setUserLocation(pos);
+            userLocationRef.current = pos;
+            setHeading(hdg);
+            setSpeedKmh(spd);
 
-          const coords = routeCoordsRef.current;
-          const steps  = stepsRef.current;
+            const coords = routeCoordsRef.current;
+            const steps = stepsRef.current;
 
-          if (coords.length === 0) {
-            fetchRoute(pos);
-            return;
-          }
-
-          const { idx: nearIdx, dist: nearDist } = nearestIdx(pos, coords, progressIdxRef.current);
-          if (nearDist > offRouteThreshold) {
-            setIsOffRoute(true);
-            fetchKeyRef.current = '';
-            fetchRoute(pos);
-            return;
-          }
-
-          progressIdxRef.current = nearIdx;
-          setIsOffRoute(false);
-
-          const sIdx = stepIdxRef.current;
-          if (steps.length > sIdx) {
-            const dToStep = haversine(pos, steps[sIdx].location);
-            setDistanceToStep(dToStep);
-            if (dToStep < stepAdvanceDistance && sIdx + 1 < steps.length) {
-              stepIdxRef.current = sIdx + 1;
-              setStepIdx(sIdx + 1);
+            if (coords.length === 0) {
+              fetchRoute(pos);
+              return;
             }
-          }
 
-          const currentSIdx = stepIdxRef.current;
-          const remainingEta = steps.slice(currentSIdx).reduce((a, s) => a + s.duration, 0);
-          setEtaSeconds(remainingEta);
+            const { idx: nearIdx, dist: nearDist } = nearestIdx(
+              pos,
+              coords,
+              progressIdxRef.current,
+            );
+            if (nearDist > offRouteThreshold) {
+              setIsOffRoute(true);
+              fetchKeyRef.current = '';
+              fetchRoute(pos);
+              return;
+            }
 
-          if (destRef.current) {
-            setDistanceRemaining(haversine(pos, destRef.current));
-          }
+            progressIdxRef.current = nearIdx;
+            setIsOffRoute(false);
+
+            const sIdx = stepIdxRef.current;
+            if (steps.length > sIdx) {
+              const dToStep = haversine(pos, steps[sIdx].location);
+              setDistanceToStep(dToStep);
+              if (dToStep < stepAdvanceDistance && sIdx + 1 < steps.length) {
+                stepIdxRef.current = sIdx + 1;
+                setStepIdx(sIdx + 1);
+              }
+            }
+
+            const currentSIdx = stepIdxRef.current;
+            const remainingEta = steps.slice(currentSIdx).reduce((a, s) => a + s.duration, 0);
+            setEtaSeconds(remainingEta);
+
+            if (destRef.current) {
+              setDistanceRemaining(haversine(pos, destRef.current));
+            }
+          },
+        );
+        if (cancelled) {
+          try {
+            sub.remove();
+          } catch {}
+        } else {
+          navSubRef.current = sub;
         }
-      );
+      } catch {}
     })();
 
-    return () => { sub?.remove(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+      try {
+        navSubRef.current?.remove();
+      } catch {}
+      navSubRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, fetchRoute, accuracyMode, distanceInterval, timeInterval]);
 
   useEffect(() => {
@@ -179,7 +200,7 @@ export function useNavigation(
       fetchKeyRef.current = '';
       fetchRoute(userLocation);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination?.lat, destination?.lng]);
 
   // Retry route every 8 s when not yet ready — handles desktop browsers where
@@ -194,7 +215,7 @@ export function useNavigation(
       fetchRoute(pos);
     }, 8000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, routeReady, fetchRoute]);
 
   return {
@@ -204,7 +225,7 @@ export function useNavigation(
     routeCoords,
     steps,
     currentStep: steps[stepIdx] ?? null,
-    nextStep:    steps[stepIdx + 1] ?? null,
+    nextStep: steps[stepIdx + 1] ?? null,
     distanceToStep,
     etaSeconds,
     distanceRemaining,

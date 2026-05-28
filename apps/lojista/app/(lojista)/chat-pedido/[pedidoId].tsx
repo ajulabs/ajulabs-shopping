@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,26 +24,38 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').rep
 type Destinatario = 'CONSUMER' | 'ENTREGADOR';
 
 export default function ChatPedidoLojistaScreen() {
-  const { pedidoId } = useLocalSearchParams<{ pedidoId: string }>();
+  const { pedidoId, destinatario: destinatarioParam } = useLocalSearchParams<{
+    pedidoId: string;
+    destinatario?: string;
+  }>();
   const router = useRouter();
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
 
   const [chat, setChat] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [destinatario, setDestinatario] = useState<Destinatario>('CONSUMER');
+  const [destinatario, setDestinatario] = useState<Destinatario>(
+    destinatarioParam === 'ENTREGADOR' ? 'ENTREGADOR' : 'CONSUMER',
+  );
   const [mensagens, setMensagens] = useState<ChatMensagemPedido[]>([]);
   const [input, setInput] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const carregarChat = useCallback(async () => {
     if (!token || !pedidoId) return;
-    const data = await PedidoChatService.buscarChat(pedidoId, token);
-    if (data) {
-      setChat(data);
-      setMensagens(data.mensagens ?? []);
-      await PedidoChatService.marcarLido(pedidoId, token);
+    try {
+      const data = await PedidoChatService.buscarChat(pedidoId, token);
+      if (data) {
+        setChat(data);
+        setMensagens(data.mensagens ?? []);
+        PedidoChatService.marcarLido(pedidoId, token).catch(() => {});
+      } else {
+        console.warn('[ChatLojista] buscarChat retornou null para pedidoId:', pedidoId);
+      }
+    } catch (e: any) {
+      console.error('[ChatLojista] buscarChat error:', e?.message);
     }
     setLoading(false);
   }, [pedidoId, token]);
@@ -76,22 +89,29 @@ export default function ChatPedidoLojistaScreen() {
     if (!input.trim() || enviando || !token || !pedidoId) return;
     const texto = input.trim();
     setInput('');
+    setErroEnvio(null);
     setEnviando(true);
+    console.log('[ChatLojista] enviando:', { pedidoId, destinatario, texto: texto.slice(0, 20) });
     try {
       const msg = await PedidoChatService.enviarMensagem(pedidoId, token, texto, destinatario);
+      console.log('[ChatLojista] mensagem enviada:', msg?.id);
       setMensagens((prev) => {
         if (prev.find((m) => m.id === msg.id)) return prev;
         return [...prev, msg as ChatMensagemPedido];
       });
       scrollRef.current?.scrollToEnd({ animated: true });
-    } catch {
+    } catch (e: any) {
       setInput(texto);
+      const errMsg = e?.message ?? 'Erro ao enviar mensagem';
+      console.error('[ChatLojista] enviarMensagem error:', errMsg, { pedidoId, destinatario });
+      setErroEnvio(errMsg);
     } finally {
       setEnviando(false);
     }
   };
 
-  const hasEntregador = chat?.participantes?.includes('ENTREGADOR');
+  const hasEntregador =
+    chat?.participantes?.includes('ENTREGADOR') || destinatarioParam === 'ENTREGADOR';
   const chatEncerrado = chat?.status === 'encerrado';
   const msgsFiltradas = mensagens.filter(
     (m) =>
@@ -177,6 +197,13 @@ export default function ChatPedidoLojistaScreen() {
             );
           })}
         </ScrollView>
+
+        {erroEnvio && (
+          <View style={s.erroRow}>
+            <Ionicons name="alert-circle-outline" size={14} color="#B91C1C" />
+            <Text style={s.erroTxt}>{erroEnvio}</Text>
+          </View>
+        )}
 
         {!chatEncerrado ? (
           <View style={s.inputRow}>
@@ -304,4 +331,13 @@ const s = StyleSheet.create({
     borderTopColor: '#E4E7F1',
   },
   encerradoBannerTxt: { fontSize: 13, color: '#9099B3' },
+  erroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  erroTxt: { fontSize: 12, color: '#B91C1C', flex: 1 },
 });

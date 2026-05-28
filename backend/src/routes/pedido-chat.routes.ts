@@ -49,32 +49,58 @@ function verificarPermissaoPar(
   return pares.some(([r, d]) => r === remetenteType && d === destinatarioType);
 }
 
+const chatInclude = {
+  mensagens: { orderBy: { criadoEm: 'asc' as const } },
+  pedido: {
+    select: {
+      id: true,
+      status: true,
+      consumidorId: true,
+      lojaId: true,
+      entregadorId: true,
+      loja: { select: { nome: true, logoUrl: true } },
+      consumidor: { select: { nome: true } },
+      entregador: { select: { id: true, nome: true } },
+    },
+  },
+} as const;
+
+async function garantirChat(pedidoId: string) {
+  await prisma.chatPedido.upsert({
+    where: { pedidoId },
+    create: { pedidoId },
+    update: {},
+  });
+  return prisma.chatPedido.findUnique({ where: { pedidoId }, include: chatInclude });
+}
+
 // GET /v1/pedido-chat/pedido/:pedidoId
 router.get('/pedido/:pedidoId', async (req: AuthRequest, res) => {
   try {
     const participante = await resolverParticipante(req);
     if (!participante) return res.status(403).json({ error: 'Acesso negado' });
 
-    const chat = await prisma.chatPedido.findUnique({
+    let chat = await prisma.chatPedido.findUnique({
       where: { pedidoId: req.params.pedidoId },
-      include: {
-        mensagens: { orderBy: { criadoEm: 'asc' } },
-        pedido: {
-          select: {
-            id: true,
-            status: true,
-            consumidorId: true,
-            lojaId: true,
-            entregadorId: true,
-            loja: { select: { nome: true, logoUrl: true } },
-            consumidor: { select: { nome: true } },
-            entregador: { select: { id: true, nome: true } },
-          },
-        },
-      },
+      include: chatInclude,
     });
 
-    if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+    if (!chat) {
+      const pedido = await prisma.pedido.findUnique({
+        where: { id: req.params.pedidoId },
+        select: { consumidorId: true, lojaId: true, entregadorId: true },
+      });
+      if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado' });
+
+      const autorizado =
+        (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
+        (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
+        (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
+      if (!autorizado) return res.status(403).json({ error: 'Acesso negado' });
+
+      chat = await garantirChat(req.params.pedidoId);
+      if (!chat) return res.status(500).json({ error: 'Erro ao criar chat' });
+    }
 
     const { pedido } = chat;
     const autorizado =
@@ -125,7 +151,7 @@ router.post('/pedido/:pedidoId/mensagem', async (req: AuthRequest, res) => {
 
     const { conteudo, destinatarioType } = enviarMensagemSchema.parse(req.body);
 
-    const chat = await prisma.chatPedido.findUnique({
+    let chat = await prisma.chatPedido.findUnique({
       where: { pedidoId: req.params.pedidoId },
       include: {
         pedido: {
@@ -142,7 +168,44 @@ router.post('/pedido/:pedidoId/mensagem', async (req: AuthRequest, res) => {
       },
     });
 
-    if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+    if (!chat) {
+      const pedido = await prisma.pedido.findUnique({
+        where: { id: req.params.pedidoId },
+        select: { consumidorId: true, lojaId: true, entregadorId: true },
+      });
+      if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado' });
+
+      const autorizado =
+        (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
+        (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
+        (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
+      if (!autorizado) return res.status(403).json({ error: 'Acesso negado' });
+
+      await prisma.chatPedido.upsert({
+        where: { pedidoId: req.params.pedidoId },
+        create: { pedidoId: req.params.pedidoId },
+        update: {},
+      });
+
+      chat = await prisma.chatPedido.findUnique({
+        where: { pedidoId: req.params.pedidoId },
+        include: {
+          pedido: {
+            select: {
+              consumidorId: true,
+              lojaId: true,
+              entregadorId: true,
+              status: true,
+              consumidor: { select: { nome: true } },
+              loja: { select: { nome: true } },
+              entregador: { select: { id: true, nome: true } },
+            },
+          },
+        },
+      });
+      if (!chat) return res.status(500).json({ error: 'Erro ao criar chat' });
+    }
+
     if (chat.status === 'encerrado') return res.status(400).json({ error: 'Chat encerrado' });
 
     const { pedido } = chat;
@@ -296,11 +359,32 @@ router.put('/pedido/:pedidoId/lido', async (req: AuthRequest, res) => {
     const participante = await resolverParticipante(req);
     if (!participante) return res.status(403).json({ error: 'Acesso negado' });
 
-    const chat = await prisma.chatPedido.findUnique({
+    let chat = await prisma.chatPedido.findUnique({
       where: { pedidoId: req.params.pedidoId },
       select: { id: true },
     });
-    if (!chat) return res.status(404).json({ error: 'Chat não encontrado' });
+    if (!chat) {
+      const pedido = await prisma.pedido.findUnique({
+        where: { id: req.params.pedidoId },
+        select: { consumidorId: true, lojaId: true, entregadorId: true },
+      });
+      if (!pedido) return res.json({ ok: true });
+      const autorizado =
+        (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
+        (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
+        (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
+      if (!autorizado) return res.json({ ok: true });
+      await prisma.chatPedido.upsert({
+        where: { pedidoId: req.params.pedidoId },
+        create: { pedidoId: req.params.pedidoId },
+        update: {},
+      });
+      chat = await prisma.chatPedido.findUnique({
+        where: { pedidoId: req.params.pedidoId },
+        select: { id: true },
+      });
+      if (!chat) return res.json({ ok: true });
+    }
 
     await prisma.chatMensagemPedido.updateMany({
       where: {

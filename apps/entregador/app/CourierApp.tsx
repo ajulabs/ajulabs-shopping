@@ -182,6 +182,7 @@ export function CourierApp() {
   const [screen, setScreen] = useState<Screen>(needsOnboarding ? 'onboarding' : 'main');
   const [tab, setTab] = useState<Tab>('home');
   const [chatPedidoId, setChatPedidoId] = useState<string | null>(null);
+  const [chatFromScreen, setChatFromScreen] = useState<'conversas' | 'active'>('conversas');
 
   // Múltiplas entregas (máx 2)
   const [activeRides, setActiveRides] = useState<ActiveRideWithStage[]>([]);
@@ -280,13 +281,18 @@ export function CourierApp() {
         onBack={() => setScreen('main')}
         onAbrirChat={(pedidoId) => {
           setChatPedidoId(pedidoId);
+          setChatFromScreen('conversas');
           setScreen('chat');
         }}
       />
     );
   if (screen === 'chat' && chatPedidoId)
     return (
-      <ChatPedidoEntregadorScreen pedidoId={chatPedidoId} onBack={() => setScreen('conversas')} />
+      <ChatPedidoEntregadorScreen
+        pedidoId={chatPedidoId}
+        initialDestinatario={chatFromScreen === 'active' ? 'LOJISTA' : 'CONSUMER'}
+        onBack={() => setScreen(chatFromScreen === 'active' ? 'active' : 'conversas')}
+      />
     );
 
   if (screen === 'active' && selectedRide) {
@@ -298,6 +304,7 @@ export function CourierApp() {
         onFinish={handleActiveFinish}
         onOpenChat={(pedidoId) => {
           setChatPedidoId(pedidoId);
+          setChatFromScreen('active');
           setScreen('chat');
         }}
       />
