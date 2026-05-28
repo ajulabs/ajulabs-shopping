@@ -10,19 +10,11 @@
  * 3. (Opcional) Exponha na UI de preferências do app correspondente
  */
 
-export type NotifCategoriaConsumer =
-  | 'pedido_status'
-  | 'promocoes'
-  | 'chat_pedido';
+export type NotifCategoriaConsumer = 'pedido_status' | 'promocoes' | 'chat_pedido';
 
-export type NotifCategoriaLojista =
-  | 'pedido_novo'
-  | 'ticket_novo'
-  | 'chat_pedido';
+export type NotifCategoriaLojista = 'pedido_novo' | 'ticket_novo' | 'chat_pedido';
 
-export type NotifCategoriaEntregador =
-  | 'corrida_oferta'
-  | 'chat_pedido';
+export type NotifCategoriaEntregador = 'corrida_oferta' | 'chat_pedido';
 
 export type NotifCategoria =
   | NotifCategoriaConsumer
@@ -39,10 +31,7 @@ export const CATEGORIAS_LOJISTA: NotifCategoriaLojista[] = [
   'ticket_novo',
   'chat_pedido',
 ];
-export const CATEGORIAS_ENTREGADOR: NotifCategoriaEntregador[] = [
-  'corrida_oferta',
-  'chat_pedido',
-];
+export const CATEGORIAS_ENTREGADOR: NotifCategoriaEntregador[] = ['corrida_oferta', 'chat_pedido'];
 
 /**
  * Lista de categorias válidas para um tipo de dono. Útil para validação

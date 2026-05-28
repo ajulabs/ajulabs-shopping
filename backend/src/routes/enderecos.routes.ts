@@ -4,8 +4,25 @@ import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { logger } from '../lib/logger';
 import { viaCepByCep, geocodeByCep, geocodeByQuery } from '../lib/geocoder';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
+
+const criarEnderecoSpec = {
+  name: 'POST_enderecos',
+  input: {
+    apelido: { required: true, type: 'string' },
+    rua: { required: true, type: 'string' },
+    numero: { required: true, type: 'string' },
+    bairro: { required: true, type: 'string' },
+    cep: { required: true, type: 'string', constraints: ['8 dígitos numéricos'] },
+    cidade: { required: true, type: 'string' },
+    complemento: { required: false, type: 'string' },
+    lat: { required: false, type: 'number' },
+    lng: { required: false, type: 'number' },
+    geoSource: { required: false, type: 'enum', constraints: ["'gps' | 'geocode' | 'manual'"] },
+  },
+} as const;
 
 const enderecoSchema = z.object({
   apelido: z.string().min(1),
@@ -68,34 +85,42 @@ router.get('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
 });
 
 // POST /enderecos
-router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
-  const dados = enderecoSchema.parse(req.body);
+router.post(
+  '/',
+  authMiddleware,
+  authUsuario,
+  specValidatorMiddleware(criarEnderecoSpec),
+  async (req: AuthRequest, res) => {
+    const dados = enderecoSchema.parse(req.body);
 
-  // Validar CEP no ViaCEP (P3)
-  const via = await viaCepByCep(dados.cep);
-  if (!via) {
-    return res.status(422).json({ error: 'CEP inválido ou não encontrado.' });
-  }
+    // Validar CEP no ViaCEP (P3)
+    const via = await viaCepByCep(dados.cep);
+    if (!via) {
+      return res.status(422).json({ error: 'CEP inválido ou não encontrado.' });
+    }
 
-  const { lat: latExt, lng: lngExt, geoSource: srcExt, ...dadosSemCoords } = dados;
-  const coords = await resolverCoords(
-    dadosSemCoords,
-    latExt != null && lngExt != null ? { lat: latExt, lng: lngExt, geoSource: srcExt } : undefined,
-  );
+    const { lat: latExt, lng: lngExt, geoSource: srcExt, ...dadosSemCoords } = dados;
+    const coords = await resolverCoords(
+      dadosSemCoords,
+      latExt != null && lngExt != null
+        ? { lat: latExt, lng: lngExt, geoSource: srcExt }
+        : undefined,
+    );
 
-  const total = await prisma.enderecoUsuario.count({ where: { usuarioId: req.user!.id } });
+    const total = await prisma.enderecoUsuario.count({ where: { usuarioId: req.user!.id } });
 
-  const endereco = await prisma.enderecoUsuario.create({
-    data: {
-      ...dadosSemCoords,
-      usuarioId: req.user!.id,
-      padrao: total === 0,
-      ...coords,
-    },
-  });
+    const endereco = await prisma.enderecoUsuario.create({
+      data: {
+        ...dadosSemCoords,
+        usuarioId: req.user!.id,
+        padrao: total === 0,
+        ...coords,
+      },
+    });
 
-  res.status(201).json({ endereco });
-});
+    res.status(201).json({ endereco });
+  },
+);
 
 // PUT /enderecos/:id
 router.put('/:id', authMiddleware, authUsuario, async (req: AuthRequest, res) => {

@@ -3,10 +3,43 @@ import { z } from 'zod';
 import multer from 'multer';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import * as svc from '../services/lojista.service';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
+
+const ticketStatusSpec = {
+  name: 'PATCH_lojista_tickets_id_status',
+  input: {
+    status: {
+      required: true,
+      type: 'string',
+      constraints: ["'aberto' | 'em_andamento' | 'resolvido' | 'cancelado'"],
+    },
+  },
+} as const;
+
+const ticketUrgenteSpec = {
+  name: 'PATCH_lojista_tickets_id_urgente',
+  input: {
+    urgente: { required: true, type: 'boolean' },
+  },
+} as const;
+
+const ticketNotaSpec = {
+  name: 'POST_lojista_tickets_id_notas',
+  input: {
+    texto: { required: true, type: 'string' },
+  },
+} as const;
+
+const ticketMensagemLojistaSpec = {
+  name: 'POST_lojista_tickets_id_mensagens',
+  input: {
+    texto: { required: true, type: 'string' },
+  },
+} as const;
 
 const lojaUpdateSchema = z.object({
   nome: z.string().min(2).optional(),
@@ -231,30 +264,49 @@ router.get('/tickets/:id', authMiddleware, authLojista, async (req: AuthRequest,
   res.json({ ticket });
 });
 
-router.patch('/tickets/:id/status', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  const ticket = await svc.updateTicketStatus(req.params.id, req.user!.id, req.body.status);
-  res.json({ ticket });
-});
+router.patch(
+  '/tickets/:id/status',
+  authMiddleware,
+  authLojista,
+  specValidatorMiddleware(ticketStatusSpec),
+  async (req: AuthRequest, res) => {
+    const ticket = await svc.updateTicketStatus(req.params.id, req.user!.id, req.body.status);
+    res.json({ ticket });
+  },
+);
 
-router.patch('/tickets/:id/urgente', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  const ticket = await svc.updateTicketUrgente(
-    req.params.id,
-    req.user!.id,
-    Boolean(req.body.urgente),
-  );
-  res.json({ ticket });
-});
+router.patch(
+  '/tickets/:id/urgente',
+  authMiddleware,
+  authLojista,
+  specValidatorMiddleware(ticketUrgenteSpec),
+  async (req: AuthRequest, res) => {
+    const ticket = await svc.updateTicketUrgente(
+      req.params.id,
+      req.user!.id,
+      Boolean(req.body.urgente),
+    );
+    res.json({ ticket });
+  },
+);
 
-router.post('/tickets/:id/notas', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  if (!req.body.texto?.trim()) return res.status(400).json({ error: 'Texto obrigatório' });
-  const nota = await svc.addTicketNota(req.params.id, req.user!.id, req.body.texto);
-  res.status(201).json({ nota });
-});
+router.post(
+  '/tickets/:id/notas',
+  authMiddleware,
+  authLojista,
+  specValidatorMiddleware(ticketNotaSpec),
+  async (req: AuthRequest, res) => {
+    if (!req.body.texto?.trim()) return res.status(400).json({ error: 'Texto obrigatório' });
+    const nota = await svc.addTicketNota(req.params.id, req.user!.id, req.body.texto);
+    res.status(201).json({ nota });
+  },
+);
 
 router.post(
   '/tickets/:id/mensagens',
   authMiddleware,
   authLojista,
+  specValidatorMiddleware(ticketMensagemLojistaSpec),
   async (req: AuthRequest, res) => {
     if (!req.body.texto?.trim()) return res.status(400).json({ error: 'Texto obrigatório' });
     const mensagem = await svc.addTicketMensagem(req.params.id, req.user!.id, req.body.texto);

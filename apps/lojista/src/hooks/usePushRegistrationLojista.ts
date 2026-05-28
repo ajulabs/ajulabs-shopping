@@ -84,8 +84,8 @@ async function obterExpoPushToken(): Promise<string | null> {
  */
 export function usePushRegistrationLojista(): void {
   const router = useRouter();
-  const token = useAuthLojistaStore(s => s.token);
-  const lojistaId = useAuthLojistaStore(s => s.lojistaId);
+  const token = useAuthLojistaStore((s) => s.token);
+  const lojistaId = useAuthLojistaStore((s) => s.lojistaId);
   const tokenRegistradoRef = useRef<string | null>(null);
 
   // Tap em notificação de chat → navega para a tela do chat.

@@ -2,8 +2,23 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
+
+const criarLojaSpec = {
+  name: 'POST_lojas',
+  input: {
+    nome: { required: true, type: 'string' },
+    descricao: { required: true, type: 'string' },
+    categoria: { required: true, type: 'string' },
+    telefone: { required: true, type: 'string' },
+    tempoEntregaMin: { required: true, type: 'number' },
+    tempoEntregaMax: { required: true, type: 'number' },
+    taxaEntrega: { required: true, type: 'number' },
+    endereco: { required: true, type: 'object' },
+  },
+} as const;
 
 // GET /lojas - Listar todas (público)
 router.get('/', async (req, res) => {
@@ -103,31 +118,37 @@ const criarLojaSchema = z.object({
   }),
 });
 
-router.post('/', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  try {
-    const dados = criarLojaSchema.parse(req.body);
+router.post(
+  '/',
+  authMiddleware,
+  authLojista,
+  specValidatorMiddleware(criarLojaSpec),
+  async (req: AuthRequest, res) => {
+    try {
+      const dados = criarLojaSchema.parse(req.body);
 
-    const loja = await prisma.loja.create({
-      data: {
-        lojistaId: req.user!.id,
-        nome: dados.nome,
-        descricao: dados.descricao,
-        categoria: dados.categoria,
-        telefone: dados.telefone,
-        tempoEntregaMin: dados.tempoEntregaMin,
-        tempoEntregaMax: dados.tempoEntregaMax,
-        taxaEntrega: dados.taxaEntrega,
-        endereco: { create: dados.endereco },
-      },
-      include: { endereco: true },
-    });
+      const loja = await prisma.loja.create({
+        data: {
+          lojistaId: req.user!.id,
+          nome: dados.nome,
+          descricao: dados.descricao,
+          categoria: dados.categoria,
+          telefone: dados.telefone,
+          tempoEntregaMin: dados.tempoEntregaMin,
+          tempoEntregaMax: dados.tempoEntregaMax,
+          taxaEntrega: dados.taxaEntrega,
+          endereco: { create: dados.endereco },
+        },
+        include: { endereco: true },
+      });
 
-    res.status(201).json({ loja });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    res.status(500).json({ error: 'Erro ao criar loja' });
-  }
-});
+      res.status(201).json({ loja });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      res.status(500).json({ error: 'Erro ao criar loja' });
+    }
+  },
+);
 
 // PUT /lojas/:id - Atualizar loja (lojista autenticado)
 router.put('/:id', authMiddleware, authLojista, async (req: AuthRequest, res) => {

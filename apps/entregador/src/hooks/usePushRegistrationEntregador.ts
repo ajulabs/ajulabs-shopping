@@ -87,8 +87,8 @@ async function obterExpoPushToken(): Promise<string | null> {
  */
 export function usePushRegistrationEntregador(): void {
   const router = useRouter();
-  const token = useAuthEntregadorStore(s => s.token);
-  const entregadorId = useAuthEntregadorStore(s => s.entregadorId);
+  const token = useAuthEntregadorStore((s) => s.token);
+  const entregadorId = useAuthEntregadorStore((s) => s.entregadorId);
   const tokenRegistradoRef = useRef<string | null>(null);
 
   // Listener: quando o entregador toca numa notificação de corrida,

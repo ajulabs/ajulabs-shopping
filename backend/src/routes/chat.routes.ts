@@ -19,6 +19,8 @@ import {
 } from '../tools/queixaFlow';
 import { chatLimiter } from '../lib/rateLimiter';
 import { logger } from '../lib/logger';
+import { specValidatorMiddleware } from '../lib/spec-validator';
+import { AGENT_SPEC_CONTEXT } from '../lib/agent-context';
 
 const router = Router();
 
@@ -27,6 +29,8 @@ router.use(chatLimiter);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SYSTEM_AGENTE = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
+
+${AGENT_SPEC_CONTEXT}
 
 Use as ferramentas disponíveis quando necessário:
 - buscar_produtos: usuário quer COMPRAR algo novo ou ver recomendações
@@ -52,6 +56,16 @@ Regras:
 - Para tickets: confirme o registro pelo protocolo e diga que a equipe entrará em contato em breve
 - "sugestoes" apenas para contexto de busca de produtos, máximo 3; caso contrário retorne []
 - Nunca mencione Amazon, iFood ou Shopee`;
+
+const chatMensagemSpec = {
+  name: 'POST_chat_mensagem',
+  input: {
+    texto: { required: true, type: 'string', constraints: ['min 1, max 1000'] },
+    historico: { required: false, type: 'array' },
+    conversaId: { required: false, type: 'string', constraints: ['uuid'] },
+    pedidoSelecionadoId: { required: false, type: 'string', constraints: ['uuid'] },
+  },
+} as const;
 
 const mensagemSchema = z.object({
   texto: z.string().min(1).max(1000),
@@ -92,130 +106,136 @@ function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
 }
 
 // POST /chat/mensagem
-router.post('/mensagem', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
-  try {
-    const {
-      texto,
-      historico,
-      conversaId: conversaIdReq,
-      pedidoSelecionadoId,
-    } = mensagemSchema.parse(req.body);
-    const usuarioId = req.user!.id;
+router.post(
+  '/mensagem',
+  authMiddleware,
+  authUsuario,
+  specValidatorMiddleware(chatMensagemSpec),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const {
+        texto,
+        historico,
+        conversaId: conversaIdReq,
+        pedidoSelecionadoId,
+      } = mensagemSchema.parse(req.body);
+      const usuarioId = req.user!.id;
 
-    const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
-    const conversaId = conversa.id;
+      const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
+      const conversaId = conversa.id;
 
-    const estado = await obterEstado(conversaId);
+      const estado = await obterEstado(conversaId);
 
-    // ── Passo 3: confirmação ──────────────────────────────────────────────────
-    if (estado?.passo === 'confirmando') {
-      const resultado = await processarConfirmacao(conversaId, usuarioId, texto);
-      const textoSalvo =
-        resultado.tipo === 'resposta' ? resultado.texto : (resultado as { texto: string }).texto;
-      await salvarMensagens(conversaId, texto, textoSalvo);
-      return res.json({ ...resultado, conversaId });
-    }
+      // ── Passo 3: confirmação ──────────────────────────────────────────────────
+      if (estado?.passo === 'confirmando') {
+        const resultado = await processarConfirmacao(conversaId, usuarioId, texto);
+        const textoSalvo =
+          resultado.tipo === 'resposta' ? resultado.texto : (resultado as { texto: string }).texto;
+        await salvarMensagens(conversaId, texto, textoSalvo);
+        return res.json({ ...resultado, conversaId });
+      }
 
-    // ── Passo 2: seleção de pedido ────────────────────────────────────────────
-    if (estado?.passo === 'selecionando_pedido') {
-      const resultado = await processarSelecaoPedido(conversaId, texto, pedidoSelecionadoId);
-      await salvarMensagens(conversaId, texto, resultado.texto);
-      return res.json({ ...resultado, conversaId });
-    }
+      // ── Passo 2: seleção de pedido ────────────────────────────────────────────
+      if (estado?.passo === 'selecionando_pedido') {
+        const resultado = await processarSelecaoPedido(conversaId, texto, pedidoSelecionadoId);
+        await salvarMensagens(conversaId, texto, resultado.texto);
+        return res.json({ ...resultado, conversaId });
+      }
 
-    // ── Fluxo normal com OpenAI ───────────────────────────────────────────────
-    const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map((m) => ({
-      role: m.remetente === 'usuario' ? 'user' : 'assistant',
-      content: m.conteudo,
-    }));
+      // ── Fluxo normal com OpenAI ───────────────────────────────────────────────
+      const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map((m) => ({
+        role: m.remetente === 'usuario' ? 'user' : 'assistant',
+        content: m.conteudo,
+      }));
 
-    const primeiraResposta = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      max_tokens: 300,
-      response_format: { type: 'json_object' },
-      tools: TOOL_DEFINITIONS,
-      tool_choice: 'auto',
-      messages: [
-        { role: 'system', content: SYSTEM_AGENTE },
-        ...historicoParsed,
-        { role: 'user', content: texto },
-      ],
-    });
+      const primeiraResposta = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 300,
+        response_format: { type: 'json_object' },
+        tools: TOOL_DEFINITIONS,
+        tool_choice: 'auto',
+        messages: [
+          { role: 'system', content: SYSTEM_AGENTE },
+          ...historicoParsed,
+          { role: 'user', content: texto },
+        ],
+      });
 
-    const mensagemAgente = primeiraResposta.choices[0].message;
+      const mensagemAgente = primeiraResposta.choices[0].message;
 
-    // Sem tool: resposta direta
-    if (!mensagemAgente.tool_calls || mensagemAgente.tool_calls.length === 0) {
-      const resposta = JSON.parse(mensagemAgente.content ?? '{}');
+      // Sem tool: resposta direta
+      if (!mensagemAgente.tool_calls || mensagemAgente.tool_calls.length === 0) {
+        const resposta = JSON.parse(mensagemAgente.content ?? '{}');
+        resposta.tipo = 'resposta';
+        resposta.produtos = [];
+        await salvarMensagens(conversaId, texto, resposta.texto || '');
+        return res.json({ ...resposta, conversaId });
+      }
+
+      const toolCall = mensagemAgente.tool_calls[0];
+      if (toolCall.type !== 'function') {
+        await salvarMensagens(conversaId, texto, 'Não entendi. Pode repetir?');
+        return res.json({
+          tipo: 'resposta',
+          texto: 'Não entendi. Pode repetir?',
+          produtos: [],
+          sugestoes: [],
+          conversaId,
+        });
+      }
+
+      const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
+
+      // ── Intercepta criar_ticket → inicia queixa flow ──────────────────────────
+      if (toolCall.function.name === 'criar_ticket') {
+        const resultado = await iniciarFluxoQueixa(conversaId, usuarioId, toolArgs.motivo ?? texto);
+        await salvarMensagens(conversaId, texto, resultado.texto);
+        return res.json({ ...resultado, conversaId });
+      }
+
+      // ── Executa outras tools normalmente ─────────────────────────────────────
+      const toolResult = await executarTool(toolCall.function.name, toolArgs, usuarioId);
+
+      const segundaResposta = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: SYSTEM_RESPOSTA },
+          ...historicoParsed,
+          { role: 'user', content: texto },
+          { role: 'assistant', content: null, tool_calls: mensagemAgente.tool_calls },
+          {
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(toolResult.dados),
+          },
+        ],
+      });
+
+      const resposta = JSON.parse(segundaResposta.choices[0].message.content ?? '{}');
       resposta.tipo = 'resposta';
-      resposta.produtos = [];
-      await salvarMensagens(conversaId, texto, resposta.texto || '');
-      return res.json({ ...resposta, conversaId });
-    }
+      resposta.produtos = toolResult.tipo === 'produtos' ? ragParaChat(toolResult.dados) : [];
 
-    const toolCall = mensagemAgente.tool_calls[0];
-    if (toolCall.type !== 'function') {
-      await salvarMensagens(conversaId, texto, 'Não entendi. Pode repetir?');
-      return res.json({
+      const { msgAju } = await salvarMensagens(conversaId, texto, resposta.texto || '');
+
+      if (toolResult.tipo === 'produtos' && toolResult.dados.length > 0) {
+        await salvarSugestoesChat(msgAju.id, toolResult.dados);
+      }
+
+      res.json({ ...resposta, conversaId });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error({ msg }, '[chat/mensagem]');
+      res.status(500).json({
         tipo: 'resposta',
-        texto: 'Não entendi. Pode repetir?',
-        produtos: [],
-        sugestoes: [],
-        conversaId,
+        texto: 'Eita, tive um probleminha aqui. Tenta de novo!',
+        ...(process.env.NODE_ENV !== 'production' && { debug: msg }),
       });
     }
-
-    const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
-
-    // ── Intercepta criar_ticket → inicia queixa flow ──────────────────────────
-    if (toolCall.function.name === 'criar_ticket') {
-      const resultado = await iniciarFluxoQueixa(conversaId, usuarioId, toolArgs.motivo ?? texto);
-      await salvarMensagens(conversaId, texto, resultado.texto);
-      return res.json({ ...resultado, conversaId });
-    }
-
-    // ── Executa outras tools normalmente ─────────────────────────────────────
-    const toolResult = await executarTool(toolCall.function.name, toolArgs, usuarioId);
-
-    const segundaResposta = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      max_tokens: 500,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_RESPOSTA },
-        ...historicoParsed,
-        { role: 'user', content: texto },
-        { role: 'assistant', content: null, tool_calls: mensagemAgente.tool_calls },
-        {
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(toolResult.dados),
-        },
-      ],
-    });
-
-    const resposta = JSON.parse(segundaResposta.choices[0].message.content ?? '{}');
-    resposta.tipo = 'resposta';
-    resposta.produtos = toolResult.tipo === 'produtos' ? ragParaChat(toolResult.dados) : [];
-
-    const { msgAju } = await salvarMensagens(conversaId, texto, resposta.texto || '');
-
-    if (toolResult.tipo === 'produtos' && toolResult.dados.length > 0) {
-      await salvarSugestoesChat(msgAju.id, toolResult.dados);
-    }
-
-    res.json({ ...resposta, conversaId });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    const msg = error instanceof Error ? error.message : String(error);
-    logger.error({ msg }, '[chat/mensagem]');
-    res.status(500).json({
-      tipo: 'resposta',
-      texto: 'Eita, tive um probleminha aqui. Tenta de novo!',
-      ...(process.env.NODE_ENV !== 'production' && { debug: msg }),
-    });
-  }
-});
+  },
+);
 
 // POST /chat/sugestao/:id/clique
 router.post(

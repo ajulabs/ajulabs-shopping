@@ -5,6 +5,7 @@ import { prisma } from '../utils/prisma';
 import { getEntregadorLocalizacao, emitPedidoNovo } from '../utils/socket';
 import { notificarPedidoNovo } from '../lib/pushNotifications';
 import { logger } from '../lib/logger';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
 
@@ -22,185 +23,204 @@ const criarPedidoSchema = z.object({
   ),
 });
 
+const criarPedidoSpec = {
+  name: 'POST_pedidos',
+  input: {
+    lojaId: { required: true, type: 'string' },
+    enderecoEntregaId: { required: true, type: 'string' },
+    metodoPagamento: { required: true, type: 'enum', constraints: ["'pix' | 'cartao'"] },
+    itens: { required: true, type: 'array' },
+    obs: { required: false, type: 'string' },
+  },
+} as const;
+
 // POST /pedidos - Criar pedido (usuário autenticado)
-router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
-  try {
-    const dados = criarPedidoSchema.parse(req.body);
+router.post(
+  '/',
+  authMiddleware,
+  authUsuario,
+  specValidatorMiddleware(criarPedidoSpec),
+  async (req: AuthRequest, res) => {
+    try {
+      const dados = criarPedidoSchema.parse(req.body);
 
-    const produtos = await prisma.produto.findMany({
-      where: { id: { in: dados.itens.map((i) => i.produtoId) } },
-    });
-
-    if (produtos.length !== dados.itens.length) {
-      return res.status(400).json({ error: 'Um ou mais produtos não encontrados' });
-    }
-
-    const indisponiveis = produtos.filter((p) => !p.disponivel);
-    if (indisponiveis.length > 0) {
-      return res.status(400).json({
-        error: 'Produtos indisponíveis',
-        produtos: indisponiveis.map((p) => ({ id: p.id, nome: p.nome })),
+      const produtos = await prisma.produto.findMany({
+        where: { id: { in: dados.itens.map((i) => i.produtoId) } },
       });
-    }
 
-    // Fetch variations for items that specify a variacaoId
-    const variacaoIds = dados.itens.map((i) => i.variacaoId).filter(Boolean) as string[];
-    const variacoes =
-      variacaoIds.length > 0
-        ? await prisma.variacaoProduto.findMany({ where: { id: { in: variacaoIds } } })
-        : [];
-
-    const semEstoque = dados.itens.filter((item) => {
-      if (item.variacaoId) {
-        const variacao = variacoes.find((v) => v.id === item.variacaoId);
-        if (!variacao) return true;
-        return variacao.estoque < item.quantidade;
+      if (produtos.length !== dados.itens.length) {
+        return res.status(400).json({ error: 'Um ou mais produtos não encontrados' });
       }
-      const produto = produtos.find((p) => p.id === item.produtoId)!;
-      return produto.estoque < item.quantidade;
-    });
-    if (semEstoque.length > 0) {
-      return res.status(400).json({
-        error: 'Estoque insuficiente',
-        produtos: semEstoque.map((item) => {
-          const p = produtos.find((pr) => pr.id === item.produtoId)!;
-          const v = item.variacaoId ? variacoes.find((vr) => vr.id === item.variacaoId) : null;
-          return {
-            id: p.id,
-            nome: p.nome,
-            variacaoNome: v?.nome,
-            estoqueDisponivel: v?.estoque ?? p.estoque,
-          };
-        }),
-      });
-    }
 
-    const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
-    if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
+      const indisponiveis = produtos.filter((p) => !p.disponivel);
+      if (indisponiveis.length > 0) {
+        return res.status(400).json({
+          error: 'Produtos indisponíveis',
+          produtos: indisponiveis.map((p) => ({ id: p.id, nome: p.nome })),
+        });
+      }
 
-    const subtotal = dados.itens.reduce((acc, item) => {
-      const produto = produtos.find((p) => p.id === item.produtoId)!;
-      return acc + Number(produto.preco) * item.quantidade;
-    }, 0);
+      // Fetch variations for items that specify a variacaoId
+      const variacaoIds = dados.itens.map((i) => i.variacaoId).filter(Boolean) as string[];
+      const variacoes =
+        variacaoIds.length > 0
+          ? await prisma.variacaoProduto.findMany({ where: { id: { in: variacaoIds } } })
+          : [];
 
-    const taxaEntrega = Number(loja.taxaEntrega);
-    const desconto = dados.metodoPagamento === 'pix' ? subtotal * 0.05 : 0;
-    const total = subtotal + taxaEntrega - desconto;
-
-    const consumidor = await prisma.usuario.findUnique({
-      where: { id: req.user!.id },
-      select: { telefone: true },
-    });
-    const digits = (consumidor?.telefone ?? '').replace(/\D/g, '');
-    const codigoEntrega =
-      digits.length >= 4 ? digits.slice(-4) : String(Math.floor(1000 + Math.random() * 9000));
-
-    const { pedido } = await prisma.$transaction(async (tx) => {
-      const pedido = await tx.pedido.create({
-        data: {
-          consumidorId: req.user!.id,
-          lojaId: dados.lojaId,
-          enderecoEntregaId: dados.enderecoEntregaId,
-          metodoPagamento: dados.metodoPagamento,
-          obs: dados.obs,
-          codigoEntrega,
-          subtotal,
-          taxaEntrega,
-          desconto,
-          total,
-          itens: {
-            create: dados.itens.map((item) => {
-              const produto = produtos.find((p) => p.id === item.produtoId)!;
-              const variacao = item.variacaoId
-                ? variacoes.find((v) => v.id === item.variacaoId)
-                : null;
-              return {
-                produtoId: produto.id,
-                nomeSnapshot: produto.nome,
-                precoUnitario: produto.preco,
-                quantidade: item.quantidade,
-                variacaoId: variacao?.id ?? null,
-                variacaoNome: variacao?.nome ?? null,
-              };
-            }),
-          },
-          historico: {
-            create: { status: 'aguardando' },
-          },
-        },
-        include: { itens: true, loja: true, historico: true },
-      });
-
-      await tx.pagamento.create({
-        data: {
-          pedidoId: pedido.id,
-          metodo: dados.metodoPagamento,
-          valor: total,
-          status: 'pendente',
-        },
-      });
-
-      for (const item of dados.itens) {
+      const semEstoque = dados.itens.filter((item) => {
         if (item.variacaoId) {
-          const variacao = variacoes.find((v) => v.id === item.variacaoId)!;
-          await tx.variacaoProduto.update({
-            where: { id: item.variacaoId },
-            data: { estoque: variacao.estoque - item.quantidade },
-          });
-          // Recalculate produto.estoque as sum of all variation stocks after update
-          const todasVars = await tx.variacaoProduto.findMany({
-            where: { produtoId: item.produtoId },
-            select: { id: true, estoque: true },
-          });
-          const estoqueTotal = todasVars.reduce((s, v) => {
-            return s + (v.id === item.variacaoId ? variacao.estoque - item.quantidade : v.estoque);
-          }, 0);
-          await tx.produto.update({
-            where: { id: item.produtoId },
-            data: {
-              estoque: estoqueTotal,
-              ...(estoqueTotal <= 0 ? { disponivel: false } : {}),
-            },
-          });
-        } else {
-          const produto = produtos.find((p) => p.id === item.produtoId)!;
-          const novoEstoque = produto.estoque - item.quantidade;
-          await tx.produto.update({
-            where: { id: item.produtoId },
-            data: {
-              estoque: novoEstoque,
-              ...(novoEstoque <= 0 ? { disponivel: false } : {}),
-            },
-          });
+          const variacao = variacoes.find((v) => v.id === item.variacaoId);
+          if (!variacao) return true;
+          return variacao.estoque < item.quantidade;
         }
+        const produto = produtos.find((p) => p.id === item.produtoId)!;
+        return produto.estoque < item.quantidade;
+      });
+      if (semEstoque.length > 0) {
+        return res.status(400).json({
+          error: 'Estoque insuficiente',
+          produtos: semEstoque.map((item) => {
+            const p = produtos.find((pr) => pr.id === item.produtoId)!;
+            const v = item.variacaoId ? variacoes.find((vr) => vr.id === item.variacaoId) : null;
+            return {
+              id: p.id,
+              nome: p.nome,
+              variacaoNome: v?.nome,
+              estoqueDisponivel: v?.estoque ?? p.estoque,
+            };
+          }),
+        });
       }
 
-      return { pedido };
-    });
+      const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
+      if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
 
-    emitPedidoNovo(dados.lojaId, {
-      id: pedido.id,
-      total: Number(total),
-      itens: (pedido.itens ?? []).map((i: { nomeSnapshot: string; quantidade: number }) => ({
-        nome: i.nomeSnapshot,
-        quantidade: i.quantidade,
-      })),
-      criadoEm: pedido.criadoEm,
-    });
-    void notificarPedidoNovo(dados.lojaId, pedido.id, {
-      total: Number(total),
-      itens: (pedido.itens ?? []).map((i: { nomeSnapshot: string; quantidade: number }) => ({
-        nome: i.nomeSnapshot,
-        quantidade: i.quantidade,
-      })),
-    });
-    res.status(201).json({ pedido });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    logger.error({ error }, '[pedidos] erro ao criar pedido');
-    res.status(500).json({ error: 'Erro ao criar pedido' });
-  }
-});
+      const subtotal = dados.itens.reduce((acc, item) => {
+        const produto = produtos.find((p) => p.id === item.produtoId)!;
+        return acc + Number(produto.preco) * item.quantidade;
+      }, 0);
+
+      const taxaEntrega = Number(loja.taxaEntrega);
+      const desconto = dados.metodoPagamento === 'pix' ? subtotal * 0.05 : 0;
+      const total = subtotal + taxaEntrega - desconto;
+
+      const consumidor = await prisma.usuario.findUnique({
+        where: { id: req.user!.id },
+        select: { telefone: true },
+      });
+      const digits = (consumidor?.telefone ?? '').replace(/\D/g, '');
+      const codigoEntrega =
+        digits.length >= 4 ? digits.slice(-4) : String(Math.floor(1000 + Math.random() * 9000));
+
+      const { pedido } = await prisma.$transaction(async (tx) => {
+        const pedido = await tx.pedido.create({
+          data: {
+            consumidorId: req.user!.id,
+            lojaId: dados.lojaId,
+            enderecoEntregaId: dados.enderecoEntregaId,
+            metodoPagamento: dados.metodoPagamento,
+            obs: dados.obs,
+            codigoEntrega,
+            subtotal,
+            taxaEntrega,
+            desconto,
+            total,
+            itens: {
+              create: dados.itens.map((item) => {
+                const produto = produtos.find((p) => p.id === item.produtoId)!;
+                const variacao = item.variacaoId
+                  ? variacoes.find((v) => v.id === item.variacaoId)
+                  : null;
+                return {
+                  produtoId: produto.id,
+                  nomeSnapshot: produto.nome,
+                  precoUnitario: produto.preco,
+                  quantidade: item.quantidade,
+                  variacaoId: variacao?.id ?? null,
+                  variacaoNome: variacao?.nome ?? null,
+                };
+              }),
+            },
+            historico: {
+              create: { status: 'aguardando' },
+            },
+          },
+          include: { itens: true, loja: true, historico: true },
+        });
+
+        await tx.pagamento.create({
+          data: {
+            pedidoId: pedido.id,
+            metodo: dados.metodoPagamento,
+            valor: total,
+            status: 'pendente',
+          },
+        });
+
+        for (const item of dados.itens) {
+          if (item.variacaoId) {
+            const variacao = variacoes.find((v) => v.id === item.variacaoId)!;
+            await tx.variacaoProduto.update({
+              where: { id: item.variacaoId },
+              data: { estoque: variacao.estoque - item.quantidade },
+            });
+            // Recalculate produto.estoque as sum of all variation stocks after update
+            const todasVars = await tx.variacaoProduto.findMany({
+              where: { produtoId: item.produtoId },
+              select: { id: true, estoque: true },
+            });
+            const estoqueTotal = todasVars.reduce((s, v) => {
+              return (
+                s + (v.id === item.variacaoId ? variacao.estoque - item.quantidade : v.estoque)
+              );
+            }, 0);
+            await tx.produto.update({
+              where: { id: item.produtoId },
+              data: {
+                estoque: estoqueTotal,
+                ...(estoqueTotal <= 0 ? { disponivel: false } : {}),
+              },
+            });
+          } else {
+            const produto = produtos.find((p) => p.id === item.produtoId)!;
+            const novoEstoque = produto.estoque - item.quantidade;
+            await tx.produto.update({
+              where: { id: item.produtoId },
+              data: {
+                estoque: novoEstoque,
+                ...(novoEstoque <= 0 ? { disponivel: false } : {}),
+              },
+            });
+          }
+        }
+
+        return { pedido };
+      });
+
+      emitPedidoNovo(dados.lojaId, {
+        id: pedido.id,
+        total: Number(total),
+        itens: (pedido.itens ?? []).map((i: { nomeSnapshot: string; quantidade: number }) => ({
+          nome: i.nomeSnapshot,
+          quantidade: i.quantidade,
+        })),
+        criadoEm: pedido.criadoEm,
+      });
+      void notificarPedidoNovo(dados.lojaId, pedido.id, {
+        total: Number(total),
+        itens: (pedido.itens ?? []).map((i: { nomeSnapshot: string; quantidade: number }) => ({
+          nome: i.nomeSnapshot,
+          quantidade: i.quantidade,
+        })),
+      });
+      res.status(201).json({ pedido });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      logger.error({ error }, '[pedidos] erro ao criar pedido');
+      res.status(500).json({ error: 'Erro ao criar pedido' });
+    }
+  },
+);
 
 // GET /pedidos - Listar pedidos do usuário
 router.get('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {

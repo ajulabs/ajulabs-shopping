@@ -11,32 +11,33 @@ import { prisma } from '../utils/prisma';
  * Status 'aguardando' não é notificado (é o estado inicial, quando o
  * próprio consumidor acabou de criar o pedido).
  */
-const COPY_STATUS_PEDIDO: Record<string, { title: string; bodyTpl: (lojaNome: string) => string }> = {
-  confirmado: {
-    title: 'Pedido confirmado',
-    bodyTpl: loja => `${loja} aceitou seu pedido e já vai começar a preparar.`,
-  },
-  preparando: {
-    title: 'Preparando seu pedido',
-    bodyTpl: loja => `${loja} está preparando seu pedido. Já já fica pronto!`,
-  },
-  pronto: {
-    title: 'Pedido pronto!',
-    bodyTpl: loja => `Seu pedido na ${loja} está pronto e aguardando entregador.`,
-  },
-  saiu_entrega: {
-    title: 'Saiu para entrega 🛵',
-    bodyTpl: loja => `Seu pedido da ${loja} já está a caminho!`,
-  },
-  entregue: {
-    title: 'Pedido entregue 🎉',
-    bodyTpl: loja => `Seu pedido da ${loja} foi entregue. Bom proveito!`,
-  },
-  cancelado: {
-    title: 'Pedido cancelado',
-    bodyTpl: loja => `Seu pedido na ${loja} foi cancelado.`,
-  },
-};
+const COPY_STATUS_PEDIDO: Record<string, { title: string; bodyTpl: (lojaNome: string) => string }> =
+  {
+    confirmado: {
+      title: 'Pedido confirmado',
+      bodyTpl: (loja) => `${loja} aceitou seu pedido e já vai começar a preparar.`,
+    },
+    preparando: {
+      title: 'Preparando seu pedido',
+      bodyTpl: (loja) => `${loja} está preparando seu pedido. Já já fica pronto!`,
+    },
+    pronto: {
+      title: 'Pedido pronto!',
+      bodyTpl: (loja) => `Seu pedido na ${loja} está pronto e aguardando entregador.`,
+    },
+    saiu_entrega: {
+      title: 'Saiu para entrega 🛵',
+      bodyTpl: (loja) => `Seu pedido da ${loja} já está a caminho!`,
+    },
+    entregue: {
+      title: 'Pedido entregue 🎉',
+      bodyTpl: (loja) => `Seu pedido da ${loja} foi entregue. Bom proveito!`,
+    },
+    cancelado: {
+      title: 'Pedido cancelado',
+      bodyTpl: (loja) => `Seu pedido na ${loja} foi cancelado.`,
+    },
+  };
 
 /**
  * Envia push ao consumidor sobre mudança de status do pedido.
@@ -206,9 +207,7 @@ export async function notificarChatMensagem(payload: ChatMensagemPayload): Promi
     const title = `Mensagem de ${payload.remetenteNome}`;
     // Limita preview do conteúdo pra notificação ficar legível.
     const body =
-      payload.conteudo.length > 80
-        ? `${payload.conteudo.slice(0, 77)}...`
-        : payload.conteudo;
+      payload.conteudo.length > 80 ? `${payload.conteudo.slice(0, 77)}...` : payload.conteudo;
 
     const data = {
       type: 'chat:mensagem',

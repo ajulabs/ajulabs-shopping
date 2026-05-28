@@ -6,10 +6,77 @@ import { prisma } from '../utils/prisma';
 import { cpfSchema, cnpjSchema, senhaForteSchema, emailSchema } from '../utils/validacoes';
 import { authLimiter } from '../lib/rateLimiter';
 import { logger } from '../lib/logger';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const router = Router();
 
 router.use(authLimiter);
+
+const loginUsuarioSpec = {
+  name: 'POST_auth_usuario_login',
+  input: {
+    cpf: { required: true, type: 'string' },
+    senha: { required: true, type: 'string' },
+  },
+} as const;
+
+const registrarUsuarioSpec = {
+  name: 'POST_auth_usuario_registrar',
+  input: {
+    nome: { required: true, type: 'string' },
+    cpf: { required: true, type: 'string' },
+    telefone: { required: true, type: 'string' },
+    email: { required: true, type: 'string' },
+    senha: { required: true, type: 'string' },
+  },
+} as const;
+
+const registrarEntregadorSpec = {
+  name: 'POST_auth_entregador_registrar',
+  input: {
+    nome: { required: true, type: 'string' },
+    cpf: { required: true, type: 'string' },
+    telefone: { required: true, type: 'string' },
+    email: { required: true, type: 'string' },
+    senha: { required: true, type: 'string' },
+    tipoTransporte: { required: true, type: 'enum', constraints: ["'bike' | 'moto' | 'carro'"] },
+  },
+} as const;
+
+const loginEntregadorSpec = {
+  name: 'POST_auth_entregador_login',
+  input: {
+    cpf: { required: true, type: 'string' },
+    senha: { required: true, type: 'string' },
+  },
+} as const;
+
+const registrarLojistaSpec = {
+  name: 'POST_auth_lojista_registrar',
+  input: {
+    cnpj: { required: true, type: 'string' },
+    nomeResponsavel: { required: true, type: 'string' },
+    email: { required: true, type: 'string' },
+    senha: { required: true, type: 'string' },
+    telefone: { required: true, type: 'string' },
+  },
+} as const;
+
+const loginLojistaSpec = {
+  name: 'POST_auth_lojista_login',
+  input: {
+    senha: { required: true, type: 'string' },
+    identificador: { required: false, type: 'string' },
+    cnpj: { required: false, type: 'string' },
+  },
+} as const;
+
+const refreshSpec = {
+  name: 'POST_auth_refresh',
+  input: {
+    refreshToken: { required: true, type: 'string' },
+  },
+} as const;
 
 // ========================================
 // CONSUMIDOR
@@ -23,49 +90,53 @@ const registrarUsuarioSchema = z.object({
   senha: senhaForteSchema,
 });
 
-router.post('/usuario/registrar', async (req, res) => {
-  try {
-    const dados = registrarUsuarioSchema.parse(req.body);
+router.post(
+  '/usuario/registrar',
+  specValidatorMiddleware(registrarUsuarioSpec),
+  async (req, res) => {
+    try {
+      const dados = registrarUsuarioSchema.parse(req.body);
 
-    const existe = await prisma.usuario.findFirst({
-      where: {
-        OR: [{ cpf: dados.cpf }, { telefone: dados.telefone }, { email: dados.email }],
-      },
-    });
+      const existe = await prisma.usuario.findFirst({
+        where: {
+          OR: [{ cpf: dados.cpf }, { telefone: dados.telefone }, { email: dados.email }],
+        },
+      });
 
-    if (existe) {
-      return res.status(400).json({ error: 'CPF, telefone ou email já cadastrado' });
+      if (existe) {
+        return res.status(400).json({ error: 'CPF, telefone ou email já cadastrado' });
+      }
+
+      const { senha, ...dadosUsuario } = dados;
+      const senhaHash = await hashSenha(senha);
+
+      const usuario = await prisma.usuario.create({
+        data: { ...dadosUsuario, senhaHash },
+      });
+
+      const tokenPayload = { id: usuario.id, tipo: 'usuario' as const };
+      const token = gerarToken(tokenPayload);
+      const refreshToken = gerarRefreshToken(tokenPayload);
+
+      res.status(201).json({
+        token,
+        refreshToken,
+        usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          telefone: usuario.telefone,
+          email: usuario.email,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      logger.error({ err: error }, 'Erro ao registrar usuário');
+      res.status(500).json({ error: 'Erro ao registrar usuário' });
     }
+  },
+);
 
-    const { senha, ...dadosUsuario } = dados;
-    const senhaHash = await hashSenha(senha);
-
-    const usuario = await prisma.usuario.create({
-      data: { ...dadosUsuario, senhaHash },
-    });
-
-    const tokenPayload = { id: usuario.id, tipo: 'usuario' as const };
-    const token = gerarToken(tokenPayload);
-    const refreshToken = gerarRefreshToken(tokenPayload);
-
-    res.status(201).json({
-      token,
-      refreshToken,
-      usuario: {
-        id: usuario.id,
-        nome: usuario.nome,
-        telefone: usuario.telefone,
-        email: usuario.email,
-      },
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    logger.error({ err: error }, 'Erro ao registrar usuário');
-    res.status(500).json({ error: 'Erro ao registrar usuário' });
-  }
-});
-
-router.post('/usuario/login', async (req, res) => {
+router.post('/usuario/login', specValidatorMiddleware(loginUsuarioSpec), async (req, res) => {
   try {
     const { cpf, senha } = z
       .object({
@@ -114,40 +185,50 @@ const registrarEntregadorSchema = z.object({
   tipoTransporte: z.enum(['bike', 'moto', 'carro']),
 });
 
-router.post('/entregador/registrar', async (req, res) => {
-  try {
-    const dados = registrarEntregadorSchema.parse(req.body);
+router.post(
+  '/entregador/registrar',
+  specValidatorMiddleware(registrarEntregadorSpec),
+  async (req, res) => {
+    try {
+      const dados = registrarEntregadorSchema.parse(req.body);
 
-    const existe = await prisma.entregador.findFirst({
-      where: {
-        OR: [{ cpf: dados.cpf }, { telefone: dados.telefone }, { email: dados.email }],
-      },
-    });
+      const existe = await prisma.entregador.findFirst({
+        where: {
+          OR: [{ cpf: dados.cpf }, { telefone: dados.telefone }, { email: dados.email }],
+        },
+      });
 
-    if (existe) return res.status(400).json({ error: 'CPF, telefone ou email já cadastrado' });
+      if (existe) return res.status(400).json({ error: 'CPF, telefone ou email já cadastrado' });
 
-    const { senha, ...dadosEntregador } = dados;
-    const senhaHash = await hashSenha(senha);
-    const entregador = await prisma.entregador.create({ data: { ...dadosEntregador, senhaHash } });
+      const { senha, ...dadosEntregador } = dados;
+      const senhaHash = await hashSenha(senha);
+      const entregador = await prisma.entregador.create({
+        data: { ...dadosEntregador, senhaHash },
+      });
 
-    const tokenPayload = { id: entregador.id, tipo: 'entregador' as const };
-    const token = gerarToken(tokenPayload);
-    const refreshToken = gerarRefreshToken(tokenPayload);
+      const tokenPayload = { id: entregador.id, tipo: 'entregador' as const };
+      const token = gerarToken(tokenPayload);
+      const refreshToken = gerarRefreshToken(tokenPayload);
 
-    res.status(201).json({
-      token,
-      refreshToken,
-      entregador: { id: entregador.id, nome: entregador.nome, statusConta: entregador.statusConta },
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    logger.error({ err: error }, '[entregador/registrar]');
-    res.status(500).json({ error: 'Erro ao registrar entregador' });
-  }
-});
+      res.status(201).json({
+        token,
+        refreshToken,
+        entregador: {
+          id: entregador.id,
+          nome: entregador.nome,
+          statusConta: entregador.statusConta,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      logger.error({ err: error }, '[entregador/registrar]');
+      res.status(500).json({ error: 'Erro ao registrar entregador' });
+    }
+  },
+);
 
 // Aceita email OU telefone para login (campo "identificador" novo ou "telefone" legado)
-router.post('/entregador/login', async (req, res) => {
+router.post('/entregador/login', specValidatorMiddleware(loginEntregadorSpec), async (req, res) => {
   try {
     const { cpf, senha } = z
       .object({
@@ -196,56 +277,60 @@ const registrarLojistaSchema = z.object({
   telefone: z.string().regex(/^\+55\d{11}$/),
 });
 
-router.post('/lojista/registrar', async (req, res) => {
-  try {
-    const dados = registrarLojistaSchema.parse(req.body);
+router.post(
+  '/lojista/registrar',
+  specValidatorMiddleware(registrarLojistaSpec),
+  async (req, res) => {
+    try {
+      const dados = registrarLojistaSchema.parse(req.body);
 
-    const existe = await prisma.lojista.findFirst({
-      where: { OR: [{ cnpj: dados.cnpj }, { email: dados.email }] },
-    });
+      const existe = await prisma.lojista.findFirst({
+        where: { OR: [{ cnpj: dados.cnpj }, { email: dados.email }] },
+      });
 
-    if (existe) return res.status(400).json({ error: 'CNPJ ou email já cadastrado' });
+      if (existe) return res.status(400).json({ error: 'CNPJ ou email já cadastrado' });
 
-    const { senha, ...dadosLojista } = dados;
-    const senhaHash = await hashSenha(senha);
-    const lojista = await prisma.lojista.create({ data: { ...dadosLojista, senhaHash } });
+      const { senha, ...dadosLojista } = dados;
+      const senhaHash = await hashSenha(senha);
+      const lojista = await prisma.lojista.create({ data: { ...dadosLojista, senhaHash } });
 
-    const loja = await prisma.loja.create({
-      data: {
-        lojistaId: lojista.id,
-        nome: dados.nomeResponsavel,
-        descricao: '',
-        categoria: '',
-        telefone: dados.telefone,
-        tempoEntregaMin: 30,
-        tempoEntregaMax: 60,
-        taxaEntrega: 0,
-      },
-    });
+      const loja = await prisma.loja.create({
+        data: {
+          lojistaId: lojista.id,
+          nome: dados.nomeResponsavel,
+          descricao: '',
+          categoria: '',
+          telefone: dados.telefone,
+          tempoEntregaMin: 30,
+          tempoEntregaMax: 60,
+          taxaEntrega: 0,
+        },
+      });
 
-    const tokenPayload = { id: lojista.id, tipo: 'lojista' as const };
-    const token = gerarToken(tokenPayload);
-    const refreshToken = gerarRefreshToken(tokenPayload);
+      const tokenPayload = { id: lojista.id, tipo: 'lojista' as const };
+      const token = gerarToken(tokenPayload);
+      const refreshToken = gerarRefreshToken(tokenPayload);
 
-    res.status(201).json({
-      token,
-      refreshToken,
-      lojista: {
-        id: lojista.id,
-        nomeResponsavel: lojista.nomeResponsavel,
-        email: lojista.email,
-        lojaId: loja.id,
-        lojaNome: loja.nome,
-      },
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    res.status(500).json({ error: 'Erro ao registrar lojista' });
-  }
-});
+      res.status(201).json({
+        token,
+        refreshToken,
+        lojista: {
+          id: lojista.id,
+          nomeResponsavel: lojista.nomeResponsavel,
+          email: lojista.email,
+          lojaId: loja.id,
+          lojaNome: loja.nome,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      res.status(500).json({ error: 'Erro ao registrar lojista' });
+    }
+  },
+);
 
 // Aceita email OU cnpj para login (campo "identificador" novo ou "cnpj" legado)
-router.post('/lojista/login', async (req, res) => {
+router.post('/lojista/login', specValidatorMiddleware(loginLojistaSpec), async (req, res) => {
   try {
     const body = z
       .object({
@@ -320,7 +405,7 @@ router.post('/lojista/login', async (req, res) => {
 // REFRESH TOKEN (todos os tipos)
 // ========================================
 
-router.post('/refresh', (req, res) => {
+router.post('/refresh', specValidatorMiddleware(refreshSpec), (req, res) => {
   try {
     const { refreshToken } = z.object({ refreshToken: z.string() }).parse(req.body);
 

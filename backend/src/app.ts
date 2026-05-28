@@ -1,6 +1,7 @@
 import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { ZodError } from 'zod';
 import { corsOptions } from './utils/cors';
 import { logger } from './lib/logger';
@@ -33,6 +34,34 @@ app.use((req, _res, next) => {
 
 app.get('/', (_req, res) => {
   res.json({ message: '🛒 AjuLabs API', version: '1.0.0', status: 'online' });
+});
+
+app.get('/openapi.json', (_req, res) => {
+  res.sendFile(path.resolve(__dirname, '../openapi.json'));
+});
+
+app.get('/api-docs', (_req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>AjuLabs API Docs</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+<script>
+  SwaggerUIBundle({
+    url: '/openapi.json',
+    dom_id: '#swagger-ui',
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+    layout: 'BaseLayout',
+  });
+</script>
+</body>
+</html>`);
 });
 
 app.use('/v1/auth', authRoutes);

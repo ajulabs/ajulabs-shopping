@@ -47,7 +47,10 @@
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "db:reset": "tsx prisma/reset.ts"
+    "db:reset": "tsx prisma/reset.ts",
+    "spec:gen-tests": "tsx scripts/generate-tests.ts",
+    "spec:gen-openapi": "tsx scripts/generate-openapi.ts",
+    "spec:gen-agent-context": "tsx scripts/generate-agent-context.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -3,11 +3,24 @@ import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { emitChatMensagem } from '../utils/socket';
+import { specValidatorMiddleware } from '../lib/spec-validator';
 import { notificarChatMensagem } from '../lib/pushNotifications';
 
 const router = Router();
 
 router.use(authMiddleware);
+
+const enviarMensagemSpec = {
+  name: 'POST_pedido_chat_mensagem',
+  input: {
+    conteudo: { required: true, type: 'string', constraints: ['min 1, max 1000'] },
+    destinatarioType: {
+      required: true,
+      type: 'enum',
+      constraints: ["'CONSUMER' | 'LOJISTA' | 'ENTREGADOR'"],
+    },
+  },
+} as const;
 
 const enviarMensagemSchema = z.object({
   conteudo: z.string().min(1).max(1000),
@@ -145,50 +158,17 @@ router.get('/pedido/:pedidoId', async (req: AuthRequest, res) => {
 });
 
 // POST /v1/pedido-chat/pedido/:pedidoId/mensagem
-router.post('/pedido/:pedidoId/mensagem', async (req: AuthRequest, res) => {
-  try {
-    const participante = await resolverParticipante(req);
-    if (!participante) return res.status(403).json({ error: 'Acesso negado' });
+router.post(
+  '/pedido/:pedidoId/mensagem',
+  specValidatorMiddleware(enviarMensagemSpec),
+  async (req: AuthRequest, res) => {
+    try {
+      const participante = await resolverParticipante(req);
+      if (!participante) return res.status(403).json({ error: 'Acesso negado' });
 
-    const { conteudo, destinatarioType } = enviarMensagemSchema.parse(req.body);
+      const { conteudo, destinatarioType } = enviarMensagemSchema.parse(req.body);
 
-    let chat = await prisma.chatPedido.findUnique({
-      where: { pedidoId: req.params.pedidoId },
-      include: {
-        pedido: {
-          select: {
-            consumidorId: true,
-            lojaId: true,
-            entregadorId: true,
-            status: true,
-            consumidor: { select: { nome: true } },
-            loja: { select: { nome: true } },
-            entregador: { select: { id: true, nome: true } },
-          },
-        },
-      },
-    });
-
-    if (!chat) {
-      const pedido = await prisma.pedido.findUnique({
-        where: { id: req.params.pedidoId },
-        select: { consumidorId: true, lojaId: true, entregadorId: true },
-      });
-      if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado' });
-
-      const autorizado =
-        (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
-        (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
-        (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
-      if (!autorizado) return res.status(403).json({ error: 'Acesso negado' });
-
-      await prisma.chatPedido.upsert({
-        where: { pedidoId: req.params.pedidoId },
-        create: { pedidoId: req.params.pedidoId },
-        update: {},
-      });
-
-      chat = await prisma.chatPedido.findUnique({
+      let chat = await prisma.chatPedido.findUnique({
         where: { pedidoId: req.params.pedidoId },
         include: {
           pedido: {
@@ -204,80 +184,116 @@ router.post('/pedido/:pedidoId/mensagem', async (req: AuthRequest, res) => {
           },
         },
       });
-      if (!chat) return res.status(500).json({ error: 'Erro ao criar chat' });
-    }
 
-    if (chat.status === 'encerrado') return res.status(400).json({ error: 'Chat encerrado' });
+      if (!chat) {
+        const pedido = await prisma.pedido.findUnique({
+          where: { id: req.params.pedidoId },
+          select: { consumidorId: true, lojaId: true, entregadorId: true },
+        });
+        if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado' });
 
-    const { pedido } = chat;
+        const autorizado =
+          (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
+          (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
+          (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
+        if (!autorizado) return res.status(403).json({ error: 'Acesso negado' });
 
-    const autorizado =
-      (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
-      (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
-      (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
+        await prisma.chatPedido.upsert({
+          where: { pedidoId: req.params.pedidoId },
+          create: { pedidoId: req.params.pedidoId },
+          update: {},
+        });
 
-    if (!autorizado) return res.status(403).json({ error: 'Acesso negado' });
+        chat = await prisma.chatPedido.findUnique({
+          where: { pedidoId: req.params.pedidoId },
+          include: {
+            pedido: {
+              select: {
+                consumidorId: true,
+                lojaId: true,
+                entregadorId: true,
+                status: true,
+                consumidor: { select: { nome: true } },
+                loja: { select: { nome: true } },
+                entregador: { select: { id: true, nome: true } },
+              },
+            },
+          },
+        });
+        if (!chat) return res.status(500).json({ error: 'Erro ao criar chat' });
+      }
 
-    const hasEntregador = !!pedido.entregadorId;
-    if (!verificarPermissaoPar(participante.tipo, destinatarioType, hasEntregador)) {
-      return res.status(400).json({ error: 'Par de participantes não permitido' });
-    }
+      if (chat.status === 'encerrado') return res.status(400).json({ error: 'Chat encerrado' });
 
-    // Resolver ID do destinatário
-    let destinatarioId: string;
-    if (destinatarioType === 'CONSUMER') destinatarioId = pedido.consumidorId;
-    else if (destinatarioType === 'LOJISTA') destinatarioId = pedido.lojaId;
-    else if (destinatarioType === 'ENTREGADOR') {
-      if (!pedido.entregadorId) return res.status(400).json({ error: 'Sem entregador' });
-      destinatarioId = pedido.entregadorId;
-    } else return res.status(400).json({ error: 'Destinatário inválido' });
+      const { pedido } = chat;
 
-    let remetenteNome = '';
-    if (participante.tipo === 'CONSUMER') remetenteNome = pedido.consumidor?.nome ?? 'Cliente';
-    else if (participante.tipo === 'LOJISTA') remetenteNome = pedido.loja?.nome ?? 'Lojista';
-    else remetenteNome = pedido.entregador?.nome ?? 'Entregador';
+      const autorizado =
+        (participante.tipo === 'CONSUMER' && pedido.consumidorId === participante.id) ||
+        (participante.tipo === 'LOJISTA' && pedido.lojaId === participante.id) ||
+        (participante.tipo === 'ENTREGADOR' && pedido.entregadorId === participante.id);
 
-    const mensagem = await prisma.chatMensagemPedido.create({
-      data: {
+      if (!autorizado) return res.status(403).json({ error: 'Acesso negado' });
+
+      const hasEntregador = !!pedido.entregadorId;
+      if (!verificarPermissaoPar(participante.tipo, destinatarioType, hasEntregador)) {
+        return res.status(400).json({ error: 'Par de participantes não permitido' });
+      }
+
+      // Resolver ID do destinatário
+      let destinatarioId: string;
+      if (destinatarioType === 'CONSUMER') destinatarioId = pedido.consumidorId;
+      else if (destinatarioType === 'LOJISTA') destinatarioId = pedido.lojaId;
+      else if (destinatarioType === 'ENTREGADOR') {
+        if (!pedido.entregadorId) return res.status(400).json({ error: 'Sem entregador' });
+        destinatarioId = pedido.entregadorId;
+      } else return res.status(400).json({ error: 'Destinatário inválido' });
+
+      let remetenteNome = '';
+      if (participante.tipo === 'CONSUMER') remetenteNome = pedido.consumidor?.nome ?? 'Cliente';
+      else if (participante.tipo === 'LOJISTA') remetenteNome = pedido.loja?.nome ?? 'Lojista';
+      else remetenteNome = pedido.entregador?.nome ?? 'Entregador';
+
+      const mensagem = await prisma.chatMensagemPedido.create({
+        data: {
+          chatId: chat.id,
+          conteudo,
+          remetenteType: participante.tipo,
+          remetenteId: participante.id,
+          destinatarioType,
+          destinatarioId,
+        },
+      });
+
+      const payload = {
         chatId: chat.id,
-        conteudo,
-        remetenteType: participante.tipo,
-        remetenteId: participante.id,
+        pedidoId: chat.pedidoId,
+        mensagem: {
+          ...mensagem,
+          remetenteNome,
+          criadoEm: mensagem.criadoEm.toISOString(),
+        },
+      };
+
+      emitChatMensagem(destinatarioType, destinatarioId, payload);
+
+      emitChatMensagem(destinatarioType, destinatarioId, payload);
+
+      void notificarChatMensagem({
         destinatarioType,
         destinatarioId,
-      },
-    });
-
-    const payload = {
-      chatId: chat.id,
-      pedidoId: chat.pedidoId,
-      mensagem: {
-        ...mensagem,
         remetenteNome,
-        criadoEm: mensagem.criadoEm.toISOString(),
-      },
-    };
+        conteudo,
+        pedidoId: chat.pedidoId,
+        chatId: chat.id,
+      });
 
-    emitChatMensagem(destinatarioType, destinatarioId, payload);
-
-    // Push notification — best-effort, em paralelo. Não bloqueia a resposta.
-    // O app do destinatário descarta a notificação se o chat alvo já estiver
-    // aberto, pra não duplicar com a entrega em tempo real via socket.
-    void notificarChatMensagem({
-      destinatarioType,
-      destinatarioId,
-      remetenteNome,
-      conteudo,
-      pedidoId: chat.pedidoId,
-      chatId: chat.id,
-    });
-
-    res.status(201).json({ mensagem: payload.mensagem });
-  } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
-    res.status(500).json({ error: 'Erro ao enviar mensagem' });
-  }
-});
+      res.status(201).json({ mensagem: payload.mensagem });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+      res.status(500).json({ error: 'Erro ao enviar mensagem' });
+    }
+  },
+);
 
 // GET /v1/pedido-chat/historico
 router.get('/historico', async (req: AuthRequest, res) => {

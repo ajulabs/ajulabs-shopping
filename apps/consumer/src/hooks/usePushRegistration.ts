@@ -91,8 +91,8 @@ async function obterExpoPushToken(): Promise<string | null> {
  */
 export function usePushRegistration(): void {
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
-  const userId = useAuthStore(s => s.userId);
+  const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.userId);
   const tokenRegistradoRef = useRef<string | null>(null);
 
   // Listener: tap em notificação de chat → navega para a tela do chat.
