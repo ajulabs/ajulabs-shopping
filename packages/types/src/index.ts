@@ -124,6 +124,7 @@ export interface Pedido {
   id: string;
   lojaId: string;
   lojaNome: string;
+  lojaLogoUrl?: string | null;
   consumidorId: string;
   itens: ItemPedido[];
   status: StatusPedido;

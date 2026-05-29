@@ -12,12 +12,17 @@ export function mapPedidoToEntrega(pedido: any, status: 'andamento' | 'concluida
     pedidoId: shortId,
     cliente: (pedido.consumidor?.nome ?? 'Cliente').split(' ')[0],
     clienteTelefone: pedido.consumidor?.telefone,
+    clienteAvatarUrl: pedido.consumidor?.avatarUrl ?? null,
     endereco: enderecoStr,
     motoboy: pedido.entregador?.nome ?? 'Aguardando motoboy',
     motoboyTelefone: pedido.entregador?.telefone,
+    motoboyFotoUrl: pedido.entregador?.fotoUrl ?? null,
     placa: pedido.entregador?.veiculo?.placa ?? '---',
     status,
     statusRaw: pedido.status,
-    hora: new Date(pedido.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    hora: new Date(pedido.criadoEm).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
   };
 }

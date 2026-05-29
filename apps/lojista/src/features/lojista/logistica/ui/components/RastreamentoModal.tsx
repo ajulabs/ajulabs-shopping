@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EntregaMap } from '../../components/EntregaMap';
@@ -88,7 +89,15 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
         <ScrollView style={s.infoScroll} contentContainerStyle={{ padding: 16, gap: 10 }}>
           <View style={s.infoCard}>
             <View style={s.infoCardIcon}>
-              <Ionicons name="bicycle" size={18} color="#DE6708" />
+              {entrega.motoboyFotoUrl ? (
+                <Image
+                  source={{ uri: entrega.motoboyFotoUrl }}
+                  style={s.avatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="bicycle" size={18} color="#DE6708" />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.infoCardLabel}>Entregador</Text>
@@ -109,7 +118,15 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
 
           <View style={s.infoCard}>
             <View style={[s.infoCardIcon, { backgroundColor: '#E8F4FF' }]}>
-              <Ionicons name="person" size={18} color="#209CEF" />
+              {entrega.clienteAvatarUrl ? (
+                <Image
+                  source={{ uri: entrega.clienteAvatarUrl }}
+                  style={s.avatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="person" size={18} color="#209CEF" />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.infoCardLabel}>Cliente</Text>
@@ -214,6 +231,12 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF0E6',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
   },
   infoCardLabel: {
     fontSize: 10,

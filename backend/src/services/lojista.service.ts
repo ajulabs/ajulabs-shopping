@@ -44,7 +44,7 @@ export async function getPedidos(
     prisma.pedido.findMany({
       where,
       include: {
-        consumidor: { select: { nome: true, telefone: true } },
+        consumidor: { select: { nome: true, telefone: true, avatarUrl: true } },
         itens: true,
         historico: { orderBy: { criadoEm: 'asc' } },
         enderecoEntrega: true,
@@ -52,6 +52,7 @@ export async function getPedidos(
           select: {
             nome: true,
             telefone: true,
+            fotoUrl: true,
             veiculo: { select: { placa: true, modelo: true } },
           },
         },
