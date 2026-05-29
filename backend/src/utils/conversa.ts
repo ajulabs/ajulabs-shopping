@@ -28,7 +28,22 @@ export type EstadoConfirmando = {
   pedidos: PedidoCardData[];
 };
 
-export type EstadoConversa = null | EstadoSelecionandoPedido | EstadoConfirmando;
+export type EstadoSelecionandoPedidoRastreio = {
+  passo: 'selecionando_pedido_rastreio';
+  pedidos: PedidoCardData[];
+};
+
+export type EstadoRastreioConcluido = {
+  passo: 'rastreio_concluido';
+  pedidoId: string;
+};
+
+export type EstadoConversa =
+  | null
+  | EstadoSelecionandoPedido
+  | EstadoConfirmando
+  | EstadoSelecionandoPedidoRastreio
+  | EstadoRastreioConcluido;
 
 // ─── Conversa ─────────────────────────────────────────────────────────────────
 
@@ -65,7 +80,7 @@ export async function salvarMensagens(
 export async function salvarSugestoesChat(mensagemId: string, produtos: ProdutoRAG[]) {
   if (produtos.length === 0) return;
   await prisma.sugestaoProdutoChat.createMany({
-    data: produtos.slice(0, 3).map(p => ({ mensagemId, produtoId: p.id })),
+    data: produtos.slice(0, 3).map((p) => ({ mensagemId, produtoId: p.id })),
     skipDuplicates: true,
   });
 }
@@ -83,9 +98,7 @@ export async function atualizarEstado(conversaId: string, novoEstado: EstadoConv
   await prisma.conversaChat.update({
     where: { id: conversaId },
     data: {
-      estado: novoEstado === null
-        ? Prisma.DbNull
-        : (novoEstado as Prisma.JsonObject),
+      estado: novoEstado === null ? Prisma.DbNull : (novoEstado as Prisma.JsonObject),
     },
   });
 }

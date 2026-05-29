@@ -51,7 +51,8 @@ export async function iniciarFluxoQueixa(
     return {
       tipo: 'selecionarPedido',
       pedidos: [],
-      texto: 'Não encontrei pedidos entregues na sua conta. A reclamação precisa ser sobre um pedido que você já recebeu. Posso te ajudar com outra coisa?',
+      texto:
+        'Não encontrei pedidos entregues na sua conta. A reclamação precisa ser sobre um pedido que você já recebeu. Posso te ajudar com outra coisa?',
     };
   }
 
@@ -61,7 +62,7 @@ export async function iniciarFluxoQueixa(
     loja: p.loja.nome,
     total: Number(p.total),
     data: p.criadoEm.toISOString().split('T')[0],
-    itens: p.itens.map(i =>
+    itens: p.itens.map((i) =>
       i.quantidade > 1 ? `${i.nomeSnapshot} x${i.quantidade}` : i.nomeSnapshot,
     ),
     status: p.status,
@@ -80,6 +81,51 @@ export async function iniciarFluxoQueixa(
   };
 }
 
+// ─── Atalho: inicia queixa já com pedido pré-selecionado ─────────────────────
+
+export async function iniciarFluxoQueixaComPedido(
+  conversaId: string,
+  usuarioId: string,
+  motivo: string,
+  pedidoId: string,
+): Promise<RespostaConfirmarPedido | RespostaSelecionarPedido> {
+  const pedidoRaw = await prisma.pedido.findFirst({
+    where: { id: pedidoId, consumidorId: usuarioId },
+    include: {
+      loja: { select: { nome: true } },
+      itens: { select: { nomeSnapshot: true, quantidade: true } },
+    },
+  });
+
+  if (!pedidoRaw) return iniciarFluxoQueixa(conversaId, usuarioId, motivo);
+
+  const pedido: PedidoCardData = {
+    numero: 1,
+    id: pedidoRaw.id,
+    loja: pedidoRaw.loja.nome,
+    total: Number(pedidoRaw.total),
+    data: pedidoRaw.criadoEm.toISOString().split('T')[0],
+    itens: pedidoRaw.itens.map((i) =>
+      i.quantidade > 1 ? `${i.nomeSnapshot} x${i.quantidade}` : i.nomeSnapshot,
+    ),
+    status: pedidoRaw.status,
+  };
+
+  await atualizarEstado(conversaId, {
+    passo: 'confirmando',
+    motivo,
+    pedidoId: pedido.id,
+    pedido,
+    pedidos: [pedido],
+  } satisfies EstadoConfirmando);
+
+  return {
+    tipo: 'confirmarPedido',
+    pedido,
+    texto: `Confirma que o problema é com o pedido da ${pedido.loja}? (${pedido.data})`,
+  };
+}
+
 // ─── Passo 2: processa seleção de pedido ─────────────────────────────────────
 
 export async function processarSelecaoPedido(
@@ -95,21 +141,19 @@ export async function processarSelecaoPedido(
   let pedido: PedidoCardData | undefined;
 
   if (pedidoSelecionadoId) {
-    pedido = estado.pedidos.find(p => p.id === pedidoSelecionadoId);
+    pedido = estado.pedidos.find((p) => p.id === pedidoSelecionadoId);
   }
 
   if (!pedido) {
     const match = textoUser.match(/\b([1-5])\b/);
     if (match) {
-      pedido = estado.pedidos.find(p => p.numero === parseInt(match[1]));
+      pedido = estado.pedidos.find((p) => p.numero === parseInt(match[1]));
     }
   }
 
   if (!pedido) {
     const lower = textoUser.toLowerCase();
-    pedido = estado.pedidos.find(p =>
-      lower.includes(p.loja.toLowerCase().split(' ')[0]),
-    );
+    pedido = estado.pedidos.find((p) => lower.includes(p.loja.toLowerCase().split(' ')[0]));
   }
 
   if (!pedido) {

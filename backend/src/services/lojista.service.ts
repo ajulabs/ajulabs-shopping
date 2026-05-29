@@ -355,7 +355,7 @@ export async function criarProduto(
     tags: string[];
   },
   file?: Express.Multer.File,
-  variacoes: { nome: string; estoque: number }[] = [],
+  variacoes: { nome: string; estoque: number; preco?: number }[] = [],
 ) {
   let imagemUrl = '';
   if (file) {
@@ -371,15 +371,19 @@ export async function criarProduto(
       imagens: imagemUrl ? [imagemUrl] : [],
       ...(variacoes.length > 0 && {
         variacoes: {
-          create: variacoes.map((v) => ({ nome: v.nome, estoque: v.estoque })),
+          create: variacoes.map((v) => ({
+            nome: v.nome,
+            estoque: v.estoque,
+            preco: v.preco ?? null,
+          })),
         },
       }),
     },
     include: { variacoes: true },
   });
 
-  embedirProduto(produto.id).catch((err) =>
-    logger.error({ err, produtoId: produto.id }, '[embedding] falhou'),
+  await embedirProduto(produto.id).catch((err) =>
+    logger.error({ err, produtoId: produto.id }, '[embedding] falhou ao criar produto'),
   );
 
   return produto;
@@ -391,7 +395,7 @@ export async function updateProduto(
   body: Record<string, string | undefined>,
   imagensExistentes: string[],
   files?: Express.Multer.File[],
-  variacoes?: { nome: string; estoque: number }[],
+  variacoes?: { nome: string; estoque: number; preco?: number }[],
 ) {
   const produto = await prisma.produto.findUnique({
     where: { id: produtoId },
@@ -435,7 +439,13 @@ export async function updateProduto(
         data: {
           ...dados,
           ...(variacoes.length > 0 && {
-            variacoes: { create: variacoes.map((v) => ({ nome: v.nome, estoque: v.estoque })) },
+            variacoes: {
+              create: variacoes.map((v) => ({
+                nome: v.nome,
+                estoque: v.estoque,
+                preco: v.preco ?? null,
+              })),
+            },
           }),
         },
         include: { variacoes: true },
@@ -450,8 +460,8 @@ export async function updateProduto(
     });
   }
 
-  embedirProduto(atualizado.id).catch((err) =>
-    logger.error({ err, produtoId: atualizado.id }, '[embedding] falhou'),
+  await embedirProduto(atualizado.id).catch((err) =>
+    logger.error({ err, produtoId: atualizado.id }, '[embedding] falhou ao atualizar produto'),
   );
 
   return atualizado;

@@ -63,6 +63,7 @@ const lojaUpdateSchema = z.object({
 const variacaoSchema = z.object({
   nome: z.string().min(1),
   estoque: z.number().int().nonnegative(),
+  preco: z.number().positive().optional(),
 });
 
 const produtoFormSchema = z.object({

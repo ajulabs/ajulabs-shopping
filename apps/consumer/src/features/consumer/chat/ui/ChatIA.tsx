@@ -25,6 +25,7 @@ import * as SecureStore from 'expo-secure-store';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const ONBOARDING_KEY = 'aju_onboarding_v1';
+const chatKey = (userId: string) => `aju_chat_${userId}`;
 
 // expo-secure-store não funciona na web — fallback para localStorage
 const storage = {
@@ -90,7 +91,7 @@ const QUICK_ACTIONS: {
   color: string;
 }[] = [
   { icon: 'search-outline', label: 'Buscar', msg: 'Quero buscar produtos', color: '#f97316' },
-  { icon: 'receipt-outline', label: 'Pedidos', msg: 'Quero ver meus pedidos', color: '#2563EB' },
+  { icon: 'receipt-outline', label: 'Pedidos', msg: 'Quero rastrear meu pedido', color: '#2563EB' },
   {
     icon: 'alert-circle-outline',
     label: 'Reclamar',
@@ -134,6 +135,19 @@ export function ChatIA() {
       setMensagens((prev) => [...prev, balao]);
     },
   });
+
+  // Carrega histórico persistido ao montar (quando userId disponível)
+  useEffect(() => {
+    if (!userId) return;
+    storage.getItem(chatKey(userId)).then((raw) => {
+      if (!raw) return;
+      try {
+        const { conversaId: cid, mensagens: msgs } = JSON.parse(raw);
+        if (cid) setConversaId(cid);
+        if (Array.isArray(msgs) && msgs.length > 0) setMensagens(msgs);
+      } catch {}
+    });
+  }, [userId]);
 
   useEffect(() => {
     storage.getItem(ONBOARDING_KEY).then((done) => {
@@ -190,7 +204,20 @@ export function ChatIA() {
       criadaEm: new Date().toISOString(),
     };
 
-    setMensagens((prev) => [...prev, msgAju]);
+    setMensagens((prev) => {
+      const atualizadas = [...prev, msgAju];
+      // Persiste as últimas 50 mensagens + conversaId para restaurar após fechar o app
+      if (userId) {
+        const cid = resposta.conversaId ?? conversaId;
+        storage
+          .setItem(
+            chatKey(userId),
+            JSON.stringify({ conversaId: cid, mensagens: atualizadas.slice(-50) }),
+          )
+          .catch(() => {});
+      }
+      return atualizadas;
+    });
     setCarregando(false);
   }
 

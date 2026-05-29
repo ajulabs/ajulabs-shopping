@@ -97,7 +97,9 @@ router.post(
 
       const subtotal = dados.itens.reduce((acc, item) => {
         const produto = produtos.find((p) => p.id === item.produtoId)!;
-        return acc + Number(produto.preco) * item.quantidade;
+        const variacao = item.variacaoId ? variacoes.find((v) => v.id === item.variacaoId) : null;
+        const precoUnit = variacao?.preco != null ? Number(variacao.preco) : Number(produto.preco);
+        return acc + precoUnit * item.quantidade;
       }, 0);
 
       const taxaEntrega = Number(loja.taxaEntrega);
@@ -134,7 +136,7 @@ router.post(
                 return {
                   produtoId: produto.id,
                   nomeSnapshot: produto.nome,
-                  precoUnitario: produto.preco,
+                  precoUnitario: variacao?.preco ?? produto.preco,
                   quantidade: item.quantidade,
                   variacaoId: variacao?.id ?? null,
                   variacaoNome: variacao?.nome ?? null,

@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCartStore } from '../../cart/model/store';
+import { ItemCarrinho } from '@ajulabs/types';
+
+const cartKey = (userId: string) => `ajulabs-cart-${userId}`;
+
+async function salvarCarrinho(userId: string, itensPorLoja: Record<string, ItemCarrinho[]>) {
+  try {
+    await AsyncStorage.setItem(cartKey(userId), JSON.stringify(itensPorLoja));
+  } catch {}
+}
+
+async function restaurarCarrinho(userId: string) {
+  try {
+    const raw = await AsyncStorage.getItem(cartKey(userId));
+    if (raw) useCartStore.setState({ itensPorLoja: JSON.parse(raw) });
+  } catch {}
+}
 
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
@@ -82,6 +99,7 @@ export const useAuthStore = create<AuthState>()(
           telefone: usuario.telefone,
           email: usuario.email,
         });
+        await restaurarCarrinho(usuario.id);
       },
 
       registrar: async (dados: DadosRegistro) => {
@@ -123,6 +141,7 @@ export const useAuthStore = create<AuthState>()(
           telefone: usuario.telefone,
           email: usuario.email,
         });
+        await restaurarCarrinho(usuario.id);
       },
 
       enviarCodigo: async (telefone: string) => {
@@ -148,6 +167,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        const { userId } = get();
+        const { itensPorLoja, limparTudo } = useCartStore.getState();
+        if (userId) salvarCarrinho(userId, itensPorLoja);
+        limparTudo();
         set({
           isLoggedIn: false,
           token: null,
@@ -204,8 +227,9 @@ export const useAuthStore = create<AuthState>()(
         email: state.email,
         avatarUrl: state.avatarUrl,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => async (state) => {
         state?.setHasHydrated(true);
+        if (state?.userId) await restaurarCarrinho(state.userId);
       },
     },
   ),
