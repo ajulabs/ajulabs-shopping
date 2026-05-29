@@ -9,9 +9,13 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
   );
 }
 
+export type PapelColaborador = 'admin' | 'gerente' | 'funcionario';
+
 export interface TokenPayload {
   id: string;
-  tipo: 'usuario' | 'entregador' | 'lojista';
+  tipo: 'usuario' | 'entregador' | 'lojista' | 'colaborador';
+  papel?: PapelColaborador;
+  lojaId?: string;
 }
 
 export function gerarToken(payload: TokenPayload): string {

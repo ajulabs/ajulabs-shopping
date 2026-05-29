@@ -1,0 +1,26 @@
+import { useAuthLojistaStore } from '../../auth/model/store';
+
+export function usePermissions() {
+  const papel = useAuthLojistaStore((s) => s.papel);
+  const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
+
+  const isAdmin = isLojistaDono || papel === 'admin';
+  const isGerente = papel === 'gerente';
+  const isFuncionario = papel === 'funcionario';
+
+  return {
+    papel,
+    isLojistaDono,
+    isAdmin,
+    isGerente,
+    isFuncionario,
+    // only owner/admin see prices; gerente and funcionario cannot
+    canViewPrices: isAdmin,
+    canEditPrices: isAdmin,
+    canRequestPriceChange: isFuncionario,
+    canApprovePrice: isAdmin || isGerente,
+    canManageUsers: isAdmin,
+    canViewAuditLog: isAdmin || isGerente,
+    canManageProducts: isAdmin || isGerente || isFuncionario,
+  };
+}

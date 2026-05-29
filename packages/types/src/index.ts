@@ -357,3 +357,51 @@ export interface ChatMensagemNovaPayload {
   pedidoId: string;
   mensagem: ChatMensagemPedido;
 }
+
+export type PapelColaborador = 'admin' | 'gerente' | 'funcionario';
+export type StatusSolicitacaoPreco = 'pendente' | 'aprovado' | 'rejeitado';
+
+export interface Colaborador {
+  id: string;
+  lojaId: string;
+  nome: string;
+  email: string;
+  papel: PapelColaborador;
+  ativo: boolean;
+  criadoEm: string;
+}
+
+export interface SolicitacaoPreco {
+  id: string;
+  produtoId: string;
+  lojaId: string;
+  solicitanteId: string;
+  solicitante: { id: string; nome: string; email: string };
+  produto: { id: string; nome: string; imagemUrl?: string | null };
+  precoAtual: number;
+  precoSolicitado: number;
+  justificativa: string;
+  status: StatusSolicitacaoPreco;
+  revisadoPorId?: string | null;
+  revisadoPorTipo?: string | null;
+  revisadoPorNome?: string | null;
+  revisadoEm?: string | null;
+  notaRevisao?: string | null;
+  criadoEm: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  lojaId: string;
+  actorId: string;
+  actorTipo: string;
+  actorNome: string;
+  actorPapel: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  entityName: string;
+  changes?: Record<string, { before: unknown; after: unknown }> | null;
+  ipAddress?: string | null;
+}

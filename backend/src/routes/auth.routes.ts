@@ -7,6 +7,7 @@ import { cpfSchema, cnpjSchema, senhaForteSchema, emailSchema } from '../utils/v
 import { authLimiter } from '../lib/rateLimiter';
 import { logger } from '../lib/logger';
 import { specValidatorMiddleware } from '../lib/spec-validator';
+import { loginColaborador } from '../services/rbac.service';
 
 const router = Router();
 
@@ -398,6 +399,25 @@ router.post('/lojista/login', specValidatorMiddleware(loginLojistaSpec), async (
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     res.status(500).json({ error: 'Erro no login' });
+  }
+});
+
+// ========================================
+// COLABORADOR (RBAC)
+// ========================================
+
+router.post('/colaborador/login', async (req, res) => {
+  try {
+    const { email, senha } = z
+      .object({ email: z.string().email(), senha: z.string().min(1) })
+      .parse(req.body);
+
+    const resultado = await loginColaborador(email, senha);
+    res.json(resultado);
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    const err = error as { statusCode?: number; message?: string };
+    res.status(err.statusCode ?? 500).json({ error: err.message ?? 'Erro no login' });
   }
 });
 

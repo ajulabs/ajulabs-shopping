@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { PapelColaborador } from '@ajulabs/types';
 
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
@@ -22,10 +23,15 @@ interface AuthLojistaState {
   lojaNome: string | null;
   nomeResponsavel: string | null;
   email: string | null;
+  // colaborador fields
+  colaboradorId: string | null;
+  papel: PapelColaborador | null;
+  isLojistaDono: boolean;
   hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
 
   login: (cnpj: string, senha: string) => Promise<void>;
+  loginColaborador: (email: string, senha: string) => Promise<void>;
   registrar: (dados: DadosRegistroLojista) => Promise<void>;
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
@@ -42,6 +48,9 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
       lojaNome: null,
       nomeResponsavel: null,
       email: null,
+      colaboradorId: null,
+      papel: null,
+      isLojistaDono: false,
       hasHydrated: false,
       setHasHydrated: (v: boolean) => set({ hasHydrated: v }),
 
@@ -68,6 +77,38 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
           lojaNome: lojista.lojaNome ?? null,
           nomeResponsavel: lojista.nomeResponsavel,
           email: lojista.email,
+          colaboradorId: null,
+          papel: null,
+          isLojistaDono: true,
+        });
+      },
+
+      loginColaborador: async (email: string, senha: string) => {
+        const res = await fetch(`${API_URL}auth/colaborador/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, senha }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const errorMsg = typeof data.error === 'string' ? data.error : 'Email ou senha inválidos';
+          throw new Error(errorMsg);
+        }
+
+        const { token, refreshToken, colaborador } = await res.json();
+        set({
+          isLoggedIn: true,
+          token,
+          refreshToken: refreshToken ?? null,
+          lojistaId: null,
+          lojaId: colaborador.lojaId,
+          lojaNome: colaborador.lojaNome ?? null,
+          nomeResponsavel: colaborador.nome,
+          email: colaborador.email,
+          colaboradorId: colaborador.id,
+          papel: colaborador.papel,
+          isLojistaDono: false,
         });
       },
 
@@ -103,6 +144,9 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
           lojaNome: lojista.lojaNome ?? null,
           nomeResponsavel: lojista.nomeResponsavel,
           email: lojista.email,
+          colaboradorId: null,
+          papel: null,
+          isLojistaDono: true,
         });
       },
 
@@ -116,6 +160,9 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
           lojaNome: null,
           nomeResponsavel: null,
           email: null,
+          colaboradorId: null,
+          papel: null,
+          isLojistaDono: false,
         });
       },
 
@@ -156,6 +203,9 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
         lojaNome: state.lojaNome,
         nomeResponsavel: state.nomeResponsavel,
         email: state.email,
+        colaboradorId: state.colaboradorId,
+        papel: state.papel,
+        isLojistaDono: state.isLojistaDono,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

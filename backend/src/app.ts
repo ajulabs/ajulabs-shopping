@@ -22,6 +22,7 @@ import pushRoutes from './routes/push.routes';
 import notificationPreferencesRoutes from './routes/notificationPreferences.routes';
 import pedidoChatRoutes from './routes/pedido-chat.routes';
 import estoqueRoutes from './routes/estoque.routes';
+import rbacRoutes from './routes/rbac.routes';
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use('/v1/push', pushRoutes);
 app.use('/v1/notification-preferences', notificationPreferencesRoutes);
 app.use('/v1/pedido-chat', pedidoChatRoutes);
 app.use('/v1/lojista/estoque', estoqueRoutes);
+app.use('/v1/lojista/rbac', rbacRoutes);
 
 for (const prefix of [
   'auth',

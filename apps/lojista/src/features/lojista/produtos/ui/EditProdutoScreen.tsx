@@ -11,12 +11,16 @@ import {
   Image,
   Animated,
   Dimensions,
+  Modal,
+  Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { LojistaService } from '@ajulabs/api-client';
+import { LojistaService, RBACService } from '@ajulabs/api-client';
 import { Produto } from '@ajulabs/types';
 import { colors } from '../../../../theme';
+import { usePermissions } from '../../rbac/hooks/usePermissions';
+import { useAuthLojistaStore } from '../../auth/model/store';
 import { TipoProdutoSelector } from './TipoProdutoSelector';
 import { TipoProdutoValue, derivarCategoriaString } from '../model/tipoProdutos';
 import {
@@ -93,6 +97,16 @@ export function EditProdutoScreen({
   onVoltar: () => void;
   onSalvo: () => void;
 }) {
+  const lojaId = useAuthLojistaStore((s) => s.lojaId);
+  const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
+  const { canEditPrices, isGerente, isFuncionario } = usePermissions();
+
+  // State for price change request (funcionario only)
+  const [solicitacaoModal, setSolicitacaoModal] = useState(false);
+  const [precoSolicitado, setPrecoSolicitado] = useState('');
+  const [justificativa, setJustificativa] = useState('');
+  const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false);
+
   const [form, setForm] = useState<EditForm>({
     nome: produto.nome,
     categoria: produto.categoria,
@@ -174,46 +188,101 @@ export function EditProdutoScreen({
   }, []);
 
   const handleSalvar = useCallback(async () => {
-    const preco = parseFloat(form.preco.replace(',', '.'));
-    if (isNaN(preco) || preco <= 0) {
-      Alert.alert('Erro', 'Informe um preço válido.');
-      return;
-    }
+    const existingImageUrls = slots
+      .filter((s): s is { type: 'existing'; url: string } => s.type === 'existing')
+      .map((s) => s.url);
+    const newImageUris = slots
+      .filter((s): s is { type: 'new'; uri: string } => s.type === 'new')
+      .map((s) => s.uri);
+    const categoriaFinal = form.tipoProduto
+      ? derivarCategoriaString(form.tipoProduto)
+      : form.categoria;
+    const hasVariacoes = form.variacoesEstoque.length > 0;
+
     setSaving(true);
     try {
-      const existingImageUrls = slots
-        .filter((s): s is { type: 'existing'; url: string } => s.type === 'existing')
-        .map((s) => s.url);
-      const newImageUris = slots
-        .filter((s): s is { type: 'new'; uri: string } => s.type === 'new')
-        .map((s) => s.uri);
-
-      const categoriaFinal = form.tipoProduto
-        ? derivarCategoriaString(form.tipoProduto)
-        : form.categoria;
-      const hasVariacoes = form.variacoesEstoque.length > 0;
-      const dados: Parameters<typeof LojistaService.editarProduto>[2] = {
-        nome: form.nome,
-        categoria: categoriaFinal,
-        descricao: form.descricao,
-        preco,
-        disponivel: form.disponivel,
-        existingImageUrls,
-        newImageUris,
-        variacoes: hasVariacoes ? form.variacoesEstoque : undefined,
-      };
-      if (!hasVariacoes && form.estoque !== '') {
-        const est = parseInt(form.estoque, 10);
-        if (!isNaN(est)) dados.estoque = est;
+      if (isLojistaDono) {
+        const preco = parseFloat(form.preco.replace(',', '.'));
+        if (isNaN(preco) || preco <= 0) {
+          Alert.alert('Erro', 'Informe um preço válido.');
+          return;
+        }
+        const dados: Parameters<typeof LojistaService.editarProduto>[2] = {
+          nome: form.nome,
+          categoria: categoriaFinal,
+          descricao: form.descricao,
+          preco,
+          disponivel: form.disponivel,
+          existingImageUrls,
+          newImageUris,
+          variacoes: hasVariacoes ? form.variacoesEstoque : undefined,
+        };
+        if (!hasVariacoes && form.estoque !== '') {
+          const est = parseInt(form.estoque, 10);
+          if (!isNaN(est)) dados.estoque = est;
+        }
+        await LojistaService.editarProduto(produto.id, token, dados);
+      } else {
+        // colaborador — use RBAC route (price change for funcionario is handled server-side)
+        const dados: Parameters<typeof RBACService.editarProduto>[2] = {
+          lojaId: lojaId!,
+          nome: form.nome,
+          categoria: categoriaFinal,
+          descricao: form.descricao,
+          disponivel: form.disponivel,
+          existingImageUrls,
+          newImageUris,
+          variacoes: hasVariacoes ? form.variacoesEstoque : undefined,
+        };
+        if (canEditPrices) {
+          const preco = parseFloat(form.preco.replace(',', '.'));
+          if (!isNaN(preco) && preco > 0) dados.preco = preco;
+        }
+        if (!hasVariacoes && form.estoque !== '') {
+          const est = parseInt(form.estoque, 10);
+          if (!isNaN(est)) dados.estoque = est;
+        }
+        await RBACService.editarProduto(produto.id, token, dados);
       }
-      await LojistaService.editarProduto(produto.id, token, dados);
       onSalvo();
     } catch (e) {
       Alert.alert('Erro', e instanceof Error ? e.message : 'Erro ao salvar.');
     } finally {
       setSaving(false);
     }
-  }, [form, slots, produto.id, token, onSalvo]);
+  }, [form, slots, produto.id, token, onSalvo, isLojistaDono, lojaId, canEditPrices]);
+
+  const handleSubmeterSolicitacao = useCallback(async () => {
+    if (!precoSolicitado.trim() || !justificativa.trim()) {
+      Alert.alert('Erro', 'Informe o novo preço e a justificativa.');
+      return;
+    }
+    const preco = parseFloat(precoSolicitado.replace(',', '.'));
+    if (isNaN(preco) || preco <= 0) {
+      Alert.alert('Erro', 'Preço inválido.');
+      return;
+    }
+    setEnviandoSolicitacao(true);
+    try {
+      await RBACService.submeterSolicitacaoPreco(token, {
+        produtoId: produto.id,
+        lojaId: lojaId!,
+        precoSolicitado: preco,
+        justificativa,
+      });
+      setSolicitacaoModal(false);
+      setPrecoSolicitado('');
+      setJustificativa('');
+      Alert.alert(
+        'Solicitação enviada',
+        'Sua solicitação de mudança de preço foi enviada para aprovação.',
+      );
+    } catch (e) {
+      Alert.alert('Erro', e instanceof Error ? e.message : 'Erro ao enviar solicitação.');
+    } finally {
+      setEnviandoSolicitacao(false);
+    }
+  }, [precoSolicitado, justificativa, token, produto.id, lojaId]);
 
   return (
     <View style={styles.container}>
@@ -308,16 +377,31 @@ export function EditProdutoScreen({
         </View>
 
         <View style={styles.rowFields}>
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.fieldLabel}>Preço (R$)</Text>
-            <TextInput
-              style={styles.input}
-              value={form.preco}
-              onChangeText={(v) => set('preco', v.replace(/[^0-9.,]/g, ''))}
-              placeholder="0,00"
-              keyboardType="decimal-pad"
-            />
-          </View>
+          {/* Price field: editable for admin/owner, hidden for gerente, read-only for funcionario */}
+          {!isGerente && (
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.fieldLabel}>Preço (R$)</Text>
+              {canEditPrices ? (
+                <TextInput
+                  style={styles.input}
+                  value={form.preco}
+                  onChangeText={(v) => set('preco', v.replace(/[^0-9.,]/g, ''))}
+                  placeholder="0,00"
+                  keyboardType="decimal-pad"
+                />
+              ) : (
+                <View style={styles.precoReadonly}>
+                  <Text style={styles.precoReadonlyText}>{form.preco}</Text>
+                  <TouchableOpacity
+                    onPress={() => setSolicitacaoModal(true)}
+                    style={styles.solicitarBtn}
+                  >
+                    <Text style={styles.solicitarBtnText}>Solicitar mudança</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
           {form.variacoesEstoque.length === 0 && (
             <View style={[styles.fieldGroup, { flex: 1 }]}>
               <Text style={styles.fieldLabel}>Estoque</Text>
@@ -369,6 +453,66 @@ export function EditProdutoScreen({
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Modal: solicitar mudança de preço (funcionario only) */}
+      <Modal
+        visible={solicitacaoModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSolicitacaoModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSolicitacaoModal(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Solicitar mudança de preço</Text>
+            <Text style={styles.modalSub}>
+              Informe o novo preço e a justificativa. Um admin/gerente irá revisar sua solicitação.
+            </Text>
+            <Text style={styles.solModalLabel}>NOVO PREÇO (R$)</Text>
+            <TextInput
+              style={styles.solModalInput}
+              value={precoSolicitado}
+              onChangeText={setPrecoSolicitado}
+              placeholder="0,00"
+              keyboardType="decimal-pad"
+            />
+            <Text style={[styles.solModalLabel, { marginTop: 12 }]}>JUSTIFICATIVA</Text>
+            <TextInput
+              style={[styles.solModalInput, { minHeight: 70, textAlignVertical: 'top' }]}
+              value={justificativa}
+              onChangeText={setJustificativa}
+              placeholder="Explique o motivo da mudança de preço..."
+              multiline
+              numberOfLines={3}
+            />
+            <TouchableOpacity
+              style={[styles.saveBtn, { marginTop: 16 }, enviandoSolicitacao && { opacity: 0.7 }]}
+              onPress={handleSubmeterSolicitacao}
+              disabled={enviandoSolicitacao}
+            >
+              {enviandoSolicitacao ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveBtnText}>Enviar solicitação</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.saveBtn,
+                {
+                  backgroundColor: 'transparent',
+                  borderWidth: 1.5,
+                  borderColor: colors.n200,
+                  marginTop: 8,
+                },
+              ]}
+              onPress={() => setSolicitacaoModal(false)}
+            >
+              <Text style={[styles.saveBtnText, { color: colors.n600 }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -493,4 +637,64 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  precoReadonly: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.n50,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  precoReadonlyText: { flex: 1, fontSize: 14, color: colors.n600 },
+  solicitarBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.orange + '18',
+    borderWidth: 1,
+    borderColor: colors.orange,
+  },
+  solicitarBtnText: { fontSize: 11, fontWeight: '700', color: colors.orange },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,9,51,0.6)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: colors.n0,
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.n200,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.navy, marginBottom: 6 },
+  modalSub: { fontSize: 13, color: colors.n600, lineHeight: 19, marginBottom: 16 },
+  solModalLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.n600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  solModalInput: {
+    backgroundColor: colors.n50,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.navy,
+  },
 });

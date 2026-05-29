@@ -10,6 +10,11 @@ import {
   MovimentacaoEstoque,
   TipoMovimentacao,
   AvaliacaoPedidoPayload,
+  PapelColaborador,
+  Colaborador,
+  SolicitacaoPreco,
+  StatusSolicitacaoPreco,
+  AuditLogEntry,
 } from '@ajulabs/types';
 export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 
@@ -1410,5 +1415,245 @@ export const PedidoChatService = {
       method: 'PUT',
       headers: authHeader(token),
     }).catch(() => {});
+  },
+};
+
+function rbacParams(lojaId: string | null, query?: Record<string, string>) {
+  const p = new URLSearchParams(lojaId ? { lojaId } : {});
+  if (query) Object.entries(query).forEach(([k, v]) => p.set(k, v));
+  return p.toString() ? `?${p}` : '';
+}
+
+export const RBACService = {
+  loginColaborador: async (
+    email: string,
+    senha: string,
+  ): Promise<{
+    token: string;
+    refreshToken: string;
+    colaborador: {
+      id: string;
+      nome: string;
+      email: string;
+      papel: PapelColaborador;
+      lojaId: string;
+      lojaNome: string;
+    };
+  }> => {
+    const res = await fetch(`${API_URL}/auth/colaborador/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Credenciais inválidas');
+    }
+    return res.json();
+  },
+
+  listarColaboradores: async (lojaId: string, token: string): Promise<Colaborador[]> => {
+    const res = await fetch(`${API_URL}/lojista/rbac/colaboradores${rbacParams(lojaId)}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { colaboradores } = await res.json();
+    return colaboradores ?? [];
+  },
+
+  criarColaborador: async (
+    lojaId: string,
+    token: string,
+    dados: { nome: string; email: string; senha: string; papel: PapelColaborador },
+  ): Promise<Colaborador> => {
+    const res = await fetch(`${API_URL}/lojista/rbac/colaboradores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lojaId, ...dados }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao criar colaborador');
+    }
+    const { colaborador } = await res.json();
+    return colaborador;
+  },
+
+  atualizarColaborador: async (
+    id: string,
+    lojaId: string,
+    token: string,
+    dados: { nome?: string; papel?: PapelColaborador; ativo?: boolean },
+  ): Promise<Colaborador> => {
+    const res = await fetch(`${API_URL}/lojista/rbac/colaboradores/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lojaId, ...dados }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar colaborador');
+    }
+    const { colaborador } = await res.json();
+    return colaborador;
+  },
+
+  listarSolicitacoes: async (
+    lojaId: string,
+    token: string,
+    status?: StatusSolicitacaoPreco,
+  ): Promise<SolicitacaoPreco[]> => {
+    const params = rbacParams(lojaId, status ? { status } : {});
+    const res = await fetch(`${API_URL}/lojista/rbac/solicitacoes-preco${params}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { solicitacoes } = await res.json();
+    return (solicitacoes ?? []).map((s: any) => ({
+      ...s,
+      precoAtual: Number(s.precoAtual),
+      precoSolicitado: Number(s.precoSolicitado),
+    }));
+  },
+
+  contarPendentes: async (lojaId: string, token: string): Promise<number> => {
+    const res = await fetch(
+      `${API_URL}/lojista/rbac/solicitacoes-preco/pendentes-count${rbacParams(lojaId)}`,
+      { headers: authHeader(token) },
+    );
+    if (!res.ok) return 0;
+    const { count } = await res.json();
+    return count ?? 0;
+  },
+
+  submeterSolicitacaoPreco: async (
+    token: string,
+    dados: {
+      produtoId: string;
+      lojaId: string;
+      precoSolicitado: number;
+      justificativa: string;
+    },
+  ): Promise<SolicitacaoPreco> => {
+    const res = await fetch(`${API_URL}/lojista/rbac/solicitacoes-preco`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao submeter solicitação');
+    }
+    const { solicitacao } = await res.json();
+    return {
+      ...solicitacao,
+      precoAtual: Number(solicitacao.precoAtual),
+      precoSolicitado: Number(solicitacao.precoSolicitado),
+    };
+  },
+
+  aprovarSolicitacao: async (
+    id: string,
+    lojaId: string,
+    token: string,
+    notaRevisao?: string,
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/rbac/solicitacoes-preco/${id}/aprovar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lojaId, notaRevisao }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao aprovar solicitação');
+    }
+  },
+
+  rejeitarSolicitacao: async (
+    id: string,
+    lojaId: string,
+    token: string,
+    notaRevisao?: string,
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/rbac/solicitacoes-preco/${id}/rejeitar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ lojaId, notaRevisao }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao rejeitar solicitação');
+    }
+  },
+
+  listarAuditLog: async (
+    lojaId: string,
+    token: string,
+    opts: { page?: number; limit?: number } = {},
+  ): Promise<{ total: number; page: number; limit: number; items: AuditLogEntry[] }> => {
+    const p = new URLSearchParams({ lojaId });
+    if (opts.page) p.set('page', String(opts.page));
+    if (opts.limit) p.set('limit', String(opts.limit));
+    const res = await fetch(`${API_URL}/lojista/rbac/audit-log?${p}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return { total: 0, page: 1, limit: 50, items: [] };
+    return res.json();
+  },
+
+  editarProduto: async (
+    id: string,
+    token: string,
+    dados: {
+      lojaId: string;
+      nome?: string;
+      descricao?: string;
+      preco?: number;
+      estoque?: number;
+      categoria?: string;
+      disponivel?: boolean;
+      existingImageUrls?: string[];
+      newImageUris?: string[];
+      variacoes?: { nome: string; estoque: number; preco?: number }[];
+      justificativaPreco?: string;
+    },
+  ): Promise<void> => {
+    const {
+      newImageUris = [],
+      existingImageUrls = [],
+      variacoes,
+      lojaId,
+      justificativaPreco,
+      ...rest
+    } = dados;
+    const form = new FormData();
+    form.append('lojaId', lojaId);
+    if (rest.nome !== undefined) form.append('nome', rest.nome);
+    if (rest.descricao !== undefined) form.append('descricao', rest.descricao);
+    if (rest.categoria !== undefined) form.append('categoria', rest.categoria);
+    if (rest.preco !== undefined) form.append('preco', String(rest.preco));
+    if (rest.estoque !== undefined) form.append('estoque', String(rest.estoque));
+    if (rest.disponivel !== undefined) form.append('disponivel', String(rest.disponivel));
+    if (variacoes !== undefined) form.append('variacoes', JSON.stringify(variacoes));
+    if (justificativaPreco) form.append('justificativaPreco', justificativaPreco);
+    form.append('imagensExistentes', JSON.stringify(existingImageUrls));
+    for (let i = 0; i < newImageUris.length; i++) {
+      const uri = newImageUris[i];
+      if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+        const blob = await fetch(uri).then((r) => r.blob());
+        form.append('imagens', blob, `imagem_${i}.jpg`);
+      } else {
+        form.append('imagens', { uri, type: 'image/jpeg', name: `imagem_${i}.jpg` } as any);
+      }
+    }
+    const res = await fetch(`${API_URL}/lojista/rbac/produtos/${id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao editar produto');
+    }
   },
 };
