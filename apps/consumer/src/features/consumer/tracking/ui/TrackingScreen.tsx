@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,14 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { PedidoService } from '@ajulabs/api-client';
+import { PedidoService, AvaliacaoService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 import { TrackingTimeline } from './TrackingTimeline';
 import { DeliveryMap } from '../../../../components/DeliveryMap';
 import { useEntregadorTracking } from '../hooks/useEntregadorTracking';
+import { EntregaConfirmadaModal } from '../../avaliacao/ui/EntregaConfirmadaModal';
+import { AvaliacaoModal } from '../../avaliacao/ui/AvaliacaoModal';
 
 const CHAT_STATUSES = ['confirmado', 'preparando', 'pronto', 'saiu_entrega'];
 
@@ -38,6 +40,20 @@ export function TrackingScreen({ pedidoId }: Props) {
 
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showConfirmada, setShowConfirmada] = useState(false);
+  const [showAvaliacao, setShowAvaliacao] = useState(false);
+  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
+  const statusAnterior = useRef<string | null>(null);
+  const modalDisparado = useRef(false);
+
+  useEffect(() => {
+    if (!pedido || modalDisparado.current) return;
+    if (pedido.status === 'entregue' && !pedido.avaliado) {
+      modalDisparado.current = true;
+      const t = setTimeout(() => setShowConfirmada(true), 400);
+      return () => clearTimeout(t);
+    }
+  }, [pedido?.id, pedido?.status, pedido?.avaliado]);
 
   useEffect(() => {
     if (!token) {
@@ -46,6 +62,7 @@ export function TrackingScreen({ pedidoId }: Props) {
     }
     PedidoService.buscarPorId(pedidoId, token)
       .then((data) => {
+        statusAnterior.current = data?.status ?? null;
         setPedido(data);
         setLoading(false);
       })
@@ -54,12 +71,41 @@ export function TrackingScreen({ pedidoId }: Props) {
     const interval = setInterval(() => {
       PedidoService.buscarPorId(pedidoId, token)
         .then((data) => {
-          if (data) setPedido(data);
+          if (!data) return;
+          if (
+            statusAnterior.current !== 'entregue' &&
+            data.status === 'entregue' &&
+            !data.avaliado
+          ) {
+            modalDisparado.current = true;
+            setShowConfirmada(true);
+          }
+          statusAnterior.current = data.status;
+          setPedido(data);
         })
         .catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
   }, [pedidoId, token]);
+
+  async function handleEnviarAvaliacao(dados: {
+    notaLoja: number;
+    notaEntregador: number;
+    comentarioEntregador?: string;
+    avaliacoesProdutos: { produtoId: string; nota: number; comentario?: string }[];
+  }) {
+    if (!token || !pedido) return;
+    setEnviandoAvaliacao(true);
+    try {
+      await AvaliacaoService.avaliarPedido({ pedidoId: pedido.id, ...dados }, token);
+      setPedido((prev) => (prev ? { ...prev, avaliado: true } : prev));
+      setShowAvaliacao(false);
+    } catch {
+      // silently fail — user can retry via histórico later
+    } finally {
+      setEnviandoAvaliacao(false);
+    }
+  }
 
   const isActive = pedido ? ACTIVE_STATUSES.includes(pedido.status) : false;
 
@@ -130,6 +176,18 @@ export function TrackingScreen({ pedidoId }: Props) {
       )}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {pedido.status === 'entregue' && !pedido.avaliado && (
+          <TouchableOpacity
+            style={styles.avaliarBanner}
+            onPress={() => setShowAvaliacao(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="star" size={18} color="#fff" />
+            <Text style={styles.avaliarBannerTxt}>Avaliar este pedido</Text>
+            <Ionicons name="chevron-forward" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
+
         {isAtivo && etaMin && (
           <View style={[styles.etaCard, { backgroundColor: surf, borderColor: border }]}>
             <View style={[styles.etaIconBox, { backgroundColor: iconBg }]}>
@@ -269,12 +327,48 @@ export function TrackingScreen({ pedidoId }: Props) {
           </View>
         </View>
       </ScrollView>
+
+      <EntregaConfirmadaModal
+        visible={showConfirmada}
+        lojaNome={pedido.lojaNome}
+        onAvaliar={() => {
+          setShowConfirmada(false);
+          setShowAvaliacao(true);
+        }}
+        onPular={() => setShowConfirmada(false)}
+      />
+
+      <AvaliacaoModal
+        visible={showAvaliacao}
+        lojaNome={pedido.lojaNome}
+        entregadorNome={pedido.entregador?.nome ?? null}
+        itens={pedido.itens}
+        enviando={enviandoAvaliacao}
+        onEnviar={handleEnviarAvaliacao}
+        onFechar={() => setShowAvaliacao(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  avaliarBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.orange,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  avaliarBannerTxt: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

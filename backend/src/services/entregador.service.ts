@@ -1,5 +1,5 @@
 import { prisma } from '../utils/prisma';
-import { getIo, setEntregadorLocalizacao } from '../utils/socket';
+import { getIo, setEntregadorLocalizacao, emitPedidoAtualizado } from '../utils/socket';
 import { uploadImagemEntregador, uploadDocumentoTrocaVeiculo } from '../utils/supabase';
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 import { assertValidImage } from '../lib/mimeValidator';
@@ -364,13 +364,7 @@ export async function confirmarRetirada(entregadorId: string, pedidoId: string) 
   await prisma.pedido.update({ where: { id: pedidoId }, data: { status: 'saiu_entrega' } });
   await prisma.historicoStatusPedido.create({ data: { pedidoId, status: 'saiu_entrega' } });
 
-  try {
-    getIo()
-      .to(`usuario:${pedido.consumidorId}`)
-      .emit('pedido:status', { pedidoId, status: 'saiu_entrega' });
-  } catch {
-    /* socket may not be initialized */
-  }
+  emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'saiu_entrega', pedido.lojaId);
   void notificarStatusPedido(pedido.consumidorId, pedidoId, 'saiu_entrega');
 }
 
@@ -399,13 +393,7 @@ export async function confirmarEntrega(entregadorId: string, pedidoId: string, c
     })
     .catch(() => {});
 
-  try {
-    getIo()
-      .to(`usuario:${pedido.consumidorId}`)
-      .emit('pedido:status', { pedidoId, status: 'entregue' });
-  } catch {
-    /* socket may not be initialized */
-  }
+  emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'entregue', pedido.lojaId);
   void notificarStatusPedido(pedido.consumidorId, pedidoId, 'entregue');
 }
 
@@ -446,13 +434,7 @@ export async function updateStatusCorrida(
     });
   }
 
-  try {
-    getIo()
-      .to(`usuario:${atualizado.consumidorId}`)
-      .emit('pedido:status', { pedidoId, status: novoStatus });
-  } catch {
-    /* socket may not be initialized */
-  }
+  emitPedidoAtualizado(atualizado.consumidorId, pedidoId, novoStatus);
   void notificarStatusPedido(atualizado.consumidorId, pedidoId, novoStatus);
 
   return atualizado.status;

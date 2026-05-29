@@ -22,13 +22,15 @@ model Usuario {
   criadoEm            DateTime @default(now()) @map("criado_em")
   atualizadoEm        DateTime @updatedAt @map("atualizado_em")
 
-  enderecos        EnderecoUsuario[]
-  pedidos          Pedido[]
-  conversas        ConversaChat[]
-  avaliacoes       AvaliacaoLoja[]
-  supportTickets   SupportTicket[]
-  favoritos        FavoritoProduto[]
-  favoritosLojas   FavoritoLoja[]
+  enderecos              EnderecoUsuario[]
+  pedidos                Pedido[]
+  conversas              ConversaChat[]
+  avaliacoes             AvaliacaoLoja[]
+  avaliacoesEntregador   AvaliacaoEntregador[]
+  avaliacoesProdutos     AvaliacaoProduto[]
+  supportTickets         SupportTicket[]
+  favoritos              FavoritoProduto[]
+  favoritosLojas         FavoritoLoja[]
   dispositivosPush DispositivoPush[]
   prefsOptOut      PreferenciaNotificacaoOptOut[]
 
@@ -89,6 +91,8 @@ model Entregador {
   ultimaLat      Float?         @map("ultima_lat")
   ultimaLng      Float?         @map("ultima_lng")
   ultimoHeartbeat DateTime?     @map("ultimo_heartbeat")
+  avaliacao      Float          @default(0)
+  totalAvaliacoes Int           @default(0) @map("total_avaliacoes")
   criadoEm       DateTime       @default(now()) @map("criado_em")
   atualizadoEm   DateTime       @updatedAt @map("atualizado_em")
 
@@ -101,6 +105,7 @@ model Entregador {
   solicitacoesTrocaVeiculo SolicitacaoTrocaVeiculo[]
   dispositivosPush      DispositivoPush[]
   prefsOptOut           PreferenciaNotificacaoOptOut[]
+  avaliacoes            AvaliacaoEntregador[]
 
   @@map("entregadores")
 }
@@ -323,6 +328,8 @@ model Produto {
   tags          String[]
   disponivel    Boolean                     @default(true)
   destaque      Boolean                     @default(false)
+  avaliacao     Float                       @default(0)
+  totalAvaliacoes Int                       @default(0) @map("total_avaliacoes")
   embedding     Unsupported("vector(1536)")?
   criadoEm      DateTime                    @default(now()) @map("criado_em")
   atualizadoEm  DateTime                    @updatedAt @map("atualizado_em")
@@ -333,6 +340,7 @@ model Produto {
   sugestoes     SugestaoProdutoChat[]
   favoritos     FavoritoProduto[]
   movimentacoes MovimentacaoEstoque[]
+  avaliacoes    AvaliacaoProduto[]
 
   @@map("produtos")
 }
@@ -437,20 +445,23 @@ model Pedido {
   obs               String?
   codigoEntrega     String?         @map("codigo_entrega")
   estimativaEntrega DateTime?       @map("estimativa_entrega")
+  avaliado          Boolean         @default(false)
   criadoEm          DateTime        @default(now()) @map("criado_em")
   atualizadoEm      DateTime        @updatedAt @map("atualizado_em")
 
-  consumidor       Usuario                 @relation(fields: [consumidorId], references: [id])
-  loja             Loja                    @relation(fields: [lojaId], references: [id])
-  entregador       Entregador?             @relation(fields: [entregadorId], references: [id])
-  enderecoEntrega  EnderecoUsuario         @relation(fields: [enderecoEntregaId], references: [id])
-  itens            ItemPedido[]
-  historico        HistoricoStatusPedido[]
-  pagamento        Pagamento?
-  entregaRealizada EntregaRealizada?
-  avaliacao        AvaliacaoLoja?
-  supportTickets   SupportTicket[]
-  chat             ChatPedido?
+  consumidor          Usuario                 @relation(fields: [consumidorId], references: [id])
+  loja                Loja                    @relation(fields: [lojaId], references: [id])
+  entregador          Entregador?             @relation(fields: [entregadorId], references: [id])
+  enderecoEntrega     EnderecoUsuario         @relation(fields: [enderecoEntregaId], references: [id])
+  itens               ItemPedido[]
+  historico           HistoricoStatusPedido[]
+  pagamento           Pagamento?
+  entregaRealizada    EntregaRealizada?
+  avaliacao           AvaliacaoLoja?
+  avaliacaoEntregador AvaliacaoEntregador?
+  avaliacoesProdutos  AvaliacaoProduto[]
+  supportTickets      SupportTicket[]
+  chat                ChatPedido?
 
   @@map("pedidos")
 }
@@ -700,6 +711,39 @@ model AvaliacaoLoja {
   pedido  Pedido  @relation(fields: [pedidoId], references: [id])
 
   @@map("avaliacoes_loja")
+}
+
+model AvaliacaoEntregador {
+  id           String   @id @default(uuid())
+  entregadorId String   @map("entregador_id")
+  usuarioId    String   @map("usuario_id")
+  pedidoId     String   @unique @map("pedido_id")
+  nota         Int
+  comentario   String?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  entregador Entregador @relation(fields: [entregadorId], references: [id])
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
+  pedido     Pedido     @relation(fields: [pedidoId], references: [id])
+
+  @@map("avaliacoes_entregador")
+}
+
+model AvaliacaoProduto {
+  id         String   @id @default(uuid())
+  produtoId  String   @map("produto_id")
+  usuarioId  String   @map("usuario_id")
+  pedidoId   String   @map("pedido_id")
+  nota       Int
+  comentario String?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  produto Produto @relation(fields: [produtoId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  pedido  Pedido  @relation(fields: [pedidoId], references: [id])
+
+  @@unique([produtoId, pedidoId])
+  @@map("avaliacoes_produto")
 }
 
 // ========================================
