@@ -222,15 +222,15 @@ export function emitProdutoVariacoes(lojaId: string, produtoId: string, variacoe
 export function emitEstoqueAtualizado(lojaId: string, payload: object): void {
   try {
     getIo().to(`loja:${lojaId}`).emit('estoque:atualizado', payload);
-  } catch (_e) {
-    /* socket not ready */
+  } catch {
+    /* intentional */
   }
 }
 
 export function emitEstoqueAlerta(lojaId: string, payload: object): void {
   try {
     getIo().to(`loja:${lojaId}`).emit('estoque:alerta', payload);
-  } catch (_e) {
-    /* socket not ready */
+  } catch {
+    /* intentional */
   }
 }
