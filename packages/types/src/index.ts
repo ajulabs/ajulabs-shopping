@@ -59,6 +59,7 @@ export interface Produto {
   tags?: string[];
   disponivel: boolean;
   estoque?: number;
+  estoqueMinimo?: number;
   destaque?: boolean;
   variacoes?: VariacaoProduto[];
 }
@@ -236,6 +237,41 @@ export interface EnderecoSalvo {
   lat?: number | null;
   lng?: number | null;
   geoSource?: string | null;
+}
+
+export type NivelEstoque = 'saudavel' | 'atencao' | 'critico' | 'zerado';
+
+export type TipoMovimentacao =
+  | 'entrada_manual'
+  | 'saida_manual'
+  | 'venda'
+  | 'cancelamento'
+  | 'devolucao'
+  | 'ajuste_inventario'
+  | 'reserva'
+  | 'liberacao_reserva';
+
+export interface MovimentacaoEstoque {
+  id: string;
+  tipo: TipoMovimentacao;
+  quantidade: number;
+  estoqueAntes: number;
+  estoqueDepois: number;
+  motivo?: string | null;
+  pedidoId?: string | null;
+  criadoEm: string;
+  produto: { id: string; nome: string; imagemUrl?: string | null };
+}
+
+export interface EstoqueDashboard {
+  totalProdutos: number;
+  produtosAtivos: number;
+  produtosSemEstoque: number;
+  produtosBaixoEstoque: number;
+  produtosAtencao: number;
+  valorTotalEstoque: number;
+  alertas: (Omit<Produto, 'imagem' | 'descricao' | 'categoria'> & { nivel: NivelEstoque })[];
+  movimentacoesRecentes: MovimentacaoEstoque[];
 }
 
 export type MetodoPagamento = 'pix' | 'cartao';

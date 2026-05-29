@@ -6,6 +6,7 @@ import { getEntregadorLocalizacao, emitPedidoNovo } from '../utils/socket';
 import { notificarPedidoNovo } from '../lib/pushNotifications';
 import { logger } from '../lib/logger';
 import { specValidatorMiddleware } from '../lib/spec-validator';
+import { restaurarEstoqueNoCancelamento } from '../services/estoque.service';
 
 const router = Router();
 
@@ -160,18 +161,21 @@ router.post(
         });
 
         for (const item of dados.itens) {
+          const produto = produtos.find((p) => p.id === item.produtoId)!;
+          const estoqueAntes = produto.estoque;
+          let estoqueDepois: number;
+
           if (item.variacaoId) {
             const variacao = variacoes.find((v) => v.id === item.variacaoId)!;
             await tx.variacaoProduto.update({
               where: { id: item.variacaoId },
               data: { estoque: variacao.estoque - item.quantidade },
             });
-            // Recalculate produto.estoque as sum of all variation stocks after update
             const todasVars = await tx.variacaoProduto.findMany({
               where: { produtoId: item.produtoId },
               select: { id: true, estoque: true },
             });
-            const estoqueTotal = todasVars.reduce((s, v) => {
+            estoqueDepois = todasVars.reduce((s, v) => {
               return (
                 s + (v.id === item.variacaoId ? variacao.estoque - item.quantidade : v.estoque)
               );
@@ -179,21 +183,32 @@ router.post(
             await tx.produto.update({
               where: { id: item.produtoId },
               data: {
-                estoque: estoqueTotal,
-                ...(estoqueTotal <= 0 ? { disponivel: false } : {}),
+                estoque: estoqueDepois,
+                ...(estoqueDepois <= 0 ? { disponivel: false } : {}),
               },
             });
           } else {
-            const produto = produtos.find((p) => p.id === item.produtoId)!;
-            const novoEstoque = produto.estoque - item.quantidade;
+            estoqueDepois = produto.estoque - item.quantidade;
             await tx.produto.update({
               where: { id: item.produtoId },
               data: {
-                estoque: novoEstoque,
-                ...(novoEstoque <= 0 ? { disponivel: false } : {}),
+                estoque: estoqueDepois,
+                ...(estoqueDepois <= 0 ? { disponivel: false } : {}),
               },
             });
           }
+
+          await tx.movimentacaoEstoque.create({
+            data: {
+              produtoId: item.produtoId,
+              lojaId: dados.lojaId,
+              tipo: 'venda',
+              quantidade: item.quantidade,
+              estoqueAntes,
+              estoqueDepois,
+              pedidoId: pedido.id,
+            },
+          });
         }
 
         return { pedido };
@@ -318,6 +333,41 @@ router.post('/:id/rastrear', authMiddleware, authUsuario, async (req: AuthReques
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar rastreamento' });
+  }
+});
+
+// POST /pedidos/:id/cancelar - Cancelar pedido (usuário autenticado)
+router.post('/:id/cancelar', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
+  try {
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: req.params.id },
+      select: { consumidorId: true, status: true, lojaId: true },
+    });
+
+    if (!pedido || pedido.consumidorId !== req.user!.id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const cancelaveis: string[] = ['aguardando', 'confirmado'];
+    if (!cancelaveis.includes(pedido.status)) {
+      return res.status(400).json({ error: 'Pedido não pode ser cancelado neste status' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.pedido.update({
+        where: { id: req.params.id },
+        data: { status: 'cancelado' },
+      });
+      await tx.historicoStatusPedido.create({
+        data: { pedidoId: req.params.id, status: 'cancelado' },
+      });
+      await restaurarEstoqueNoCancelamento(req.params.id, pedido.lojaId, tx);
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error({ error }, '[pedidos] erro ao cancelar pedido');
+    res.status(500).json({ error: 'Erro ao cancelar pedido' });
   }
 });
 

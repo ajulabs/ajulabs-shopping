@@ -6,6 +6,9 @@ import {
   EntregadorResumo,
   AvaliacaoLoja,
   VariacaoProduto,
+  EstoqueDashboard,
+  MovimentacaoEstoque,
+  TipoMovimentacao,
 } from '@ajulabs/types';
 export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 
@@ -60,6 +63,7 @@ function mapProduto(raw: any): Produto {
     tags: Array.isArray(raw.tags) ? raw.tags : [],
     disponivel: raw.disponivel ?? true,
     estoque: raw.estoque != null ? Number(raw.estoque) : undefined,
+    estoqueMinimo: raw.estoqueMinimo != null ? Number(raw.estoqueMinimo) : undefined,
     destaque: raw.destaque ?? false,
     variacoes: Array.isArray(raw.variacoes)
       ? raw.variacoes.map(
@@ -1213,6 +1217,82 @@ export const TranscricaoService = {
     if (!res.ok) throw new Error('Erro na transcrição');
     const data = await res.json();
     return data.texto;
+  },
+};
+
+export const EstoqueService = {
+  getDashboard: async (lojaId: string, token: string): Promise<EstoqueDashboard | null> => {
+    const res = await fetch(`${API_URL}/lojista/estoque/dashboard?lojaId=${lojaId}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return null;
+    const { dashboard } = await res.json();
+    return dashboard ?? null;
+  },
+
+  getMovimentacoes: async (
+    lojaId: string,
+    token: string,
+    opts: { produtoId?: string; tipo?: TipoMovimentacao; page?: number; limit?: number } = {},
+  ): Promise<{ total: number; page: number; limit: number; items: MovimentacaoEstoque[] }> => {
+    const params = new URLSearchParams({ lojaId });
+    if (opts.produtoId) params.set('produtoId', opts.produtoId);
+    if (opts.tipo) params.set('tipo', opts.tipo);
+    if (opts.page) params.set('page', String(opts.page));
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const res = await fetch(`${API_URL}/lojista/estoque/movimentacoes?${params}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return { total: 0, page: 1, limit: 30, items: [] };
+    return res.json();
+  },
+
+  getAlertas: async (lojaId: string, token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/lojista/estoque/alertas?lojaId=${lojaId}`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { alertas } = await res.json();
+    return alertas ?? [];
+  },
+
+  registrarMovimentacao: async (
+    token: string,
+    dados: {
+      produtoId: string;
+      lojaId: string;
+      tipo: 'entrada_manual' | 'saida_manual' | 'ajuste_inventario' | 'devolucao';
+      quantidade: number;
+      motivo?: string;
+    },
+  ): Promise<Produto> => {
+    const res = await fetch(`${API_URL}/lojista/estoque/movimentacao`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao registrar movimentação');
+    }
+    const { produto } = await res.json();
+    return mapProduto(produto);
+  },
+
+  setEstoqueMinimo: async (
+    produtoId: string,
+    estoqueMinimo: number,
+    token: string,
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/estoque/produtos/${produtoId}/minimo`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ estoqueMinimo }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao definir estoque mínimo');
+    }
   },
 };
 

@@ -218,3 +218,19 @@ export function emitProdutoVariacoes(lojaId: string, produtoId: string, variacoe
     /* intentional */
   }
 }
+
+export function emitEstoqueAtualizado(lojaId: string, payload: object): void {
+  try {
+    getIo().to(`loja:${lojaId}`).emit('estoque:atualizado', payload);
+  } catch {
+    /* intentional */
+  }
+}
+
+export function emitEstoqueAlerta(lojaId: string, payload: object): void {
+  try {
+    getIo().to(`loja:${lojaId}`).emit('estoque:alerta', payload);
+  } catch {
+    /* intentional */
+  }
+}

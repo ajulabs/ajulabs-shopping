@@ -42,6 +42,21 @@ export interface ProdutoVariacaoPayload {
   variacoes: VariacaoProduto[];
 }
 
+export interface EstoqueAtualizadoPayload {
+  produtoId: string;
+  produtoNome: string;
+  estoque: number;
+  estoqueMinimo: number;
+}
+
+export interface EstoqueAlertaPayload {
+  produtoId: string;
+  produtoNome: string;
+  estoque: number;
+  estoqueMinimo: number;
+  nivel: 'atencao' | 'critico' | 'zerado';
+}
+
 export interface ServerEvents {
   'localizacao:entregador': (payload: LocationPayload) => void;
   'pedido:status': (payload: StatusPayload) => void;
@@ -53,6 +68,8 @@ export interface ServerEvents {
   'ticket:novo': (payload: TicketNovoPayload) => void;
   'chat:mensagem:nova': (payload: ChatMensagemNovaPayload) => void;
   'produto:variacoes': (payload: ProdutoVariacaoPayload) => void;
+  'estoque:atualizado': (payload: EstoqueAtualizadoPayload) => void;
+  'estoque:alerta': (payload: EstoqueAlertaPayload) => void;
 }
 
 export interface ClientEvents {
