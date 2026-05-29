@@ -9,6 +9,7 @@ import {
   EstoqueDashboard,
   MovimentacaoEstoque,
   TipoMovimentacao,
+  AvaliacaoPedidoPayload,
 } from '@ajulabs/types';
 export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 
@@ -123,6 +124,7 @@ function mapPedido(raw: any): Pedido {
           tipoTransporte: raw.entregador.tipoTransporte ?? '',
         } as EntregadorResumo)
       : null,
+    avaliado: raw.avaliado ?? false,
   };
 }
 
@@ -244,6 +246,19 @@ export const AvaliacaoService = {
         },
       }),
     );
+  },
+
+  avaliarPedido: async (dados: AvaliacaoPedidoPayload, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/avaliacoes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify(dados),
+    });
+    if (res.status === 401) throw new ApiUnauthorizedError();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar avaliação');
+    }
   },
 };
 

@@ -4,14 +4,27 @@ import { Pedido, StatusPedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
 
-const STATUS_CONFIG: Record<StatusPedido, { label: string; icon: string; color: string; bg: string }> = {
-  aguardando:    { label: 'Aguardando',     icon: 'time-outline',       color: colors.n600,    bg: colors.n100 },
-  confirmado:    { label: 'Confirmado',     icon: 'checkmark-circle',   color: '#185FA5',      bg: '#E6F1FB' },
-  preparando:    { label: 'Preparando',     icon: 'restaurant-outline', color: '#854F0B',      bg: '#FAEEDA' },
-  pronto:        { label: 'Pronto',         icon: 'bag-check-outline',  color: '#2D6A2D',      bg: '#E6F4E6' },
-  saiu_entrega:  { label: 'A caminho',      icon: 'bicycle-outline',    color: colors.orange600, bg: colors.orange100 },
-  entregue:      { label: 'Entregue',       icon: 'checkmark-done',     color: colors.mintText,  bg: 'rgba(57,255,137,0.15)' },
-  cancelado:     { label: 'Cancelado',      icon: 'close-circle',       color: '#A32D2D',      bg: '#FCEBEB' },
+const STATUS_CONFIG: Record<
+  StatusPedido,
+  { label: string; icon: string; color: string; bg: string }
+> = {
+  aguardando: { label: 'Aguardando', icon: 'time-outline', color: colors.n600, bg: colors.n100 },
+  confirmado: { label: 'Confirmado', icon: 'checkmark-circle', color: '#185FA5', bg: '#E6F1FB' },
+  preparando: { label: 'Preparando', icon: 'restaurant-outline', color: '#854F0B', bg: '#FAEEDA' },
+  pronto: { label: 'Pronto', icon: 'bag-check-outline', color: '#2D6A2D', bg: '#E6F4E6' },
+  saiu_entrega: {
+    label: 'A caminho',
+    icon: 'bicycle-outline',
+    color: colors.orange600,
+    bg: colors.orange100,
+  },
+  entregue: {
+    label: 'Entregue',
+    icon: 'checkmark-done',
+    color: colors.mintText,
+    bg: 'rgba(57,255,137,0.15)',
+  },
+  cancelado: { label: 'Cancelado', icon: 'close-circle', color: '#A32D2D', bg: '#FCEBEB' },
 };
 
 function tempoRelativo(iso: string): string {
@@ -35,6 +48,7 @@ interface Props {
 export function PedidoCard({ pedido, onPress }: Props) {
   const cfg = STATUS_CONFIG[pedido.status];
   const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
+  const precisaAvaliar = pedido.status === 'entregue' && !pedido.avaliado;
 
   const { surf, border, borderL, text, textSec } = useTheme();
 
@@ -42,7 +56,10 @@ export function PedidoCard({ pedido, onPress }: Props) {
     <TouchableOpacity
       style={[
         styles.card,
-        { backgroundColor: surf, borderColor: isAtivo ? colors.orange : border },
+        {
+          backgroundColor: surf,
+          borderColor: isAtivo ? colors.orange : precisaAvaliar ? '#F59E0B' : border,
+        },
         isAtivo && styles.cardAtivo,
       ]}
       onPress={() => onPress(pedido.id)}
@@ -51,7 +68,9 @@ export function PedidoCard({ pedido, onPress }: Props) {
       <View style={styles.topo}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.loja, { color: text }]}>{pedido.lojaNome}</Text>
-          <Text style={[styles.tempo, { color: textSec as string }]}>{tempoRelativo(pedido.criadoEm)}</Text>
+          <Text style={[styles.tempo, { color: textSec as string }]}>
+            {tempoRelativo(pedido.criadoEm)}
+          </Text>
         </View>
         <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
           <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
@@ -61,7 +80,8 @@ export function PedidoCard({ pedido, onPress }: Props) {
 
       <View style={styles.itensRow}>
         <Text style={[styles.itensQtd, { color: textSec as string }]}>
-          {pedido.itens.reduce((a, i) => a + i.quantidade, 0)} {pedido.itens.length === 1 ? 'item' : 'itens'}
+          {pedido.itens.reduce((a, i) => a + i.quantidade, 0)}{' '}
+          {pedido.itens.length === 1 ? 'item' : 'itens'}
         </Text>
         <Text style={[styles.totalTxt, { color: text }]}>{fmt(pedido.total)}</Text>
       </View>
@@ -70,8 +90,21 @@ export function PedidoCard({ pedido, onPress }: Props) {
         <View style={[styles.etaRow, { borderTopColor: borderL }]}>
           <Ionicons name="time-outline" size={14} color={colors.orange} />
           <Text style={styles.etaTxt}>
-            Chega em ~{Math.max(1, Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000))} min
+            Chega em ~
+            {Math.max(
+              1,
+              Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000),
+            )}{' '}
+            min
           </Text>
+        </View>
+      )}
+
+      {precisaAvaliar && (
+        <View style={[styles.avaliarRow, { borderTopColor: borderL }]}>
+          <Ionicons name="star-outline" size={13} color="#F59E0B" />
+          <Text style={styles.avaliarTxt}>Toque para avaliar este pedido</Text>
+          <Ionicons name="chevron-forward" size={13} color="#F59E0B" />
         </View>
       )}
     </TouchableOpacity>
@@ -79,22 +112,44 @@ export function PedidoCard({ pedido, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card:       { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
-  cardAtivo:  { borderWidth: 1.5 },
+  card: { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
+  cardAtivo: { borderWidth: 1.5 },
 
-  topo:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  loja:       { fontSize: 15, fontWeight: '700' },
-  tempo:      { fontSize: 11.5, marginTop: 2 },
+  topo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  loja: { fontSize: 15, fontWeight: '700' },
+  tempo: { fontSize: 11.5, marginTop: 2 },
 
-  badge:      { flexDirection: 'row', alignItems: 'center', gap: 4,
-                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
-  badgeTxt:   { fontSize: 11, fontWeight: '600' },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  badgeTxt: { fontSize: 11, fontWeight: '600' },
 
-  itensRow:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  itensQtd:   { fontSize: 13 },
-  totalTxt:   { fontSize: 14, fontWeight: '700' },
+  itensRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  itensQtd: { fontSize: 13 },
+  totalTxt: { fontSize: 14, fontWeight: '700' },
 
-  etaRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
-                paddingTop: 10, borderTopWidth: 1 },
-  etaTxt:     { fontSize: 12, fontWeight: '600', color: colors.orange },
+  etaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  etaTxt: { fontSize: 12, fontWeight: '600', color: colors.orange },
+
+  avaliarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  avaliarTxt: { fontSize: 12, fontWeight: '600', color: '#F59E0B', flex: 1 },
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,15 @@ import {
 import { useRouter } from 'expo-router';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { PedidoService, ConsumerTicketService } from '@ajulabs/api-client';
+import { PedidoService, ConsumerTicketService, AvaliacaoService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 import { PedidoCard } from './PedidoCard';
 import { usePedidoConsumerRealtime, useTicketRealtime } from '@ajulabs/realtime';
 import { MeusTicketsScreen } from '../../tickets/ui/MeusTicketsScreen';
 import { Ionicons } from '@expo/vector-icons';
+import { EntregaConfirmadaModal } from '../../avaliacao/ui/EntregaConfirmadaModal';
+import { AvaliacaoModal } from '../../avaliacao/ui/AvaliacaoModal';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -31,6 +33,11 @@ export function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [screen, setScreen] = useState<Screen>('list');
   const [ticketsAbertos, setTicketsAbertos] = useState(0);
+  const [pedidoParaAvaliar, setPedidoParaAvaliar] = useState<Pedido | null>(null);
+  const [showConfirmada, setShowConfirmada] = useState(false);
+  const [showAvaliacao, setShowAvaliacao] = useState(false);
+  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
+  const pedidosRef = useRef<Pedido[]>([]);
 
   const fetchTicketCount = useCallback(async () => {
     if (!token) return;
@@ -46,7 +53,10 @@ export function OrdersScreen() {
       return;
     }
     PedidoService.listar(token)
-      .then((data) => setPedidos(data))
+      .then((data) => {
+        setPedidos(data);
+        pedidosRef.current = data;
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
 
@@ -54,7 +64,10 @@ export function OrdersScreen() {
 
     const interval = setInterval(() => {
       PedidoService.listar(token)
-        .then((data) => setPedidos(data))
+        .then((data) => {
+          setPedidos(data);
+          pedidosRef.current = data;
+        })
         .catch(() => {});
       fetchTicketCount();
     }, 60_000);
@@ -67,11 +80,46 @@ export function OrdersScreen() {
     userId: userId ?? null,
     enabled: !!userId,
     onAtualizado: ({ pedidoId, status }) => {
-      setPedidos((prev) =>
-        prev.map((p) => (p.id === pedidoId ? { ...p, status: status as any } : p)),
-      );
+      setPedidos((prev) => {
+        const atualizado = prev.map((p) =>
+          p.id === pedidoId ? { ...p, status: status as any } : p,
+        );
+        pedidosRef.current = atualizado;
+
+        if (status === 'entregue') {
+          const pedido = atualizado.find((p) => p.id === pedidoId);
+          if (pedido && !pedido.avaliado) {
+            setPedidoParaAvaliar(pedido);
+            setShowConfirmada(true);
+          }
+        }
+
+        return atualizado;
+      });
     },
   });
+
+  async function handleEnviarAvaliacaoOrders(dados: {
+    notaLoja: number;
+    notaEntregador: number;
+    comentarioEntregador?: string;
+    avaliacoesProdutos: { produtoId: string; nota: number; comentario?: string }[];
+  }) {
+    if (!token || !pedidoParaAvaliar) return;
+    setEnviandoAvaliacao(true);
+    try {
+      await AvaliacaoService.avaliarPedido({ pedidoId: pedidoParaAvaliar.id, ...dados }, token);
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedidoParaAvaliar.id ? { ...p, avaliado: true } : p)),
+      );
+      setShowAvaliacao(false);
+      setPedidoParaAvaliar(null);
+    } catch {
+      // user can retry later
+    } finally {
+      setEnviandoAvaliacao(false);
+    }
+  }
 
   useTicketRealtime({
     apiUrl: API_URL,
@@ -93,6 +141,35 @@ export function OrdersScreen() {
     return <MeusTicketsScreen onBack={() => setScreen('list')} />;
   }
 
+  const avaliacaoModals = pedidoParaAvaliar ? (
+    <>
+      <EntregaConfirmadaModal
+        visible={showConfirmada}
+        lojaNome={pedidoParaAvaliar.lojaNome}
+        onAvaliar={() => {
+          setShowConfirmada(false);
+          setShowAvaliacao(true);
+        }}
+        onPular={() => {
+          setShowConfirmada(false);
+          setPedidoParaAvaliar(null);
+        }}
+      />
+      <AvaliacaoModal
+        visible={showAvaliacao}
+        lojaNome={pedidoParaAvaliar.lojaNome}
+        entregadorNome={pedidoParaAvaliar.entregador?.nome ?? null}
+        itens={pedidoParaAvaliar.itens}
+        enviando={enviandoAvaliacao}
+        onEnviar={handleEnviarAvaliacaoOrders}
+        onFechar={() => {
+          setShowAvaliacao(false);
+          setPedidoParaAvaliar(null);
+        }}
+      />
+    </>
+  ) : null;
+
   const ativos = pedidos.filter((p) => !['entregue', 'cancelado'].includes(p.status));
   const historico = pedidos.filter((p) => ['entregue', 'cancelado'].includes(p.status));
 
@@ -109,6 +186,7 @@ export function OrdersScreen() {
         ]}
       >
         <ActivityIndicator size="large" color={colors.orange} />
+        {avaliacaoModals}
       </View>
     );
   }
@@ -147,6 +225,7 @@ export function OrdersScreen() {
             <Text style={styles.vazioBtnTxt}>Explorar vitrines</Text>
           </TouchableOpacity>
         </View>
+        {avaliacaoModals}
       </View>
     );
   }
@@ -201,6 +280,7 @@ export function OrdersScreen() {
           </>
         )}
       </ScrollView>
+      {avaliacaoModals}
     </View>
   );
 }

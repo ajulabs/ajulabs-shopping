@@ -47,6 +47,38 @@ export interface AvaliacaoLoja {
   };
 }
 
+export interface AvaliacaoEntregador {
+  id: string;
+  entregadorId: string;
+  usuarioId: string;
+  pedidoId: string;
+  nota: number;
+  criadoEm: string;
+}
+
+export interface AvaliacaoProduto {
+  id: string;
+  produtoId: string;
+  usuarioId: string;
+  pedidoId: string;
+  nota: number;
+  criadoEm: string;
+}
+
+export interface AvaliacaoProdutoInput {
+  produtoId: string;
+  nota: number;
+  comentario?: string;
+}
+
+export interface AvaliacaoPedidoPayload {
+  pedidoId: string;
+  notaLoja: number;
+  notaEntregador: number;
+  comentarioEntregador?: string;
+  avaliacoesProdutos: AvaliacaoProdutoInput[];
+}
+
 export interface Produto {
   id: string;
   lojaId: string;
@@ -61,6 +93,8 @@ export interface Produto {
   estoque?: number;
   estoqueMinimo?: number;
   destaque?: boolean;
+  avaliacao?: number;
+  totalAvaliacoes?: number;
   variacoes?: VariacaoProduto[];
 }
 
@@ -137,6 +171,7 @@ export interface Pedido {
   estimativaEntrega?: string;
   codigoEntrega?: string;
   entregador?: EntregadorResumo | null;
+  avaliado?: boolean;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────
