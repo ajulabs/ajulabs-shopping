@@ -264,6 +264,8 @@ model Loja {
   supportTickets       SupportTicket[]
   favoritos            FavoritoLoja[]
   movimentacoesEstoque MovimentacaoEstoque[]
+  colaboradores        Colaborador[]
+  solicitacoesPreco    SolicitacaoPreco[]
 
   @@map("lojas")
 }
@@ -334,13 +336,14 @@ model Produto {
   criadoEm      DateTime                    @default(now()) @map("criado_em")
   atualizadoEm  DateTime                    @updatedAt @map("atualizado_em")
 
-  loja          Loja                  @relation(fields: [lojaId], references: [id], onDelete: Cascade)
-  variacoes     VariacaoProduto[]
-  itens         ItemPedido[]
-  sugestoes     SugestaoProdutoChat[]
-  favoritos     FavoritoProduto[]
-  movimentacoes MovimentacaoEstoque[]
-  avaliacoes    AvaliacaoProduto[]
+  loja              Loja                  @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  variacoes         VariacaoProduto[]
+  itens             ItemPedido[]
+  sugestoes         SugestaoProdutoChat[]
+  favoritos         FavoritoProduto[]
+  movimentacoes     MovimentacaoEstoque[]
+  avaliacoes        AvaliacaoProduto[]
+  solicitacoesPreco SolicitacaoPreco[]
 
   @@map("produtos")
 }
@@ -794,4 +797,83 @@ model SolicitacaoSaque {
   entregador Entregador @relation(fields: [entregadorId], references: [id])
 
   @@map("solicitacoes_saque")
+}
+
+// ========================================
+// 12. RBAC — COLABORADORES & AUDITORIA
+// ========================================
+
+enum PapelColaborador {
+  admin
+  gerente
+  funcionario
+}
+
+enum StatusSolicitacaoPreco {
+  pendente
+  aprovado
+  rejeitado
+}
+
+model Colaborador {
+  id           String           @id @default(uuid())
+  lojaId       String           @map("loja_id")
+  nome         String
+  email        String           @unique
+  senhaHash    String           @map("senha_hash")
+  papel        PapelColaborador @default(funcionario)
+  ativo        Boolean          @default(true)
+  criadoEm     DateTime         @default(now()) @map("criado_em")
+  atualizadoEm DateTime         @updatedAt @map("atualizado_em")
+
+  loja                 Loja               @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  solicitacoesEnviadas SolicitacaoPreco[] @relation("Solicitante")
+
+  @@index([lojaId])
+  @@map("colaboradores")
+}
+
+model SolicitacaoPreco {
+  id              String                 @id @default(uuid())
+  produtoId       String                 @map("produto_id")
+  lojaId          String                 @map("loja_id")
+  solicitanteId   String                 @map("solicitante_id")
+  precoAtual      Decimal                @map("preco_atual") @db.Decimal(10, 2)
+  precoSolicitado Decimal                @map("preco_solicitado") @db.Decimal(10, 2)
+  justificativa   String
+  status          StatusSolicitacaoPreco @default(pendente)
+  revisadoPorId   String?                @map("revisado_por_id")
+  revisadoPorTipo String?                @map("revisado_por_tipo")
+  revisadoPorNome String?                @map("revisado_por_nome")
+  revisadoEm      DateTime?              @map("revisado_em")
+  notaRevisao     String?                @map("nota_revisao")
+  criadoEm        DateTime               @default(now()) @map("criado_em")
+
+  produto     Produto     @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  loja        Loja        @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  solicitante Colaborador @relation("Solicitante", fields: [solicitanteId], references: [id])
+
+  @@index([lojaId, status])
+  @@index([solicitanteId])
+  @@map("solicitacoes_preco")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  timestamp  DateTime @default(now())
+  lojaId     String   @map("loja_id")
+  actorId    String   @map("actor_id")
+  actorTipo  String   @map("actor_tipo")
+  actorNome  String   @map("actor_nome")
+  actorPapel String   @map("actor_papel")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  entityName String   @map("entity_name")
+  changes    Json?
+  ipAddress  String?  @map("ip_address")
+
+  @@index([lojaId, timestamp(sort: Desc)])
+  @@index([actorId])
+  @@map("audit_logs")
 }

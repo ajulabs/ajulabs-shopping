@@ -1,28 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
-import { verificarToken, TokenPayload } from '../utils/jwt';
+import { verificarToken, TokenPayload, PapelColaborador } from '../utils/jwt';
 
 export interface AuthRequest extends Request {
   user?: TokenPayload;
 }
 
-export function authMiddleware(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) {
+export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
-
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Token não fornecido' });
     }
-
     const token = authHeader.substring(7);
-    const payload = verificarToken(token);
-
-    req.user = payload;
+    req.user = verificarToken(token);
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ error: 'Token inválido' });
   }
 }
@@ -46,4 +38,30 @@ export function authLojista(req: AuthRequest, res: Response, next: NextFunction)
     return res.status(403).json({ error: 'Acesso negado: apenas lojistas' });
   }
   next();
+}
+
+export function authColaborador(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.user?.tipo !== 'colaborador') {
+    return res.status(403).json({ error: 'Acesso negado: apenas colaboradores' });
+  }
+  next();
+}
+
+export function authLojistaOrColaborador(req: AuthRequest, res: Response, next: NextFunction) {
+  const tipo = req.user?.tipo;
+  if (tipo !== 'lojista' && tipo !== 'colaborador') {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+  next();
+}
+
+export function requirePapel(...papeis: PapelColaborador[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (req.user?.tipo === 'lojista') return next();
+    const papel = req.user?.papel as PapelColaborador | undefined;
+    if (!papel || !papeis.includes(papel)) {
+      return res.status(403).json({ error: 'Permissão insuficiente' });
+    }
+    next();
+  };
 }

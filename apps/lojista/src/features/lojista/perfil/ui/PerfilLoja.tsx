@@ -18,7 +18,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LojistaService } from '@ajulabs/api-client';
+import { LojistaService, RBACService } from '@ajulabs/api-client';
+import type { Colaborador, PapelColaborador } from '@ajulabs/types';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
 
@@ -420,11 +421,39 @@ function CategoriaPicker({
   );
 }
 
+const PAPEL_CFG: Record<PapelColaborador, { label: string; cor: string; bg: string }> = {
+  admin: { label: 'Admin', cor: '#7C3AED', bg: '#F3E8FF' },
+  gerente: { label: 'Gerente', cor: '#2563EB', bg: '#DBEAFE' },
+  funcionario: { label: 'Funcionário', cor: '#059669', bg: '#D1FAE5' },
+};
+
+const PAPEIS: PapelColaborador[] = ['admin', 'gerente', 'funcionario'];
+
+interface FormColaborador {
+  nome: string;
+  email: string;
+  senha: string;
+  papel: PapelColaborador;
+}
+
+const FORM_VAZIO: FormColaborador = { nome: '', email: '', senha: '', papel: 'funcionario' };
+
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const router = useRouter();
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const logout = useAuthLojistaStore((s) => s.logout);
+  const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
+
+  // ── Equipe ─────────────────────────────────────────────────────
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [equipeModal, setEquipeModal] = useState(false);
+  const [editandoCol, setEditandoCol] = useState<Colaborador | null>(null);
+  const [formCol, setFormCol] = useState<FormColaborador>(FORM_VAZIO);
+  const [salvandoCol, setSalvandoCol] = useState(false);
+  const [erroCol, setErroCol] = useState('');
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
+  // ──────────────────────────────────────────────────────────────
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -483,7 +512,87 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         }
       })
       .finally(() => setLoading(false));
-  }, [token, lojaId]);
+
+    // carrega colaboradores (só para o dono)
+    if (isLojistaDono) {
+      RBACService.listarColaboradores(lojaId, token)
+        .then(setColaboradores)
+        .catch(() => {});
+    }
+  }, [token, lojaId, isLojistaDono]);
+
+  const carregarColaboradores = useCallback(() => {
+    if (!lojaId || !token || !isLojistaDono) return;
+    RBACService.listarColaboradores(lojaId, token)
+      .then(setColaboradores)
+      .catch(() => {});
+  }, [lojaId, token, isLojistaDono]);
+
+  const abrirCriarColaborador = useCallback(() => {
+    setEditandoCol(null);
+    setFormCol(FORM_VAZIO);
+    setErroCol('');
+    setSenhaVisivel(false);
+    setEquipeModal(true);
+  }, []);
+
+  const abrirEditarColaborador = useCallback((col: Colaborador) => {
+    setEditandoCol(col);
+    setFormCol({ nome: col.nome, email: col.email, senha: '', papel: col.papel });
+    setErroCol('');
+    setSenhaVisivel(false);
+    setEquipeModal(true);
+  }, []);
+
+  const salvarColaborador = useCallback(async () => {
+    if (!formCol.nome.trim() || !formCol.email.trim()) {
+      setErroCol('Nome e email são obrigatórios.');
+      return;
+    }
+    if (!editandoCol && !formCol.senha.trim()) {
+      setErroCol('Informe uma senha para o novo colaborador.');
+      return;
+    }
+    if (!lojaId || !token) return;
+    setSalvandoCol(true);
+    setErroCol('');
+    try {
+      if (editandoCol) {
+        await RBACService.atualizarColaborador(editandoCol.id, lojaId, token, {
+          nome: formCol.nome.trim(),
+          papel: formCol.papel,
+          ativo: editandoCol.ativo,
+          ...(formCol.senha.trim() ? { senha: formCol.senha.trim() } : {}),
+        });
+      } else {
+        await RBACService.criarColaborador(lojaId, token, {
+          nome: formCol.nome.trim(),
+          email: formCol.email.trim(),
+          senha: formCol.senha.trim(),
+          papel: formCol.papel,
+        });
+      }
+      setEquipeModal(false);
+      carregarColaboradores();
+    } catch (e) {
+      setErroCol(e instanceof Error ? e.message : 'Erro ao salvar.');
+    } finally {
+      setSalvandoCol(false);
+    }
+  }, [formCol, editandoCol, lojaId, token, carregarColaboradores]);
+
+  const alternarAtivoColaborador = useCallback(
+    async (col: Colaborador) => {
+      if (!lojaId || !token) return;
+      try {
+        await RBACService.atualizarColaborador(col.id, lojaId, token, { ativo: !col.ativo });
+        carregarColaboradores();
+      } catch {
+        Alert.alert('Erro', 'Não foi possível alterar o status.');
+      }
+    },
+    [lojaId, token, carregarColaboradores],
+  );
 
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
@@ -951,6 +1060,93 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           )}
         </View>
 
+        {/* ── Seção EQUIPE (só para o dono) ── */}
+        {isLojistaDono && (
+          <>
+            <Text style={[styles.sectionLabel, { color: subColor }]}>EQUIPE</Text>
+            <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
+              {/* Header do card */}
+              <View style={[styles.equipeHeader, { borderBottomColor: border }]}>
+                <View>
+                  <Text style={[styles.equipeHeaderTitle, { color: textColor }]}>
+                    Colaboradores
+                  </Text>
+                  <Text style={[styles.equipeHeaderSub, { color: subColor }]}>
+                    {colaboradores.length === 0
+                      ? 'Nenhum colaborador cadastrado'
+                      : `${colaboradores.filter((c) => c.ativo).length} ativo${colaboradores.filter((c) => c.ativo).length !== 1 ? 's' : ''} · ${colaboradores.length} no total`}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.equipeAddBtn}
+                  onPress={abrirCriarColaborador}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="add" size={18} color="#fff" />
+                  <Text style={styles.equipeAddBtnText}>Adicionar</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Lista */}
+              {colaboradores.length === 0 ? (
+                <View style={styles.equipeEmpty}>
+                  <Ionicons name="people-outline" size={32} color={subColor} />
+                  <Text style={[styles.equipeEmptyText, { color: subColor }]}>
+                    Adicione colaboradores para compartilhar o acesso à loja com sua equipe.
+                  </Text>
+                </View>
+              ) : (
+                colaboradores.map((col, i) => {
+                  const cfg = PAPEL_CFG[col.papel];
+                  return (
+                    <View
+                      key={col.id}
+                      style={[
+                        styles.equipeItem,
+                        { borderTopColor: border },
+                        i === 0 && { borderTopWidth: 0 },
+                        !col.ativo && { opacity: 0.5 },
+                      ]}
+                    >
+                      {/* Avatar */}
+                      <View style={[styles.equipeAvatar, { backgroundColor: cfg.bg }]}>
+                        <Text style={[styles.equipeAvatarLetter, { color: cfg.cor }]}>
+                          {col.nome.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+
+                      {/* Info */}
+                      <TouchableOpacity
+                        style={styles.equipeInfo}
+                        onPress={() => abrirEditarColaborador(col)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.equipeNome, { color: textColor }]} numberOfLines={1}>
+                          {col.nome}
+                        </Text>
+                        <Text style={[styles.equipeEmail, { color: subColor }]} numberOfLines={1}>
+                          {col.email}
+                        </Text>
+                        <View style={[styles.equipePapelBadge, { backgroundColor: cfg.bg }]}>
+                          <Text style={[styles.equipePapelText, { color: cfg.cor }]}>
+                            {cfg.label}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Toggle ativo */}
+                      <Toggle
+                        value={col.ativo}
+                        onValueChange={() => alternarAtivoColaborador(col)}
+                      />
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </>
+        )}
+
         <TouchableOpacity
           style={[styles.saveBtn, saving && { opacity: 0.7 }]}
           onPress={handleSalvar}
@@ -995,6 +1191,140 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* ── Modal criar/editar colaborador ── */}
+      <Modal
+        visible={equipeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEquipeModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetOverlay}
+          activeOpacity={1}
+          onPress={() => setEquipeModal(false)}
+        >
+          <TouchableOpacity style={styles.sheetContainer} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+
+            <Text style={styles.sheetTitle}>
+              {editandoCol ? 'Editar colaborador' : 'Novo colaborador'}
+            </Text>
+
+            {/* Nome */}
+            <View style={styles.sheetField}>
+              <Text style={styles.sheetFieldLabel}>NOME</Text>
+              <TextInput
+                style={styles.sheetInput}
+                value={formCol.nome}
+                onChangeText={(v) => setFormCol((f) => ({ ...f, nome: v }))}
+                placeholder="Nome completo"
+                placeholderTextColor={colors.n500}
+              />
+            </View>
+
+            {/* Email (só na criação) */}
+            {!editandoCol && (
+              <View style={styles.sheetField}>
+                <Text style={styles.sheetFieldLabel}>EMAIL</Text>
+                <TextInput
+                  style={styles.sheetInput}
+                  value={formCol.email}
+                  onChangeText={(v) => setFormCol((f) => ({ ...f, email: v }))}
+                  placeholder="email@colaborador.com"
+                  placeholderTextColor={colors.n500}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
+
+            {/* Senha */}
+            <View style={styles.sheetField}>
+              <Text style={styles.sheetFieldLabel}>
+                {editandoCol ? 'NOVA SENHA (opcional)' : 'SENHA'}
+              </Text>
+              <View style={styles.sheetInputRow}>
+                <TextInput
+                  style={styles.sheetInputInner}
+                  value={formCol.senha}
+                  onChangeText={(v) => setFormCol((f) => ({ ...f, senha: v }))}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.n500}
+                  secureTextEntry={!senhaVisivel}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setSenhaVisivel((s) => !s)} hitSlop={10}>
+                  <Ionicons
+                    name={senhaVisivel ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={colors.n500}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Seletor de papel */}
+            <Text style={[styles.sheetFieldLabel, { marginBottom: 8 }]}>NÍVEL DE ACESSO</Text>
+            <View style={styles.papelGrid}>
+              {PAPEIS.map((p) => {
+                const cfg = PAPEL_CFG[p];
+                const ativo = formCol.papel === p;
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[
+                      styles.papelCard,
+                      ativo && { borderColor: cfg.cor, backgroundColor: cfg.bg },
+                    ]}
+                    onPress={() => setFormCol((f) => ({ ...f, papel: p }))}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.papelCardTop}>
+                      <Text style={[styles.papelCardLabel, ativo && { color: cfg.cor }]}>
+                        {cfg.label}
+                      </Text>
+                      {ativo && <Ionicons name="checkmark-circle" size={16} color={cfg.cor} />}
+                    </View>
+                    <Text style={styles.papelCardDesc}>
+                      {p === 'admin'
+                        ? 'Acesso total, gerencia equipe e preços'
+                        : p === 'gerente'
+                          ? 'Gerencia produtos e aprova preços'
+                          : 'Operacional, solicita mudança de preço'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {!!erroCol && <Text style={styles.sheetErro}>{erroCol}</Text>}
+
+            <TouchableOpacity
+              style={[styles.sheetSalvarBtn, salvandoCol && { opacity: 0.7 }]}
+              onPress={salvarColaborador}
+              disabled={salvandoCol}
+              activeOpacity={0.85}
+            >
+              {salvandoCol ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.sheetSalvarText}>
+                  {editandoCol ? 'Salvar alterações' : 'Criar colaborador'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetCancelarBtn}
+              onPress={() => setEquipeModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.sheetCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Modal de confirmação de logout */}
       <Modal
@@ -1331,4 +1661,149 @@ const styles = StyleSheet.create({
   catItemSelected: { backgroundColor: 'rgba(242,118,15,0.07)' },
   catItemIcone: { width: 28, textAlign: 'center' },
   catItemLabel: { flex: 1, fontSize: 15, color: colors.navy },
+
+  // ── Seção equipe ─────────────────────────────────────────────
+  equipeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderBottomWidth: 1,
+  },
+  equipeHeaderTitle: { fontSize: 15, fontWeight: '700' },
+  equipeHeaderSub: { fontSize: 12, marginTop: 2 },
+  equipeAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.orange,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  equipeAddBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  equipeEmpty: { padding: 24, alignItems: 'center', gap: 10 },
+  equipeEmptyText: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+
+  equipeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderTopWidth: 1,
+    gap: 12,
+  },
+  equipeAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  equipeAvatarLetter: { fontSize: 18, fontWeight: '800' },
+  equipeInfo: { flex: 1 },
+  equipeNome: { fontSize: 14, fontWeight: '700' },
+  equipeEmail: { fontSize: 12, marginTop: 1 },
+  equipePapelBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 5,
+  },
+  equipePapelText: { fontSize: 11, fontWeight: '700' },
+
+  // ── Modal criar/editar colaborador ───────────────────────────
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,9,51,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.n200,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  sheetTitle: { fontSize: 19, fontWeight: '800', color: colors.navy, marginBottom: 20 },
+
+  sheetField: { marginBottom: 14 },
+  sheetFieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.n600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 5,
+  },
+  sheetInput: {
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    backgroundColor: colors.n50,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: colors.navy,
+  },
+  sheetInputRow: {
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    backgroundColor: colors.n50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+  sheetInputInner: { flex: 1, fontSize: 14, color: colors.navy },
+
+  papelGrid: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  papelCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    backgroundColor: colors.n50,
+    padding: 10,
+  },
+  papelCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  papelCardLabel: { fontSize: 12, fontWeight: '800', color: colors.navy },
+  papelCardDesc: { fontSize: 10, color: colors.n600, lineHeight: 14 },
+
+  sheetErro: { fontSize: 12, color: '#E24B4A', marginBottom: 10, fontWeight: '500' },
+
+  sheetSalvarBtn: {
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetSalvarText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  sheetCancelarBtn: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  sheetCancelarText: { fontSize: 14, fontWeight: '600', color: colors.n600 },
 });
