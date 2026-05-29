@@ -35,6 +35,19 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'rastrear_pedido',
+      description:
+        'Inicia o rastreamento de um pedido do usuário. Use quando o usuário quer rastrear um pedido específico, acompanhar o status de uma entrega ou saber onde está seu pedido. NÃO use para ver a lista geral de pedidos.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'criar_ticket',
       description:
         'Registra uma reclamação para atendimento humano. Use IMEDIATAMENTE quando o usuário mencionar qualquer problema pós-compra: produto danificado, quebrado, defeituoso, errado, não chegou, entrega atrasada, cobrança errada ou qualquer insatisfação com pedido já realizado. NÃO peça mais informações antes de chamar esta função.',

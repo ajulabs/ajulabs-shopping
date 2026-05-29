@@ -17,6 +17,7 @@ import { TIPOS_PRODUTO, TipoProdutoValue, EspecConfig } from '../model/tipoProdu
 export interface VariacaoEstoque {
   nome: string;
   estoque: number;
+  preco?: number;
 }
 
 export interface ProductData {
@@ -44,7 +45,7 @@ function getMultiSpecs(tipoProduto: TipoProdutoValue | null): EspecConfig[] {
   return (subcat?.specs ?? []).filter((s) => s.multiplo);
 }
 
-function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[] {
+export function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[] {
   const multiSpecs = getMultiSpecs(tipoProduto);
   if (!tipoProduto) return [];
   const eixos = multiSpecs
@@ -58,9 +59,18 @@ function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[] {
   return combos.map((combo) => combo.join(' · '));
 }
 
-function syncVariacoes(novosTipos: string[], anterior: VariacaoEstoque[]): VariacaoEstoque[] {
-  const mapa = Object.fromEntries(anterior.map((v) => [v.nome, v.estoque]));
-  return novosTipos.map((nome) => ({ nome, estoque: mapa[nome] ?? 0 }));
+export function syncVariacoes(
+  novosTipos: string[],
+  anterior: VariacaoEstoque[],
+): VariacaoEstoque[] {
+  const mapa = Object.fromEntries(
+    anterior.map((v) => [v.nome, { estoque: v.estoque, preco: v.preco }]),
+  );
+  return novosTipos.map((nome) => ({
+    nome,
+    estoque: mapa[nome]?.estoque ?? 0,
+    preco: mapa[nome]?.preco,
+  }));
 }
 
 function getMissingSpecs(tipoProduto: TipoProdutoValue | null): string[] {
@@ -97,11 +107,13 @@ function validate(data: ProductData): {
 
 // ─── VariacoesSection ─────────────────────────────────────────
 
-function VariacoesSection({
+export function VariacoesSection({
   variacoes,
+  precoBase,
   onChange,
 }: {
   variacoes: VariacaoEstoque[];
+  precoBase: string;
   onChange: (v: VariacaoEstoque[]) => void;
 }) {
   const totalEstoque = variacoes.reduce((s, v) => s + (v.estoque || 0), 0);
@@ -109,6 +121,16 @@ function VariacoesSection({
   const updateEstoque = (nome: string, raw: string) => {
     const val = parseInt(raw.replace(/[^0-9]/g, ''), 10);
     onChange(variacoes.map((v) => (v.nome === nome ? { ...v, estoque: isNaN(val) ? 0 : val } : v)));
+  };
+
+  const updatePreco = (nome: string, raw: string) => {
+    const normalized = raw.replace(',', '.');
+    const val = parseFloat(normalized);
+    onChange(
+      variacoes.map((v) =>
+        v.nome === nome ? { ...v, preco: raw === '' ? undefined : isNaN(val) ? v.preco : val } : v,
+      ),
+    );
   };
 
   return (
@@ -125,7 +147,8 @@ function VariacoesSection({
 
       <View style={varStyles.tableHeader}>
         <Text style={[varStyles.colLabel, { flex: 1 }]}>Combinação</Text>
-        <Text style={[varStyles.colLabel, { width: 90, textAlign: 'right' }]}>Estoque</Text>
+        <Text style={[varStyles.colLabel, { width: 80, textAlign: 'center' }]}>Preço (R$)</Text>
+        <Text style={[varStyles.colLabel, { width: 72, textAlign: 'right' }]}>Estoque</Text>
       </View>
 
       {variacoes.map((v, idx) => (
@@ -133,6 +156,15 @@ function VariacoesSection({
           <Text style={varStyles.nomeTxt} numberOfLines={1}>
             {v.nome}
           </Text>
+          <TextInput
+            style={varStyles.precoInput}
+            value={v.preco != null ? String(v.preco).replace('.', ',') : ''}
+            onChangeText={(raw) => updatePreco(v.nome, raw)}
+            placeholder={precoBase || '0,00'}
+            placeholderTextColor={colors.n300}
+            keyboardType="decimal-pad"
+            maxLength={8}
+          />
           <TextInput
             style={varStyles.estoqueInput}
             value={v.estoque === 0 ? '' : String(v.estoque)}
@@ -146,7 +178,7 @@ function VariacoesSection({
       ))}
 
       <Text style={varStyles.hint}>
-        Deixe 0 para variações sem estoque. O total é somado automaticamente.
+        Preço vazio usa o preço base. Estoque 0 = sem estoque para esta variação.
       </Text>
     </View>
   );
@@ -203,8 +235,20 @@ const varStyles = StyleSheet.create({
   },
   rowAlt: { backgroundColor: 'rgba(0,0,0,0.015)' },
   nomeTxt: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.navy },
+  precoInput: {
+    width: 80,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    backgroundColor: '#fff',
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.navy,
+  },
   estoqueInput: {
-    width: 90,
+    width: 72,
     height: 36,
     borderRadius: 8,
     borderWidth: 1.5,
@@ -413,6 +457,7 @@ export function EditStage({
           <Text style={styles.fieldLabel}>Variações do produto</Text>
           <VariacoesSection
             variacoes={data.variacoesEstoque}
+            precoBase={data.preco}
             onChange={(v) => handleChange('variacoesEstoque', v)}
           />
         </View>

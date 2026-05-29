@@ -335,10 +335,11 @@ model Produto {
 }
 
 model VariacaoProduto {
-  id        String @id @default(uuid())
-  produtoId String @map("produto_id")
+  id        String   @id @default(uuid())
+  produtoId String   @map("produto_id")
   nome      String
   estoque   Int
+  preco     Decimal? @db.Decimal(10, 2)
 
   produto Produto      @relation(fields: [produtoId], references: [id], onDelete: Cascade)
   itens   ItemPedido[]

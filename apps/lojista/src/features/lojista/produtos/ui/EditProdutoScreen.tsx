@@ -19,6 +19,12 @@ import { Produto } from '@ajulabs/types';
 import { colors } from '../../../../theme';
 import { TipoProdutoSelector } from './TipoProdutoSelector';
 import { TipoProdutoValue, derivarCategoriaString } from '../model/tipoProdutos';
+import {
+  VariacoesSection,
+  VariacaoEstoque,
+  gerarCombinacoes,
+  syncVariacoes,
+} from './NovoProdutoEditStage';
 
 export interface EditForm {
   nome: string;
@@ -28,6 +34,7 @@ export interface EditForm {
   estoque: string;
   disponivel: boolean;
   tipoProduto: TipoProdutoValue | null;
+  variacoesEstoque: VariacaoEstoque[];
 }
 
 type ImageSlot =
@@ -94,8 +101,24 @@ export function EditProdutoScreen({
     estoque: produto.estoque != null ? String(produto.estoque) : '',
     disponivel: produto.disponivel,
     tipoProduto: null,
+    variacoesEstoque: (produto.variacoes ?? []).map((v) => ({
+      nome: v.nome,
+      estoque: v.estoque,
+      preco: v.preco ?? undefined,
+    })),
   });
   const [saving, setSaving] = useState(false);
+
+  // Regenera variações quando o lojista seleciona/altera o tipo de produto na edição
+  useEffect(() => {
+    const nomes = gerarCombinacoes(form.tipoProduto);
+    if (nomes.length === 0 && form.variacoesEstoque.length === 0) return;
+    const synced = syncVariacoes(nomes, form.variacoesEstoque);
+    const mudou =
+      synced.length !== form.variacoesEstoque.length ||
+      synced.some((v, i) => v.nome !== form.variacoesEstoque[i]?.nome);
+    if (mudou) setForm((prev) => ({ ...prev, variacoesEstoque: synced }));
+  }, [form.tipoProduto]);
 
   const [slots, setSlots] = useState<ImageSlot[]>(() => {
     const existingUrls =
@@ -110,7 +133,10 @@ export function EditProdutoScreen({
   });
 
   const set = useCallback(
-    (key: keyof EditForm, value: string | boolean | TipoProdutoValue | null) => {
+    (
+      key: keyof EditForm,
+      value: string | boolean | TipoProdutoValue | null | VariacaoEstoque[],
+    ) => {
       setForm((prev) => ({ ...prev, [key]: value }));
     },
     [],
@@ -165,6 +191,7 @@ export function EditProdutoScreen({
       const categoriaFinal = form.tipoProduto
         ? derivarCategoriaString(form.tipoProduto)
         : form.categoria;
+      const hasVariacoes = form.variacoesEstoque.length > 0;
       const dados: Parameters<typeof LojistaService.editarProduto>[2] = {
         nome: form.nome,
         categoria: categoriaFinal,
@@ -173,8 +200,9 @@ export function EditProdutoScreen({
         disponivel: form.disponivel,
         existingImageUrls,
         newImageUris,
+        variacoes: hasVariacoes ? form.variacoesEstoque : undefined,
       };
-      if (form.estoque !== '') {
+      if (!hasVariacoes && form.estoque !== '') {
         const est = parseInt(form.estoque, 10);
         if (!isNaN(est)) dados.estoque = est;
       }
@@ -290,20 +318,33 @@ export function EditProdutoScreen({
               keyboardType="decimal-pad"
             />
           </View>
-          <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.fieldLabel}>Estoque</Text>
-            <TextInput
-              style={[styles.input, form.estoque === '0' && styles.inputEsgotado]}
-              value={form.estoque}
-              onChangeText={(v) => set('estoque', v.replace(/[^0-9]/g, ''))}
-              placeholder="0"
-              keyboardType="number-pad"
-            />
-            {form.estoque === '0' && (
-              <Text style={styles.estoqueAviso}>Produto ficará fora da vitrine</Text>
-            )}
-          </View>
+          {form.variacoesEstoque.length === 0 && (
+            <View style={[styles.fieldGroup, { flex: 1 }]}>
+              <Text style={styles.fieldLabel}>Estoque</Text>
+              <TextInput
+                style={[styles.input, form.estoque === '0' && styles.inputEsgotado]}
+                value={form.estoque}
+                onChangeText={(v) => set('estoque', v.replace(/[^0-9]/g, ''))}
+                placeholder="0"
+                keyboardType="number-pad"
+              />
+              {form.estoque === '0' && (
+                <Text style={styles.estoqueAviso}>Produto ficará fora da vitrine</Text>
+              )}
+            </View>
+          )}
         </View>
+
+        {form.variacoesEstoque.length > 0 && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Variações</Text>
+            <VariacoesSection
+              variacoes={form.variacoesEstoque}
+              precoBase={form.preco}
+              onChange={(v) => set('variacoesEstoque', v)}
+            />
+          </View>
+        )}
 
         <View style={styles.switchRow}>
           <View>

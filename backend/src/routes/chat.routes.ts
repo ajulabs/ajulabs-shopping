@@ -11,12 +11,15 @@ import {
   salvarSugestoesChat,
   registrarClique,
   obterEstado,
+  atualizarEstado,
 } from '../utils/conversa';
 import {
   iniciarFluxoQueixa,
+  iniciarFluxoQueixaComPedido,
   processarSelecaoPedido,
   processarConfirmacao,
 } from '../tools/queixaFlow';
+import { iniciarFluxoRastreio, processarSelecaoRastreio } from '../tools/rastreioFlow';
 import { chatLimiter } from '../lib/rateLimiter';
 import { logger } from '../lib/logger';
 import { specValidatorMiddleware } from '../lib/spec-validator';
@@ -34,7 +37,8 @@ ${AGENT_SPEC_CONTEXT}
 
 Use as ferramentas disponíveis quando necessário:
 - buscar_produtos: usuário quer COMPRAR algo novo ou ver recomendações
-- listar_pedidos: usuário pergunta sobre status, entrega ou rastreamento de pedido
+- rastrear_pedido: usuário quer rastrear um pedido específico, acompanhar onde está a entrega ou ver o status de um pedido
+- listar_pedidos: usuário quer ver a lista geral de pedidos (sem intenção específica de rastrear)
 - criar_ticket: usuário menciona QUALQUER problema com pedido já feito (produto danificado, quebrado, errado, não chegou, entrega atrasada). Use IMEDIATAMENTE sem pedir confirmação ou número de pedido — o sistema buscará os pedidos automaticamente.
 
 Se não precisar de ferramentas (saudação, dúvida geral), responda diretamente com JSON:
@@ -52,6 +56,7 @@ Os resultados da ferramenta estão na conversa. Responda ao usuário com JSON v�
 }
 Regras:
 - Para produtos: destaque os mais relevantes no texto, sugira refinamentos em "sugestoes"
+- Para produtos com variações (tamanhos, cores, etc.): mencione brevemente as opções disponíveis no texto, ex: "disponível em P, M e G"
 - Para pedidos: descreva o status de forma clara e amigável, sem repetir IDs técnicos
 - Para tickets: confirme o registro pelo protocolo e diga que a equipe entrará em contato em breve
 - "sugestoes" apenas para contexto de busca de produtos, máximo 3; caso contrário retorne []
@@ -90,6 +95,7 @@ type ProdutoChat = {
   precoOriginal: number | null;
   tempoEntrega: string;
   imagemUrl: string;
+  variacoes: { id: string; nome: string; preco: number | null }[];
 };
 
 function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
@@ -102,6 +108,7 @@ function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
     precoOriginal: null,
     tempoEntrega: p.tempoEntrega,
     imagemUrl: p.imagemUrl,
+    variacoes: p.variacoes ?? [],
   }));
 }
 
@@ -124,7 +131,26 @@ router.post(
       const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
       const conversaId = conversa.id;
 
-      const estado = await obterEstado(conversaId);
+      let estado = await obterEstado(conversaId);
+
+      // ── Escape de fluxo intermediário: intenção claramente diferente ──────────
+      if (estado && !pedidoSelecionadoId) {
+        const escapando =
+          // Busca / compra de produto
+          /\b(buscar?|comprar?|procurar?|pesquisar?)\b/i.test(texto) ||
+          /\bme\s+(recomend|indic|suger|mostr)\w*/i.test(texto) ||
+          /\btem\s+(algum|produtos?|algo)\b/i.test(texto) ||
+          /\bquero\s+(comprar|ver\s+produtos?|encontrar|achar)\b/i.test(texto) ||
+          // Saída explícita do fluxo
+          /\b(outra\s+(coisa|pergunta)|esquece?(\s+isso)?|muda\s+(de\s+)?assunto|não\s+quero\s+mais|cancela?\s+isso)\b/i.test(
+            texto,
+          );
+
+        if (escapando) {
+          await atualizarEstado(conversaId, null);
+          estado = null;
+        }
+      }
 
       // ── Passo 3: confirmação ──────────────────────────────────────────────────
       if (estado?.passo === 'confirmando') {
@@ -135,9 +161,43 @@ router.post(
         return res.json({ ...resultado, conversaId });
       }
 
-      // ── Passo 2: seleção de pedido ────────────────────────────────────────────
+      // ── Passo 2: seleção de pedido (queixa) ──────────────────────────────────
       if (estado?.passo === 'selecionando_pedido') {
         const resultado = await processarSelecaoPedido(conversaId, texto, pedidoSelecionadoId);
+        await salvarMensagens(conversaId, texto, resultado.texto);
+        return res.json({ ...resultado, conversaId });
+      }
+
+      // ── Rastreio concluído: "problema" pula direto para confirmação de queixa ──
+      if (estado?.passo === 'rastreio_concluido') {
+        const isProblema =
+          /\b(problema|reclamar?|defeituoso|quebrou|danific|não\s+chegou|errado|atrasad|cobrança)\b/i.test(
+            texto,
+          );
+        if (isProblema) {
+          const resultado = await iniciarFluxoQueixaComPedido(
+            conversaId,
+            usuarioId,
+            texto,
+            (estado as { pedidoId: string }).pedidoId,
+          );
+          await salvarMensagens(conversaId, texto, resultado.texto);
+          return res.json({ ...resultado, conversaId });
+        }
+        await atualizarEstado(conversaId, null);
+        estado = null;
+      }
+
+      // ── Passo 2: seleção de pedido (rastreio) ─────────────────────────────────
+      if (estado?.passo === 'selecionando_pedido_rastreio') {
+        const resultado = await processarSelecaoRastreio(conversaId, texto, pedidoSelecionadoId);
+        await salvarMensagens(conversaId, texto, resultado.texto);
+        return res.json({ ...resultado, conversaId });
+      }
+
+      // ── Sugestão "Rastrear outro pedido" → reinicia o fluxo diretamente ────────
+      if (/rastrear.*(outro|um|meu)?\s*pedido/i.test(texto.trim()) && !estado) {
+        const resultado = await iniciarFluxoRastreio(conversaId, usuarioId);
         await salvarMensagens(conversaId, texto, resultado.texto);
         return res.json({ ...resultado, conversaId });
       }
@@ -185,6 +245,13 @@ router.post(
       }
 
       const toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, string>;
+
+      // ── Intercepta rastrear_pedido → inicia rastreio flow ────────────────────
+      if (toolCall.function.name === 'rastrear_pedido') {
+        const resultado = await iniciarFluxoRastreio(conversaId, usuarioId);
+        await salvarMensagens(conversaId, texto, resultado.texto);
+        return res.json({ ...resultado, conversaId });
+      }
 
       // ── Intercepta criar_ticket → inicia queixa flow ──────────────────────────
       if (toolCall.function.name === 'criar_ticket') {

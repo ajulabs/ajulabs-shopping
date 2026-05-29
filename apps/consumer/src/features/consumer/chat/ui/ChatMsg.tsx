@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MensagemChat, ProdutoCard, PedidoCard, Loja } from '@ajulabs/types';
@@ -6,6 +6,8 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from
 import { useCartStore } from '../../cart/model/store';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
+import { ChatRastreioMap } from './ChatRastreioMap';
+import { ChatVariacaoModal } from './ChatVariacaoModal';
 
 interface Props {
   mensagens: MensagemChat[];
@@ -19,6 +21,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
   const adicionar = useCartStore((s) => s.adicionar);
   const cachearLoja = useCartStore((s) => s.cachearLoja);
   const router = useRouter();
+  const [modalProduto, setModalProduto] = useState<ProdutoCard | null>(null);
 
   const { isDark, bg, surf } = useTheme();
   const bubbleAju = surf;
@@ -146,11 +149,17 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
         style={{
           alignSelf: isAju ? 'flex-start' : 'flex-end',
           width:
-            tipo === 'selecionarPedido' || tipo === 'confirmarPedido' || msg.resposta?.produtos
+            tipo === 'selecionarPedido' ||
+            tipo === 'confirmarPedido' ||
+            msg.resposta?.produtos ||
+            msg.resposta?.rastreio
               ? '100%'
               : 'auto',
           maxWidth:
-            tipo === 'selecionarPedido' || tipo === 'confirmarPedido' || msg.resposta?.produtos
+            tipo === 'selecionarPedido' ||
+            tipo === 'confirmarPedido' ||
+            msg.resposta?.produtos ||
+            msg.resposta?.rastreio
               ? '100%'
               : '85%',
           marginBottom: 12,
@@ -239,6 +248,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
             snapToInterval={170}
+            getItemLayout={(_, i) => ({ length: 170, offset: 170 * i, index: i })}
             snapToAlignment="start"
             style={{ marginTop: 10 }}
             contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
@@ -246,6 +256,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
               <View
                 style={{
                   width: 160,
+                  height: 264,
                   backgroundColor: cardBg,
                   borderRadius: 14,
                   overflow: 'hidden',
@@ -297,45 +308,91 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                   </View>
                 </View>
 
-                <View style={{ padding: 10 }}>
-                  <Text
-                    style={{ fontWeight: '600', fontSize: 13, color: cardText, lineHeight: 17 }}
-                    numberOfLines={2}
-                  >
-                    {produto.nome}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: cardSub, marginTop: 2 }} numberOfLines={1}>
-                    {produto.loja}
-                  </Text>
-                  <View
-                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}
-                  >
-                    <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>
-                      R$ {produto.preco.toFixed(2)}
+                <View style={{ flex: 1, padding: 10, justifyContent: 'space-between' }}>
+                  <View>
+                    <Text
+                      style={{ fontWeight: '600', fontSize: 13, color: cardText, lineHeight: 17 }}
+                      numberOfLines={2}
+                    >
+                      {produto.nome}
                     </Text>
-                    {produto.precoOriginal && (
-                      <Text
-                        style={{ fontSize: 11, color: cardSub, textDecorationLine: 'line-through' }}
+                    <Text style={{ fontSize: 11, color: cardSub, marginTop: 2 }} numberOfLines={1}>
+                      {produto.loja}
+                    </Text>
+                  </View>
+                  {/* Variações — sempre ocupa altura fixa para alinhar todos os cards */}
+                  <View
+                    style={{
+                      height: 26,
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      gap: 4,
+                      marginTop: 4,
+                    }}
+                  >
+                    {(produto.variacoes ?? []).slice(0, 3).map((v) => (
+                      <View
+                        key={v.id}
+                        style={{
+                          backgroundColor: chipBg,
+                          borderWidth: 1,
+                          borderColor: chipBorder,
+                          borderRadius: 6,
+                          paddingHorizontal: 5,
+                          paddingVertical: 2,
+                          alignSelf: 'flex-start',
+                        }}
                       >
-                        R$ {produto.precoOriginal.toFixed(2)}
+                        <Text style={{ fontSize: 10, color: chipText, fontWeight: '600' }}>
+                          {v.nome.split(' · ').pop()}
+                        </Text>
+                      </View>
+                    ))}
+                    {(produto.variacoes?.length ?? 0) > 3 && (
+                      <Text style={{ fontSize: 10, color: cardSub, alignSelf: 'center' }}>
+                        +{(produto.variacoes?.length ?? 0) - 3}
                       </Text>
                     )}
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleAdicionar(produto)}
-                    activeOpacity={0.8}
-                    style={{
-                      marginTop: 8,
-                      backgroundColor: isDark ? colors.orange : '#111827',
-                      borderRadius: 8,
-                      paddingVertical: 7,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                      + Adicionar
-                    </Text>
-                  </TouchableOpacity>
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>
+                        R$ {produto.preco.toFixed(2)}
+                      </Text>
+                      {produto.precoOriginal && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: cardSub,
+                            textDecorationLine: 'line-through',
+                          }}
+                        >
+                          R$ {produto.precoOriginal.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() =>
+                        produto.variacoes && produto.variacoes.length > 0
+                          ? setModalProduto(produto)
+                          : handleAdicionar(produto)
+                      }
+                      activeOpacity={0.8}
+                      style={{
+                        marginTop: 6,
+                        backgroundColor: isDark ? colors.orange : '#111827',
+                        borderRadius: 8,
+                        paddingVertical: 7,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                        {produto.variacoes && produto.variacoes.length > 0
+                          ? 'Ver opções'
+                          : '+ Adicionar'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -390,6 +447,9 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           </TouchableOpacity>
         )}
 
+        {/* Mini mapa de rastreio em tempo real */}
+        {msg.resposta?.rastreio && <ChatRastreioMap rastreio={msg.resposta.rastreio} />}
+
         {msg.resposta?.sugestoes && msg.resposta.sugestoes.length > 0 && (
           <View
             style={{
@@ -422,55 +482,106 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
     );
   };
 
+  const handleAdicionarDoModal = (
+    variacaoId: string,
+    variacaoNome: string,
+    precoEfetivo?: number,
+  ) => {
+    if (!modalProduto) return;
+    const [minStr, maxStr] = modalProduto.tempoEntrega.replace(' min', '').split('–');
+    const loja: Loja = {
+      id: modalProduto.lojaId,
+      nome: modalProduto.loja.split(' — ')[0],
+      descricao: '',
+      categoria: '',
+      imagem: '',
+      endereco: { rua: '', numero: '', bairro: '', cidade: 'Aracaju', cep: '' },
+      avaliacao: 0,
+      totalAvaliacoes: 0,
+      tempoEntregaMin: parseInt(minStr) || 30,
+      tempoEntregaMax: parseInt(maxStr) || 60,
+      taxaEntrega: 0,
+      aberta: true,
+    };
+    cachearLoja(loja);
+    adicionar(
+      {
+        id: modalProduto.id,
+        lojaId: modalProduto.lojaId,
+        nome: modalProduto.nome,
+        descricao: '',
+        preco: modalProduto.preco,
+        imagem: modalProduto.imagemUrl,
+        categoria: '',
+        disponivel: true,
+      },
+      variacaoId,
+      variacaoNome,
+      precoEfetivo,
+    );
+  };
+
   return (
-    <FlatList
-      ref={flatRef}
-      data={mensagens}
-      keyExtractor={(m) => m.id}
-      renderItem={renderItem}
-      contentContainerStyle={{ padding: 16, paddingBottom: 8, backgroundColor: bg }}
-      style={{ backgroundColor: bg }}
-      showsVerticalScrollIndicator={false}
-      onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
-      ListFooterComponent={
-        <>
-          {carregando && (
-            <View style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
-              <View
-                style={{
-                  backgroundColor: bubbleAju,
-                  borderRadius: 18,
-                  borderBottomLeftRadius: 4,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                }}
-              >
-                <ActivityIndicator size="small" color="#f97316" />
-              </View>
-            </View>
-          )}
-          {sugestoes.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
-              {sugestoes.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  onPress={() => onSugestao(s)}
+    <>
+      {modalProduto && (
+        <ChatVariacaoModal
+          visible={!!modalProduto}
+          nome={modalProduto.nome}
+          preco={modalProduto.preco}
+          variacoes={modalProduto.variacoes ?? []}
+          onClose={() => setModalProduto(null)}
+          onAdicionar={handleAdicionarDoModal}
+        />
+      )}
+      <FlatList
+        ref={flatRef}
+        data={mensagens}
+        keyExtractor={(m) => m.id}
+        renderItem={renderItem}
+        contentContainerStyle={{ padding: 16, paddingBottom: 8, backgroundColor: bg }}
+        style={{ backgroundColor: bg }}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
+        ListFooterComponent={
+          <>
+            {carregando && (
+              <View style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
+                <View
                   style={{
-                    backgroundColor: chipBg,
-                    borderWidth: 1,
-                    borderColor: chipBorder,
-                    borderRadius: 20,
-                    paddingHorizontal: 14,
-                    paddingVertical: 8,
+                    backgroundColor: bubbleAju,
+                    borderRadius: 18,
+                    borderBottomLeftRadius: 4,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
                   }}
                 >
-                  <Text style={{ color: chipText, fontSize: 13 }}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </>
-      }
-    />
+                  <ActivityIndicator size="small" color="#f97316" />
+                </View>
+              </View>
+            )}
+            {sugestoes.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                {sugestoes.map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => onSugestao(s)}
+                    style={{
+                      backgroundColor: chipBg,
+                      borderWidth: 1,
+                      borderColor: chipBorder,
+                      borderRadius: 20,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: chipText, fontSize: 13 }}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
+        }
+      />
+    </>
   );
 }

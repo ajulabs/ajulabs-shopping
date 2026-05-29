@@ -60,7 +60,7 @@ function inferirLabel(valores: string[]): string {
   return 'Opção';
 }
 
-function extrairEixos(variacoes: VariacaoProduto[]): Eixo[] {
+export function extrairEixos(variacoes: VariacaoProduto[]): Eixo[] {
   if (variacoes.length === 0) return [];
   const partes = variacoes.map((v) => v.nome.split(' · '));
   const numEixos = Math.max(...partes.map((p) => p.length));
@@ -72,7 +72,7 @@ function extrairEixos(variacoes: VariacaoProduto[]): Eixo[] {
   return eixos;
 }
 
-function encontrarVariacao(
+export function encontrarVariacao(
   variacoes: VariacaoProduto[],
   selecao: (string | null)[],
 ): VariacaoProduto | null {
@@ -191,7 +191,7 @@ function ImageCarousel({ imagens, nome }: { imagens: string[]; nome: string }) {
 
 // ─── Seletor de variações multi-dimensional ───────────────────
 
-function VariacoesSelector({
+export function VariacoesSelector({
   variacoes,
   isDark,
   text,
@@ -351,7 +351,7 @@ function TabelaTamanhoSimples({
   );
 }
 
-const varSelStyles = StyleSheet.create({
+export const varSelStyles = StyleSheet.create({
   container: { gap: 14 },
   eixoGroup: { gap: 8 },
   eixoHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -552,6 +552,9 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
   const [mostrarTodasAv, setMostrarTodasAv] = useState(false);
   const [variacaoSelecionada, setVariacaoSelecionada] = useState<VariacaoProduto | null>(null);
 
+  const precoExibido =
+    variacaoSelecionada?.preco != null ? variacaoSelecionada.preco : (produto?.preco ?? 0);
+
   const heartScale = useRef(new Animated.Value(1)).current;
   const addScale = useRef(new Animated.Value(1)).current;
 
@@ -613,10 +616,12 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         Alert.alert('Sem estoque', 'Esta combinação está esgotada.');
         return;
       }
+      const variacaoEfetiva = p.id === produtoId ? variacaoSelecionada : undefined;
       adicionar(
         p,
-        p.id === produtoId ? variacaoSelecionada?.id : undefined,
-        p.id === produtoId ? variacaoSelecionada?.nome : undefined,
+        variacaoEfetiva?.id,
+        variacaoEfetiva?.nome,
+        variacaoEfetiva?.preco != null ? variacaoEfetiva.preco : undefined,
       );
       if (p.id === produtoId) {
         setAdded(true);
@@ -748,7 +753,13 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         <View style={[styles.infoCard, { backgroundColor: surf, borderColor: borderL as string }]}>
           <Text style={[styles.nome, { color: text }]}>{produto.nome}</Text>
           <Text style={[styles.preco, { color: text }]}>
-            R$ {produto.preco.toFixed(2).replace('.', ',')}
+            R$ {precoExibido.toFixed(2).replace('.', ',')}
+            {variacaoSelecionada?.preco != null && (
+              <Text style={{ fontSize: 13, color: '#9ca3af' }}>
+                {' '}
+                (base R$ {produto.preco.toFixed(2).replace('.', ',')})
+              </Text>
+            )}
           </Text>
 
           <View style={styles.ratingRow}>

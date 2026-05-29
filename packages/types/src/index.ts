@@ -29,6 +29,7 @@ export interface VariacaoProduto {
   produtoId: string;
   nome: string;
   estoque: number;
+  preco?: number | null;
 }
 
 export interface AvaliacaoLoja {
@@ -86,6 +87,7 @@ export interface ItemCarrinho {
   quantidade: number;
   variacaoId?: string;
   variacaoNome?: string;
+  precoEfetivo?: number;
 }
 
 export interface Carrinho {
@@ -148,6 +150,7 @@ export interface ProdutoCard {
   precoOriginal?: number;
   tempoEntrega: string;
   imagemUrl: string;
+  variacoes?: { id: string; nome: string; preco: number | null }[];
 }
 
 export interface PedidoCard {
@@ -160,6 +163,12 @@ export interface PedidoCard {
   status: string;
 }
 
+export interface RastreioChat {
+  pedidoId: string;
+  destinoLat?: number | null;
+  destinoLng?: number | null;
+}
+
 export interface RespostaAju {
   tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido' | 'ticketCriado';
   texto: string;
@@ -168,6 +177,7 @@ export interface RespostaAju {
   pedidos?: PedidoCard[];
   pedido?: PedidoCard;
   conversaId?: string;
+  rastreio?: RastreioChat;
 }
 
 export interface MensagemChat {

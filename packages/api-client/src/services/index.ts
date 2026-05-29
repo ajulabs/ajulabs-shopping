@@ -68,6 +68,7 @@ function mapProduto(raw: any): Produto {
             produtoId: v.produtoId ?? raw.id,
             nome: v.nome,
             estoque: Number(v.estoque ?? 0),
+            preco: v.preco != null ? Number(v.preco) : null,
           }),
         )
       : undefined,
@@ -461,7 +462,7 @@ export const LojistaService = {
       disponivel?: boolean;
       existingImageUrls?: string[];
       newImageUris?: string[];
-      variacoes?: { nome: string; estoque: number }[];
+      variacoes?: { nome: string; estoque: number; preco?: number }[];
     },
   ): Promise<void> => {
     const { newImageUris = [], existingImageUrls = [], variacoes, ...rest } = dados;
@@ -517,7 +518,7 @@ export const LojistaService = {
       categoria: string;
       tags: string[];
       imageUri?: string;
-      variacoes?: { nome: string; estoque: number }[];
+      variacoes?: { nome: string; estoque: number; preco?: number }[];
     },
   ): Promise<any> => {
     const formData = new FormData();
