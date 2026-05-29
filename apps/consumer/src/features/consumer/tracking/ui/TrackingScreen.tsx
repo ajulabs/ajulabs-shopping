@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -144,7 +145,15 @@ export function TrackingScreen({ pedidoId }: Props) {
         {pedido.entregador && ACTIVE_STATUSES.includes(pedido.status) && (
           <View style={[styles.entregadorCard, { backgroundColor: surf, borderColor: border }]}>
             <View style={[styles.entregadorAvatar, { backgroundColor: avatarBg }]}>
-              <Ionicons name="bicycle" size={20} color={colors.navy} />
+              {pedido.entregador.fotoUrl ? (
+                <Image
+                  source={{ uri: pedido.entregador.fotoUrl }}
+                  style={styles.avatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="bicycle" size={20} color={colors.navy} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.entregadorNome, { color: text }]}>{pedido.entregador.nome}</Text>
@@ -176,7 +185,15 @@ export function TrackingScreen({ pedidoId }: Props) {
         <View style={[styles.timelineCard, { backgroundColor: surf, borderColor: border }]}>
           <View style={[styles.lojaRow, { borderBottomColor: borderL }]}>
             <View style={[styles.lojaAvatar, { backgroundColor: avatarBg }]}>
-              <Text style={{ fontSize: 16 }}>🏪</Text>
+              {pedido.lojaLogoUrl ? (
+                <Image
+                  source={{ uri: pedido.lojaLogoUrl }}
+                  style={styles.lojaAvatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={{ fontSize: 16 }}>🏪</Text>
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.lojaNome, { color: text }]}>{pedido.lojaNome}</Text>
@@ -329,6 +346,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   entregadorNome: { fontSize: 14, fontWeight: '700' },
   entregadorTipo: { fontSize: 12, marginTop: 1, textTransform: 'capitalize' },
@@ -358,6 +381,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lojaAvatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
   },
   lojaNome: { fontSize: 14, fontWeight: '700' },
   lojaDesc: { fontSize: 12, marginTop: 1 },

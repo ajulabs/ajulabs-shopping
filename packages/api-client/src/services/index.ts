@@ -84,6 +84,7 @@ function mapPedido(raw: any): Pedido {
     id: raw.id,
     lojaId: raw.lojaId,
     lojaNome: raw.loja?.nome ?? '',
+    lojaLogoUrl: raw.loja?.logoUrl ?? null,
     consumidorId: raw.consumidorId,
     itens: (raw.itens ?? []).map((item: any) => ({
       produto: {
