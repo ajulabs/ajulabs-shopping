@@ -15,6 +15,7 @@ import { EstoqueService, LojistaService } from '@ajulabs/api-client';
 import { EstoqueDashboard as TDashboard, NivelEstoque, Produto } from '@ajulabs/types';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
+import { usePermissions } from '../../rbac/hooks/usePermissions';
 import { AjusteRapidoModal } from './AjusteRapidoModal';
 
 const C = {
@@ -67,6 +68,7 @@ export function EstoqueDashboard({
 }: Props) {
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const token = useAuthLojistaStore((s) => s.token);
+  const { canViewStockValue } = usePermissions();
 
   const [dashboard, setDashboard] = useState<TDashboard | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -135,13 +137,17 @@ export function EstoqueDashboard({
       color: C.slate,
       onPress: () => onVerNivel('zerado'),
     },
-    {
-      label: 'Em estoque',
-      value: `R$ ${((d?.valorTotalEstoque ?? 0) / 1000).toFixed(0)}k`,
-      icon: 'cash-outline',
-      color: C.orange,
-      onPress: undefined,
-    },
+    ...(canViewStockValue
+      ? [
+          {
+            label: 'Em estoque',
+            value: `R$ ${((d?.valorTotalEstoque ?? 0) / 1000).toFixed(0)}k`,
+            icon: 'cash-outline',
+            color: C.orange,
+            onPress: undefined,
+          },
+        ]
+      : []),
     {
       label: 'Histórico',
       value: 'Ver tudo',

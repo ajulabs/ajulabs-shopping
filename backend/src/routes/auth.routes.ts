@@ -430,8 +430,18 @@ router.post('/refresh', specValidatorMiddleware(refreshSpec), (req, res) => {
     const { refreshToken } = z.object({ refreshToken: z.string() }).parse(req.body);
 
     const payload = verificarRefreshToken(refreshToken);
-    const novoToken = gerarToken({ id: payload.id, tipo: payload.tipo });
-    const novoRefreshToken = gerarRefreshToken({ id: payload.id, tipo: payload.tipo });
+    const novoToken = gerarToken({
+      id: payload.id,
+      tipo: payload.tipo,
+      papel: payload.papel,
+      lojaId: payload.lojaId,
+    });
+    const novoRefreshToken = gerarRefreshToken({
+      id: payload.id,
+      tipo: payload.tipo,
+      papel: payload.papel,
+      lojaId: payload.lojaId,
+    });
 
     res.json({ token: novoToken, refreshToken: novoRefreshToken });
   } catch {
