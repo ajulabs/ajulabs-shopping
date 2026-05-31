@@ -90,8 +90,11 @@ export function TrackingScreen({ pedidoId }: Props) {
 
   async function handleEnviarAvaliacao(dados: {
     notaLoja: number;
+    comentarioLoja?: string;
+    tagsLoja: string[];
     notaEntregador: number;
     comentarioEntregador?: string;
+    tagsEntregador: string[];
     avaliacoesProdutos: { produtoId: string; nota: number; comentario?: string }[];
   }) {
     if (!token || !pedido) return;

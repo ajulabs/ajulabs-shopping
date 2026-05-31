@@ -22,6 +22,7 @@ export type PerfilNavDestino =
   | 'veiculo'
   | 'dados-bancarios'
   | 'notificacoes'
+  | 'avaliacoes'
   | 'seguranca'
   | 'conversas';
 
@@ -95,6 +96,9 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
         case 'Notificações':
           onNavigate('notificacoes');
           break;
+        case 'Avaliações':
+          onNavigate('avaliacoes');
+          break;
         case 'Segurança':
           onNavigate('seguranca');
           break;
@@ -128,6 +132,7 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
       extraColor: '#9099B3',
     },
     { icon: 'wallet', label: 'Dados bancários' },
+    { icon: 'star', label: 'Avaliações' },
     { icon: 'notifications', label: 'Notificações' },
     { icon: 'shield-checkmark', label: 'Segurança' },
     { icon: 'help-circle', label: 'Ajuda e suporte' },

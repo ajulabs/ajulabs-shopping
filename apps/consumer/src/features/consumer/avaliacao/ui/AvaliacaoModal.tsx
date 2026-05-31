@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -13,7 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { ItemPedido } from '@ajulabs/types';
+import {
+  ItemPedido,
+  TAGS_AVALIACAO_LOJA,
+  TAGS_AVALIACAO_ENTREGADOR,
+  type TagAvaliacao,
+} from '@ajulabs/types';
 import { useTheme } from '../../../../hooks';
 
 interface NotasProdutos {
@@ -32,8 +37,11 @@ interface Props {
   enviando: boolean;
   onEnviar: (dados: {
     notaLoja: number;
+    comentarioLoja?: string;
+    tagsLoja: string[];
     notaEntregador: number;
     comentarioEntregador?: string;
+    tagsEntregador: string[];
     avaliacoesProdutos: { produtoId: string; nota: number; comentario?: string }[];
   }) => void;
   onFechar: () => void;
@@ -117,6 +125,63 @@ function ComentarioInput({
   );
 }
 
+function TagsSelector({
+  nota,
+  catalogo,
+  selected,
+  onToggle,
+}: {
+  nota: number;
+  catalogo: TagAvaliacao[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) {
+  const { text, textSec, borderL } = useTheme();
+
+  // Tags só aparecem depois que o usuário escolheu uma nota.
+  // Sentimento varia com a nota: 4-5 → positivas, 1-3 → negativas.
+  if (nota === 0) return null;
+  const sentimento = nota >= 4 ? 'positiva' : 'negativa';
+  const visiveis = catalogo.filter((t) => t.sentimento === sentimento);
+  if (visiveis.length === 0) return null;
+
+  return (
+    <View style={styles.tagsSection}>
+      <Text style={[styles.tagsHint, { color: textSec as string }]}>
+        {sentimento === 'positiva' ? 'O que foi bom? (opcional)' : 'O que pode melhorar? (opcional)'}
+      </Text>
+      <View style={styles.tagsWrap}>
+        {visiveis.map((tag) => {
+          const ativo = selected.includes(tag.id);
+          return (
+            <TouchableOpacity
+              key={tag.id}
+              onPress={() => onToggle(tag.id)}
+              activeOpacity={0.7}
+              style={[
+                styles.tagChip,
+                {
+                  backgroundColor: ativo ? colors.orange : 'transparent',
+                  borderColor: ativo ? colors.orange : borderL,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tagChipTxt,
+                  { color: ativo ? '#FFFFFF' : (text as string) },
+                ]}
+              >
+                {tag.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function AvaliacaoModal({
   visible,
   lojaNome,
@@ -129,10 +194,37 @@ export function AvaliacaoModal({
   const { surf, text, textSec, borderL } = useTheme();
 
   const [notaLoja, setNotaLoja] = useState(0);
+  const [comentarioLoja, setComentarioLoja] = useState('');
+  const [tagsLoja, setTagsLoja] = useState<string[]>([]);
   const [notaEntregador, setNotaEntregador] = useState(0);
   const [comentarioEntregador, setComentarioEntregador] = useState('');
+  const [tagsEntregador, setTagsEntregador] = useState<string[]>([]);
   const [notasProdutos, setNotasProdutos] = useState<NotasProdutos>({});
   const [comentariosProdutos, setComentariosProdutos] = useState<ComentariosProdutos>({});
+
+  // Quando o usuário muda a nota cruzando o limite positivo/negativo (4),
+  // as tags antigas ficam inválidas (eram positivas pra nota baixa, ou
+  // vice-versa) e seriam silenciosamente filtradas no backend. Aqui
+  // limpamos pra que a UI espelhe o que vai ser enviado.
+  const sentimentoLoja = notaLoja === 0 ? null : notaLoja >= 4 ? 'positiva' : 'negativa';
+  const sentimentoEntregador =
+    notaEntregador === 0 ? null : notaEntregador >= 4 ? 'positiva' : 'negativa';
+  React.useEffect(() => {
+    if (tagsLoja.length === 0 || sentimentoLoja === null) return;
+    const validas = tagsLoja.filter((id) => {
+      const tag = TAGS_AVALIACAO_LOJA.find((t) => t.id === id);
+      return tag?.sentimento === sentimentoLoja;
+    });
+    if (validas.length !== tagsLoja.length) setTagsLoja(validas);
+  }, [sentimentoLoja]);
+  React.useEffect(() => {
+    if (tagsEntregador.length === 0 || sentimentoEntregador === null) return;
+    const validas = tagsEntregador.filter((id) => {
+      const tag = TAGS_AVALIACAO_ENTREGADOR.find((t) => t.id === id);
+      return tag?.sentimento === sentimentoEntregador;
+    });
+    if (validas.length !== tagsEntregador.length) setTagsEntregador(validas);
+  }, [sentimentoEntregador]);
 
   const produtosUnicos = itens.filter(
     (item, idx, arr) => arr.findIndex((i) => i.produto.id === item.produto.id) === idx,
@@ -147,8 +239,11 @@ export function AvaliacaoModal({
     if (!tudo_preenchido) return;
     onEnviar({
       notaLoja,
+      comentarioLoja: comentarioLoja.trim() || undefined,
+      tagsLoja,
       notaEntregador,
       comentarioEntregador: comentarioEntregador.trim() || undefined,
+      tagsEntregador,
       avaliacoesProdutos: produtosUnicos.map((item) => ({
         produtoId: item.produto.id,
         nota: notasProdutos[item.produto.id],
@@ -159,8 +254,11 @@ export function AvaliacaoModal({
 
   function handleFechar() {
     setNotaLoja(0);
+    setComentarioLoja('');
+    setTagsLoja([]);
     setNotaEntregador(0);
     setComentarioEntregador('');
+    setTagsEntregador([]);
     setNotasProdutos({});
     setComentariosProdutos({});
     onFechar();
@@ -228,6 +326,16 @@ export function AvaliacaoModal({
                 onChange={setNotaEntregador}
                 noBorder
               />
+              <TagsSelector
+                nota={notaEntregador}
+                catalogo={TAGS_AVALIACAO_ENTREGADOR}
+                selected={tagsEntregador}
+                onToggle={(id) =>
+                  setTagsEntregador((prev) =>
+                    prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+                  )
+                }
+              />
               <ComentarioInput
                 placeholder="Comentar a entrega (opcional)"
                 value={comentarioEntregador}
@@ -246,6 +354,21 @@ export function AvaliacaoModal({
                 nota={notaLoja}
                 onChange={setNotaLoja}
                 noBorder
+              />
+              <TagsSelector
+                nota={notaLoja}
+                catalogo={TAGS_AVALIACAO_LOJA}
+                selected={tagsLoja}
+                onToggle={(id) =>
+                  setTagsLoja((prev) =>
+                    prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+                  )
+                }
+              />
+              <ComentarioInput
+                placeholder="Comentar a loja (opcional)"
+                value={comentarioLoja}
+                onChange={setComentarioLoja}
               />
             </ScrollView>
 
@@ -369,6 +492,30 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: 12,
+  },
+  tagsSection: {
+    marginTop: 10,
+    marginHorizontal: 4,
+    gap: 8,
+  },
+  tagsHint: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tagsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tagChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 99,
+    borderWidth: 1.5,
+  },
+  tagChipTxt: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   footer: {
     padding: 16,

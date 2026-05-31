@@ -1,16 +1,42 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { TAGS_LOJA_IDS, TAGS_ENTREGADOR_IDS } from '@ajulabs/types';
 import { prisma } from '../utils/prisma';
-import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
+import {
+  authMiddleware,
+  authUsuario,
+  authLojista,
+  authEntregador,
+  AuthRequest,
+} from '../middleware/auth';
 import { logger } from '../lib/logger';
+import {
+  dashboardAvaliacoesLojista,
+  dashboardAvaliacoesEntregador,
+} from '../services/avaliacoes-dashboard.service';
 
 const router = Router();
 
 const avaliacaoPedidoSchema = z.object({
   pedidoId: z.string().uuid(),
   notaLoja: z.number().int().min(1).max(5),
+  comentarioLoja: z.string().max(500).optional(),
+  tagsLoja: z
+    .array(z.string())
+    .max(10)
+    .optional()
+    .default([])
+    // Valida contra o catálogo — tags desconhecidas são descartadas silenciosamente
+    // pra não quebrar quando o catálogo evoluir antes do app ser atualizado.
+    .transform((arr) => arr.filter((t) => TAGS_LOJA_IDS.has(t))),
   notaEntregador: z.number().int().min(1).max(5),
   comentarioEntregador: z.string().max(500).optional(),
+  tagsEntregador: z
+    .array(z.string())
+    .max(10)
+    .optional()
+    .default([])
+    .transform((arr) => arr.filter((t) => TAGS_ENTREGADOR_IDS.has(t))),
   avaliacoesProdutos: z
     .array(
       z.object({
@@ -102,6 +128,8 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
           usuarioId,
           pedidoId: dados.pedidoId,
           nota: dados.notaLoja,
+          comentario: dados.comentarioLoja,
+          tags: dados.tagsLoja,
         },
       }),
       prisma.loja.update({
@@ -115,6 +143,7 @@ router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
           pedidoId: dados.pedidoId,
           nota: dados.notaEntregador,
           comentario: dados.comentarioEntregador,
+          tags: dados.tagsEntregador,
         },
       }),
       prisma.entregador.update({
@@ -183,5 +212,53 @@ router.get('/loja/:lojaId', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar avaliações' });
   }
 });
+
+/**
+ * Dashboard de avaliações do lojista logado.
+ *
+ * Inclui agregação de tags (pontos fortes/a melhorar) que `/loja/:lojaId`
+ * público não tem. Lojista precisa passar o lojaId pra suportar contas
+ * multi-loja (raro mas previsto).
+ */
+router.get(
+  '/lojista/lojas/:lojaId/dashboard',
+  authMiddleware,
+  authLojista,
+  async (req: AuthRequest, res) => {
+    try {
+      const loja = await prisma.loja.findUnique({
+        where: { id: req.params.lojaId },
+        select: { id: true, lojistaId: true },
+      });
+      if (!loja) {
+        return res.status(404).json({ error: 'Loja não encontrada' });
+      }
+      if (loja.lojistaId !== req.user!.id) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
+      const data = await dashboardAvaliacoesLojista(req.params.lojaId);
+      res.json(data);
+    } catch (error) {
+      logger.error({ error }, '[avaliacoes] erro no dashboard lojista');
+      res.status(500).json({ error: 'Erro ao buscar dashboard de avaliações' });
+    }
+  },
+);
+
+/** Dashboard de avaliações do entregador logado. */
+router.get(
+  '/entregador/me/dashboard',
+  authMiddleware,
+  authEntregador,
+  async (req: AuthRequest, res) => {
+    try {
+      const data = await dashboardAvaliacoesEntregador(req.user!.id);
+      res.json(data);
+    } catch (error) {
+      logger.error({ error }, '[avaliacoes] erro no dashboard entregador');
+      res.status(500).json({ error: 'Erro ao buscar dashboard de avaliações' });
+    }
+  },
+);
 
 export default router;
