@@ -12,6 +12,7 @@ import { ProfileScreen } from '../src/features/entregador/perfil';
 import { DadosBancariosScreen } from '../src/features/entregador/perfil/ui/DadosBancariosScreen';
 import { DocumentosScreen } from '../src/features/entregador/perfil/ui/DocumentosScreen';
 import { NotificacoesScreen } from '../src/features/entregador/perfil/ui/NotificacoesScreen';
+import { AvaliacoesScreen as AvaliacoesScreenEntregador } from '../src/features/entregador/avaliacoes';
 import { SegurancaScreen } from '../src/features/entregador/perfil/ui/SegurancaScreen';
 import { VeiculoScreen } from '../src/features/entregador/perfil/ui/VeiculoScreen';
 import { ConversasEntregadorScreen } from '../src/features/entregador/chat/ui/ConversasEntregadorScreen';
@@ -113,6 +114,7 @@ type Screen =
   | 'veiculo'
   | 'dados-bancarios'
   | 'notificacoes'
+  | 'avaliacoes'
   | 'seguranca'
   | 'conversas'
   | 'chat';
@@ -273,6 +275,7 @@ export function CourierApp() {
   if (screen === 'dados-bancarios')
     return <DadosBancariosScreen onBack={() => setScreen('main')} />;
   if (screen === 'notificacoes') return <NotificacoesScreen onBack={() => setScreen('main')} />;
+  if (screen === 'avaliacoes') return <AvaliacoesScreenEntregador onBack={() => setScreen('main')} />;
   if (screen === 'seguranca') return <SegurancaScreen onBack={() => setScreen('main')} />;
   if (screen === 'veiculo') return <VeiculoScreen onBack={() => setScreen('main')} />;
   if (screen === 'conversas')

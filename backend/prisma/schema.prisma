@@ -707,6 +707,13 @@ model AvaliacaoLoja {
   pedidoId   String   @unique @map("pedido_id")
   nota       Int
   comentario String?
+  /**
+   * Tags estruturadas marcadas pelo cliente na avaliação.
+   * Catálogo fechado mantido em packages/types/src/index.ts (TAGS_AVALIACAO_LOJA).
+   * Permite agregar "Pontos fortes" e "Pontos a melhorar" no dashboard do lojista
+   * sem precisar fazer NLP no comentário livre.
+   */
+  tags       String[] @default([])
   criadoEm   DateTime @default(now()) @map("criado_em")
 
   loja    Loja    @relation(fields: [lojaId], references: [id])
@@ -723,6 +730,8 @@ model AvaliacaoEntregador {
   pedidoId     String   @unique @map("pedido_id")
   nota         Int
   comentario   String?
+  /** Mesmo conceito de AvaliacaoLoja.tags. Catálogo em TAGS_AVALIACAO_ENTREGADOR. */
+  tags         String[] @default([])
   criadoEm     DateTime @default(now()) @map("criado_em")
 
   entregador Entregador @relation(fields: [entregadorId], references: [id])

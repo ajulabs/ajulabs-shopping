@@ -10,6 +10,7 @@ import {
   MovimentacaoEstoque,
   TipoMovimentacao,
   AvaliacaoPedidoPayload,
+  DashboardAvaliacoes,
   PapelColaborador,
   Colaborador,
   SolicitacaoPreco,
@@ -264,6 +265,29 @@ export const AvaliacaoService = {
       const err = await res.json().catch(() => ({}));
       throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar avaliação');
     }
+  },
+
+  /**
+   * Dashboard agregado de avaliações da loja (média, distribuição, top tags,
+   * últimas 50 avaliações). Disponível apenas para o dono da loja.
+   */
+  dashboardLojista: async (lojaId: string, token: string): Promise<DashboardAvaliacoes> => {
+    const res = await fetch(`${API_URL}/avaliacoes/lojista/lojas/${lojaId}/dashboard`, {
+      headers: authHeader(token),
+    });
+    if (res.status === 401) throw new ApiUnauthorizedError();
+    if (!res.ok) throw new Error('Erro ao buscar avaliações da loja');
+    return res.json();
+  },
+
+  /** Dashboard agregado de avaliações recebidas pelo entregador. */
+  dashboardEntregador: async (token: string): Promise<DashboardAvaliacoes> => {
+    const res = await fetch(`${API_URL}/avaliacoes/entregador/me/dashboard`, {
+      headers: authHeader(token),
+    });
+    if (res.status === 401) throw new ApiUnauthorizedError();
+    if (!res.ok) throw new Error('Erro ao buscar avaliações');
+    return res.json();
   },
 };
 

@@ -65,6 +65,7 @@ export default function LojistaLayout() {
         options={{ href: null, tabBarStyle: { display: 'none' } }}
       />
       <Tabs.Screen name="notificacoes" options={{ href: null }} />
+      <Tabs.Screen name="avaliacoes" options={{ href: null }} />
       <Tabs.Screen
         name="logistica"
         options={{

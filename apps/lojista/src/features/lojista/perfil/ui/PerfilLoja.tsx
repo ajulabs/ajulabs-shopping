@@ -1171,6 +1171,21 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
 
         <TouchableOpacity
           style={styles.notificacoesBtn}
+          onPress={() => router.push('/(lojista)/avaliacoes')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="star-outline" size={18} color="#000933" />
+          <Text style={styles.notificacoesBtnText}>Avaliações</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color="#9099B3"
+            style={{ marginLeft: 'auto' }}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.notificacoesBtn}
           onPress={() => router.push('/(lojista)/notificacoes')}
           activeOpacity={0.85}
         >
