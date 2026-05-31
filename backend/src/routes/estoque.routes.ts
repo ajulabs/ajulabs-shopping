@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { TipoMovimentacao } from '@prisma/client';
-import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
+import {
+  authMiddleware,
+  authLojista,
+  authLojistaOrColaborador,
+  AuthRequest,
+} from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { logger } from '../lib/logger';
 import {
@@ -13,56 +18,73 @@ import {
 
 const router = Router();
 
-router.get('/dashboard', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+router.get(
+  '/dashboard',
+  authMiddleware,
+  authLojistaOrColaborador,
+  async (req: AuthRequest, res) => {
+    try {
+      const lojaId =
+        req.user?.tipo === 'colaborador' ? req.user.lojaId! : (req.query.lojaId as string);
+      if (!lojaId) return res.status(400).json({ error: 'lojaId obrigatório' });
+
+      if (req.user?.tipo !== 'colaborador') {
+        const loja = await prisma.loja.findFirst({
+          where: { id: lojaId, lojistaId: req.user!.id },
+        });
+        if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+      }
+
+      const dashboard = await getDashboard(lojaId);
+      res.json({ dashboard });
+    } catch (err) {
+      logger.error({ err }, '[estoque] erro ao buscar dashboard');
+      res.status(500).json({ error: 'Erro ao buscar dashboard de estoque' });
+    }
+  },
+);
+
+router.get(
+  '/movimentacoes',
+  authMiddleware,
+  authLojistaOrColaborador,
+  async (req: AuthRequest, res) => {
+    try {
+      const lojaId =
+        req.user?.tipo === 'colaborador' ? req.user.lojaId! : (req.query.lojaId as string);
+      if (!lojaId) return res.status(400).json({ error: 'lojaId obrigatório' });
+
+      if (req.user?.tipo !== 'colaborador') {
+        const loja = await prisma.loja.findFirst({
+          where: { id: lojaId, lojistaId: req.user!.id },
+        });
+        if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+      }
+
+      const page = Number(req.query.page ?? 1);
+      const limit = Math.min(Number(req.query.limit ?? 30), 100);
+      const produtoId = req.query.produtoId as string | undefined;
+      const tipo = req.query.tipo as TipoMovimentacao | undefined;
+
+      const result = await getMovimentacoes(lojaId, { produtoId, tipo, page, limit });
+      res.json(result);
+    } catch (err) {
+      logger.error({ err }, '[estoque] erro ao buscar movimentações');
+      res.status(500).json({ error: 'Erro ao buscar movimentações' });
+    }
+  },
+);
+
+router.get('/alertas', authMiddleware, authLojistaOrColaborador, async (req: AuthRequest, res) => {
   try {
-    const lojaId = req.query.lojaId as string;
+    const lojaId =
+      req.user?.tipo === 'colaborador' ? req.user.lojaId! : (req.query.lojaId as string);
     if (!lojaId) return res.status(400).json({ error: 'lojaId obrigatório' });
 
-    const loja = await prisma.loja.findFirst({
-      where: { id: lojaId, lojistaId: req.user!.id },
-    });
-    if (!loja) return res.status(403).json({ error: 'Acesso negado' });
-
-    const dashboard = await getDashboard(lojaId);
-    res.json({ dashboard });
-  } catch (err) {
-    logger.error({ err }, '[estoque] erro ao buscar dashboard');
-    res.status(500).json({ error: 'Erro ao buscar dashboard de estoque' });
-  }
-});
-
-router.get('/movimentacoes', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  try {
-    const lojaId = req.query.lojaId as string;
-    if (!lojaId) return res.status(400).json({ error: 'lojaId obrigatório' });
-
-    const loja = await prisma.loja.findFirst({
-      where: { id: lojaId, lojistaId: req.user!.id },
-    });
-    if (!loja) return res.status(403).json({ error: 'Acesso negado' });
-
-    const page = Number(req.query.page ?? 1);
-    const limit = Math.min(Number(req.query.limit ?? 30), 100);
-    const produtoId = req.query.produtoId as string | undefined;
-    const tipo = req.query.tipo as TipoMovimentacao | undefined;
-
-    const result = await getMovimentacoes(lojaId, { produtoId, tipo, page, limit });
-    res.json(result);
-  } catch (err) {
-    logger.error({ err }, '[estoque] erro ao buscar movimentações');
-    res.status(500).json({ error: 'Erro ao buscar movimentações' });
-  }
-});
-
-router.get('/alertas', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  try {
-    const lojaId = req.query.lojaId as string;
-    if (!lojaId) return res.status(400).json({ error: 'lojaId obrigatório' });
-
-    const loja = await prisma.loja.findFirst({
-      where: { id: lojaId, lojistaId: req.user!.id },
-    });
-    if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+    if (req.user?.tipo !== 'colaborador') {
+      const loja = await prisma.loja.findFirst({ where: { id: lojaId, lojistaId: req.user!.id } });
+      if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+    }
 
     const alertas = await getAlertas(lojaId);
     res.json({ alertas });

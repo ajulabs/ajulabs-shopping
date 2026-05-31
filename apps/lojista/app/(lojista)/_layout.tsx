@@ -1,8 +1,13 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthLojistaStore } from '../../src/features/lojista/auth/model/store';
 
 export default function LojistaLayout() {
+  const papel = useAuthLojistaStore((s) => s.papel);
+  const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
+  const isFuncionario = !isLojistaDono && papel === 'funcionario';
+
   return (
     <Tabs
       initialRouteName="pedidos"
@@ -47,6 +52,7 @@ export default function LojistaLayout() {
         name="vendas"
         options={{
           title: 'Vendas',
+          ...(isFuncionario ? { href: null } : {}),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={22} color={color} />
           ),
@@ -71,9 +77,13 @@ export default function LojistaLayout() {
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Perfil',
+          title: isFuncionario ? 'Sair' : 'Perfil',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
+            <Ionicons
+              name={isFuncionario ? 'log-out-outline' : focused ? 'person' : 'person-outline'}
+              size={22}
+              color={color}
+            />
           ),
         }}
       />

@@ -14,7 +14,6 @@ export function usePermissions() {
     isAdmin,
     isGerente,
     isFuncionario,
-    // only owner/admin see prices; gerente and funcionario cannot
     canViewPrices: isAdmin,
     canEditPrices: isAdmin,
     canRequestPriceChange: isFuncionario,
@@ -22,5 +21,7 @@ export function usePermissions() {
     canManageUsers: isAdmin,
     canViewAuditLog: isAdmin || isGerente,
     canManageProducts: isAdmin || isGerente || isFuncionario,
+    canViewVendas: isAdmin || isGerente,
+    canViewStockValue: isAdmin,
   };
 }

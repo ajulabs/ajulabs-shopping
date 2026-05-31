@@ -67,13 +67,21 @@ export async function getPedidos(
   return { pedidos, total, page: opts.page, limit: opts.limit };
 }
 
-export async function avancarStatusPedido(pedidoId: string, lojistaId: string) {
+export async function avancarStatusPedido(
+  pedidoId: string,
+  auth: { tipo: 'lojista'; id: string } | { tipo: 'colaborador'; lojaId: string },
+) {
   const pedido = await prisma.pedido.findUnique({
     where: { id: pedidoId },
     include: { loja: true },
   });
 
-  if (!pedido || pedido.loja.lojistaId !== lojistaId) {
+  const hasAccess =
+    auth.tipo === 'colaborador'
+      ? pedido?.lojaId === auth.lojaId
+      : pedido?.loja.lojistaId === auth.id;
+
+  if (!pedido || !hasAccess) {
     throw Object.assign(new Error('Acesso negado'), { statusCode: 403 });
   }
   if (pedido.status === 'cancelado' || pedido.status === 'entregue') {

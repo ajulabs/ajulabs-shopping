@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
-import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
+import {
+  authMiddleware,
+  authLojista,
+  authLojistaOrColaborador,
+  AuthRequest,
+} from '../middleware/auth';
 import * as svc from '../services/lojista.service';
 import { specValidatorMiddleware } from '../lib/spec-validator';
 
@@ -105,21 +110,40 @@ const produtoFormSchema = z.object({
 
 // ── Pedidos ───────────────────────────────────────────────────────────────────
 
-router.get('/lojas/:id/pedidos', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  await svc.verificarDonoLoja(req.params.id, req.user!.id);
-  const { status, page = '1', limit = '20' } = req.query;
-  const data = await svc.getPedidos(req.params.id, {
-    status: status as string | undefined,
-    page: Number(page),
-    limit: Number(limit),
-  });
-  res.json(data);
-});
+router.get(
+  '/lojas/:id/pedidos',
+  authMiddleware,
+  authLojistaOrColaborador,
+  async (req: AuthRequest, res) => {
+    if (req.user?.tipo === 'colaborador') {
+      if (req.user.lojaId !== req.params.id)
+        return res.status(403).json({ error: 'Acesso negado' });
+    } else {
+      await svc.verificarDonoLoja(req.params.id, req.user!.id);
+    }
+    const { status, page = '1', limit = '20' } = req.query;
+    const data = await svc.getPedidos(req.params.id, {
+      status: status as string | undefined,
+      page: Number(page),
+      limit: Number(limit),
+    });
+    res.json(data);
+  },
+);
 
-router.patch('/pedidos/:id/status', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  const pedido = await svc.avancarStatusPedido(req.params.id, req.user!.id);
-  res.json({ pedido });
-});
+router.patch(
+  '/pedidos/:id/status',
+  authMiddleware,
+  authLojistaOrColaborador,
+  async (req: AuthRequest, res) => {
+    const auth =
+      req.user?.tipo === 'colaborador'
+        ? ({ tipo: 'colaborador', lojaId: req.user.lojaId! } as const)
+        : ({ tipo: 'lojista', id: req.user!.id } as const);
+    const pedido = await svc.avancarStatusPedido(req.params.id, auth);
+    res.json({ pedido });
+  },
+);
 
 router.get(
   '/pedidos/:id/localizacao-entregador',
@@ -175,11 +199,11 @@ router.patch(
 
 // ── Produtos ──────────────────────────────────────────────────────────────────
 
-router.get('/produtos', authMiddleware, authLojista, async (req: AuthRequest, res) => {
-  const { lojaId } = req.query;
+router.get('/produtos', authMiddleware, authLojistaOrColaborador, async (req: AuthRequest, res) => {
+  const lojaId = req.user?.tipo === 'colaborador' ? req.user.lojaId! : (req.query.lojaId as string);
   if (!lojaId) return res.status(400).json({ error: 'lojaId é obrigatório' });
-  await svc.verificarDonoLoja(lojaId as string, req.user!.id);
-  const produtos = await svc.getProdutos(lojaId as string);
+  if (req.user?.tipo !== 'colaborador') await svc.verificarDonoLoja(lojaId, req.user!.id);
+  const produtos = await svc.getProdutos(lojaId);
   res.json({ produtos });
 });
 
