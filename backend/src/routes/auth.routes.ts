@@ -8,6 +8,7 @@ import { authLimiter } from '../lib/rateLimiter';
 import { logger } from '../lib/logger';
 import { specValidatorMiddleware } from '../lib/spec-validator';
 import { loginColaborador } from '../services/rbac.service';
+import { sendEmail, recuperacaoSenhaHtml } from '../utils/email';
 
 const router = Router();
 
@@ -399,6 +400,107 @@ router.post('/lojista/login', specValidatorMiddleware(loginLojistaSpec), async (
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     res.status(500).json({ error: 'Erro no login' });
+  }
+});
+
+// ========================================
+// RECUPERAÇÃO DE SENHA (CONSUMIDOR)
+// ========================================
+
+router.post('/usuario/recuperar-senha', async (req, res) => {
+  try {
+    const { cpf } = z.object({ cpf: z.string() }).parse(req.body);
+    const cpfRaw = cpf.replace(/\D/g, '');
+
+    const usuario = await prisma.usuario.findUnique({ where: { cpf: cpfRaw } });
+
+    // Responde 200 mesmo se CPF não encontrado para não vazar informação
+    if (!usuario) {
+      return res.json({ ok: true });
+    }
+
+    // Invalida tokens anteriores
+    await prisma.tokenRecuperacaoSenha.updateMany({
+      where: { usuarioId: usuario.id, usado: false },
+      data: { usado: true },
+    });
+
+    // Gera código de 6 dígitos e salva com validade de 15 min
+    const codigo = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.tokenRecuperacaoSenha.create({
+      data: { usuarioId: usuario.id, codigo, expiresAt },
+    });
+
+    try {
+      await sendEmail({
+        to: usuario.email,
+        subject: 'Código de recuperação de senha — AjuLabs Shopping',
+        html: recuperacaoSenhaHtml(usuario.nome, codigo),
+      });
+    } catch {
+      // Email falhou (ex: domínio não verificado) — loga o código no console para dev
+      logger.warn(
+        { codigo, email: usuario.email },
+        '[auth] Email não enviado — código de recuperação para uso em dev',
+      );
+    }
+
+    logger.info({ usuarioId: usuario.id }, '[auth] Código de recuperação enviado');
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    logger.error({ err: error }, '[auth] Erro ao enviar recuperação de senha');
+    res.status(500).json({ error: 'Erro ao enviar código. Tente novamente.' });
+  }
+});
+
+router.post('/usuario/redefinir-senha', async (req, res) => {
+  try {
+    const { cpf, codigo, novaSenha } = z
+      .object({
+        cpf: z.string(),
+        codigo: z.string().length(6, 'Código deve ter 6 dígitos'),
+        novaSenha: senhaForteSchema,
+      })
+      .parse(req.body);
+
+    const cpfRaw = cpf.replace(/\D/g, '');
+    const usuario = await prisma.usuario.findUnique({ where: { cpf: cpfRaw } });
+
+    if (!usuario) {
+      return res.status(400).json({ error: 'Código inválido ou expirado' });
+    }
+
+    const token = await prisma.tokenRecuperacaoSenha.findFirst({
+      where: {
+        usuarioId: usuario.id,
+        codigo,
+        usado: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { criadoEm: 'desc' },
+    });
+
+    if (!token) {
+      return res.status(400).json({ error: 'Código inválido ou expirado' });
+    }
+
+    const senhaHash = await hashSenha(novaSenha);
+
+    await prisma.$transaction([
+      prisma.usuario.update({ where: { id: usuario.id }, data: { senhaHash } }),
+      prisma.tokenRecuperacaoSenha.update({ where: { id: token.id }, data: { usado: true } }),
+    ]);
+
+    logger.info({ usuarioId: usuario.id }, '[auth] Senha redefinida com sucesso');
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res.status(400).json({ error: error.errors[0]?.message ?? 'Dados inválidos' });
+    logger.error({ err: error }, '[auth] Erro ao redefinir senha');
+    res.status(500).json({ error: 'Erro ao redefinir senha. Tente novamente.' });
   }
 });
 

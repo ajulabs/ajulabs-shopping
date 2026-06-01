@@ -154,14 +154,6 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const handleCadastro = useCallback(async () => {
     if (!validate()) return;
     setLoading(true);
-    console.log(
-      '[Consumer][Cadastro] Enviando cadastro — nome:',
-      nome,
-      '| cpf:',
-      cpf,
-      '| email:',
-      email,
-    );
     try {
       await registrar({ nome, cpf, telefone: telefoneCompleto, email, senha });
 
@@ -188,7 +180,6 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
       onCadastroSuccess?.();
       router.replace('/(consumer)/chat');
     } catch (err) {
-      console.error('[Consumer][Cadastro] Erro:', err);
       const isNetwork =
         err instanceof Error &&
         (err.message.includes('Network') ||

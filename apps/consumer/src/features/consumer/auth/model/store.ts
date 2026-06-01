@@ -1,15 +1,34 @@
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { disconnectSocket } from '@ajulabs/realtime';
 import { useCartStore } from '../../cart/model/store';
 import { ItemCarrinho } from '@ajulabs/types';
+
+// SecureStore só funciona em dispositivos nativos (iOS/Android)
+const secureStorage =
+  Platform.OS === 'web'
+    ? {
+        getItem: AsyncStorage.getItem,
+        setItem: AsyncStorage.setItem,
+        removeItem: AsyncStorage.removeItem,
+      }
+    : {
+        getItem: SecureStore.getItemAsync,
+        setItem: SecureStore.setItemAsync,
+        removeItem: SecureStore.deleteItemAsync,
+      };
 
 const cartKey = (userId: string) => `ajulabs-cart-${userId}`;
 
 async function salvarCarrinho(userId: string, itensPorLoja: Record<string, ItemCarrinho[]>) {
   try {
     await AsyncStorage.setItem(cartKey(userId), JSON.stringify(itensPorLoja));
-  } catch {}
+  } catch (err) {
+    console.error('[Consumer][Auth] Falha ao salvar carrinho no AsyncStorage:', err);
+  }
 }
 
 async function restaurarCarrinho(userId: string) {
@@ -145,17 +164,39 @@ export const useAuthStore = create<AuthState>()(
       },
 
       enviarCodigo: async (telefone: string) => {
-        await new Promise((r) => setTimeout(r, 1000));
+        const res = await fetch(`${API_URL}auth/usuario/enviar-codigo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao enviar código');
+        }
         set({ telefone });
       },
 
       verificarCodigo: async (codigo: string) => {
-        await new Promise((r) => setTimeout(r, 800));
-        if (codigo.length === 4) {
-          set({ codigoVerificado: true, userId: 'user-001' });
-          return true;
+        const { telefone } = get();
+        const res = await fetch(`${API_URL}auth/usuario/verificar-codigo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone, codigo }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(typeof data.error === 'string' ? data.error : 'Código inválido');
         }
-        return false;
+        const { token, refreshToken, usuario } = await res.json();
+        set({
+          codigoVerificado: true,
+          token: token ?? null,
+          refreshToken: refreshToken ?? null,
+          userId: usuario?.id ?? null,
+          nome: usuario?.nome ?? null,
+          email: usuario?.email ?? null,
+        });
+        return true;
       },
 
       registrarNome: (nome: string) => {
@@ -171,6 +212,7 @@ export const useAuthStore = create<AuthState>()(
         const { itensPorLoja, limparTudo } = useCartStore.getState();
         if (userId) salvarCarrinho(userId, itensPorLoja);
         limparTudo();
+        disconnectSocket();
         set({
           isLoggedIn: false,
           token: null,
@@ -216,7 +258,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'ajulabs-consumer-auth',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => secureStorage),
       partialize: (state) => ({
         isLoggedIn: state.isLoggedIn,
         token: state.token,
