@@ -31,10 +31,24 @@ model Usuario {
   supportTickets         SupportTicket[]
   favoritos              FavoritoProduto[]
   favoritosLojas         FavoritoLoja[]
-  dispositivosPush DispositivoPush[]
-  prefsOptOut      PreferenciaNotificacaoOptOut[]
+  dispositivosPush       DispositivoPush[]
+  prefsOptOut            PreferenciaNotificacaoOptOut[]
+  tokensRecuperacao      TokenRecuperacaoSenha[]
 
   @@map("usuarios")
+}
+
+model TokenRecuperacaoSenha {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  codigo    String
+  expiresAt DateTime @map("expires_at")
+  usado     Boolean  @default(false)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("tokens_recuperacao_senha")
 }
 
 model DispositivoPush {

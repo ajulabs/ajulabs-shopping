@@ -24,15 +24,20 @@ export async function fetchOsrmFull(
   let res: Response;
   try {
     res = await fetch(url, { signal: controller.signal });
-  } finally {
+  } catch (err) {
     clearTimeout(timer);
+    if (controller.signal.aborted) throw new Error('Timeout ao buscar rota (10s)');
+    throw err;
   }
-  const data = await res!.json();
+  clearTimeout(timer);
+  if (!res.ok) throw new Error(`Erro ao buscar rota: ${res.status}`);
+  const data = await res.json();
   const route = data.routes?.[0];
   if (!route) throw new Error('Rota não encontrada');
 
-  const coords: { lat: number; lng: number }[] =
-    (route.geometry.coordinates as number[][]).map((c: number[]) => ({ lat: c[1], lng: c[0] }));
+  const coords: { lat: number; lng: number }[] = (route.geometry.coordinates as number[][]).map(
+    (c: number[]) => ({ lat: c[1], lng: c[0] }),
+  );
 
   const steps: NavStep[] = [];
   for (const leg of route.legs ?? []) {
@@ -68,5 +73,7 @@ export async function fetchOsrmSimple(
     const data = await res.json();
     const coords: number[][] = data.routes?.[0]?.geometry?.coordinates ?? [];
     return coords.map((c: number[]) => ({ latitude: c[1], longitude: c[0] }));
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }

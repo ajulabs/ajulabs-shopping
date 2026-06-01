@@ -152,7 +152,12 @@ export function ChatIA() {
       try {
         const { conversaId: cid, mensagens: msgs } = JSON.parse(raw);
         if (cid) setConversaId(cid);
-        if (Array.isArray(msgs) && msgs.length > 0) setMensagens(msgs);
+        if (Array.isArray(msgs) && msgs.length > 0) {
+          setMensagens(msgs);
+          // As sugestões iniciais não fazem sentido se já há conversa salva —
+          // a última mensagem da Aju já carrega as sugestões dentro de resposta.sugestoes
+          setSugestoes([]);
+        }
       } catch {}
     });
   }, [userId]);

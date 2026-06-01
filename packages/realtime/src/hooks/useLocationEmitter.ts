@@ -62,5 +62,13 @@ export function useLocationEmitter({
       heading: location.heading,
       speedKmh: location.speedKmh,
     });
-  }, [location?.lat, location?.lng, location?.heading, pedidoId, enabled, apiUrl]);
+  }, [
+    location?.lat,
+    location?.lng,
+    location?.heading,
+    location?.speedKmh,
+    pedidoId,
+    enabled,
+    apiUrl,
+  ]);
 }
