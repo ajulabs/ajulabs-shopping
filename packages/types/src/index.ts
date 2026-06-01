@@ -210,7 +210,7 @@ export interface RastreioChat {
 }
 
 export interface RespostaAju {
-  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido' | 'ticketCriado';
+  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido' | 'ticketCriado' | 'ticketDuplicado';
   texto: string;
   produtos?: ProdutoCard[];
   sugestoes?: string[];
@@ -425,24 +425,24 @@ export interface TagAvaliacao {
 
 /** Tags marcáveis pelo consumidor ao avaliar uma loja. */
 export const TAGS_AVALIACAO_LOJA: TagAvaliacao[] = [
-  { id: 'embalagem-caprichada',   label: 'Embalagem caprichada',    sentimento: 'positiva' },
-  { id: 'produto-perfeito',       label: 'Produto chegou perfeito', sentimento: 'positiva' },
-  { id: 'atendimento-atencioso',  label: 'Atendimento atencioso',   sentimento: 'positiva' },
-  { id: 'cumpriu-prometido',      label: 'Cumpriu o prometido',     sentimento: 'positiva' },
-  { id: 'preparo-demorado',       label: 'Demorou pra preparar',    sentimento: 'negativa' },
-  { id: 'produto-divergente',     label: 'Produto diferente do anúncio', sentimento: 'negativa' },
-  { id: 'embalagem-danificada',   label: 'Embalagem danificada',    sentimento: 'negativa' },
+  { id: 'embalagem-caprichada', label: 'Embalagem caprichada', sentimento: 'positiva' },
+  { id: 'produto-perfeito', label: 'Produto chegou perfeito', sentimento: 'positiva' },
+  { id: 'atendimento-atencioso', label: 'Atendimento atencioso', sentimento: 'positiva' },
+  { id: 'cumpriu-prometido', label: 'Cumpriu o prometido', sentimento: 'positiva' },
+  { id: 'preparo-demorado', label: 'Demorou pra preparar', sentimento: 'negativa' },
+  { id: 'produto-divergente', label: 'Produto diferente do anúncio', sentimento: 'negativa' },
+  { id: 'embalagem-danificada', label: 'Embalagem danificada', sentimento: 'negativa' },
 ];
 
 /** Tags marcáveis pelo consumidor ao avaliar um entregador. */
 export const TAGS_AVALIACAO_ENTREGADOR: TagAvaliacao[] = [
-  { id: 'entregador-educado',     label: 'Entregador educado',      sentimento: 'positiva' },
-  { id: 'pedido-rapido',          label: 'Pedido rápido',           sentimento: 'positiva' },
-  { id: 'cuidadoso',              label: 'Cuidadoso com a entrega', sentimento: 'positiva' },
-  { id: 'comunicativo',           label: 'Comunicativo',            sentimento: 'positiva' },
-  { id: 'entrega-demorada',       label: 'Demorado',                sentimento: 'negativa' },
-  { id: 'sem-resposta-chat',      label: 'Não respondeu o chat',    sentimento: 'negativa' },
-  { id: 'dificil-encontrar',      label: 'Difícil de encontrar',    sentimento: 'negativa' },
+  { id: 'entregador-educado', label: 'Entregador educado', sentimento: 'positiva' },
+  { id: 'pedido-rapido', label: 'Pedido rápido', sentimento: 'positiva' },
+  { id: 'cuidadoso', label: 'Cuidadoso com a entrega', sentimento: 'positiva' },
+  { id: 'comunicativo', label: 'Comunicativo', sentimento: 'positiva' },
+  { id: 'entrega-demorada', label: 'Demorado', sentimento: 'negativa' },
+  { id: 'sem-resposta-chat', label: 'Não respondeu o chat', sentimento: 'negativa' },
+  { id: 'dificil-encontrar', label: 'Difícil de encontrar', sentimento: 'negativa' },
 ];
 
 /** Lookup auxiliar para validações e renderização. */

@@ -88,7 +88,24 @@ export async function iniciarFluxoQueixaComPedido(
   usuarioId: string,
   motivo: string,
   pedidoId: string,
-): Promise<RespostaConfirmarPedido | RespostaSelecionarPedido> {
+): Promise<RespostaFluxo> {
+  const ticketExistente = await prisma.supportTicket.findFirst({
+    where: {
+      consumidorId: usuarioId,
+      pedidoId,
+      status: { in: ['aberto', 'em_andamento'] },
+    },
+    select: { protocolo: true },
+  });
+
+  if (ticketExistente) {
+    return {
+      tipo: 'resposta',
+      texto: `Você já tem uma reclamação aberta para este pedido com o protocolo *${ticketExistente.protocolo}*. Acompanhe o andamento na tela de tickets — a loja já está ciente do problema.`,
+      sugestoes: ['Ver meus tickets', 'Buscar produtos'],
+    };
+  }
+
   const pedidoRaw = await prisma.pedido.findFirst({
     where: { id: pedidoId, consumidorId: usuarioId },
     include: {
@@ -214,6 +231,27 @@ export async function processarConfirmacao(
       texto: `Confirma que o problema é com o pedido da ${estado.pedido.loja}? Responda "sim" para confirmar ou "não" para escolher outro.`,
       sugestoes: ['Sim, confirmar', 'Escolher outro pedido'],
     };
+  }
+
+  // Verifica se já existe ticket ativo para este pedido
+  if (estado.pedidoId) {
+    const ticketExistente = await prisma.supportTicket.findFirst({
+      where: {
+        consumidorId: usuarioId,
+        pedidoId: estado.pedidoId,
+        status: { in: ['aberto', 'em_andamento'] },
+      },
+      select: { protocolo: true },
+    });
+
+    if (ticketExistente) {
+      await atualizarEstado(conversaId, null);
+      return {
+        tipo: 'resposta',
+        texto: `Você já tem uma reclamação aberta para este pedido com o protocolo *${ticketExistente.protocolo}*. Acompanhe o andamento na tela de tickets — a loja já está ciente do problema.`,
+        sugestoes: ['Ver meus tickets', 'Buscar produtos'],
+      };
+    }
   }
 
   // Cria ticket com pedidoId real

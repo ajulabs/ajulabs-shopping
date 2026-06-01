@@ -11,6 +11,7 @@ export interface TicketMensagemPayload {
   id: string;
   ticketId: string;
   remetente: string;
+  remetenteNome?: string;
   texto: string;
   criadoEm: string;
 }
@@ -35,6 +36,7 @@ export interface TicketNovoPayload {
   protocolo: string;
   motivo: string;
   consumidorId: string;
+  consumidorNome?: string;
 }
 
 export interface ProdutoVariacaoPayload {
