@@ -510,11 +510,10 @@ router.post('/usuario/redefinir-senha', async (req, res) => {
 
 router.post('/lojista/recuperar-senha', async (req, res) => {
   try {
-    const { cnpj, email } = z.object({ cnpj: z.string(), email: z.string() }).parse(req.body);
+    const { email } = z.object({ email: z.string().email() }).parse(req.body);
 
-    const cnpjRaw = cnpj.replace(/\D/g, '');
     const lojista = await prisma.lojista.findFirst({
-      where: { cnpj: cnpjRaw, email: email.toLowerCase().trim() },
+      where: { email: email.toLowerCase().trim() },
     });
 
     // Responde 200 mesmo sem match para não vazar informação
@@ -556,18 +555,16 @@ router.post('/lojista/recuperar-senha', async (req, res) => {
 
 router.post('/lojista/redefinir-senha', async (req, res) => {
   try {
-    const { cnpj, email, codigo, novaSenha } = z
+    const { email, codigo, novaSenha } = z
       .object({
-        cnpj: z.string(),
-        email: z.string(),
+        email: z.string().email(),
         codigo: z.string().length(6, 'Código deve ter 6 dígitos'),
         novaSenha: senhaForteSchema,
       })
       .parse(req.body);
 
-    const cnpjRaw = cnpj.replace(/\D/g, '');
     const lojista = await prisma.lojista.findFirst({
-      where: { cnpj: cnpjRaw, email: email.toLowerCase().trim() },
+      where: { email: email.toLowerCase().trim() },
     });
 
     if (!lojista) return res.status(400).json({ error: 'Código inválido ou expirado' });

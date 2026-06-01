@@ -82,7 +82,6 @@ function Field({
 
 function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [step, setStep] = useState<RecoveryStep>('form');
-  const [cnpj, setCnpj] = useState('');
   const [email, setEmail] = useState('');
   const [codigo, setCodigo] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -94,7 +93,6 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
   const handleClose = useCallback(() => {
     setStep('form');
-    setCnpj('');
     setEmail('');
     setCodigo('');
     setNovaSenha('');
@@ -106,10 +104,6 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
   }, [onClose]);
 
   const handleEnviarCodigo = useCallback(async () => {
-    if (cnpj.replace(/\D/g, '').length !== 14) {
-      setError('CNPJ inválido.');
-      return;
-    }
     if (!email.includes('@') || !email.includes('.')) {
       setError('Email inválido.');
       return;
@@ -120,7 +114,7 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
       const res = await fetch(`${API_URL}auth/lojista/recuperar-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cnpj: cnpj.replace(/\D/g, ''), email }),
+        body: JSON.stringify({ email }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -143,7 +137,7 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
     } finally {
       setLoading(false);
     }
-  }, [cnpj, email]);
+  }, [email]);
 
   const handleVerificarCodigo = useCallback(() => {
     if (codigo.length !== 6) {
@@ -177,7 +171,7 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
       const res = await fetch(`${API_URL}auth/lojista/redefinir-senha`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cnpj: cnpj.replace(/\D/g, ''), email, codigo, novaSenha }),
+        body: JSON.stringify({ email, codigo, novaSenha }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -200,7 +194,7 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
     } finally {
       setLoading(false);
     }
-  }, [cnpj, email, codigo, novaSenha, confirmar]);
+  }, [email, codigo, novaSenha, confirmar]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -208,27 +202,13 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
         <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
 
-          {/* ETAPA 1 — CNPJ + EMAIL */}
+          {/* ETAPA 1 — EMAIL */}
           {step === 'form' && (
             <>
               <Text style={styles.modalTitle}>Recuperar senha</Text>
               <Text style={styles.modalSub}>
-                Informe seu CNPJ e email cadastrados para receber o código de verificação.
+                Informe o email cadastrado na sua conta. Enviaremos um código de verificação.
               </Text>
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>CNPJ</Text>
-                <TextInput
-                  style={[styles.fieldInput, error ? styles.fieldInputError : undefined]}
-                  value={cnpj}
-                  onChangeText={(v) => {
-                    setCnpj(formatCNPJ(v));
-                    setError('');
-                  }}
-                  placeholder="00.000.000/0001-00"
-                  placeholderTextColor={colors.n600}
-                  keyboardType="numeric"
-                />
-              </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>EMAIL CADASTRADO</Text>
                 <TextInput
