@@ -751,13 +751,17 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     [token, lojaId],
   );
 
+  const [savedVersion, setSavedVersion] = useState(0);
+
   const isDirty = useMemo(() => {
     if (!originalLojaRef.current) return false;
     return (
       JSON.stringify(loja) !== JSON.stringify(originalLojaRef.current) ||
       JSON.stringify(horarios) !== JSON.stringify(originalHorariosRef.current)
     );
-  }, [loja, horarios]);
+    // savedVersion força re-execução do memo após salvar, sem alterar loja/horarios
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loja, horarios, savedVersion]);
 
   const handleDescartar = useCallback(() => {
     if (!originalLojaRef.current) return;
@@ -800,6 +804,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
       });
       originalLojaRef.current = { ...loja };
       originalHorariosRef.current = horarios.map((h) => ({ ...h }));
+      setSavedVersion((v) => v + 1);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (e) {
@@ -988,47 +993,33 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
             {!!erroLoc && <Text style={styles.locErro}>{erroLoc}</Text>}
 
             {/* CEP com autofill */}
-            <View style={styles.fieldRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: subColor }]}>CEP</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <TextInput
-                    style={[
-                      styles.fieldInput,
-                      {
-                        backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50,
-                        borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.n200,
-                        color: textColor,
-                        flex: 1,
-                      },
-                    ]}
-                    value={loja.cep}
-                    onChangeText={(v) => {
-                      const d = v.replace(/\D/g, '').slice(0, 8);
-                      updateLoja('cep', d);
-                      if (d.length === 8) buscarCep(d);
-                    }}
-                    placeholder="00000000"
-                    placeholderTextColor={subColor}
-                    keyboardType="numeric"
-                    maxLength={8}
-                  />
-                  {buscandoCep && (
-                    <ActivityIndicator
-                      size="small"
-                      color={colors.orange}
-                      style={{ marginLeft: 8 }}
-                    />
-                  )}
-                </View>
-              </View>
-              <View style={{ flex: 1 }}>
-                <FormField
-                  label="BAIRRO"
-                  value={loja.bairro}
-                  onChange={(v) => updateLoja('bairro', v)}
-                  dark={dark}
+            <View style={styles.field}>
+              <Text style={[styles.fieldLabel, { color: subColor }]}>CEP</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TextInput
+                  style={[
+                    styles.fieldInput,
+                    {
+                      backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50,
+                      borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.n200,
+                      color: textColor,
+                      flex: 1,
+                    },
+                  ]}
+                  value={loja.cep}
+                  onChangeText={(v) => {
+                    const d = v.replace(/\D/g, '').slice(0, 8);
+                    updateLoja('cep', d);
+                    if (d.length === 8) buscarCep(d);
+                  }}
+                  placeholder="00000000"
+                  placeholderTextColor={subColor}
+                  keyboardType="numeric"
+                  maxLength={8}
                 />
+                {buscandoCep && (
+                  <ActivityIndicator size="small" color={colors.orange} style={{ marginLeft: 8 }} />
+                )}
               </View>
             </View>
 
@@ -1053,17 +1044,31 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
                 />
               </View>
             </View>
+
+            <View style={styles.fieldRow}>
+              <View style={{ flex: 1 }}>
+                <FormField
+                  label="BAIRRO"
+                  value={loja.bairro}
+                  onChange={(v) => updateLoja('bairro', v)}
+                  dark={dark}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <FormField
+                  label="CIDADE"
+                  value={loja.cidade}
+                  onChange={(v) => updateLoja('cidade', v)}
+                  dark={dark}
+                />
+              </View>
+            </View>
+
             <FormField
               label="COMPLEMENTO"
               value={loja.complemento}
               onChange={(v) => updateLoja('complemento', v)}
               placeholder="Nº da loja, Box, Sala, Apto..."
-              dark={dark}
-            />
-            <FormField
-              label="CIDADE"
-              value={loja.cidade}
-              onChange={(v) => updateLoja('cidade', v)}
               dark={dark}
             />
           </View>
@@ -1201,44 +1206,38 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           </>
         )}
 
-        <TouchableOpacity
-          style={styles.conversasBtn}
-          onPress={() => router.push('/(lojista)/conversas')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="chatbubbles-outline" size={18} color="#0B6FAE" />
-          <Text style={styles.conversasBtnText}>Conversas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.notificacoesBtn}
-          onPress={() => router.push('/(lojista)/avaliacoes')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="star-outline" size={18} color="#000933" />
-          <Text style={styles.notificacoesBtnText}>Avaliações</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color="#9099B3"
-            style={{ marginLeft: 'auto' }}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.notificacoesBtn}
-          onPress={() => router.push('/(lojista)/notificacoes')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="notifications-outline" size={18} color="#000933" />
-          <Text style={styles.notificacoesBtnText}>Notificações</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color="#9099B3"
-            style={{ marginLeft: 'auto' }}
-          />
-        </TouchableOpacity>
+        {(
+          [
+            {
+              icon: 'chatbubbles-outline',
+              label: 'Conversas',
+              onPress: () => router.navigate('/(lojista)/conversas' as any),
+            },
+            {
+              icon: 'star-outline',
+              label: 'Avaliações',
+              onPress: () => router.navigate('/(lojista)/avaliacoes' as any),
+            },
+            {
+              icon: 'notifications-outline',
+              label: 'Notificações',
+              onPress: () => router.navigate('/(lojista)/notificacoes' as any),
+            },
+          ] as { icon: string; label: string; onPress: () => void }[]
+        ).map((item) => (
+          <TouchableOpacity
+            key={item.label}
+            style={[styles.menuItemBtn, { backgroundColor: surface, borderColor: border }]}
+            onPress={item.onPress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.menuIconBox, { backgroundColor: colors.orange + '18' }]}>
+              <Ionicons name={item.icon as any} size={17} color={colors.orange} />
+            </View>
+            <Text style={[styles.menuLabel, { color: textColor }]}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={16} color={subColor} />
+          </TouchableOpacity>
+        ))}
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
           <Ionicons name="log-out-outline" size={18} color="#E24B4A" />
@@ -1248,42 +1247,48 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         <View style={{ height: isDirty ? 96 : 24 }} />
       </ScrollView>
 
-      {/* ── Barra de alterações não salvas ── */}
-      {isDirty && (
-        <View style={styles.stickyBar}>
-          <View style={styles.stickyInfo}>
-            <View style={styles.stickyDot} />
-            <Text style={styles.stickyInfoText}>Alterações não salvas</Text>
-          </View>
-          <View style={styles.stickyActions}>
-            <TouchableOpacity
-              onPress={handleDescartar}
-              style={styles.discardBtn}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.discardBtnText}>Descartar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSalvar}
-              style={[styles.saveBarBtn, saving && { opacity: 0.7 }]}
-              disabled={saving}
-              activeOpacity={0.85}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.saveBarBtnText}>Salvar</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* ── Toast de sucesso ── */}
-      {saveSuccess && (
-        <View style={styles.successToast}>
-          <Ionicons name="checkmark-circle" size={18} color="#fff" />
-          <Text style={styles.successToastText}>Alterações salvas!</Text>
+      {/* ── Barra unificada: não salvo / salvo ── */}
+      {(isDirty || saveSuccess) && (
+        <View style={[styles.stickyBar, saveSuccess && styles.stickyBarSuccess]}>
+          {saveSuccess ? (
+            <View style={styles.stickySuccessContent}>
+              <View style={styles.stickySuccessIconWrap}>
+                <Ionicons name="checkmark" size={16} color="#16A34A" />
+              </View>
+              <View>
+                <Text style={styles.stickySuccessTitle}>Alterações salvas!</Text>
+                <Text style={styles.stickySuccessSub}>Informações da loja atualizadas</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={styles.stickyInfo}>
+                <View style={styles.stickyDot} />
+                <Text style={styles.stickyInfoText}>Alterações não salvas</Text>
+              </View>
+              <View style={styles.stickyActions}>
+                <TouchableOpacity
+                  onPress={handleDescartar}
+                  style={styles.discardBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.discardBtnText}>Descartar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSalvar}
+                  style={[styles.saveBarBtn, saving && { opacity: 0.7 }]}
+                  disabled={saving}
+                  activeOpacity={0.85}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveBarBtnText}>Salvar</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -1465,6 +1470,15 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F1F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: { fontWeight: '700', fontSize: 18, letterSpacing: -0.3 },
   headerSub: { fontSize: 12, marginTop: 2 },
   content: { padding: 14, gap: 8 },
@@ -1666,38 +1680,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBarBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  successToast: {
-    position: 'absolute',
-    bottom: 100,
-    left: 24,
-    right: 24,
-    backgroundColor: '#16A34A',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  stickyBarSuccess: { backgroundColor: '#fff', borderTopColor: '#BBF7D0' },
+  stickySuccessContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stickySuccessIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stickySuccessTitle: { fontSize: 14, fontWeight: '700', color: '#15803D' },
+  stickySuccessSub: { fontSize: 11, color: '#4ADE80', marginTop: 1 },
+  menuCard: { borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
+  menuItemBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  successToastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  notificacoesBtn: {
-    height: 50,
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#FFFFFF',
+    marginTop: 10,
+  },
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
     paddingHorizontal: 16,
-    marginTop: 18,
+    paddingVertical: 14,
   },
-  notificacoesBtnText: { fontSize: 14, fontWeight: '600', color: '#000933' },
+  menuRowBorder: { borderBottomWidth: 1 },
+  menuIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
   logoutBtn: {
     height: 50,
     borderRadius: 14,
@@ -1710,19 +1731,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   logoutBtnText: { fontSize: 15, fontWeight: '700', color: '#E24B4A' },
-  conversasBtn: {
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#0B6FAE',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 10,
-  },
-  conversasBtnText: { fontSize: 15, fontWeight: '700', color: '#0B6FAE' },
-
   // Modal de logout
   modalOverlay: {
     flex: 1,

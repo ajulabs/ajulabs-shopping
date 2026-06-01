@@ -447,6 +447,54 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           </TouchableOpacity>
         )}
 
+        {tipo === 'ticketDuplicado' && (
+          <TouchableOpacity
+            onPress={() => router.push('/(consumer)/tickets' as any)}
+            activeOpacity={0.85}
+            style={{
+              marginTop: 10,
+              backgroundColor: isDark ? 'rgba(249,115,22,0.12)' : '#fff7ed',
+              borderWidth: 1.5,
+              borderColor: isDark ? 'rgba(249,115,22,0.35)' : '#fed7aa',
+              borderRadius: 14,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: '#f97316',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="ticket-outline" size={18} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#fed7aa' : '#c2410c' }}
+              >
+                Ver reclamação aberta
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  color: isDark ? 'rgba(253,215,170,0.7)' : '#f97316',
+                  marginTop: 1,
+                }}
+              >
+                Acompanhe o andamento do ticket existente
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={isDark ? '#fed7aa' : '#f97316'} />
+          </TouchableOpacity>
+        )}
+
         {/* Mini mapa de rastreio em tempo real */}
         {msg.resposta?.rastreio && <ChatRastreioMap rastreio={msg.resposta.rastreio} />}
 

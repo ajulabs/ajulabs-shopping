@@ -234,9 +234,15 @@ export async function updateLoja(
       cidade: string;
       complemento?: string;
     };
+    horarios?: {
+      diaSemana: number;
+      ativo: boolean;
+      abertura: string;
+      fechamento: string;
+    }[];
   },
 ) {
-  const { endereco, ...dadosSemEndereco } = dados;
+  const { endereco, horarios, ...dadosSemEndereco } = dados;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let enderecoComCoords: any = endereco;
@@ -262,16 +268,34 @@ export async function updateLoja(
     }
   }
 
-  return prisma.loja.update({
-    where: { id: lojaId },
-    data: {
-      ...dadosSemEndereco,
-      ...(enderecoComCoords && {
-        endereco: { upsert: { create: enderecoComCoords, update: enderecoComCoords } },
-      }),
-    },
-    include: { endereco: true },
-  });
+  const [loja] = await prisma.$transaction([
+    prisma.loja.update({
+      where: { id: lojaId },
+      data: {
+        ...dadosSemEndereco,
+        ...(enderecoComCoords && {
+          endereco: { upsert: { create: enderecoComCoords, update: enderecoComCoords } },
+        }),
+      },
+      include: { endereco: true, horarios: true },
+    }),
+    ...(horarios
+      ? [
+          prisma.horarioFuncionamento.deleteMany({ where: { lojaId } }),
+          prisma.horarioFuncionamento.createMany({
+            data: horarios.map((h) => ({
+              lojaId,
+              diaSemana: h.diaSemana,
+              ativo: h.ativo,
+              abertura: h.abertura,
+              fechamento: h.fechamento,
+            })),
+          }),
+        ]
+      : []),
+  ]);
+
+  return loja;
 }
 
 export async function updateImagemLoja(

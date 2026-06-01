@@ -4,19 +4,39 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Switch,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import {
-  NotificationPreferencesService,
-  type NotificationPreference,
-} from '@ajulabs/api-client';
+import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
 import { useTheme } from '../../src/hooks';
 import { useAuthStore } from '../../src/store';
+
+function Toggle({
+  value,
+  onValueChange,
+  disabled,
+}: {
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => !disabled && onValueChange(!value)}
+      activeOpacity={0.85}
+      style={[
+        styles.toggleTrack,
+        { backgroundColor: value ? colors.orange : colors.n300 },
+        disabled && { opacity: 0.5 },
+      ]}
+    >
+      <View style={[styles.toggleThumb, { transform: [{ translateX: value ? 22 : 2 }] }]} />
+    </TouchableOpacity>
+  );
+}
 
 export default function NotificacoesScreen() {
   const router = useRouter();
@@ -53,9 +73,7 @@ export default function NotificacoesScreen() {
     async (categoria: string, ativo: boolean) => {
       if (!token) return;
       // Otimista: atualiza UI imediatamente
-      setPreferencias((prev) =>
-        prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)),
-      );
+      setPreferencias((prev) => prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)));
       setSalvando((prev) => new Set(prev).add(categoria));
       try {
         await NotificationPreferencesService.atualizar(token, categoria, ativo);
@@ -116,22 +134,22 @@ export default function NotificacoesScreen() {
                   key={p.categoria}
                   style={[
                     styles.row,
-                    i < preferencias.length - 1 && [styles.rowBorder, { borderBottomColor: borderL }],
+                    i < preferencias.length - 1 && [
+                      styles.rowBorder,
+                      { borderBottomColor: borderL },
+                    ],
                   ]}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.rowLabel, { color: text }]}>{p.label}</Text>
-                    <Text style={[styles.rowDesc, { color: textSec as string }]}>{p.descricao}</Text>
+                    <Text style={[styles.rowDesc, { color: textSec as string }]}>
+                      {p.descricao}
+                    </Text>
                   </View>
-                  <Switch
+                  <Toggle
                     value={p.ativo}
                     disabled={salvando.has(p.categoria)}
                     onValueChange={(v) => toggle(p.categoria, v)}
-                    trackColor={{
-                      false: isDark ? 'rgba(255,255,255,0.15)' : colors.n200,
-                      true: colors.orange,
-                    }}
-                    thumbColor={colors.n0}
                   />
                 </View>
               ))}
@@ -166,10 +184,28 @@ const styles = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40 },
   descricao: { fontSize: 13, marginBottom: 16, lineHeight: 20 },
   card: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   rowBorder: { borderBottomWidth: 1 },
   rowLabel: { fontSize: 14, fontWeight: '600' },
   rowDesc: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  toggleTrack: { width: 48, height: 28, borderRadius: 14, justifyContent: 'center' },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
   erroBox: {
     flexDirection: 'row',
     alignItems: 'center',

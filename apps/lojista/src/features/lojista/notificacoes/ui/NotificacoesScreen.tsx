@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Switch,
   StyleSheet,
   SafeAreaView,
   ScrollView,
@@ -13,6 +12,30 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
 import { useAuthLojistaStore } from '../../../../store';
+
+function Toggle({
+  value,
+  onValueChange,
+  disabled,
+}: {
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => !disabled && onValueChange(!value)}
+      activeOpacity={0.85}
+      style={[
+        s.toggleTrack,
+        { backgroundColor: value ? '#DE6708' : '#E4E7F1' },
+        disabled && { opacity: 0.5 },
+      ]}
+    >
+      <View style={[s.toggleThumb, { transform: [{ translateX: value ? 22 : 2 }] }]} />
+    </TouchableOpacity>
+  );
+}
 
 export function NotificacoesScreen() {
   const router = useRouter();
@@ -73,7 +96,11 @@ export function NotificacoesScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.backBtn}
+          onPress={() => router.navigate('/(lojista)/perfil' as any)}
+          activeOpacity={0.8}
+        >
           <Ionicons name="chevron-back" size={20} color="#000933" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Notificações</Text>
@@ -122,12 +149,10 @@ export function NotificacoesScreen() {
                     <Text style={s.rowTitle}>{p.label}</Text>
                     <Text style={s.rowSub}>{p.descricao}</Text>
                   </View>
-                  <Switch
+                  <Toggle
                     value={p.ativo}
                     disabled={salvando.has(p.categoria)}
                     onValueChange={(v) => toggle(p.categoria, v)}
-                    trackColor={{ false: '#E4E7F1', true: 'rgba(222,103,8,0.35)' }}
-                    thumbColor={p.ativo ? '#DE6708' : '#FFFFFF'}
                   />
                 </View>
               ))}
@@ -217,4 +242,16 @@ const s = StyleSheet.create({
     borderRadius: 12,
   },
   infoText: { flex: 1, fontSize: 12, color: '#2A3156', lineHeight: 18 },
+  toggleTrack: { width: 48, height: 28, borderRadius: 14, justifyContent: 'center' },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
 });

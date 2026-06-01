@@ -63,6 +63,16 @@ const lojaUpdateSchema = z.object({
       complemento: z.string().optional(),
     })
     .optional(),
+  horarios: z
+    .array(
+      z.object({
+        diaSemana: z.number().int().min(0).max(6),
+        ativo: z.boolean(),
+        abertura: z.string(),
+        fechamento: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 const variacaoSchema = z.object({

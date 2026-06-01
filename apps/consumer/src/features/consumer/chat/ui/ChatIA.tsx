@@ -222,16 +222,22 @@ export function ChatIA() {
       setConversaId(resposta.conversaId);
     }
 
+    const isTicketDuplicado = resposta.texto.toLowerCase().includes('já tem uma reclamação');
     const isTicketCriado =
-      /TKT-\d+/i.test(resposta.texto) ||
-      resposta.texto.toLowerCase().includes('ticket registrado') ||
-      resposta.texto.toLowerCase().includes('ticket aberto');
+      !isTicketDuplicado &&
+      (/TKT-\d+/i.test(resposta.texto) ||
+        resposta.texto.toLowerCase().includes('ticket registrado') ||
+        resposta.texto.toLowerCase().includes('ticket aberto'));
 
     const msgAju: MensagemChat = {
       id: (Date.now() + 1).toString(),
       remetente: 'aju',
       conteudo: resposta.texto,
-      resposta: isTicketCriado ? { ...resposta, tipo: 'ticketCriado' } : resposta,
+      resposta: isTicketCriado
+        ? { ...resposta, tipo: 'ticketCriado' }
+        : isTicketDuplicado
+          ? { ...resposta, tipo: 'ticketDuplicado' }
+          : resposta,
       criadaEm: new Date().toISOString(),
     };
 
@@ -339,7 +345,17 @@ export function ChatIA() {
         <ChatMsg
           mensagens={mensagens}
           sugestoes={sugestoes}
-          onSugestao={enviarMensagem}
+          onSugestao={(texto, pedidoId) => {
+            if (texto === 'Ver meus tickets') {
+              router.push('/(consumer)/tickets' as any);
+              return;
+            }
+            if (texto === 'Ver meus pedidos') {
+              router.push('/(consumer)/pedidos' as any);
+              return;
+            }
+            enviarMensagem(texto, pedidoId);
+          }}
           carregando={carregando}
         />
 

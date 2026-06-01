@@ -59,7 +59,11 @@ export function AvaliacoesScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.backBtn}
+          onPress={() => router.navigate('/(lojista)/perfil' as any)}
+          activeOpacity={0.8}
+        >
           <Ionicons name="chevron-back" size={20} color="#000933" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Avaliações</Text>
@@ -116,12 +120,7 @@ function StarRow({ nota, size = 16 }: { nota: number; size?: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Ionicons
-          key={n}
-          name={n <= nota ? 'star' : 'star-outline'}
-          size={size}
-          color="#F59E0B"
-        />
+        <Ionicons key={n} name={n <= nota ? 'star' : 'star-outline'} size={size} color="#F59E0B" />
       ))}
     </View>
   );
@@ -157,9 +156,7 @@ function DashboardHeader({
                 <Text style={s.barNota}>{nota}</Text>
                 <Ionicons name="star" size={11} color="#F59E0B" />
                 <View style={s.barTrack}>
-                  <View
-                    style={[s.barFill, { width: `${pct}%`, backgroundColor: accentColor }]}
-                  />
+                  <View style={[s.barFill, { width: `${pct}%`, backgroundColor: accentColor }]} />
                 </View>
                 <Text style={s.barCount}>{count}</Text>
               </View>
@@ -232,7 +229,9 @@ function ListaAvaliacoes({
           <View key={av.id} style={s.avCard}>
             <View style={s.avHeader}>
               <View style={s.avAvatar}>
-                <Text style={s.avAvatarTxt}>{(av.usuario.nome ?? '?').charAt(0).toUpperCase()}</Text>
+                <Text style={s.avAvatarTxt}>
+                  {(av.usuario.nome ?? '?').charAt(0).toUpperCase()}
+                </Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.avNome}>{av.usuario.nome}</Text>
