@@ -13,6 +13,7 @@ import {
   Animated,
   StyleSheet,
   Modal,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@ajulabs/theme';
@@ -39,6 +40,13 @@ const storage = {
       return Promise.resolve();
     }
     return SecureStore.setItemAsync(key, value);
+  },
+  removeItem: (key: string) => {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
+      return Promise.resolve();
+    }
+    return SecureStore.deleteItemAsync(key);
   },
 };
 
@@ -162,6 +170,29 @@ export function ChatIA() {
     });
   }, []);
 
+  function limparConversa() {
+    const executar = () => {
+      if (userId) storage.removeItem(chatKey(userId)).catch(() => {});
+      setMensagens([MENSAGEM_INICIAL]);
+      setConversaId(undefined);
+      setSugestoes(SUGESTOES_INICIAIS);
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Deseja apagar todo o histórico da conversa com a Aju?')) executar();
+      return;
+    }
+
+    Alert.alert(
+      'Apagar conversa',
+      'Deseja apagar todo o histórico da conversa com a Aju? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Apagar', style: 'destructive', onPress: executar },
+      ],
+    );
+  }
+
   function dismissWelcome() {
     Animated.timing(welcomeOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(
       () => {
@@ -271,6 +302,20 @@ export function ChatIA() {
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={limparConversa}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : colors.n100,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={17} color="#ef4444" />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowHelp(true)}
               style={{

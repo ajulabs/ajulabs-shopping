@@ -67,7 +67,10 @@ export function PedidosScreen() {
   const [selected, setSelected] = useState<Order | null>(null);
   const [showSomModal, setShowSomModal] = useState(false);
   const [openTickets, setOpenTickets] = useState(0);
+  const [recarregando, setRecarregando] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const { tocarSom, somAtual, salvarSom } = usePedidoSound();
   const novosAnteriorRef = useRef(0);
   const primeiraCarregadaRef = useRef(true);
@@ -98,6 +101,20 @@ export function PedidosScreen() {
     }
     setLoading(false);
   }, [lojaId, token]);
+
+  const handleRefresh = useCallback(async () => {
+    if (recarregando) return;
+    setRecarregando(true);
+    spinAnim.setValue(0);
+    spinLoopRef.current = Animated.loop(
+      Animated.timing(spinAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+    );
+    spinLoopRef.current.start();
+    await fetchPedidos();
+    spinLoopRef.current.stop();
+    spinAnim.setValue(0);
+    setRecarregando(false);
+  }, [recarregando, fetchPedidos, spinAnim]);
 
   const fetchTicketCount = useCallback(async () => {
     if (!lojaId || !token) return;
@@ -294,8 +311,26 @@ export function PedidosScreen() {
                 </View>
               )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={fetchPedidos} style={s.refreshBtn} activeOpacity={0.7}>
-              <Ionicons name="refresh" size={18} color="#9099B3" />
+            <TouchableOpacity
+              onPress={handleRefresh}
+              style={s.refreshBtn}
+              activeOpacity={0.7}
+              disabled={recarregando}
+            >
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      rotate: spinAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '360deg'],
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <Ionicons name="refresh" size={18} color={recarregando ? '#DE6708' : '#9099B3'} />
+              </Animated.View>
             </TouchableOpacity>
           </View>
         </View>

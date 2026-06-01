@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -438,6 +438,17 @@ interface FormColaborador {
 
 const FORM_VAZIO: FormColaborador = { nome: '', email: '', senha: '', papel: 'funcionario' };
 
+type Section = null | 'visual' | 'info' | 'endereco' | 'horarios' | 'agendamento' | 'equipe';
+
+const SECTION_TITLES: Record<Exclude<Section, null>, string> = {
+  visual: 'Identidade visual',
+  info: 'Informações',
+  endereco: 'Endereço',
+  horarios: 'Horário de funcionamento',
+  agendamento: 'Agendamento',
+  equipe: 'Equipe',
+};
+
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const router = useRouter();
   const token = useAuthLojistaStore((s) => s.token);
@@ -457,6 +468,9 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const originalLojaRef = useRef<LojaData | null>(null);
+  const originalHorariosRef = useRef<HorarioDia[]>(HORARIOS_INICIAIS);
   const [uploading, setUploading] = useState<'logo' | 'banner' | null>(null);
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [horarios, setHorarios] = useState<HorarioDia[]>(HORARIOS_INICIAIS);
@@ -485,7 +499,7 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     LojistaService.buscarLojaDetalhes(lojaId, token)
       .then((raw) => {
         if (!raw) return;
-        setLoja({
+        const lojaData: LojaData = {
           nome: raw.nome ?? '',
           categoria: raw.categoria ?? '',
           descricao: raw.descricao ?? '',
@@ -498,17 +512,21 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           cidade: raw.endereco?.cidade ?? '',
           aceitaAgendamento: raw.aceitaAgendamento ?? false,
           antecedenciaMinima: String(raw.antecedenciaMinima ?? 120),
-        });
+        };
+        setLoja(lojaData);
+        originalLojaRef.current = lojaData;
         if (raw.logoUrl) setLogoUri(raw.logoUrl);
         if (raw.bannerUrl) setBannerUri(raw.bannerUrl);
         if (raw.horarios && raw.horarios.length > 0) {
-          setHorarios((prev) =>
-            prev.map((h, i) => {
-              const bh = raw.horarios.find((x: any) => x.diaSemana === i);
-              if (!bh) return h;
-              return { ...h, ativo: bh.ativo, abertura: bh.abertura, fechamento: bh.fechamento };
-            }),
-          );
+          const horariosData = HORARIOS_INICIAIS.map((h, i) => {
+            const bh = raw.horarios.find((x: any) => x.diaSemana === i);
+            if (!bh) return h;
+            return { ...h, ativo: bh.ativo, abertura: bh.abertura, fechamento: bh.fechamento };
+          });
+          setHorarios(horariosData);
+          originalHorariosRef.current = horariosData;
+        } else {
+          originalHorariosRef.current = [...HORARIOS_INICIAIS];
         }
       })
       .finally(() => setLoading(false));
@@ -733,6 +751,20 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     [token, lojaId],
   );
 
+  const isDirty = useMemo(() => {
+    if (!originalLojaRef.current) return false;
+    return (
+      JSON.stringify(loja) !== JSON.stringify(originalLojaRef.current) ||
+      JSON.stringify(horarios) !== JSON.stringify(originalHorariosRef.current)
+    );
+  }, [loja, horarios]);
+
+  const handleDescartar = useCallback(() => {
+    if (!originalLojaRef.current) return;
+    setLoja({ ...originalLojaRef.current });
+    setHorarios(originalHorariosRef.current.map((h) => ({ ...h })));
+  }, []);
+
   const handleSalvar = useCallback(async () => {
     if (!token || !lojaId) {
       Alert.alert('Erro', 'Sessão inválida.');
@@ -766,7 +798,10 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
             }
           : {}),
       });
-      Alert.alert('Salvo!', 'As informações da loja foram atualizadas.');
+      originalLojaRef.current = { ...loja };
+      originalHorariosRef.current = horarios.map((h) => ({ ...h }));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao salvar.';
       Alert.alert('Erro', msg);
@@ -783,6 +818,8 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const [aH, aM] = (horarioHoje?.abertura || '00:00').split(':').map(Number);
   const [fH, fM] = (horarioHoje?.fechamento || '00:00').split(':').map(Number);
   const abertaAgora = horarioHoje?.ativo && agoraMin >= aH * 60 + aM && agoraMin < fH * 60 + fM;
+
+  const [section, setSection] = useState<Section>(null);
 
   if (loading) {
     return (
@@ -803,10 +840,27 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Perfil da loja</Text>
-        <Text style={[styles.headerSub, { color: subColor }]}>
-          Informações visíveis para os clientes
-        </Text>
+        {section !== null ? (
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              onPress={() => setSection(null)}
+              style={styles.headerBackBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={22} color={textColor} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: textColor }]}>
+              {SECTION_TITLES[section]}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={[styles.headerTitle, { color: textColor }]}>Perfil da loja</Text>
+            <Text style={[styles.headerSub, { color: subColor }]}>
+              Gerencie as informações da sua loja
+            </Text>
+          </>
+        )}
       </View>
 
       <ScrollView
@@ -1148,19 +1202,6 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
         )}
 
         <TouchableOpacity
-          style={[styles.saveBtn, saving && { opacity: 0.7 }]}
-          onPress={handleSalvar}
-          activeOpacity={0.85}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveBtnText}>Salvar alterações</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={styles.conversasBtn}
           onPress={() => router.push('/(lojista)/conversas')}
           activeOpacity={0.85}
@@ -1204,8 +1245,47 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           <Text style={styles.logoutBtnText}>Sair da conta</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 24 }} />
+        <View style={{ height: isDirty ? 96 : 24 }} />
       </ScrollView>
+
+      {/* ── Barra de alterações não salvas ── */}
+      {isDirty && (
+        <View style={styles.stickyBar}>
+          <View style={styles.stickyInfo}>
+            <View style={styles.stickyDot} />
+            <Text style={styles.stickyInfoText}>Alterações não salvas</Text>
+          </View>
+          <View style={styles.stickyActions}>
+            <TouchableOpacity
+              onPress={handleDescartar}
+              style={styles.discardBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.discardBtnText}>Descartar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSalvar}
+              style={[styles.saveBarBtn, saving && { opacity: 0.7 }]}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveBarBtnText}>Salvar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── Toast de sucesso ── */}
+      {saveSuccess && (
+        <View style={styles.successToast}>
+          <Ionicons name="checkmark-circle" size={18} color="#fff" />
+          <Text style={styles.successToastText}>Alterações salvas!</Text>
+        </View>
+      )}
 
       {/* ── Modal criar/editar colaborador ── */}
       <Modal
@@ -1545,15 +1625,66 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  saveBtn: {
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: colors.orange,
+  stickyBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E4E7F1',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 28,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 12,
   },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  stickyInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stickyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#DE6708' },
+  stickyInfoText: { fontSize: 13, fontWeight: '600', color: '#000933' },
+  stickyActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  discardBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+  },
+  discardBtnText: { fontSize: 13, fontWeight: '600', color: '#9099B3' },
+  saveBarBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#DE6708',
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  saveBarBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  successToast: {
+    position: 'absolute',
+    bottom: 100,
+    left: 24,
+    right: 24,
+    backgroundColor: '#16A34A',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  successToastText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   notificacoesBtn: {
     height: 50,
     borderRadius: 14,

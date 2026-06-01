@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { LojistaService } from '@ajulabs/api-client';
 import { useAuthLojistaStore } from '../../../../store';
 import { Ticket, TicketStatus, STATUS_META, FILTERS, mapTicket } from '../model/data';
@@ -27,6 +28,8 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const lojaNome = useAuthLojistaStore((s) => s.lojaNome);
+  const { autoTicketId } = useLocalSearchParams<{ autoTicketId?: string }>();
+  const autoSelectHandled = useRef<string | undefined>(undefined);
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +55,15 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
     const interval = setInterval(fetchTickets, 60000);
     return () => clearInterval(interval);
   }, [fetchTickets]);
+
+  useEffect(() => {
+    if (!autoTicketId || autoSelectHandled.current === autoTicketId || tickets.length === 0) return;
+    const ticket = tickets.find((t) => t.id === autoTicketId);
+    if (ticket) {
+      autoSelectHandled.current = autoTicketId;
+      setSelected(ticket);
+    }
+  }, [autoTicketId, tickets]);
 
   useTicketRealtime({
     apiUrl: API_URL,

@@ -86,22 +86,22 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
     },
     onMensagem: (msg) => {
       setTickets((prev) =>
-        prev.map((t) =>
-          t.id === msg.ticketId
-            ? {
-                ...t,
-                mensagens: [
-                  ...t.mensagens,
-                  {
-                    id: msg.id,
-                    remetente: msg.remetente as 'consumidor' | 'lojista',
-                    texto: msg.texto,
-                    criadoEm: msg.criadoEm,
-                  },
-                ],
-              }
-            : t,
-        ),
+        prev.map((t) => {
+          if (t.id !== msg.ticketId) return t;
+          if (t.mensagens.some((m) => m.id === msg.id)) return t;
+          return {
+            ...t,
+            mensagens: [
+              ...t.mensagens,
+              {
+                id: msg.id,
+                remetente: msg.remetente as 'consumidor' | 'lojista',
+                texto: msg.texto,
+                criadoEm: msg.criadoEm,
+              },
+            ],
+          };
+        }),
       );
     },
   });
