@@ -505,6 +505,187 @@ router.post('/usuario/redefinir-senha', async (req, res) => {
 });
 
 // ========================================
+// RECUPERAÇÃO DE SENHA (LOJISTA)
+// ========================================
+
+router.post('/lojista/recuperar-senha', async (req, res) => {
+  try {
+    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+
+    const lojista = await prisma.lojista.findFirst({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    // Responde 200 mesmo sem match para não vazar informação
+    if (!lojista) return res.json({ ok: true });
+
+    await prisma.tokenRecuperacaoSenhaLojista.updateMany({
+      where: { lojistaId: lojista.id, usado: false },
+      data: { usado: true },
+    });
+
+    const codigo = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.tokenRecuperacaoSenhaLojista.create({
+      data: { lojistaId: lojista.id, codigo, expiresAt },
+    });
+
+    try {
+      await sendEmail({
+        to: lojista.email,
+        subject: 'Código de recuperação de senha — AjuLabs Lojista',
+        html: recuperacaoSenhaHtml(lojista.nomeResponsavel, codigo),
+      });
+    } catch {
+      logger.warn(
+        { codigo, email: lojista.email },
+        '[auth] Email lojista não enviado — código disponível em dev',
+      );
+    }
+
+    logger.info({ lojistaId: lojista.id }, '[auth] Código de recuperação lojista enviado');
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    logger.error({ err: error }, '[auth] Erro ao enviar recuperação lojista');
+    res.status(500).json({ error: 'Erro ao enviar código. Tente novamente.' });
+  }
+});
+
+router.post('/lojista/redefinir-senha', async (req, res) => {
+  try {
+    const { email, codigo, novaSenha } = z
+      .object({
+        email: z.string().email(),
+        codigo: z.string().length(6, 'Código deve ter 6 dígitos'),
+        novaSenha: senhaForteSchema,
+      })
+      .parse(req.body);
+
+    const lojista = await prisma.lojista.findFirst({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (!lojista) return res.status(400).json({ error: 'Código inválido ou expirado' });
+
+    const token = await prisma.tokenRecuperacaoSenhaLojista.findFirst({
+      where: { lojistaId: lojista.id, codigo, usado: false, expiresAt: { gt: new Date() } },
+      orderBy: { criadoEm: 'desc' },
+    });
+
+    if (!token) return res.status(400).json({ error: 'Código inválido ou expirado' });
+
+    const senhaHash = await hashSenha(novaSenha);
+
+    await prisma.$transaction([
+      prisma.lojista.update({ where: { id: lojista.id }, data: { senhaHash } }),
+      prisma.tokenRecuperacaoSenhaLojista.update({
+        where: { id: token.id },
+        data: { usado: true },
+      }),
+    ]);
+
+    logger.info({ lojistaId: lojista.id }, '[auth] Senha lojista redefinida');
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res.status(400).json({ error: error.errors[0]?.message ?? 'Dados inválidos' });
+    logger.error({ err: error }, '[auth] Erro ao redefinir senha lojista');
+    res.status(500).json({ error: 'Erro ao redefinir senha. Tente novamente.' });
+  }
+});
+
+// ========================================
+// RECUPERAÇÃO DE SENHA (ENTREGADOR)
+// ========================================
+
+router.post('/entregador/recuperar-senha', async (req, res) => {
+  try {
+    const { cpf } = z.object({ cpf: z.string() }).parse(req.body);
+    const cpfRaw = cpf.replace(/\D/g, '');
+
+    const entregador = await prisma.entregador.findUnique({ where: { cpf: cpfRaw } });
+
+    if (!entregador) return res.json({ ok: true });
+
+    await prisma.tokenRecuperacaoSenhaEntregador.updateMany({
+      where: { entregadorId: entregador.id, usado: false },
+      data: { usado: true },
+    });
+
+    const codigo = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.tokenRecuperacaoSenhaEntregador.create({
+      data: { entregadorId: entregador.id, codigo, expiresAt },
+    });
+
+    try {
+      await sendEmail({
+        to: entregador.email,
+        subject: 'Código de recuperação de senha — AjuLabs Entregador',
+        html: recuperacaoSenhaHtml(entregador.nome, codigo),
+      });
+    } catch {
+      logger.warn(
+        { codigo, email: entregador.email },
+        '[auth] Email entregador não enviado — código disponível em dev',
+      );
+    }
+
+    logger.info({ entregadorId: entregador.id }, '[auth] Código de recuperação entregador enviado');
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    logger.error({ err: error }, '[auth] Erro ao enviar recuperação entregador');
+    res.status(500).json({ error: 'Erro ao enviar código. Tente novamente.' });
+  }
+});
+
+router.post('/entregador/redefinir-senha', async (req, res) => {
+  try {
+    const { cpf, codigo, novaSenha } = z
+      .object({
+        cpf: z.string(),
+        codigo: z.string().length(6, 'Código deve ter 6 dígitos'),
+        novaSenha: senhaForteSchema,
+      })
+      .parse(req.body);
+
+    const cpfRaw = cpf.replace(/\D/g, '');
+    const entregador = await prisma.entregador.findUnique({ where: { cpf: cpfRaw } });
+
+    if (!entregador) return res.status(400).json({ error: 'Código inválido ou expirado' });
+
+    const token = await prisma.tokenRecuperacaoSenhaEntregador.findFirst({
+      where: { entregadorId: entregador.id, codigo, usado: false, expiresAt: { gt: new Date() } },
+      orderBy: { criadoEm: 'desc' },
+    });
+
+    if (!token) return res.status(400).json({ error: 'Código inválido ou expirado' });
+
+    const senhaHash = await hashSenha(novaSenha);
+
+    await prisma.$transaction([
+      prisma.entregador.update({ where: { id: entregador.id }, data: { senhaHash } }),
+      prisma.tokenRecuperacaoSenhaEntregador.update({
+        where: { id: token.id },
+        data: { usado: true },
+      }),
+    ]);
+
+    logger.info({ entregadorId: entregador.id }, '[auth] Senha entregador redefinida');
+    res.json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res.status(400).json({ error: error.errors[0]?.message ?? 'Dados inválidos' });
+    logger.error({ err: error }, '[auth] Erro ao redefinir senha entregador');
+    res.status(500).json({ error: 'Erro ao redefinir senha. Tente novamente.' });
+  }
+});
+
+// ========================================
 // COLABORADOR (RBAC)
 // ========================================
 

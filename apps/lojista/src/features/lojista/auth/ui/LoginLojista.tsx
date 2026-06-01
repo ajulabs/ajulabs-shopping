@@ -1,4 +1,3 @@
-// src/features/lojista/auth/ui/LoginLojista.tsx
 import { useState, useCallback } from 'react';
 import {
   View,
@@ -16,11 +15,14 @@ import { useRouter } from 'expo-router';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthLojistaStore } from '../model/store';
 
+const API_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
+
 interface LoginLojistaProps {
   onLoginSuccess?: () => void;
 }
 
-type RecoveryStep = 'form' | 'success';
+type RecoveryStep = 'form' | 'codigo' | 'senha' | 'success';
 
 function formatCNPJ(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 14);
@@ -80,40 +82,119 @@ function Field({
 
 function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [step, setStep] = useState<RecoveryStep>('form');
-  const [cnpj, setCnpj] = useState('');
   const [email, setEmail] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmar, setConfirmar] = useState('');
+  const [showNovaSenha, setShowNovaSenha] = useState(false);
+  const [showConfirmar, setShowConfirmar] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ cnpj?: string; email?: string }>({});
+  const [error, setError] = useState('');
 
   const handleClose = useCallback(() => {
     setStep('form');
-    setCnpj('');
     setEmail('');
-    setErrors({});
+    setCodigo('');
+    setNovaSenha('');
+    setConfirmar('');
+    setShowNovaSenha(false);
+    setShowConfirmar(false);
+    setError('');
     onClose();
   }, [onClose]);
 
-  const validate = useCallback(() => {
-    const errs: { cnpj?: string; email?: string } = {};
-    if (cnpj.replace(/\D/g, '').length !== 14) errs.cnpj = 'CNPJ inválido — deve ter 14 dígitos.';
-    if (!email.includes('@') || !email.includes('.')) errs.email = 'Email inválido.';
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }, [cnpj, email]);
-
-  const handleEnviar = useCallback(async () => {
-    if (!validate()) return;
+  const handleEnviarCodigo = useCallback(async () => {
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('Email inválido.');
+      return;
+    }
     setLoading(true);
+    setError('');
     try {
-      // TODO: conectar com API para enviar token de recuperação
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setStep('success');
-    } catch {
-      setErrors({ email: 'Erro ao enviar. Tente novamente.' });
+      const res = await fetch(`${API_URL}auth/lojista/recuperar-senha`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao enviar código.');
+      }
+      setStep('codigo');
+    } catch (err) {
+      const isNetwork =
+        err instanceof Error &&
+        (err.message.includes('Network') ||
+          err.message.includes('fetch') ||
+          err.message.includes('Failed'));
+      setError(
+        isNetwork
+          ? 'Sem conexão. Verifique sua internet.'
+          : err instanceof Error
+            ? err.message
+            : 'Erro ao enviar.',
+      );
     } finally {
       setLoading(false);
     }
-  }, [validate]);
+  }, [email]);
+
+  const handleVerificarCodigo = useCallback(() => {
+    if (codigo.length !== 6) {
+      setError('Digite o código de 6 dígitos enviado ao seu email.');
+      return;
+    }
+    setError('');
+    setStep('senha');
+  }, [codigo]);
+
+  const handleRedefinirSenha = useCallback(async () => {
+    if (novaSenha.length < 8) {
+      setError('A senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (!/[A-Z]/.test(novaSenha)) {
+      setError('A senha deve conter pelo menos 1 letra maiúscula.');
+      return;
+    }
+    if (!/[0-9]/.test(novaSenha)) {
+      setError('A senha deve conter pelo menos 1 número.');
+      return;
+    }
+    if (novaSenha !== confirmar) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}auth/lojista/redefinir-senha`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, codigo, novaSenha }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao redefinir senha.');
+      }
+      setStep('success');
+    } catch (err) {
+      const isNetwork =
+        err instanceof Error &&
+        (err.message.includes('Network') ||
+          err.message.includes('fetch') ||
+          err.message.includes('Failed'));
+      setError(
+        isNetwork
+          ? 'Sem conexão. Verifique sua internet.'
+          : err instanceof Error
+            ? err.message
+            : 'Erro ao redefinir senha.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [email, codigo, novaSenha, confirmar]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -121,51 +202,32 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
         <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.modalHandle} />
 
+          {/* ETAPA 1 — EMAIL */}
           {step === 'form' && (
             <>
               <Text style={styles.modalTitle}>Recuperar senha</Text>
               <Text style={styles.modalSub}>
-                Informe seu CNPJ e email cadastrados para receber o código de verificação.
+                Informe o email cadastrado na sua conta. Enviaremos um código de verificação.
               </Text>
-
-              {/* CNPJ */}
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>CNPJ</Text>
-                <TextInput
-                  style={[styles.fieldInput, errors.cnpj ? styles.fieldInputError : undefined]}
-                  value={cnpj}
-                  onChangeText={(v) => {
-                    setCnpj(formatCNPJ(v));
-                    setErrors((e) => ({ ...e, cnpj: undefined }));
-                  }}
-                  placeholder="00.000.000/0001-00"
-                  placeholderTextColor={colors.n600}
-                  keyboardType="numeric"
-                />
-                {errors.cnpj && <Text style={styles.errorText}>{errors.cnpj}</Text>}
-              </View>
-
-              {/* Email */}
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>EMAIL CADASTRADO</Text>
                 <TextInput
-                  style={[styles.fieldInput, errors.email ? styles.fieldInputError : undefined]}
+                  style={[styles.fieldInput, error ? styles.fieldInputError : undefined]}
                   value={email}
                   onChangeText={(v) => {
                     setEmail(v);
-                    setErrors((e) => ({ ...e, email: undefined }));
+                    setError('');
                   }}
                   placeholder="loja@email.com"
                   placeholderTextColor={colors.n600}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
-                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
               </View>
-
               <TouchableOpacity
                 style={[styles.modalBtn, loading && { opacity: 0.7 }]}
-                onPress={handleEnviar}
+                onPress={handleEnviarCodigo}
                 disabled={loading}
                 activeOpacity={0.85}
               >
@@ -175,7 +237,6 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
                   <Text style={styles.modalBtnText}>Enviar código</Text>
                 )}
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={handleClose}
@@ -186,26 +247,161 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
             </>
           )}
 
+          {/* ETAPA 2 — CÓDIGO */}
+          {step === 'codigo' && (
+            <>
+              <Text style={styles.modalTitle}>Digite o código</Text>
+              <Text style={styles.modalSub}>
+                Enviamos um código de 6 dígitos para{' '}
+                <Text style={{ fontWeight: '700', color: colors.navy }}>{email}</Text>.{'\n'}
+                Verifique sua caixa de entrada.
+              </Text>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Código</Text>
+                <TextInput
+                  style={[styles.fieldInput, error ? styles.fieldInputError : undefined]}
+                  value={codigo}
+                  onChangeText={(v) => {
+                    setCodigo(v.replace(/\D/g, '').slice(0, 6));
+                    setError('');
+                  }}
+                  placeholder="000000"
+                  placeholderTextColor={colors.n600}
+                  keyboardType="numeric"
+                  maxLength={6}
+                />
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              </View>
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={handleVerificarCodigo}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalBtnText}>Continuar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setStep('form');
+                  setError('');
+                  setCodigo('');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalCancelText}>Reenviar código</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* ETAPA 3 — NOVA SENHA */}
+          {step === 'senha' && (
+            <>
+              <Text style={styles.modalTitle}>Nova senha</Text>
+              <Text style={styles.modalSub}>
+                Crie uma nova senha com pelo menos 8 caracteres, 1 maiúscula e 1 número.
+              </Text>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Nova senha</Text>
+                <View style={styles.pwRow}>
+                  <TextInput
+                    style={[
+                      styles.fieldInput,
+                      styles.fieldInputFlex,
+                      error ? styles.fieldInputError : undefined,
+                    ]}
+                    value={novaSenha}
+                    onChangeText={(v) => {
+                      setNovaSenha(v);
+                      setError('');
+                    }}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.n600}
+                    secureTextEntry={!showNovaSenha}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeBtnAbs}
+                    onPress={() => setShowNovaSenha((v) => !v)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showNovaSenha ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={colors.n600}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Confirmar senha</Text>
+                <View style={styles.pwRow}>
+                  <TextInput
+                    style={[
+                      styles.fieldInput,
+                      styles.fieldInputFlex,
+                      error ? styles.fieldInputError : undefined,
+                    ]}
+                    value={confirmar}
+                    onChangeText={(v) => {
+                      setConfirmar(v);
+                      setError('');
+                    }}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.n600}
+                    secureTextEntry={!showConfirmar}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeBtnAbs}
+                    onPress={() => setShowConfirmar((v) => !v)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showConfirmar ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={colors.n600}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              </View>
+              <TouchableOpacity
+                style={[styles.modalBtn, loading && { opacity: 0.7 }]}
+                onPress={handleRedefinirSenha}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalBtnText}>Redefinir senha</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setStep('codigo');
+                  setError('');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalCancelText}>Voltar</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* ETAPA 4 — SUCESSO */}
           {step === 'success' && (
             <>
-              {/* Ícone sucesso */}
               <View style={styles.successIconWrap}>
-                <Text style={styles.successIcon}>✓</Text>
+                <Ionicons name="checkmark" size={32} color="#046C2E" />
               </View>
-              <Text style={styles.successTitle}>Token enviado com sucesso!</Text>
+              <Text style={styles.successTitle}>Senha redefinida!</Text>
               <Text style={styles.successSub}>
-                Enviamos um código de verificação para{'\n'}
-                <Text style={styles.successEmail}>{email}</Text>
-                {'\n\n'}Verifique sua caixa de entrada e siga as instruções para redefinir sua
-                senha.
+                Sua senha foi atualizada com sucesso.{'\n'}Faça login com sua nova senha.
               </Text>
-
-              {/* Banner verde */}
               <View style={styles.successBanner}>
-                <Text style={styles.successBannerIcon}>✓</Text>
-                <Text style={styles.successBannerText}>Token enviado com sucesso!</Text>
+                <Ionicons name="checkmark" size={16} color="#046C2E" />
+                <Text style={styles.successBannerText}>Senha atualizada com sucesso!</Text>
               </View>
-
               <TouchableOpacity style={styles.modalBtn} onPress={handleClose} activeOpacity={0.85}>
                 <Text style={styles.modalBtnText}>Voltar ao login</Text>
               </TouchableOpacity>
@@ -233,14 +429,11 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
     }
     setError('');
     setLoading(true);
-    console.log('[Lojista][Login] Tentando login — CNPJ:', cnpj);
     try {
       await login(cnpj, senha);
-      console.log('[Lojista][Login] Login bem-sucedido');
       onLoginSuccess?.();
       router.replace('/(lojista)/pedidos');
     } catch (err) {
-      console.error('[Lojista][Login] Erro:', err);
       const isNetwork =
         err instanceof Error &&
         (err.message.includes('Network') ||
@@ -522,6 +715,9 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 14, fontWeight: '600', color: colors.n600 },
 
   // Sucesso
+  pwRow: { flexDirection: 'row', alignItems: 'center' },
+  fieldInputFlex: { flex: 1 },
+  eyeBtnAbs: { position: 'absolute', right: 12, height: 46, justifyContent: 'center' },
   successIconWrap: {
     width: 72,
     height: 72,

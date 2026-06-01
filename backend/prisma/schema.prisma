@@ -120,8 +120,22 @@ model Entregador {
   dispositivosPush      DispositivoPush[]
   prefsOptOut           PreferenciaNotificacaoOptOut[]
   avaliacoes            AvaliacaoEntregador[]
+  tokensRecuperacao     TokenRecuperacaoSenhaEntregador[]
 
   @@map("entregadores")
+}
+
+model TokenRecuperacaoSenhaEntregador {
+  id           String     @id @default(uuid())
+  entregadorId String     @map("entregador_id")
+  codigo       String
+  expiresAt    DateTime   @map("expires_at")
+  usado        Boolean    @default(false)
+  criadoEm    DateTime   @default(now()) @map("criado_em")
+
+  entregador   Entregador @relation(fields: [entregadorId], references: [id], onDelete: Cascade)
+
+  @@map("tokens_recuperacao_senha_entregador")
 }
 
 model Lojista {
@@ -137,8 +151,22 @@ model Lojista {
   lojas            Loja[]
   dispositivosPush DispositivoPush[]
   prefsOptOut      PreferenciaNotificacaoOptOut[]
+  tokensRecuperacao TokenRecuperacaoSenhaLojista[]
 
   @@map("lojistas")
+}
+
+model TokenRecuperacaoSenhaLojista {
+  id        String   @id @default(uuid())
+  lojistaId String   @map("lojista_id")
+  codigo    String
+  expiresAt DateTime @map("expires_at")
+  usado     Boolean  @default(false)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  lojista   Lojista  @relation(fields: [lojistaId], references: [id], onDelete: Cascade)
+
+  @@map("tokens_recuperacao_senha_lojista")
 }
 
 model PreferenciaNotificacaoOptOut {
