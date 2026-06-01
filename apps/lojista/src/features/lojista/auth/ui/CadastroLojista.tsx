@@ -229,7 +229,6 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const handleCadastro = useCallback(async () => {
     if (!validate()) return;
     setLoading(true);
-    console.log('[Lojista][Cadastro] cnpj:', form.cnpj, '| email:', form.email);
     try {
       await registrar({
         cnpj: form.cnpj,
@@ -261,7 +260,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
       }
 
       onCadastroSuccess?.();
-      router.replace('/(lojista)/pedidos');
+      router.replace('/(lojista)/onboarding');
     } catch (e) {
       const isNetwork =
         e instanceof Error &&

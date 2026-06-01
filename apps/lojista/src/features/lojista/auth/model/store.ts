@@ -130,7 +130,7 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
 
       registrar: async (dados: DadosRegistroLojista) => {
         const cnpjRaw = dados.cnpj.replace(/\D/g, '');
-        const telefoneRaw = `+55${dados.telefone.replace(/\D/g, '')}`;
+        const telefoneRaw = dados.telefone.replace(/[^\d+]/g, '');
 
         const res = await fetch(`${API_URL}auth/lojista/registrar`, {
           method: 'POST',

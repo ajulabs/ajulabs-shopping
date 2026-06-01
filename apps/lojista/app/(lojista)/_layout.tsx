@@ -112,6 +112,7 @@ export default function LojistaLayout() {
             ),
           }}
         />
+        <Tabs.Screen name="onboarding" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="tickets" options={{ href: null }} />
         <Tabs.Screen name="conversas" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen
