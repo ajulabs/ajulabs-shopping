@@ -289,7 +289,8 @@ router.post('/corridas/:pedidoId/aceitar', async (req: AuthRequest, res: Respons
   res.json({ pedido });
 });
 
-router.post('/corridas/:pedidoId/rejeitar', (_req: AuthRequest, res: Response) => {
+router.post('/corridas/:pedidoId/rejeitar', async (req: AuthRequest, res: Response) => {
+  await svc.rejeitarCorrida(req.user!.id, req.params.pedidoId);
   res.json({ ok: true });
 });
 

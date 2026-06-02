@@ -201,7 +201,9 @@ export function ActiveScreen({
     return () => {
       stopBackgroundTracking();
     };
-  }, [stage === 'delivered']);
+    // Depende de `stage` (para parar ao entregar) e de `ride.id` (para não
+    // continuar rastreando o pedido antigo ao alternar entre 2 corridas ativas).
+  }, [stage, ride.id]);
 
   useLocationEmitter({
     apiUrl: API_URL,
@@ -597,7 +599,7 @@ export function ActiveScreen({
               keyboardType="numeric"
               maxLength={4}
               value={codigoEntrega}
-              onChangeText={setCodigoEntrega}
+              onChangeText={(v) => setCodigoEntrega(v.replace(/\D/g, '').slice(0, 4))}
             />
             <TouchableOpacity
               style={[

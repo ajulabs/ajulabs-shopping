@@ -18,8 +18,14 @@ import { notificarStatusPedido, notificarCorridaOferta } from '../lib/pushNotifi
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// A UI do lojista tem só 3 ações (novo → preparando → pronto). O estado
+// "confirmado" não tem representação distinta na tela (mapeia para "preparando"),
+// então "Aceitar e preparar" leva direto de aguardando → preparando. Sem isso,
+// o primeiro "Marcar como pronto" só avançava confirmado → preparando e a tela
+// revertia (exigindo clicar 2x). Mantemos confirmado → preparando para que
+// pedidos legados já em "confirmado" ainda consigam progredir.
 const STATUS_PROGRESSAO: Partial<Record<string, string>> = {
-  aguardando: 'confirmado',
+  aguardando: 'preparando',
   confirmado: 'preparando',
   preparando: 'pronto',
 };
@@ -111,7 +117,9 @@ export async function avancarStatusPedido(
   emitPedidoAtualizado(atualizado.consumidorId, atualizado.id, proximoStatus, pedido.lojaId);
   void notificarStatusPedido(atualizado.consumidorId, atualizado.id, proximoStatus);
 
-  if (proximoStatus === 'confirmado') {
+  // Cria o chat consumidor↔lojista ao aceitar o pedido (primeiro avanço, que
+  // agora leva a "preparando"). Upsert é idempotente — seguro se rodar de novo.
+  if (proximoStatus === 'preparando') {
     await prisma.chatPedido
       .upsert({
         where: { pedidoId: pedidoId },

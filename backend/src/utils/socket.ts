@@ -59,17 +59,33 @@ export function initSocket(server: http.Server): Server {
   });
 
   io.on('connection', (socket) => {
+    // Salas em que este socket entrou — usadas para sair explicitamente no
+    // disconnect e evitar vazamento (notificações enviadas a sockets mortos).
+    const salas = new Set<string>();
+
     socket.on('entregador:join', (entregadorId: string) => {
-      void socket.join(`entregador:${entregadorId}`);
+      const sala = `entregador:${entregadorId}`;
+      void socket.join(sala);
       void socket.join('entregadores');
+      salas.add(sala);
+      salas.add('entregadores');
     });
 
     socket.on('usuario:join', (usuarioId: string) => {
-      void socket.join(`usuario:${usuarioId}`);
+      const sala = `usuario:${usuarioId}`;
+      void socket.join(sala);
+      salas.add(sala);
     });
 
     socket.on('lojista:join', (lojaId: string) => {
-      void socket.join(`loja:${lojaId}`);
+      const sala = `loja:${lojaId}`;
+      void socket.join(sala);
+      salas.add(sala);
+    });
+
+    socket.on('disconnect', () => {
+      for (const sala of salas) void socket.leave(sala);
+      salas.clear();
     });
 
     socket.on(

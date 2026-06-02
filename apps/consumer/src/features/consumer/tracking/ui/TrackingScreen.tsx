@@ -110,7 +110,12 @@ export function TrackingScreen({ pedidoId }: Props) {
     }
   }
 
-  const isActive = pedido ? ACTIVE_STATUSES.includes(pedido.status) : false;
+  // Só há entregador a caminho (mapa + rastreio) quando ele já saiu para entrega,
+  // ou quando o pedido está pronto E um entregador já aceitou a corrida. Sem isso,
+  // o pedido só "pronto" (sem entregador) mostrava mapa "Localizando..." à toa.
+  const isActive = pedido
+    ? pedido.status === 'saiu_entrega' || (pedido.status === 'pronto' && !!pedido.entregador)
+    : false;
 
   const { entregadorLocation, destinoLocation } = useEntregadorTracking({
     pedidoId,
@@ -134,7 +139,7 @@ export function TrackingScreen({ pedidoId }: Props) {
   }
 
   const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
-  const showMap = ACTIVE_STATUSES.includes(pedido.status);
+  const showMap = isActive;
   const etaMin = pedido.estimativaEntrega
     ? Math.max(1, Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000))
     : null;

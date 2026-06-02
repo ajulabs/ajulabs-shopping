@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
-import { getEntregadorLocalizacao, emitPedidoNovo } from '../utils/socket';
+import { getEntregadorLocalizacao, emitPedidoNovo, emitPedidoAtualizado } from '../utils/socket';
 import { notificarPedidoNovo } from '../lib/pushNotifications';
 import { logger } from '../lib/logger';
 import { specValidatorMiddleware } from '../lib/spec-validator';
@@ -380,6 +380,9 @@ router.post('/:id/cancelar', authMiddleware, authUsuario, async (req: AuthReques
       });
       await restaurarEstoqueNoCancelamento(req.params.id, pedido.lojaId, tx);
     });
+
+    // Notifica o lojista (e ecoa para outros dispositivos do consumidor) em tempo real
+    emitPedidoAtualizado(pedido.consumidorId, req.params.id, 'cancelado', pedido.lojaId);
 
     res.json({ ok: true });
   } catch (error) {

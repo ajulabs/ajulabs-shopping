@@ -65,6 +65,7 @@ export interface ServerEvents {
   'pedido:novo': (payload: PedidoNovoPayload) => void;
   'pedido:atualizado': (payload: { pedidoId: string; status: string }) => void;
   'corrida:oferta': (payload: CorridaOfertaPayload) => void;
+  'corrida:aceita': (payload: { pedidoId: string; entregadorId: string }) => void;
   'ticket:mensagem': (payload: TicketMensagemPayload) => void;
   'ticket:status': (payload: { ticketId: string; status: string }) => void;
   'ticket:novo': (payload: TicketNovoPayload) => void;

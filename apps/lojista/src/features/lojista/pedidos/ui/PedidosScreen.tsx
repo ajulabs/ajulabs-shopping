@@ -13,7 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService, ApiUnauthorizedError } from '@ajulabs/api-client';
+import { usePedidosRealtime, usePedidoLojistaRealtime } from '@ajulabs/realtime';
 import { useAuthLojistaStore } from '../../../../store';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
@@ -135,6 +138,28 @@ export function PedidosScreen() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchPedidos, fetchTicketCount]);
+
+  // Realtime: pedido novo chega na hora (não espera o polling de 30s).
+  // O efeito de `novos` abaixo dispara o som ao detectar o aumento.
+  usePedidosRealtime({
+    apiUrl: API_URL,
+    lojaId: lojaId ?? null,
+    enabled: !!lojaId,
+    onNovoPedido: () => {
+      fetchPedidos();
+    },
+  });
+
+  // Realtime: mudança de status (cancelamento pelo consumidor, entregador
+  // alocado/retirou) reflete na lista e na tela de logística sem recarregar.
+  usePedidoLojistaRealtime({
+    apiUrl: API_URL,
+    lojaId: lojaId ?? null,
+    enabled: !!lojaId,
+    onAtualizado: () => {
+      fetchPedidos();
+    },
+  });
 
   useEffect(() => {
     Animated.loop(
@@ -270,15 +295,8 @@ export function PedidosScreen() {
   }
 
   if (screen === 'delivery' && selected) {
-    return (
-      <DeliveryScreen
-        order={selected}
-        onBack={() => {
-          advance(selected.id);
-          setScreen('list');
-        }}
-      />
-    );
+    const deliveryOrder = orders.find((o) => o.id === selected.id) ?? selected;
+    return <DeliveryScreen order={deliveryOrder} onBack={() => setScreen('list')} />;
   }
 
   return (

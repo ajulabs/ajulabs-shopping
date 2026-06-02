@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -75,7 +76,8 @@ function OfferSheet({
   onAccept: () => void;
   onReject: () => void;
 }) {
-  const pct = (countdown / 15) * 100;
+  const expirado = countdown <= 0;
+  const pct = expirado ? 100 : (countdown / 15) * 100;
   return (
     <View style={s.offerSheet}>
       <View style={s.timerTrack}>
@@ -84,7 +86,7 @@ function OfferSheet({
             s.timerBar,
             {
               width: `${pct}%` as any,
-              backgroundColor: pct > 40 ? '#F2760F' : '#E14B3C',
+              backgroundColor: expirado ? '#9099B3' : pct > 40 ? '#F2760F' : '#E14B3C',
             },
           ]}
         />
@@ -98,8 +100,10 @@ function OfferSheet({
             </View>
             <Text style={s.offerTitle}>Nova corrida</Text>
           </View>
-          <View style={s.countdownBadge}>
-            <Text style={s.countdownText}>{countdown}s</Text>
+          <View style={[s.countdownBadge, expirado && { backgroundColor: '#E6F7ED' }]}>
+            <Text style={[s.countdownText, expirado && { color: '#046C2E' }]}>
+              {expirado ? 'Disponível' : `${countdown}s`}
+            </Text>
           </View>
         </View>
 
@@ -167,6 +171,8 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
+  // IDs rejeitados localmente — evita que polling ou WebSocket reexibam a mesma corrida
+  const rejectedIds = useRef<Set<string>>(new Set());
 
   const ARACAJU = { lat: -10.9167, lng: -37.05 };
 
@@ -219,7 +225,7 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
       console.error('[HomeScreen] buscarCorridasDisponiveis error:', err);
       return [];
     });
-    const rides = corridas.map(mapCorridaToRide);
+    const rides = corridas.map(mapCorridaToRide).filter((r) => !rejectedIds.current.has(r.id));
     setWaitingRides(rides);
     if (rides.length > 0 && !offer) {
       setOffer(rides[0]);
@@ -268,6 +274,7 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
     enabled: online && activeRidesCount < 2,
     onOferta: (corrida) => {
       if (!online || activeRidesCount >= 2) return;
+      if (rejectedIds.current.has(corrida.id)) return;
       setWaitingRides((prev) => {
         const exists = prev.some((r) => r.id === corrida.id);
         if (exists) return prev;
@@ -296,32 +303,54 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
       );
       setCountdown(15);
     },
+    onAceita: ({ pedidoId }) => {
+      // Outro entregador (ou este) pegou a corrida — some da lista na hora e
+      // fecha a oferta se for a que está aberta, evitando aceitar algo já tomado.
+      rejectedIds.current.add(pedidoId);
+      setWaitingRides((prev) => prev.filter((r) => r.id !== pedidoId));
+      setOffer((prev) => (prev?.id === pedidoId ? null : prev));
+    },
   });
 
   useEffect(() => {
     if (!offer) return;
-    if (countdown <= 0) {
-      if (token && offer.id) EntregadorService.rejeitarCorrida(token, offer.id).catch(() => {});
-      setOffer(null);
-      return;
-    }
+    // Ao zerar, NÃO recusa automaticamente: a oferta continua exibida para o
+    // entregador que perdeu o aviso poder aceitar/recusar quando voltar.
+    if (countdown <= 0) return;
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [offer, countdown, token]);
+  }, [offer, countdown]);
+
+  // Trata falha ao aceitar: se foi a corrida que ficou indisponível (já aceita
+  // por outro), remove da lista pra não insistir. Se foi rede, mantém pra tentar
+  // de novo. Em ambos os casos dá feedback ao entregador (antes só logava).
+  const tratarErroAceite = useCallback((rideId: string, err: unknown) => {
+    const msg = err instanceof Error ? err.message : '';
+    const isNetwork = msg.includes('Network') || msg.includes('fetch') || msg.includes('Failed');
+    setAcceptingId(null);
+    if (isNetwork) {
+      Alert.alert('Sem conexão', 'Não foi possível aceitar agora. Tente novamente.');
+      return;
+    }
+    rejectedIds.current.add(rideId);
+    setWaitingRides((prev) => prev.filter((r) => r.id !== rideId));
+    setOffer((prev) => (prev?.id === rideId ? null : prev));
+    Alert.alert('Corrida indisponível', msg || 'Essa corrida já foi aceita por outro entregador.');
+  }, []);
 
   const handleAccept = useCallback(async () => {
     if (!offer || !token) return;
+    const offerId = offer.id;
     try {
-      const pedido = await EntregadorService.aceitarCorrida(token, offer.id);
+      const pedido = await EntregadorService.aceitarCorrida(token, offerId);
       const rideAccepted = mapCorridaToRide(pedido);
       setOffer(null);
       setWaitingRides([]);
       onAcceptRide(rideAccepted);
     } catch (err) {
-      console.error('[HomeScreen] aceitarCorrida (offerSheet) error:', err);
-      setOffer(null);
+      tratarErroAceite(offerId, err);
     }
-  }, [offer, token, onAcceptRide]);
+  }, [offer, token, onAcceptRide, tratarErroAceite]);
 
   const handleAcceptWaiting = useCallback(
     async (ride: RideData) => {
@@ -334,11 +363,10 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
         setWaitingRides([]);
         onAcceptRide(rideAccepted);
       } catch (err) {
-        console.error('[HomeScreen] aceitarCorrida (waiting) error:', err);
-        setAcceptingId(null);
+        tratarErroAceite(ride.id, err);
       }
     },
-    [token, onAcceptRide],
+    [token, onAcceptRide, tratarErroAceite],
   );
 
   return (
@@ -495,6 +523,8 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
           countdown={countdown}
           onAccept={handleAccept}
           onReject={() => {
+            rejectedIds.current.add(offer.id);
+            setWaitingRides((prev) => prev.filter((r) => r.id !== offer.id));
             if (token) EntregadorService.rejeitarCorrida(token, offer.id).catch(() => {});
             setOffer(null);
           }}
