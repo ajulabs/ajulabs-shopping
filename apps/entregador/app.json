@@ -63,7 +63,7 @@
         {
           "color": "#FF6B00",
           "sounds": [
-            "./assets/corrida-alert.mp3"
+            "./assets/corrida_alert.mp3"
           ]
         }
       ]

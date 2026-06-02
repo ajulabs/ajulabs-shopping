@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
  * Canal Android customizado para o alerta de nova corrida.
  *
  * Configurado pra:
- * - Tocar som custom (corrida-alert.mp3) em volume alto
+ * - Tocar som custom (corrida_alert.mp3) em volume alto
  * - Vibrar com padrão longo
  * - Ignorar modo silencioso usando AudioAttributes USAGE_ALARM
  * - Permitir full-screen intent (acordar a tela mesmo bloqueado)
@@ -29,7 +29,7 @@ export async function setupNotificationChannels(): Promise<void> {
     description:
       'Som alto para alertar sobre novas corridas disponíveis. Ignora modo silencioso.',
     importance: Notifications.AndroidImportance.MAX,
-    sound: 'corrida-alert.mp3', // referencia o arquivo declarado em app.json
+    sound: 'corrida_alert.mp3', // referencia o arquivo declarado em app.json
     vibrationPattern: [0, 400, 200, 400, 200, 400],
     lightColor: '#FF6B00',
     enableLights: true,
