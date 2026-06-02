@@ -1,15 +1,19 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { MetodoPagamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
-import {
-  useCartStore,
-  useAuthStore,
-  calcularGrupos,
-} from '../../../../store';
+import { useCartStore, useAuthStore, calcularGrupos } from '../../../../store';
 import { StepEndereco } from './StepEndereco';
 import { StepPagamento } from './StepPagamento';
 import { StepConfirmacao } from './StepConfirmacao';
@@ -19,11 +23,14 @@ const STEP_TITLES = ['Endereço', 'Pagamento', 'Confirmação'];
 export function CheckoutScreen() {
   const router = useRouter();
 
-  const itensPorLoja = useCartStore(s => s.itensPorLoja);
-  const lojasCache = useCartStore(s => s.lojasCache);
-  const limparTudo = useCartStore(s => s.limparTudo);
-  const token = useAuthStore(s => s.token);
-  const grupos = useMemo(() => calcularGrupos(itensPorLoja, lojasCache), [itensPorLoja, lojasCache]);
+  const itensPorLoja = useCartStore((s) => s.itensPorLoja);
+  const lojasCache = useCartStore((s) => s.lojasCache);
+  const limparTudo = useCartStore((s) => s.limparTudo);
+  const token = useAuthStore((s) => s.token);
+  const grupos = useMemo(
+    () => calcularGrupos(itensPorLoja, lojasCache),
+    [itensPorLoja, lojasCache],
+  );
 
   const subtotal = useMemo(() => grupos.reduce((a, g) => a + g.subtotal, 0), [grupos]);
   const frete = useMemo(() => grupos.reduce((a, g) => a + g.taxaEntrega, 0), [grupos]);
@@ -39,12 +46,12 @@ export function CheckoutScreen() {
   const numLojas = grupos.length;
 
   const tempoMin = useMemo(
-    () => grupos.length > 0 ? Math.min(...grupos.map(g => g.tempoEntregaMin)) : 0,
-    [grupos]
+    () => (grupos.length > 0 ? Math.min(...grupos.map((g) => g.tempoEntregaMin)) : 0),
+    [grupos],
   );
   const tempoMax = useMemo(
-    () => grupos.length > 0 ? Math.max(...grupos.map(g => g.tempoEntregaMax)) : 0,
-    [grupos]
+    () => (grupos.length > 0 ? Math.max(...grupos.map((g) => g.tempoEntregaMax)) : 0),
+    [grupos],
   );
 
   const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
@@ -53,7 +60,7 @@ export function CheckoutScreen() {
     if (step === 0) {
       router.back();
     } else {
-      setStep(s => s - 1);
+      setStep((s) => s - 1);
     }
   }, [step, router]);
 
@@ -75,7 +82,7 @@ export function CheckoutScreen() {
             lojaId: grupo.lojaId,
             enderecoEntregaId: enderecoId,
             metodoPagamento,
-            itens: grupo.itens.map(i => ({
+            itens: grupo.itens.map((i) => ({
               produtoId: i.produto.id,
               quantidade: i.quantidade,
             })),
@@ -84,7 +91,7 @@ export function CheckoutScreen() {
         }
         setPedidoIds(ids);
         limparTudo();
-        setStep(s => s + 1);
+        setStep((s) => s + 1);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Erro ao criar pedido.';
         Alert.alert('Erro', msg);
@@ -92,13 +99,17 @@ export function CheckoutScreen() {
         setPlacing(false);
       }
     } else {
-      setStep(s => s + 1);
+      setStep((s) => s + 1);
     }
   }, [step, token, enderecoId, grupos, metodoPagamento, limparTudo]);
 
   const handleAcompanhar = useCallback(() => {
-    router.push('/(consumer)/pedidos');
-  }, [router]);
+    if (pedidoIds[0]) {
+      router.push(`/(consumer)/tracking/${pedidoIds[0]}`);
+    } else {
+      router.push('/(consumer)/pedidos');
+    }
+  }, [router, pedidoIds]);
 
   const handleVoltarHome = useCallback(() => {
     router.push('/(consumer)/vitrines');
@@ -119,7 +130,7 @@ export function CheckoutScreen() {
       </View>
 
       <View style={styles.progressContainer}>
-        {[0, 1, 2].map(i => (
+        {[0, 1, 2].map((i) => (
           <View
             key={i}
             style={[
@@ -130,13 +141,8 @@ export function CheckoutScreen() {
         ))}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {step === 0 && (
-          <StepEndereco enderecoId={enderecoId} onSelect={setEnderecoId} />
-        )}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {step === 0 && <StepEndereco enderecoId={enderecoId} onSelect={setEnderecoId} />}
         {step === 1 && (
           <StepPagamento
             metodo={metodoPagamento}
@@ -184,27 +190,61 @@ export function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: '#FAFBFE' },
+  container: { flex: 1, backgroundColor: '#FAFBFE' },
 
-  header:           { flexDirection: 'row', alignItems: 'center', gap: 8,
-                      paddingHorizontal: 16, paddingTop: 52, paddingBottom: 10,
-                      backgroundColor: colors.n0 },
-  btnBack:          { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.n50,
-                      alignItems: 'center', justifyContent: 'center' },
-  headerTitulo:     { fontSize: 18, fontWeight: '700', color: colors.navy },
-  headerSub:        { fontSize: 12, color: colors.n600, marginTop: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 52,
+    paddingBottom: 10,
+    backgroundColor: colors.n0,
+  },
+  btnBack: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.n50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitulo: { fontSize: 18, fontWeight: '700', color: colors.navy },
+  headerSub: { fontSize: 12, color: colors.n600, marginTop: 1 },
 
-  progressContainer:{ flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingVertical: 10,
-                      backgroundColor: colors.n0, borderBottomWidth: 1, borderBottomColor: colors.n100 },
-  progressBar:      { flex: 1, height: 4, borderRadius: 99 },
+  progressContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.n0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.n100,
+  },
+  progressBar: { flex: 1, height: 4, borderRadius: 99 },
 
-  scroll:           { padding: 16, paddingBottom: 100 },
+  scroll: { padding: 16, paddingBottom: 100 },
 
-  footer:           { padding: 16, paddingBottom: 24, backgroundColor: colors.n0,
-                      borderTopWidth: 1, borderTopColor: colors.n100 },
-  btnContinuar:     { backgroundColor: colors.orange, height: 52, borderRadius: 14,
-                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
-  btnContinuarTxt:  { color: colors.n0, fontSize: 15, fontWeight: '700' },
+  footer: {
+    padding: 16,
+    paddingBottom: 24,
+    backgroundColor: colors.n0,
+    borderTopWidth: 1,
+    borderTopColor: colors.n100,
+  },
+  btnContinuar: {
+    backgroundColor: colors.orange,
+    height: 52,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: colors.orange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  btnContinuarTxt: { color: colors.n0, fontSize: 15, fontWeight: '700' },
 });

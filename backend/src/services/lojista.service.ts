@@ -80,7 +80,10 @@ export async function avancarStatusPedido(
 ) {
   const pedido = await prisma.pedido.findUnique({
     where: { id: pedidoId },
-    include: { loja: true },
+    include: {
+      loja: { include: { endereco: { select: { rua: true, numero: true, bairro: true } } } },
+      enderecoEntrega: { select: { rua: true, numero: true, bairro: true } },
+    },
   });
 
   const hasAccess =
@@ -130,10 +133,16 @@ export async function avancarStatusPedido(
   }
 
   if (proximoStatus === 'pronto') {
+    const lojaEnd = pedido.loja?.endereco;
+    const entregaEnd = pedido.enderecoEntrega;
     emitCorridaOferta({
       id: atualizado.id,
       lojaId: pedido.lojaId,
       lojaNome: pedido.loja?.nome ?? '',
+      lojaEndereco: lojaEnd ? `${lojaEnd.rua}, ${lojaEnd.numero}` : undefined,
+      lojaBairro: lojaEnd?.bairro ?? undefined,
+      entregaEndereco: entregaEnd ? `${entregaEnd.rua}, ${entregaEnd.numero}` : undefined,
+      entregaBairro: entregaEnd?.bairro ?? undefined,
       total: Number(atualizado.total ?? 0),
       taxaEntrega: Number(atualizado.taxaEntrega ?? 0),
     });

@@ -209,6 +209,9 @@ export function CourierApp() {
                   ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}`
                   : '–',
                 bairro: raw.loja?.endereco?.bairro ?? '–',
+                cep: raw.loja?.endereco?.cep ?? undefined,
+                lat: raw.loja?.endereco?.lat ?? undefined,
+                lng: raw.loja?.endereco?.lng ?? undefined,
               },
               cliente: {
                 nome: raw.consumidor?.nome ?? 'Cliente',
@@ -217,6 +220,10 @@ export function CourierApp() {
                   ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}`
                   : '–',
                 bairro: raw.enderecoEntrega?.bairro ?? '–',
+                complemento: raw.enderecoEntrega?.complemento ?? undefined,
+                cep: raw.enderecoEntrega?.cep ?? undefined,
+                lat: raw.enderecoEntrega?.lat ?? undefined,
+                lng: raw.enderecoEntrega?.lng ?? undefined,
               },
               ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
               distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
