@@ -27,6 +27,10 @@ export interface CorridaOfertaPayload {
   id: string;
   lojaId: string;
   lojaNome: string;
+  lojaEndereco?: string;
+  lojaBairro?: string;
+  entregaEndereco?: string;
+  entregaBairro?: string;
   total: number;
   taxaEntrega: number;
 }

@@ -22,13 +22,21 @@ const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 
 interface RideData {
   id: string;
-  loja: { nome: string; endereco: string; bairro: string; lat?: number; lng?: number };
+  loja: {
+    nome: string;
+    endereco: string;
+    bairro: string;
+    cep?: string;
+    lat?: number;
+    lng?: number;
+  };
   cliente: {
     nome: string;
     telefone?: string;
     endereco: string;
     bairro: string;
     complemento?: string;
+    cep?: string;
     lat?: number;
     lng?: number;
   };
@@ -45,6 +53,7 @@ function mapCorridaToRide(raw: any): RideData {
       nome: raw.loja?.nome ?? '–',
       endereco: raw.loja?.endereco ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}` : '–',
       bairro: raw.loja?.endereco?.bairro ?? '–',
+      cep: raw.loja?.endereco?.cep ?? undefined,
       lat: raw.loja?.endereco?.lat ?? undefined,
       lng: raw.loja?.endereco?.lng ?? undefined,
     },
@@ -55,6 +64,8 @@ function mapCorridaToRide(raw: any): RideData {
         ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}`
         : '–',
       bairro: raw.enderecoEntrega?.bairro ?? '–',
+      complemento: raw.enderecoEntrega?.complemento ?? undefined,
+      cep: raw.enderecoEntrega?.cep ?? undefined,
       lat: raw.enderecoEntrega?.lat ?? undefined,
       lng: raw.enderecoEntrega?.lng ?? undefined,
     },
@@ -275,32 +286,29 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
     onOferta: (corrida) => {
       if (!online || activeRidesCount >= 2) return;
       if (rejectedIds.current.has(corrida.id)) return;
+      const novo: RideData = {
+        id: corrida.id,
+        loja: {
+          nome: corrida.lojaNome,
+          endereco: corrida.lojaEndereco ?? '',
+          bairro: corrida.lojaBairro ?? '',
+        },
+        cliente: {
+          nome: '',
+          endereco: corrida.entregaEndereco ?? '',
+          bairro: corrida.entregaBairro ?? '',
+        },
+        ganho: Number(corrida.taxaEntrega ?? 0) * 0.8,
+        distancia: 0,
+        duracao: 20,
+        codigo: corrida.id.slice(-4).toUpperCase(),
+      };
       setWaitingRides((prev) => {
         const exists = prev.some((r) => r.id === corrida.id);
         if (exists) return prev;
-        const novo: RideData = {
-          id: corrida.id,
-          loja: { nome: corrida.lojaNome, endereco: '', bairro: '' },
-          cliente: { nome: '', endereco: '', bairro: '' },
-          ganho: Number(corrida.taxaEntrega ?? 0) * 0.8,
-          distancia: 0,
-          duracao: 20,
-          codigo: corrida.id.slice(-4).toUpperCase(),
-        };
         return [...prev, novo];
       });
-      setOffer(
-        (prev) =>
-          prev ?? {
-            id: corrida.id,
-            loja: { nome: corrida.lojaNome, endereco: '', bairro: '' },
-            cliente: { nome: '', endereco: '', bairro: '' },
-            ganho: Number(corrida.taxaEntrega ?? 0) * 0.8,
-            distancia: 0,
-            duracao: 20,
-            codigo: corrida.id.slice(-4).toUpperCase(),
-          },
-      );
+      setOffer((prev) => prev ?? novo);
       setCountdown(15);
     },
     onAceita: ({ pedidoId }) => {
