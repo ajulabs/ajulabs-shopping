@@ -162,24 +162,25 @@ router.post(
 
         for (const item of dados.itens) {
           const produto = produtos.find((p) => p.id === item.produtoId)!;
-          const estoqueAntes = produto.estoque;
+          let estoqueAntes: number;
           let estoqueDepois: number;
 
           if (item.variacaoId) {
-            const variacao = variacoes.find((v) => v.id === item.variacaoId)!;
-            await tx.variacaoProduto.update({
-              where: { id: item.variacaoId },
-              data: { estoque: variacao.estoque - item.quantidade },
+            // Decremento atômico: só decrementa se houver estoque suficiente.
+            // Protege contra corrida (TOCTOU) com pedidos simultâneos.
+            const { count } = await tx.variacaoProduto.updateMany({
+              where: { id: item.variacaoId, estoque: { gte: item.quantidade } },
+              data: { estoque: { decrement: item.quantidade } },
             });
+            if (count === 0) {
+              throw Object.assign(new Error('Estoque insuficiente'), { statusCode: 409 });
+            }
             const todasVars = await tx.variacaoProduto.findMany({
               where: { produtoId: item.produtoId },
-              select: { id: true, estoque: true },
+              select: { estoque: true },
             });
-            estoqueDepois = todasVars.reduce((s, v) => {
-              return (
-                s + (v.id === item.variacaoId ? variacao.estoque - item.quantidade : v.estoque)
-              );
-            }, 0);
+            estoqueDepois = todasVars.reduce((s, v) => s + v.estoque, 0);
+            estoqueAntes = estoqueDepois + item.quantidade;
             await tx.produto.update({
               where: { id: item.produtoId },
               data: {
@@ -188,14 +189,26 @@ router.post(
               },
             });
           } else {
-            estoqueDepois = produto.estoque - item.quantidade;
-            await tx.produto.update({
-              where: { id: item.produtoId },
-              data: {
-                estoque: estoqueDepois,
-                ...(estoqueDepois <= 0 ? { disponivel: false } : {}),
-              },
+            // Decremento atômico condicional no próprio produto.
+            const { count } = await tx.produto.updateMany({
+              where: { id: item.produtoId, estoque: { gte: item.quantidade } },
+              data: { estoque: { decrement: item.quantidade } },
             });
+            if (count === 0) {
+              throw Object.assign(new Error('Estoque insuficiente'), { statusCode: 409 });
+            }
+            const atual = await tx.produto.findUnique({
+              where: { id: item.produtoId },
+              select: { estoque: true },
+            });
+            estoqueDepois = atual?.estoque ?? produto.estoque - item.quantidade;
+            estoqueAntes = estoqueDepois + item.quantidade;
+            if (estoqueDepois <= 0) {
+              await tx.produto.update({
+                where: { id: item.produtoId },
+                data: { disponivel: false },
+              });
+            }
           }
 
           await tx.movimentacaoEstoque.create({
@@ -233,6 +246,10 @@ router.post(
       res.status(201).json({ pedido });
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      const appErr = error as { statusCode?: number; message?: string };
+      if (appErr.statusCode && appErr.statusCode < 500) {
+        return res.status(appErr.statusCode).json({ error: appErr.message });
+      }
       logger.error({ error }, '[pedidos] erro ao criar pedido');
       res.status(500).json({ error: 'Erro ao criar pedido' });
     }
