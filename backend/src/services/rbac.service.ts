@@ -1,4 +1,4 @@
-import { PapelColaborador as PrismaRole, StatusSolicitacaoPreco } from '@prisma/client';
+import { PapelColaborador as PrismaRole, StatusSolicitacaoPreco, Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 import { gerarToken, gerarRefreshToken, PapelColaborador } from '../utils/jwt';
@@ -221,7 +221,9 @@ export async function registrarAudit(params: {
   changes?: Record<string, { before: unknown; after: unknown }>;
   ipAddress?: string;
 }) {
-  return prisma.auditLog.create({ data: params });
+  return prisma.auditLog.create({
+    data: { ...params, changes: params.changes as Prisma.InputJsonValue | undefined },
+  });
 }
 
 export async function listarAuditLogs(

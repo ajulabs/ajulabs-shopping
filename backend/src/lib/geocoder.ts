@@ -29,7 +29,7 @@ export async function nominatimSearch(q: string): Promise<GeoCoords | null> {
     const res = await fetch(url, { headers: NOM_HEADERS });
     if (!res.ok) return null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: any[] = await res.json();
+    const data = (await res.json()) as any[];
     if (!data.length) return null;
     const best = data.find((r) => r.display_name?.toLowerCase().includes('aracaju')) ?? data[0];
     return { lat: parseFloat(best.lat), lng: parseFloat(best.lon) };

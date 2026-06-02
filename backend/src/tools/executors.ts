@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { buscarProdutosRAG, buscarProdutosFallback, ProdutoRAG } from '../utils/ragSearch';
+import { logger } from '../lib/logger';
 
 // ─── Result types ────────────────────────────────────────────────────────────
 
@@ -39,12 +40,12 @@ export async function executarListarPedidos(usuarioId: string): Promise<ToolResu
     },
   });
 
-  const dados: PedidoResumo[] = pedidos.map(p => ({
+  const dados: PedidoResumo[] = pedidos.map((p) => ({
     id: p.id,
     loja: p.loja.nome,
     status: p.status,
     total: Number(p.total),
-    itens: p.itens.map(i => `${i.nomeSnapshot} x${i.quantidade}`),
+    itens: p.itens.map((i) => `${i.nomeSnapshot} x${i.quantidade}`),
     criadoEm: p.criadoEm.toISOString(),
   }));
 
@@ -58,13 +59,13 @@ export async function executarCriarTicket(
 ): Promise<ToolResult> {
   const protocolo = `TKT-${Date.now()}`;
 
-  console.log(
+  logger.info(
     `[ticket] ${protocolo} | usuário: ${usuarioId} | motivo: ${motivo}` +
-    (pedidoId ? ` | pedido: ${pedidoId}` : ''),
+      (pedidoId ? ` | pedido: ${pedidoId}` : ''),
   );
 
-  notificarSlack({ protocolo, motivo, usuarioId, pedidoId }).catch(err =>
-    console.error('[ticket] erro no Slack:', err),
+  notificarSlack({ protocolo, motivo, usuarioId, pedidoId }).catch((err) =>
+    logger.error({ err }, '[ticket] erro no Slack'),
   );
 
   return { tipo: 'ticket', dados: { criado: true, protocolo } };
@@ -84,7 +85,9 @@ async function notificarSlack(dados: {
     `*Usuário:* ${dados.usuarioId}`,
     dados.pedidoId ? `*Pedido:* \`${dados.pedidoId}\`` : null,
     `*Motivo:* ${dados.motivo}`,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   await fetch(webhookUrl, {
     method: 'POST',

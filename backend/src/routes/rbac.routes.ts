@@ -445,7 +445,7 @@ router.put('/produtos/:id', async (req: AuthRequest, res) => {
   res.json({ produto: atualizado, solicitacaoPreco });
 });
 
-router.delete('/produtos/:id', async (req: AuthRequest, res) => {
+router.delete('/produtos/:id', requirePapel('admin', 'gerente'), async (req: AuthRequest, res) => {
   const lojaId = resolveLojaId(req);
   if (!lojaId) return res.status(400).json({ error: 'lojaId obrigatório' });
   if (!(await checkAcessoLoja(lojaId, req)))

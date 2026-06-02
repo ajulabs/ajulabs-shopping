@@ -28,7 +28,7 @@ vi.mock('../../lib/logger', () => ({ logger: { info: vi.fn(), debug: vi.fn(), er
 vi.mock('../../utils/cors', () => ({ corsOptions: {} }));
 vi.mock('../../utils/socket', () => ({ getIo: vi.fn(() => ({ to: vi.fn(() => ({ emit: vi.fn() })) })), emitPedidoNovo: vi.fn(), emitPedidoAtualizado: vi.fn(), getEntregadorLocalizacao: vi.fn(), emitTicketMensagem: vi.fn(), emitChatMensagem: vi.fn() }));
 vi.mock('../../lib/pushNotifications', () => ({ notificarPedidoNovo: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../../middleware/auth', () => ({ authMiddleware: (_r: unknown, _s: unknown, n: () => void) => n(), authUsuario: (_r: unknown, _s: unknown, n: () => void) => n(), authLojista: (_r: unknown, _s: unknown, n: () => void) => n(), authEntregador: (_r: unknown, _s: unknown, n: () => void) => n() }));
+vi.mock('../../middleware/auth', () => { const pass = (_r: unknown, _s: unknown, n: () => void) => n(); return { authMiddleware: pass, authUsuario: pass, authLojista: pass, authEntregador: pass, authColaborador: pass, authLojistaOrColaborador: pass, requirePapel: () => pass }; });
 
 const { app } = await import('../../app');
 
@@ -39,22 +39,44 @@ describe('POST_avaliacoes — spec validation (generated)', () => {
     const res = await request(app)
       .post('/v1/avaliacoes')
       .set('Content-Type', 'application/json')
-      .send({"nota":1});
+      .send({"notaLoja":1,"notaEntregador":1,"avaliacoesProdutos":[]});
 
     expect(res.status).toBe(422);
     expect(res.body.spec).toBe('POST_avaliacoes');
     expect(res.body.campos_ausentes).toContain('Campo obrigatório ausente: "pedidoId"');
   });
 
-  it('retorna 422 quando nota está ausente', async () => {
+  it('retorna 422 quando notaLoja está ausente', async () => {
     const res = await request(app)
       .post('/v1/avaliacoes')
       .set('Content-Type', 'application/json')
-      .send({"pedidoId":"00000000-0000-0000-0000-000000000001"});
+      .send({"pedidoId":"00000000-0000-0000-0000-000000000001","notaEntregador":1,"avaliacoesProdutos":[]});
 
     expect(res.status).toBe(422);
     expect(res.body.spec).toBe('POST_avaliacoes');
-    expect(res.body.campos_ausentes).toContain('Campo obrigatório ausente: "nota"');
+    expect(res.body.campos_ausentes).toContain('Campo obrigatório ausente: "notaLoja"');
+  });
+
+  it('retorna 422 quando notaEntregador está ausente', async () => {
+    const res = await request(app)
+      .post('/v1/avaliacoes')
+      .set('Content-Type', 'application/json')
+      .send({"pedidoId":"00000000-0000-0000-0000-000000000001","notaLoja":1,"avaliacoesProdutos":[]});
+
+    expect(res.status).toBe(422);
+    expect(res.body.spec).toBe('POST_avaliacoes');
+    expect(res.body.campos_ausentes).toContain('Campo obrigatório ausente: "notaEntregador"');
+  });
+
+  it('retorna 422 quando avaliacoesProdutos está ausente', async () => {
+    const res = await request(app)
+      .post('/v1/avaliacoes')
+      .set('Content-Type', 'application/json')
+      .send({"pedidoId":"00000000-0000-0000-0000-000000000001","notaLoja":1,"notaEntregador":1});
+
+    expect(res.status).toBe(422);
+    expect(res.body.spec).toBe('POST_avaliacoes');
+    expect(res.body.campos_ausentes).toContain('Campo obrigatório ausente: "avaliacoesProdutos"');
   });
 
   it('retorna 422 quando body está vazio', async () => {
@@ -64,14 +86,14 @@ describe('POST_avaliacoes — spec validation (generated)', () => {
       .send({});
 
     expect(res.status).toBe(422);
-    expect(res.body.campos_ausentes).toHaveLength(2);
+    expect(res.body.campos_ausentes).toHaveLength(4);
   });
 
   it.skip('UNAUTHORIZED: Usuário não autenticado', async () => {
     // TODO: setup mock for this error — expected status 401
   });
 
-  it.skip('NOT_FOUND_PEDIDO: Pedido não encontrado', async () => {
-    // TODO: setup mock for this error — expected status 404
+  it.skip('VALIDATION_ERROR: Campo obrigatório ausente (spec)', async () => {
+    // TODO: setup mock for this error — expected status 422
   });
 });
