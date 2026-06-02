@@ -15,6 +15,7 @@ import { assertValidImage } from '../lib/mimeValidator';
 import { geocodeByCep, geocodeByQuery } from '../lib/geocoder';
 import { logger } from '../lib/logger';
 import { notificarStatusPedido, notificarCorridaOferta } from '../lib/pushNotifications';
+import { restaurarEstoqueNoCancelamento } from './estoque.service';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -657,4 +658,64 @@ export async function addTicketMensagem(ticketId: string, lojistaId: string, tex
 
   emitTicketMensagem(ticket.consumidorId, ticket.lojaId, { ...mensagem, ticketId }, 'lojista');
   return mensagem;
+}
+
+// ── Cancelamento de pedido ────────────────────────────────────────────────────
+
+const CANCELAVEIS_LOJISTA = ['aguardando', 'confirmado', 'preparando', 'pronto'];
+const PENALIZA_LOJISTA = ['preparando', 'pronto'];
+
+export async function cancelarPedidoLojista(
+  pedidoId: string,
+  auth: { tipo: 'lojista'; id: string } | { tipo: 'colaborador'; lojaId: string },
+  motivo: string,
+) {
+  const pedido = await prisma.pedido.findUnique({
+    where: { id: pedidoId },
+    include: { loja: true },
+  });
+
+  const hasAccess =
+    auth.tipo === 'colaborador'
+      ? pedido?.lojaId === auth.lojaId
+      : pedido?.loja.lojistaId === auth.id;
+
+  if (!pedido || !hasAccess) {
+    throw Object.assign(new Error('Acesso negado'), { statusCode: 403 });
+  }
+
+  if (!CANCELAVEIS_LOJISTA.includes(pedido.status)) {
+    throw Object.assign(new Error('Pedido não pode ser cancelado neste estágio'), {
+      statusCode: 400,
+    });
+  }
+
+  const penaliza = PENALIZA_LOJISTA.includes(pedido.status);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.pedido.update({
+      where: { id: pedidoId },
+      data: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        status: 'cancelado' as any,
+        canceladoPor: 'lojista',
+        motivoCancelamento: motivo,
+        penalizouLojista: penaliza,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        historico: { create: { status: 'cancelado' as any } },
+      },
+    });
+
+    if (penaliza) {
+      await tx.loja.update({
+        where: { id: pedido.lojaId },
+        data: { cancelamentosAposAceite: { increment: 1 } },
+      });
+    }
+
+    await restaurarEstoqueNoCancelamento(pedidoId, pedido.lojaId, tx);
+  });
+
+  emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'cancelado', pedido.lojaId);
+  void notificarStatusPedido(pedido.consumidorId, pedidoId, 'cancelado');
 }

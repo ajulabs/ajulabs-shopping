@@ -365,15 +365,23 @@ router.post('/:id/cancelar', authMiddleware, authUsuario, async (req: AuthReques
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    const cancelaveis: string[] = ['aguardando', 'confirmado'];
-    if (!cancelaveis.includes(pedido.status)) {
-      return res.status(400).json({ error: 'Pedido não pode ser cancelado neste status' });
+    if (pedido.status !== 'aguardando') {
+      return res.status(400).json({
+        error:
+          'Cancelamento não permitido. Só é possível cancelar enquanto o pedido aguarda confirmação da loja.',
+      });
     }
+
+    const motivo: string | undefined = req.body?.motivo;
 
     await prisma.$transaction(async (tx) => {
       await tx.pedido.update({
         where: { id: req.params.id },
-        data: { status: 'cancelado' },
+        data: {
+          status: 'cancelado',
+          canceladoPor: 'consumidor',
+          motivoCancelamento: motivo ?? null,
+        },
       });
       await tx.historicoStatusPedido.create({
         data: { pedidoId: req.params.id, status: 'cancelado' },

@@ -144,6 +144,20 @@ export type StatusPedido =
   | 'entregue'
   | 'cancelado';
 
+export type CancelamentoPor = 'consumidor' | 'lojista' | 'admin';
+
+export type MotivoCancelamentoConsumidor =
+  | 'quero_mudar_pedido'
+  | 'demora_excessiva'
+  | 'erro_no_pedido'
+  | 'outro';
+
+export type MotivoCancelamentoLojista =
+  | 'item_esgotado'
+  | 'problema_cozinha'
+  | 'horario_encerramento'
+  | 'outro';
+
 export interface ItemPedido {
   produto: Produto;
   quantidade: number;
@@ -175,6 +189,9 @@ export interface Pedido {
   codigoEntrega?: string;
   entregador?: EntregadorResumo | null;
   avaliado?: boolean;
+  canceladoPor?: CancelamentoPor | null;
+  motivoCancelamento?: string | null;
+  penalizouLojista?: boolean;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────

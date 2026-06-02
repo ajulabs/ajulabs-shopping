@@ -26,11 +26,11 @@ function ProductImg({ uri, alt }: { uri: string; alt: string }) {
 }
 
 export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) {
-  const router    = useRouter();
+  const router = useRouter();
   const textColor = dark ? colors.n0 : colors.navy;
-  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const surface   = dark ? colors.surfDark : colors.n0;
-  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const surface = dark ? colors.surfDark : colors.n0;
+  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
   const [added, setAdded] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -40,14 +40,9 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
       router.push('/(consumer)/carrinho');
       return;
     }
-    onAdd(produto.id);
-    setAdded(true);
-
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.92, duration: 80, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }),
-    ]).start();
-  }, [added, produto.id, onAdd, router]);
+    // Sempre abre a PDP para que o usuário confirme opções antes de adicionar
+    router.push(`/(consumer)/produto/${produto.id}` as any);
+  }, [added, produto.id, router]);
 
   return (
     <TouchableOpacity
@@ -107,27 +102,53 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
 }
 
 const styles = StyleSheet.create({
-  card:              { borderRadius: 14, overflow: 'hidden', borderWidth: 1, flexShrink: 0 },
-  img:               { width: '100%', aspectRatio: 4 / 3 },
-  imgFallback:       { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.orange100,
-                       alignItems: 'center', justifyContent: 'center' },
-  imgFallbackText:   { fontSize: 28, fontWeight: '700', color: colors.orange600 },
-  info:              { padding: 10 },
-  nome:              { fontSize: 12.5, fontWeight: '600', lineHeight: 16, minHeight: 30 },
-  desc:              { fontSize: 11, marginTop: 2, lineHeight: 15, minHeight: 28 },
-  preco:             { fontSize: 14, fontWeight: '700', marginTop: 4 },
-  badgeDestaque:     { position: 'absolute', top: 8, left: 8,
-                       backgroundColor: colors.orange,
-                       paddingHorizontal: 7, paddingVertical: 3, borderRadius: 99 },
+  card: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, flexShrink: 0 },
+  img: { width: '100%', aspectRatio: 4 / 3 },
+  imgFallback: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    backgroundColor: colors.orange100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imgFallbackText: { fontSize: 28, fontWeight: '700', color: colors.orange600 },
+  info: { padding: 10 },
+  nome: { fontSize: 12.5, fontWeight: '600', lineHeight: 16, minHeight: 30 },
+  desc: { fontSize: 11, marginTop: 2, lineHeight: 15, minHeight: 28 },
+  preco: { fontSize: 14, fontWeight: '700', marginTop: 4 },
+  badgeDestaque: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: colors.orange,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
   badgeDestaqueText: { color: colors.n0, fontSize: 9, fontWeight: '700' },
-  overlay:           { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                       backgroundColor: 'rgba(0,0,0,0.45)',
-                       alignItems: 'center', justifyContent: 'center' },
-  overlayText:       { color: colors.n0, fontSize: 12, fontWeight: '700' },
-  btnAdd:            { width: '100%', height: 30, borderRadius: 8, marginTop: 8,
-                       backgroundColor: colors.orange100,
-                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  btnAdded:          { backgroundColor: colors.orange },
-  btnAddText:        { color: colors.orange600, fontSize: 12, fontWeight: '600' },
-  btnAddedText:      { color: colors.n0, fontSize: 12, fontWeight: '600' },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayText: { color: colors.n0, fontSize: 12, fontWeight: '700' },
+  btnAdd: {
+    width: '100%',
+    height: 30,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: colors.orange100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  btnAdded: { backgroundColor: colors.orange },
+  btnAddText: { color: colors.orange600, fontSize: 12, fontWeight: '600' },
+  btnAddedText: { color: colors.n0, fontSize: 12, fontWeight: '600' },
 });

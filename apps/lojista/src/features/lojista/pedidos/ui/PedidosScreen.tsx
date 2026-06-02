@@ -26,6 +26,13 @@ import { ChatPedidoScreen } from './ChatPedidoScreen';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const MOTIVOS_CANCELAMENTO = [
+  { value: 'item_esgotado', label: 'Item esgotado' },
+  { value: 'problema_cozinha', label: 'Problema com estoque/produtos' },
+  { value: 'horario_encerramento', label: 'Horário de encerramento' },
+  { value: 'outro', label: 'Outro motivo' },
+] as const;
+
 type Screen = 'list' | 'detail' | 'delivery' | 'tickets' | 'chat';
 
 function mapPedidoToOrder(raw: any): Order {
@@ -70,6 +77,11 @@ export function PedidosScreen() {
   const [selected, setSelected] = useState<Order | null>(null);
   const [showSomModal, setShowSomModal] = useState(false);
   const [openTickets, setOpenTickets] = useState(0);
+  const [cancelModal, setCancelModal] = useState<{
+    orderId: string;
+    dbId: string;
+    status: OrderStatus;
+  } | null>(null);
   const [recarregando, setRecarregando] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -206,6 +218,21 @@ export function PedidosScreen() {
       }
     },
     [orders, token, fetchPedidos],
+  );
+
+  const handleCancelar = useCallback(
+    async (dbId: string, motivo: string) => {
+      if (!token) return;
+      setCancelModal(null);
+      setOrders((os) => os.filter((o) => o._id !== dbId));
+      try {
+        await LojistaService.cancelarPedido(dbId, token, motivo);
+      } catch (err) {
+        console.error('[PedidosScreen] cancelarPedido error:', err);
+        fetchPedidos();
+      }
+    },
+    [token, fetchPedidos],
   );
 
   const list = filter === 'todos' ? orders : orders.filter((o) => o.status === filter);
@@ -508,11 +535,70 @@ export function PedidosScreen() {
                       </View>
                     )}
                   </View>
+                  {['novo', 'preparando', 'pronto'].includes(o.status) && (
+                    <TouchableOpacity
+                      style={s.cancelLink}
+                      onPress={() =>
+                        setCancelModal({ orderId: o.id, dbId: o._id!, status: o.status })
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="close-circle-outline" size={13} color="#9B2727" />
+                      <Text style={s.cancelLinkTxt}>
+                        {o.status === 'novo' ? 'Recusar pedido' : 'Cancelar pedido'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </Animated.View>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
+      )}
+
+      {/* Modal de cancelamento */}
+      {cancelModal && (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setCancelModal(null)}
+        >
+          <View style={s.modalOverlay}>
+            <View style={s.modalBox}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitulo}>Cancelar pedido</Text>
+                <TouchableOpacity onPress={() => setCancelModal(null)}>
+                  <Ionicons name="close" size={22} color="#000933" />
+                </TouchableOpacity>
+              </View>
+              <Text style={s.modalSub}>{cancelModal.orderId}</Text>
+              {['preparando', 'pronto'].includes(cancelModal.status) && (
+                <View style={s.penaltyWarn}>
+                  <Ionicons name="warning-outline" size={14} color="#B45309" />
+                  <Text style={s.penaltyTxt}>
+                    Cancelar após aceitar o pedido conta como penalidade e afeta o ranqueamento da
+                    loja.
+                  </Text>
+                </View>
+              )}
+              <Text style={[s.modalSub, { marginTop: 14, marginBottom: 12 }]}>
+                Selecione o motivo:
+              </Text>
+              {MOTIVOS_CANCELAMENTO.map((m) => (
+                <TouchableOpacity
+                  key={m.value}
+                  style={s.motivoItem}
+                  onPress={() => handleCancelar(cancelModal.dbId, m.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.motivoLabel}>{m.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#9099B3" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Modal>
       )}
 
       {/* Modal de seleção de som */}
@@ -721,4 +807,37 @@ const s = StyleSheet.create({
   somEmoji: { fontSize: 28 },
   somLabel: { fontSize: 14, fontWeight: '700', color: '#000933' },
   somDesc: { fontSize: 12, color: '#9099B3', marginTop: 2 },
+  // Cancelamento
+  cancelLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F1F7',
+  },
+  cancelLinkTxt: { fontSize: 12, fontWeight: '600', color: '#9B2727' },
+  penaltyWarn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 4,
+  },
+  penaltyTxt: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
+  motivoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E4E7F1',
+    marginBottom: 10,
+  },
+  motivoLabel: { fontSize: 14, fontWeight: '600', color: '#000933' },
 });

@@ -357,6 +357,18 @@ export const PedidoService = {
     return localizacao ?? null;
   },
 
+  cancelar: async (id: string, token: string, motivo?: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/pedidos/${id}/cancelar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ motivo }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao cancelar pedido');
+    }
+  },
+
   criar: async (
     token: string,
     dados: {
@@ -402,6 +414,19 @@ export const LojistaService = {
       const err = await res.json().catch(() => ({}));
       const msg = typeof err.error === 'string' ? err.error : 'Erro ao avançar status';
       console.error(`[LojistaService] avancarStatus ${pedidoId} → ${res.status}: ${msg}`);
+      throw new Error(msg);
+    }
+  },
+
+  cancelarPedido: async (pedidoId: string, token: string, motivo: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/lojista/pedidos/${pedidoId}/cancelar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ motivo }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = typeof err.error === 'string' ? err.error : 'Erro ao cancelar pedido';
       throw new Error(msg);
     }
   },

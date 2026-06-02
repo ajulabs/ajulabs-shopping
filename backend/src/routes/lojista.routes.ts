@@ -155,6 +155,24 @@ router.patch(
   },
 );
 
+router.post(
+  '/pedidos/:id/cancelar',
+  authMiddleware,
+  authLojistaOrColaborador,
+  async (req: AuthRequest, res) => {
+    const { motivo } = req.body ?? {};
+    if (!motivo || typeof motivo !== 'string' || motivo.trim().length === 0) {
+      return res.status(400).json({ error: 'Motivo de cancelamento é obrigatório' });
+    }
+    const auth =
+      req.user?.tipo === 'colaborador'
+        ? ({ tipo: 'colaborador', lojaId: req.user.lojaId! } as const)
+        : ({ tipo: 'lojista', id: req.user!.id } as const);
+    await svc.cancelarPedidoLojista(req.params.id, auth, motivo.trim());
+    res.json({ ok: true });
+  },
+);
+
 router.get(
   '/pedidos/:id/localizacao-entregador',
   authMiddleware,
