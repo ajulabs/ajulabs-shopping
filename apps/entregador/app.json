@@ -37,7 +37,12 @@
         "USE_FULL_SCREEN_INTENT",
         "VIBRATE",
         "WAKE_LOCK",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "plugins": [
@@ -57,10 +62,18 @@
         "expo-notifications",
         {
           "color": "#FF6B00",
-          "sounds": ["./assets/corrida-alert.mp3"]
+          "sounds": [
+            "./assets/corrida-alert.mp3"
+          ]
         }
       ]
     ],
-    "scheme": "ajulabs-entregador"
+    "scheme": "ajulabs-entregador",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "067e0988-0a08-489a-9b1a-6b1ce4db318c"
+      }
+    }
   }
 }
