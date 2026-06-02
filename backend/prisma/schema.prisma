@@ -121,6 +121,7 @@ model Entregador {
   prefsOptOut           PreferenciaNotificacaoOptOut[]
   avaliacoes            AvaliacaoEntregador[]
   tokensRecuperacao     TokenRecuperacaoSenhaEntregador[]
+  corridasRejeitadas    CorridaRejeitada[]
 
   @@map("entregadores")
 }
@@ -507,8 +508,22 @@ model Pedido {
   avaliacoesProdutos  AvaliacaoProduto[]
   supportTickets      SupportTicket[]
   chat                ChatPedido?
+  corridasRejeitadas  CorridaRejeitada[]
 
   @@map("pedidos")
+}
+
+model CorridaRejeitada {
+  id           String     @id @default(uuid())
+  pedidoId     String     @map("pedido_id")
+  entregadorId String     @map("entregador_id")
+  criadoEm    DateTime   @default(now()) @map("criado_em")
+
+  pedido     Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  entregador Entregador @relation(fields: [entregadorId], references: [id], onDelete: Cascade)
+
+  @@unique([pedidoId, entregadorId])
+  @@map("corridas_rejeitadas")
 }
 
 model ItemPedido {

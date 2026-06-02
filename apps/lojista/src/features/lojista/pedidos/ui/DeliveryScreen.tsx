@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Order } from '../data';
@@ -11,57 +17,57 @@ interface Props {
   onBack: () => void;
 }
 
-type Stage = 'alocando' | 'alocado' | 'coletando' | 'entregando';
-
 const STEPS = [
-  { id: 'alocado', label: 'Motoboy alocado' },
-  { id: 'coletando', label: 'A caminho da loja' },
-  { id: 'entregando', label: 'Entregando' },
+  { id: 'alocado', label: 'Entregador alocado' },
+  { id: 'retirada', label: 'Retirada na loja' },
+  { id: 'entregando', label: 'Saiu para entrega' },
 ];
 
-const STAGE_IDX: Record<Stage, number> = {
-  alocando: -1, alocado: 0, coletando: 1, entregando: 2,
-};
-
-export function DeliveryScreen({ order, onBack }: Props) {
-  const [stage, setStage] = useState<Stage>('alocando');
-
-  if (!order) {
-  return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Logística</Text>
-        </View>
-      </View>
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Ionicons name="bicycle-outline" size={32} color="#000933" />
-        <Text style={{ fontSize: 16, fontWeight: '600', color: '#000933', marginTop: 8 }}>Nenhum pedido para despachar</Text>
-        <Text style={{ fontSize: 13, color: '#9099B3', marginTop: 4 }}>Pedidos prontos aparecerão aqui</Text>
-      </View>
-    </SafeAreaView>
-  );
+// Deriva em qual etapa o pedido está a partir do estado REAL:
+// - sem entregador (status pronto)      → -1 (procurando)
+// - entregador alocado (status pronto)  →  0 (aguardando retirada)
+// - despachado (saiu para entrega)      →  2
+function stepIndexFromOrder(order: Order): number {
+  if (order.status === 'despachado') return 2;
+  if (order.entregadorId) return 0;
+  return -1;
 }
 
-  useEffect(() => {
-    const t = setTimeout(() => setStage('alocado'), 1500);
-    return () => clearTimeout(t);
-  }, []);
+function iniciais(nome?: string): string {
+  if (!nome) return '–';
+  return nome
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
-  const stepIdx = STAGE_IDX[stage];
+export function DeliveryScreen({ order, onBack }: Props) {
+  if (!order) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
+        <View style={s.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.headerTitle}>Logística</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Ionicons name="bicycle-outline" size={32} color="#000933" />
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#000933', marginTop: 8 }}>
+            Nenhum pedido para despachar
+          </Text>
+          <Text style={{ fontSize: 13, color: '#9099B3', marginTop: 4 }}>
+            Pedidos prontos aparecerão aqui
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const ctaLabel = {
-    alocado: 'Entreguei ao motoboy',
-    coletando: 'Confirmar coleta',
-    entregando: 'Voltar aos pedidos',
-  }[stage as Exclude<Stage, 'alocando'>];
-
-  const handleCta = () => {
-    if (stage === 'alocado') setStage('coletando');
-    else if (stage === 'coletando') setStage('entregando');
-    else onBack();
-  };
+  const stepIdx = stepIndexFromOrder(order);
+  const procurando = stepIdx === -1;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -73,58 +79,38 @@ export function DeliveryScreen({ order, onBack }: Props) {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>Despachar pedido</Text>
-          <Text style={s.headerSub}>{order.id} · {order.cliente}</Text>
+          <Text style={s.headerSub}>
+            {order.id} · {order.cliente}
+          </Text>
         </View>
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-
-        {stage === 'alocando' ? (
+        {procurando ? (
           <View style={s.loadingBox}>
             <View style={s.loadingIcon}>
               <ActivityIndicator size="large" color="#fff" />
             </View>
-            <Text style={s.loadingTitle}>Procurando motoboy…</Text>
-            <Text style={s.loadingSub}>Buscando o mais próximo da sua loja</Text>
+            <Text style={s.loadingTitle}>Procurando entregador…</Text>
+            <Text style={s.loadingSub}>
+              Avisamos os entregadores próximos. Assim que alguém aceitar, ele aparece aqui.
+            </Text>
           </View>
         ) : (
           <>
             <View style={s.courierCard}>
               <View style={s.courierRow}>
                 <View style={s.courierAvatar}>
-                  <Text style={s.courierInitials}>ES</Text>
+                  <Text style={s.courierInitials}>{iniciais(order.entregadorNome)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.courierName}>Edson Silva</Text>
-                  <Text style={s.courierVehicle}>
-                    Moto Honda CG 150 · <Text style={{ color: '#DE6708' }}>ABC-1234</Text>
+                  <Text style={s.courierName}>{order.entregadorNome ?? 'Entregador'}</Text>
+                  <Text style={s.courierVehicle}>Entregador AjuLabs</Text>
+                </View>
+                <View style={s.statusPill}>
+                  <Text style={s.statusPillText}>
+                    {order.status === 'despachado' ? 'A caminho' : 'Aguardando'}
                   </Text>
-                  <View style={s.starsRow}>
-                    {[1,2,3,4,5].map(i => (
-                      <Ionicons key={i} name="star" size={11} color="#DE6708" />
-                    ))}
-                    <Text style={s.starsText}>4.9 · 1.2k entregas</Text>
-                  </View>
-                </View>
-                <TouchableOpacity style={s.callBtn}>
-                  <Ionicons name="call" size={18} color="#002B12" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={s.statsRow}>
-                <View style={s.statItem}>
-                  <Text style={s.statLabel}>Chega em</Text>
-                  <Text style={s.statValue}>4 min</Text>
-                </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
-                  <Text style={s.statLabel}>Distância</Text>
-                  <Text style={s.statValue}>1,4 km</Text>
-                </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
-                  <Text style={s.statLabel}>Taxa</Text>
-                  <Text style={[s.statValue, { color: '#39FF89' }]}>Grátis*</Text>
                 </View>
               </View>
             </View>
@@ -137,13 +123,20 @@ export function DeliveryScreen({ order, onBack }: Props) {
                 return (
                   <View key={step.id} style={s.stepRow}>
                     {i < STEPS.length - 1 && (
-                      <View style={[s.stepLine, { backgroundColor: i < stepIdx ? '#DE6708' : '#E4E7F1' }]} />
+                      <View
+                        style={[
+                          s.stepLine,
+                          { backgroundColor: i < stepIdx ? '#DE6708' : '#E4E7F1' },
+                        ]}
+                      />
                     )}
-                    <View style={[
-                      s.stepDot,
-                      done ? s.stepDotDone : s.stepDotPending,
-                      active && s.stepDotActive,
-                    ]}>
+                    <View
+                      style={[
+                        s.stepDot,
+                        done ? s.stepDotDone : s.stepDotPending,
+                        active && s.stepDotActive,
+                      ]}
+                    >
                       {done && !active && <Ionicons name="checkmark" size={10} color="#fff" />}
                       {active && <View style={s.stepDotInner} />}
                     </View>
@@ -160,16 +153,16 @@ export function DeliveryScreen({ order, onBack }: Props) {
               })}
             </View>
 
-            <TouchableOpacity style={s.ctaBtn} onPress={handleCta} activeOpacity={0.85}>
-              <Ionicons name="checkmark" size={16} color="#fff" />
-              <Text style={s.ctaBtnText}>{ctaLabel}</Text>
-            </TouchableOpacity>
-
             <Text style={s.disclaimer}>
-              * Taxa para lojas parceiras. O motoboy é alocado pela plataforma automaticamente.
+              O entregador é alocado automaticamente pela plataforma. Entregue o pedido a ele quando
+              chegar — a retirada e a entrega são confirmadas pelo próprio entregador no app dele.
             </Text>
           </>
         )}
+
+        <TouchableOpacity style={s.ctaBtn} onPress={onBack} activeOpacity={0.85}>
+          <Text style={s.ctaBtnText}>Voltar aos pedidos</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -177,44 +170,128 @@ export function DeliveryScreen({ order, onBack }: Props) {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: '#F6F7FB' },
-  backBtn: { width: 38, height: 38, borderRadius: 99, backgroundColor: '#E4E7F1', alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    backgroundColor: '#F6F7FB',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 99,
+    backgroundColor: '#E4E7F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#000933' },
   headerSub: { fontSize: 12, color: '#9099B3', marginTop: 1 },
   scroll: { flex: 1 },
   loadingBox: { alignItems: 'center', paddingVertical: 60 },
-  loadingIcon: { width: 64, height: 64, borderRadius: 99, backgroundColor: '#DE6708', alignItems: 'center', justifyContent: 'center', marginBottom: 16, shadowColor: '#DE6708', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8 },
+  loadingIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 99,
+    backgroundColor: '#DE6708',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#DE6708',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   loadingTitle: { fontSize: 18, fontWeight: '700', color: '#000933', marginBottom: 6 },
-  loadingSub: { fontSize: 13, color: '#9099B3' },
+  loadingSub: {
+    fontSize: 13,
+    color: '#9099B3',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    lineHeight: 19,
+  },
   courierCard: { borderRadius: 18, padding: 16, backgroundColor: '#000933', marginBottom: 12 },
   courierRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  courierAvatar: { width: 56, height: 56, borderRadius: 99, backgroundColor: '#DE6708', alignItems: 'center', justifyContent: 'center' },
+  courierAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 99,
+    backgroundColor: '#DE6708',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   courierInitials: { fontSize: 22, fontWeight: '700', color: '#fff' },
   courierName: { fontSize: 17, fontWeight: '600', color: '#fff' },
   courierVehicle: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  starsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
-  starsText: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginLeft: 4 },
-  callBtn: { width: 44, height: 44, borderRadius: 99, backgroundColor: '#39FF89', alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14, padding: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12 },
-  statItem: { alignItems: 'center', flex: 1 },
-  statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#fff', marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  timelineCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E4E7F1' },
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 99,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  statusPillText: { fontSize: 12, fontWeight: '700', color: '#39FF89' },
+  timelineCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+  },
   timelineTitle: { fontSize: 16, fontWeight: '700', color: '#000933', marginBottom: 14 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, position: 'relative' },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    position: 'relative',
+  },
   stepLine: { position: 'absolute', left: 9, top: 28, width: 2, height: 24 },
-  stepDot: { width: 20, height: 20, borderRadius: 99, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  stepDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 99,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
   stepDotDone: { backgroundColor: '#DE6708' },
   stepDotPending: { backgroundColor: '#E4E7F1' },
-  stepDotActive: { shadowColor: '#DE6708', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4 },
+  stepDotActive: {
+    shadowColor: '#DE6708',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   stepDotInner: { width: 6, height: 6, borderRadius: 99, backgroundColor: '#fff' },
   stepLabel: { flex: 1, fontSize: 13.5 },
   stepLabelDone: { fontWeight: '600', color: '#000933' },
   stepLabelPending: { color: '#9099B3' },
-  nowBadge: { backgroundColor: '#FFF0E6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
+  nowBadge: {
+    backgroundColor: '#FFF0E6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
   nowBadgeText: { fontSize: 11, fontWeight: '700', color: '#DE6708' },
-  ctaBtn: { backgroundColor: '#000933', borderRadius: 14, height: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 },
+  ctaBtn: {
+    backgroundColor: '#000933',
+    borderRadius: 14,
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
   ctaBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  disclaimer: { fontSize: 11, color: '#9099B3', textAlign: 'center', lineHeight: 16 },
+  disclaimer: {
+    fontSize: 11,
+    color: '#9099B3',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
+  },
 });

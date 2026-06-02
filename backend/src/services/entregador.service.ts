@@ -291,9 +291,21 @@ export async function getCorridasDisponiveis(entregadorId: string) {
   if (ativasCount >= 2) return [];
 
   return prisma.pedido.findMany({
-    where: { status: 'pronto', entregadorId: null },
+    where: {
+      status: 'pronto',
+      entregadorId: null,
+      corridasRejeitadas: { none: { entregadorId } },
+    },
     include: CORRIDA_INCLUDE,
     orderBy: { criadoEm: 'asc' },
+  });
+}
+
+export async function rejeitarCorrida(entregadorId: string, pedidoId: string) {
+  await prisma.corridaRejeitada.upsert({
+    where: { pedidoId_entregadorId: { pedidoId, entregadorId } },
+    create: { pedidoId, entregadorId },
+    update: {},
   });
 }
 
@@ -308,17 +320,20 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
     });
   }
 
-  const pedido = await prisma.pedido.findFirst({
+  // Claim atômico: só vincula o entregador se a corrida ainda estiver 'pronto'
+  // e sem entregador. Um único UPDATE ... WHERE entregador_id IS NULL evita a
+  // race (TOCTOU) entre dois entregadores aceitando o mesmo pedido ao mesmo tempo.
+  const claim = await prisma.pedido.updateMany({
     where: { id: pedidoId, status: 'pronto', entregadorId: null },
+    data: { entregadorId },
   });
 
-  if (!pedido) {
+  if (claim.count === 0) {
     throw Object.assign(new Error('Corrida não está mais disponível'), { statusCode: 409 });
   }
 
-  const pedidoAtualizado = await prisma.pedido.update({
+  const pedidoAtualizado = await prisma.pedido.findUnique({
     where: { id: pedidoId },
-    data: { entregadorId },
     include: {
       loja: {
         select: {
@@ -345,7 +360,17 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
   });
 
   try {
-    getIo().to('entregadores').emit('corrida:aceita', { pedidoId, entregadorId });
+    const io = getIo();
+    // Tira a oferta dos outros entregadores
+    io.to('entregadores').emit('corrida:aceita', { pedidoId, entregadorId });
+    // Avisa o lojista que um entregador foi alocado (status segue 'pronto',
+    // mas agora há entregadorId — a tela refetcha e mostra o entregador real)
+    if (pedidoAtualizado) {
+      io.to(`loja:${pedidoAtualizado.lojaId}`).emit('pedido:atualizado', {
+        pedidoId,
+        status: 'pronto',
+      });
+    }
   } catch {
     /* socket may not be initialized */
   }

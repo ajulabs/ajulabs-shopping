@@ -7,11 +7,26 @@ interface Options {
   entregadorId: string | null;
   enabled?: boolean;
   onOferta: (corrida: CorridaOfertaPayload) => void;
+  /**
+   * Disparado quando QUALQUER entregador aceita uma corrida (evento emitido pelo
+   * backend para a sala `entregadores`). Permite remover a corrida da lista de
+   * espera em tempo real, sem esperar o polling, evitando que o entregador tente
+   * aceitar uma corrida que já foi pega.
+   */
+  onAceita?: (payload: { pedidoId: string; entregadorId: string }) => void;
 }
 
-export function useCorridasRealtime({ apiUrl, entregadorId, enabled = true, onOferta }: Options): void {
-  const cbRef = useRef(onOferta);
-  cbRef.current = onOferta;
+export function useCorridasRealtime({
+  apiUrl,
+  entregadorId,
+  enabled = true,
+  onOferta,
+  onAceita,
+}: Options): void {
+  const ofertaRef = useRef(onOferta);
+  ofertaRef.current = onOferta;
+  const aceitaRef = useRef(onAceita);
+  aceitaRef.current = onAceita;
 
   useEffect(() => {
     if (!enabled || !entregadorId || !apiUrl) return;
@@ -19,15 +34,19 @@ export function useCorridasRealtime({ apiUrl, entregadorId, enabled = true, onOf
     const socket = getSocket(apiUrl);
 
     const onConnect = () => socket.emit('entregador:join', entregadorId);
-    const onOfertaEvt = (corrida: CorridaOfertaPayload) => cbRef.current(corrida);
+    const onOfertaEvt = (corrida: CorridaOfertaPayload) => ofertaRef.current(corrida);
+    const onAceitaEvt = (payload: { pedidoId: string; entregadorId: string }) =>
+      aceitaRef.current?.(payload);
 
     socket.on('connect', onConnect);
     socket.on('corrida:oferta', onOfertaEvt);
+    socket.on('corrida:aceita', onAceitaEvt);
     if (socket.connected) onConnect();
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('corrida:oferta', onOfertaEvt);
+      socket.off('corrida:aceita', onAceitaEvt);
     };
   }, [apiUrl, entregadorId, enabled]);
 }

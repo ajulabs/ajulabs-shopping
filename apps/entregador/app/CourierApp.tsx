@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../src/features/entregador/home';
@@ -190,42 +190,50 @@ export function CourierApp() {
   const [activeRides, setActiveRides] = useState<ActiveRideWithStage[]>([]);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Sincroniza as corridas ativas com o backend. Fonte da verdade = servidor:
+  // adiciona novas, remove as concluídas (não retornadas) e preserva o `stage`
+  // local (to-store / at-store / to-customer) das que já estavam em andamento.
+  const refreshActiveRides = useCallback(() => {
     if (!token) return;
     EntregadorService.buscarCorridasAtivas(token)
       .then((corridas) => {
-        if (corridas.length === 0) return;
-        const rides: ActiveRideWithStage[] = corridas.map((raw: any) => ({
-          id: raw.id,
-          loja: {
-            nome: raw.loja?.nome ?? '–',
-            endereco: raw.loja?.endereco
-              ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}`
-              : '–',
-            bairro: raw.loja?.endereco?.bairro ?? '–',
-          },
-          cliente: {
-            nome: raw.consumidor?.nome ?? 'Cliente',
-            telefone: raw.consumidor?.telefone ?? undefined,
-            endereco: raw.enderecoEntrega
-              ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}`
-              : '–',
-            bairro: raw.enderecoEntrega?.bairro ?? '–',
-          },
-          ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
-          distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
-          duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
-          codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),
-          stage: raw.status === 'saiu_entrega' ? 'to-customer' : 'to-store',
-        }));
         setActiveRides((prev) => {
-          const existingIds = new Set(prev.map((r) => r.id));
-          const newRides = rides.filter((r) => !existingIds.has(r.id));
-          return [...prev, ...newRides];
+          const prevById = new Map(prev.map((r) => [r.id, r]));
+          return corridas.map((raw: any) => {
+            const existing = prevById.get(raw.id);
+            return {
+              id: raw.id,
+              loja: {
+                nome: raw.loja?.nome ?? '–',
+                endereco: raw.loja?.endereco
+                  ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}`
+                  : '–',
+                bairro: raw.loja?.endereco?.bairro ?? '–',
+              },
+              cliente: {
+                nome: raw.consumidor?.nome ?? 'Cliente',
+                telefone: raw.consumidor?.telefone ?? undefined,
+                endereco: raw.enderecoEntrega
+                  ? `${raw.enderecoEntrega.rua}, ${raw.enderecoEntrega.numero}`
+                  : '–',
+                bairro: raw.enderecoEntrega?.bairro ?? '–',
+              },
+              ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
+              distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
+              duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
+              codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),
+              stage:
+                existing?.stage ?? (raw.status === 'saiu_entrega' ? 'to-customer' : 'to-store'),
+            };
+          });
         });
       })
       .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    refreshActiveRides();
+  }, [refreshActiveRides]);
 
   const selectedRide = activeRides.find((r) => r.id === selectedRideId) ?? null;
 
@@ -252,6 +260,9 @@ export function CourierApp() {
     setSelectedRideId(null);
     setScreen('main');
     setTab(remaining.length > 0 ? 'entregas' : 'ganhos');
+    // Re-sincroniza com o backend (confirma a remoção da entrega concluída e
+    // pega qualquer mudança feita em outro dispositivo).
+    refreshActiveRides();
   };
 
   const handleSelectRide = (ride: ActiveRideWithStage) => {
@@ -275,7 +286,8 @@ export function CourierApp() {
   if (screen === 'dados-bancarios')
     return <DadosBancariosScreen onBack={() => setScreen('main')} />;
   if (screen === 'notificacoes') return <NotificacoesScreen onBack={() => setScreen('main')} />;
-  if (screen === 'avaliacoes') return <AvaliacoesScreenEntregador onBack={() => setScreen('main')} />;
+  if (screen === 'avaliacoes')
+    return <AvaliacoesScreenEntregador onBack={() => setScreen('main')} />;
   if (screen === 'seguranca') return <SegurancaScreen onBack={() => setScreen('main')} />;
   if (screen === 'veiculo') return <VeiculoScreen onBack={() => setScreen('main')} />;
   if (screen === 'conversas')
