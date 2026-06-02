@@ -22,3 +22,7 @@ yarn-error.*
 *.tsbuildinfo
 /ios
 /android
+
+# pnpm workspace — npm/yarn locks not allowed (causes EAS Build to use the wrong installer)
+package-lock.json
+yarn.lock
