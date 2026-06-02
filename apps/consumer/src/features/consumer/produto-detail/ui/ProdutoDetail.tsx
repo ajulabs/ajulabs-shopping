@@ -306,19 +306,22 @@ export function VariacoesSelector({
   );
 }
 
-// Fallback de tamanhos sem variações reais (comportamento legado)
+// Fallback de tamanhos sem variações reais — seleção controlada pelo pai
 function TabelaTamanhoSimples({
   opcoes,
+  selecionado,
+  onSelecionar,
   isDark,
   text,
   borderL,
 }: {
   opcoes: string[];
+  selecionado: string | null;
+  onSelecionar: (op: string | null) => void;
   isDark: boolean;
   text: string;
   borderL: string;
 }) {
-  const [selecionado, setSelecionado] = useState<string | null>(null);
   return (
     <View>
       <Text style={[styles.tamanhoLabel, { color: text }]}>Tamanho:</Text>
@@ -339,7 +342,7 @@ function TabelaTamanhoSimples({
                   borderColor: ativo ? colors.navy : borderL,
                 },
               ]}
-              onPress={() => setSelecionado(ativo ? null : op)}
+              onPress={() => onSelecionar(ativo ? null : op)}
               activeOpacity={0.75}
             >
               <Text style={[styles.tamanhoTxt, { color: ativo ? colors.n0 : text }]}>{op}</Text>
@@ -551,6 +554,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
   const [added, setAdded] = useState(false);
   const [mostrarTodasAv, setMostrarTodasAv] = useState(false);
   const [variacaoSelecionada, setVariacaoSelecionada] = useState<VariacaoProduto | null>(null);
+  const [tamanhoFallbackSelecionado, setTamanhoFallbackSelecionado] = useState<string | null>(null);
 
   const precoExibido =
     variacaoSelecionada?.preco != null ? variacaoSelecionada.preco : (produto?.preco ?? 0);
@@ -562,6 +566,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
     setLoading(true);
     setAdded(false);
     setVariacaoSelecionada(null);
+    setTamanhoFallbackSelecionado(null);
     ProdutoService.buscarPorId(produtoId).then(async (p) => {
       if (!p) {
         setLoading(false);
@@ -686,8 +691,11 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
     : 0;
   const avsVisiveis = mostrarTodasAv ? avaliacoes : avaliacoes.slice(0, 3);
 
-  // Botão de add: desabilitado se produto tem variações mas nenhuma selecionada
-  const podeContinuar = produto.disponivel && (!hasVariacoes || variacaoSelecionada !== null);
+  // Botão de add: desabilitado se há variações ou tamanhos de fallback sem seleção
+  const podeContinuar =
+    produto.disponivel &&
+    (!hasVariacoes || variacaoSelecionada !== null) &&
+    (tamanhosFallback.length === 0 || tamanhoFallbackSelecionado !== null);
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
@@ -788,11 +796,13 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
             </View>
           )}
 
-          {/* Fallback: tamanhos inferidos por categoria */}
+          {/* Fallback: tamanhos inferidos por categoria — seleção obrigatória */}
           {!hasVariacoes && tamanhosFallback.length > 0 && (
             <View style={[styles.tamanhoSection, { borderTopColor: borderL as string }]}>
               <TabelaTamanhoSimples
                 opcoes={tamanhosFallback}
+                selecionado={tamanhoFallbackSelecionado}
+                onSelecionar={setTamanhoFallbackSelecionado}
                 isDark={isDark}
                 text={text}
                 borderL={borderL as string}
@@ -914,8 +924,9 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
 
       {/* Footer fixo */}
       <View style={[styles.footer, { backgroundColor: surf, borderTopColor: borderL as string }]}>
-        {hasVariacoes && !variacaoSelecionada && (
-          <Text style={styles.variacaoHint}>Selecione as opções para adicionar ao carrinho</Text>
+        {((hasVariacoes && !variacaoSelecionada) ||
+          (tamanhosFallback.length > 0 && !tamanhoFallbackSelecionado)) && (
+          <Text style={styles.variacaoHint}>Selecione o tamanho para adicionar ao carrinho</Text>
         )}
         <Animated.View style={[{ flex: 1 }, { transform: [{ scale: addScale }] }]}>
           <TouchableOpacity

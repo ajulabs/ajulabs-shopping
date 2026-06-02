@@ -1,5 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Pressable, ActivityIndicator, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Animated,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LojaService, ProdutoService, FavoritoLojaService } from '@ajulabs/api-client';
@@ -33,9 +43,7 @@ function BannerImg({ uri }: { uri: string }) {
   if (error || !uri) {
     return <View style={[styles.banner, { backgroundColor: colors.orange100 }]} />;
   }
-  return (
-    <Image source={{ uri }} style={styles.banner} onError={() => setError(true)} />
-  );
+  return <Image source={{ uri }} style={styles.banner} onError={() => setError(true)} />;
 }
 
 export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
@@ -45,9 +53,9 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [favoritado, setFavoritado] = useState(false);
-  const cachearLoja = useCartStore(s => s.cachearLoja);
-  const adicionar = useCartStore(s => s.adicionar);
-  const token = useAuthStore(s => s.token);
+  const cachearLoja = useCartStore((s) => s.cachearLoja);
+  const adicionar = useCartStore((s) => s.adicionar);
+  const token = useAuthStore((s) => s.token);
   const heartScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -60,18 +68,23 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
       LojaService.buscarPorId(lojaId),
       ProdutoService.listarPorLoja(lojaId).catch(() => [] as Produto[]),
       token ? FavoritoLojaService.checar(lojaId, token) : Promise.resolve(false),
-    ]).then(([l, p, fav]) => {
-      if (l) {
-        setLoja(l);
-        cachearLoja(l);
-      }
-      setProdutos(p);
-      setFavoritado(fav as boolean);
-    }).finally(() => setLoading(false));
+    ])
+      .then(([l, p, fav]) => {
+        if (l) {
+          setLoja(l);
+          cachearLoja(l);
+        }
+        setProdutos(p);
+        setFavoritado(fav as boolean);
+      })
+      .finally(() => setLoading(false));
   }, [lojaId]);
 
   const handleFavorito = useCallback(async () => {
-    if (!token) { router.push('/(auth)/login'); return; }
+    if (!token) {
+      router.push('/(auth)/login');
+      return;
+    }
     const novo = !favoritado;
     setFavoritado(novo);
     Animated.sequence([
@@ -82,20 +95,30 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
     else await FavoritoLojaService.desfavoritar(lojaId, token);
   }, [favoritado, token, lojaId]);
 
-  const handleAddToCart = useCallback((produtoId: string) => {
-    const produto = produtos.find(p => p.id === produtoId);
-    if (produto) adicionar(produto);
-  }, [produtos, adicionar]);
+  const handleAddToCart = useCallback(
+    (produtoId: string) => {
+      const produto = produtos.find((p) => p.id === produtoId);
+      if (!produto) return;
+      if ((produto.variacoes?.length ?? 0) > 0) return; // variação obrigatória: ProdutoCard já redireciona para PDP
+      adicionar(produto);
+    },
+    [produtos, adicionar],
+  );
 
   const textColor = dark ? colors.n0 : colors.navy;
-  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const bgMain    = dark ? colors.bgDark : '#FAFBFE';
-  const surface   = dark ? colors.surfDark : colors.n0;
-  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const bgMain = dark ? colors.bgDark : '#FAFBFE';
+  const surface = dark ? colors.surfDark : colors.n0;
+  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: bgMain, alignItems: 'center', justifyContent: 'center' }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: bgMain, alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
         <ActivityIndicator size="large" color={colors.orange} />
       </View>
     );
@@ -103,28 +126,38 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
 
   if (!loja) {
     return (
-      <View style={[styles.container, { backgroundColor: bgMain, alignItems: 'center', justifyContent: 'center' }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: bgMain, alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
         <Text style={{ color: textColor, fontSize: 16 }}>Loja não encontrada.</Text>
-        <TouchableOpacity onPress={() => router.push('/(consumer)/vitrines')} style={{ marginTop: 12 }}>
+        <TouchableOpacity
+          onPress={() => router.push('/(consumer)/vitrines')}
+          style={{ marginTop: 12 }}
+        >
           <Text style={{ color: colors.orange, fontWeight: '600' }}>Voltar</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const cats = ['Todos', ...Array.from(new Set(produtos.map(p => p.categoria)))];
-  const produtosFiltrados = catSelecionada === 'Todos'
-    ? produtos
-    : produtos.filter(p => p.categoria === catSelecionada);
+  const cats = ['Todos', ...Array.from(new Set(produtos.map((p) => p.categoria)))];
+  const produtosFiltrados =
+    catSelecionada === 'Todos' ? produtos : produtos.filter((p) => p.categoria === catSelecionada);
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-
         <View style={styles.bannerWrapper}>
           <BannerImg uri={loja.imagem} />
           <View style={styles.bannerGradient} />
-          <TouchableOpacity style={styles.btnBack} onPress={() => router.push('/(consumer)/vitrines')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.btnBack}
+            onPress={() => router.push('/(consumer)/vitrines')}
+            activeOpacity={0.85}
+          >
             <Ionicons name="chevron-back" size={20} color={colors.navy} />
           </TouchableOpacity>
           <Animated.View style={[styles.btnHeart, { transform: [{ scale: heartScale }] }]}>
@@ -149,7 +182,10 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
                   <Stars value={loja.avaliacao} />
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: textColor }}> {loja.avaliacao}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: textColor }}>
+                    {' '}
+                    {loja.avaliacao}
+                  </Text>
                   <Text style={{ fontSize: 11, color: subColor }}>({loja.totalAvaliacoes})</Text>
                 </View>
               </View>
@@ -162,10 +198,17 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
                   {loja.tempoEntregaMin}–{loja.tempoEntregaMax} min
                 </Text>
               </View>
-              <View style={[styles.badge, { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : colors.n100 }]}>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : colors.n100 },
+                ]}
+              >
                 <Ionicons name="cube-outline" size={12} color={textColor} />
                 <Text style={[styles.badgeText, { color: textColor }]}>
-                  {loja.taxaEntrega === 0 ? 'Frete grátis' : `R$ ${loja.taxaEntrega.toFixed(2).replace('.', ',')}`}
+                  {loja.taxaEntrega === 0
+                    ? 'Frete grátis'
+                    : `R$ ${loja.taxaEntrega.toFixed(2).replace('.', ',')}`}
                 </Text>
               </View>
               {!loja.aberta && (
@@ -186,26 +229,39 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {cats.map(cat => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+        >
+          {cats.map((cat) => {
             const ativo = cat === catSelecionada;
             return (
               <Pressable
                 key={cat}
                 onPress={() => setCatSelecionada(cat)}
-                style={[styles.chip, {
-                  backgroundColor: ativo ? colors.navy : (dark ? 'rgba(255,255,255,0.06)' : colors.n0),
-                  borderColor: ativo ? colors.navy : border,
-                }]}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: ativo
+                      ? colors.navy
+                      : dark
+                        ? 'rgba(255,255,255,0.06)'
+                        : colors.n0,
+                    borderColor: ativo ? colors.navy : border,
+                  },
+                ]}
               >
-                <Text style={[styles.chipText, { color: ativo ? colors.n0 : textColor }]}>{cat}</Text>
+                <Text style={[styles.chipText, { color: ativo ? colors.n0 : textColor }]}>
+                  {cat}
+                </Text>
               </Pressable>
             );
           })}
         </ScrollView>
 
         <View style={styles.grid}>
-          {produtosFiltrados.map(p => (
+          {produtosFiltrados.map((p) => (
             <View key={p.id} style={styles.gridItem}>
               <ProdutoCard produto={p} onAdd={handleAddToCart} dark={dark} />
             </View>
@@ -222,39 +278,84 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
 }
 
 const styles = StyleSheet.create({
-  container:       { flex: 1 },
-  bannerWrapper:   { height: 180, position: 'relative' },
-  banner:          { width: '100%', height: 180 },
-  bannerGradient:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                     backgroundColor: 'rgba(0,9,51,0.4)' },
-  btnBack:         { position: 'absolute', top: 44, left: 14, width: 38, height: 38,
-                     borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.95)',
-                     alignItems: 'center', justifyContent: 'center' },
-  btnHeart:        { position: 'absolute', top: 44, right: 14, width: 38, height: 38,
-                     borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.95)',
-                     alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1 },
+  bannerWrapper: { height: 180, position: 'relative' },
+  banner: { width: '100%', height: 180 },
+  bannerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,9,51,0.4)',
+  },
+  btnBack: {
+    position: 'absolute',
+    top: 44,
+    left: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnHeart: {
+    position: 'absolute',
+    top: 44,
+    right: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   infoCardWrapper: { marginHorizontal: 16, marginTop: -40, zIndex: 1 },
-  infoCard:        { borderRadius: 20, padding: 16, borderWidth: 1,
-                     shadowColor: '#000933', shadowOffset: { width: 0, height: 8 },
-                     shadowOpacity: 0.08, shadowRadius: 24, elevation: 4 },
-  infoTop:         { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  avatar:          { width: 52, height: 52, borderRadius: 12 },
-  lojaNome:        { fontWeight: '700', fontSize: 18, letterSpacing: -0.3, lineHeight: 22 },
-  lojaCategoria:   { fontSize: 12, marginTop: 2 },
-  badgesRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14 },
-  badge:           { flexDirection: 'row', alignItems: 'center', gap: 4,
-                     paddingHorizontal: 8, paddingVertical: 5, borderRadius: 99 },
-  badgeText:       { fontSize: 11.5, fontWeight: '600' },
-  btnAju:          { marginTop: 14, paddingVertical: 10, borderRadius: 12,
-                     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                     backgroundColor: colors.orange,
-                     shadowColor: colors.orange, shadowOffset: { width: 0, height: 4 },
-                     shadowOpacity: 0.3, shadowRadius: 14, elevation: 4 },
-  btnAjuText:      { color: colors.n0, fontSize: 13.5, fontWeight: '600' },
-  chips:           { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, gap: 8 },
-  chip:            { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 99, borderWidth: 1 },
-  chipText:        { fontSize: 13, fontWeight: '600' },
-  grid:            { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12 },
-  gridItem:        { width: '47%' },
-  vazio:           { textAlign: 'center', marginTop: 40, fontSize: 14, width: '100%' },
+  infoCard: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    shadowColor: '#000933',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  infoTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  avatar: { width: 52, height: 52, borderRadius: 12 },
+  lojaNome: { fontWeight: '700', fontSize: 18, letterSpacing: -0.3, lineHeight: 22 },
+  lojaCategoria: { fontSize: 12, marginTop: 2 },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 99,
+  },
+  badgeText: { fontSize: 11.5, fontWeight: '600' },
+  btnAju: {
+    marginTop: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.orange,
+    shadowColor: colors.orange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  btnAjuText: { color: colors.n0, fontSize: 13.5, fontWeight: '600' },
+  chips: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, gap: 8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 99, borderWidth: 1 },
+  chipText: { fontSize: 13, fontWeight: '600' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12 },
+  gridItem: { width: '47%' },
+  vazio: { textAlign: 'center', marginTop: 40, fontSize: 14, width: '100%' },
 });

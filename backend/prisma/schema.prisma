@@ -293,9 +293,10 @@ model Loja {
   tempoEntregaMax    Int      @map("tempo_entrega_max")
   taxaEntrega        Decimal  @map("taxa_entrega") @db.Decimal(10, 2)
   aberta             Boolean  @default(true)
-  aceitaAgendamento  Boolean  @default(false) @map("aceita_agendamento")
-  antecedenciaMinima Int?     @map("antecedencia_minima")
-  criadoEm           DateTime @default(now()) @map("criado_em")
+  aceitaAgendamento       Boolean  @default(false) @map("aceita_agendamento")
+  antecedenciaMinima      Int?     @map("antecedencia_minima")
+  cancelamentosAposAceite Int      @default(0) @map("cancelamentos_apos_aceite")
+  criadoEm                DateTime @default(now()) @map("criado_em")
   atualizadoEm       DateTime @updatedAt @map("atualizado_em")
 
   lojista              Lojista                @relation(fields: [lojistaId], references: [id], onDelete: Cascade)
@@ -471,6 +472,12 @@ enum StatusPedido {
   cancelado
 }
 
+enum CancelamentoPor {
+  consumidor
+  lojista
+  admin
+}
+
 enum MetodoPagamento {
   pix
   cartao
@@ -489,10 +496,13 @@ model Pedido {
   desconto          Decimal         @default(0) @db.Decimal(10, 2)
   total             Decimal         @db.Decimal(10, 2)
   obs               String?
-  codigoEntrega     String?         @map("codigo_entrega")
-  estimativaEntrega DateTime?       @map("estimativa_entrega")
-  avaliado          Boolean         @default(false)
-  criadoEm          DateTime        @default(now()) @map("criado_em")
+  codigoEntrega          String?          @map("codigo_entrega")
+  estimativaEntrega      DateTime?        @map("estimativa_entrega")
+  avaliado               Boolean          @default(false)
+  canceladoPor           CancelamentoPor? @map("cancelado_por")
+  motivoCancelamento     String?          @map("motivo_cancelamento")
+  penalizouLojista       Boolean          @default(false) @map("penalizou_lojista")
+  criadoEm               DateTime         @default(now()) @map("criado_em")
   atualizadoEm      DateTime        @updatedAt @map("atualizado_em")
 
   consumidor          Usuario                 @relation(fields: [consumidorId], references: [id])

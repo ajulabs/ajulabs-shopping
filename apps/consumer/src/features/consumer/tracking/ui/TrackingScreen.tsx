@@ -43,6 +43,9 @@ export function TrackingScreen({ pedidoId }: Props) {
   const [showConfirmada, setShowConfirmada] = useState(false);
   const [showAvaliacao, setShowAvaliacao] = useState(false);
   const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
+  const [erroCancelar, setErroCancelar] = useState<string | null>(null);
   const statusAnterior = useRef<string | null>(null);
   const modalDisparado = useRef(false);
 
@@ -107,6 +110,20 @@ export function TrackingScreen({ pedidoId }: Props) {
       // silently fail — user can retry via histórico later
     } finally {
       setEnviandoAvaliacao(false);
+    }
+  }
+
+  async function confirmarCancelamento() {
+    if (!token || !pedido) return;
+    setCancelando(true);
+    setErroCancelar(null);
+    try {
+      await PedidoService.cancelar(pedido.id, token);
+      setConfirmandoCancelar(false);
+      setPedido((prev) => (prev ? { ...prev, status: 'cancelado' } : prev));
+    } catch (e: unknown) {
+      setErroCancelar(e instanceof Error ? e.message : 'Erro ao cancelar. Tente novamente.');
+      setCancelando(false);
     }
   }
 
@@ -334,6 +351,54 @@ export function TrackingScreen({ pedidoId }: Props) {
             </Text>
           </View>
         </View>
+
+        {pedido.status === 'aguardando' && !confirmandoCancelar && (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => {
+              setErroCancelar(null);
+              setConfirmandoCancelar(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close-circle-outline" size={18} color="#A32D2D" />
+            <Text style={styles.cancelBtnTxt}>Cancelar pedido</Text>
+          </TouchableOpacity>
+        )}
+
+        {pedido.status === 'aguardando' && confirmandoCancelar && (
+          <View style={styles.cancelConfirmBox}>
+            <Text style={styles.cancelConfirmTxt}>
+              Tem certeza? O pedido ainda não foi aceito pela loja e será cancelado sem custo.
+            </Text>
+            {erroCancelar && <Text style={styles.cancelErrTxt}>{erroCancelar}</Text>}
+            <View style={styles.cancelConfirmBtns}>
+              <TouchableOpacity
+                style={styles.cancelConfirmVoltarBtn}
+                onPress={() => {
+                  setConfirmandoCancelar(false);
+                  setErroCancelar(null);
+                }}
+                disabled={cancelando}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelConfirmVoltarTxt}>Voltar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.cancelConfirmOkBtn, cancelando && { opacity: 0.6 }]}
+                onPress={confirmarCancelamento}
+                disabled={cancelando}
+                activeOpacity={0.8}
+              >
+                {cancelando ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.cancelConfirmOkTxt}>Sim, cancelar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <EntregaConfirmadaModal
@@ -540,6 +605,49 @@ const styles = StyleSheet.create({
   },
   enderecoTitulo: { fontSize: 12, fontWeight: '600' },
   enderecoTxt: { fontSize: 12, marginTop: 2 },
+
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#F4CCCC',
+    backgroundColor: '#FCEBEB',
+  },
+  cancelBtnTxt: { fontSize: 14, fontWeight: '700', color: '#A32D2D' },
+  cancelConfirmBox: {
+    marginTop: 4,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#F4CCCC',
+    backgroundColor: '#FCEBEB',
+    padding: 16,
+    gap: 12,
+  },
+  cancelConfirmTxt: { fontSize: 13, color: '#A32D2D', lineHeight: 20, textAlign: 'center' },
+  cancelErrTxt: { fontSize: 12, color: '#A32D2D', fontWeight: '600', textAlign: 'center' },
+  cancelConfirmBtns: { flexDirection: 'row', gap: 10 },
+  cancelConfirmVoltarBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#F4CCCC',
+    alignItems: 'center',
+  },
+  cancelConfirmVoltarTxt: { fontSize: 13, fontWeight: '700', color: '#A32D2D' },
+  cancelConfirmOkBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#A32D2D',
+    alignItems: 'center',
+  },
+  cancelConfirmOkTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   chatBubbleBtn: {
     width: 34,
