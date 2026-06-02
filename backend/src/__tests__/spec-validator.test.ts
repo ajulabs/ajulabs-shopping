@@ -58,6 +58,9 @@ vi.mock('../middleware/auth', () => ({
   authUsuario: (_r: unknown, _s: unknown, n: () => void) => n(),
   authLojista: (_r: unknown, _s: unknown, n: () => void) => n(),
   authEntregador: (_r: unknown, _s: unknown, n: () => void) => n(),
+  authColaborador: (_r: unknown, _s: unknown, n: () => void) => n(),
+  authLojistaOrColaborador: (_r: unknown, _s: unknown, n: () => void) => n(),
+  requirePapel: () => (_r: unknown, _s: unknown, n: () => void) => n(),
 }));
 
 const { app } = await import('../app');

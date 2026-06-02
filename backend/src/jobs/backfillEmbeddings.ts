@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma';
 import { embedirProduto } from '../utils/embeddings';
+import { logger } from '../lib/logger';
 
 export async function backfillEmbeddings(): Promise<void> {
   const sem_embedding = await prisma.$queryRaw<{ id: string }[]>`
@@ -7,20 +8,20 @@ export async function backfillEmbeddings(): Promise<void> {
   `;
 
   if (sem_embedding.length === 0) {
-    console.log('[backfill] todos os produtos já têm embedding');
+    logger.info('[backfill] todos os produtos já têm embedding');
     return;
   }
 
-  console.log(`[backfill] ${sem_embedding.length} produto(s) sem embedding — iniciando...`);
+  logger.info(`[backfill] ${sem_embedding.length} produto(s) sem embedding — iniciando...`);
 
   for (const { id } of sem_embedding) {
     try {
       await embedirProduto(id);
-      console.log(`[backfill] ✓ ${id}`);
+      logger.info(`[backfill] ✓ ${id}`);
     } catch (err) {
-      console.error(`[backfill] ✗ ${id}:`, err);
+      logger.error({ err }, `[backfill] ✗ ${id}`);
     }
   }
 
-  console.log('[backfill] concluído');
+  logger.info('[backfill] concluído');
 }

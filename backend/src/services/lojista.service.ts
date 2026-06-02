@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { TicketStatus } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { uploadImagemProduto, uploadImagemLoja } from '../utils/supabase';
 import { embedirProduto } from '../utils/embeddings';
@@ -590,7 +591,7 @@ export async function updateTicketStatus(ticketId: string, lojistaId: string, st
 
   const atualizado = await prisma.supportTicket.update({
     where: { id: ticketId },
-    data: { status, ...(status === 'resolvido' && { urgente: false }) },
+    data: { status: status as TicketStatus, ...(status === 'resolvido' ? { urgente: false } : {}) },
   });
 
   emitTicketStatus(ticket.consumidorId, ticketId, status);

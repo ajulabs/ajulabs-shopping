@@ -41,10 +41,10 @@ export function criarWebSocketServer(httpServer: HttpServer): SocketServer {
     const { id, tipo } = socket.data.user;
 
     // Cada usuário/lojista entra na sua sala privada
-    socket.join(`${tipo}:${id}`);
+    void socket.join(`${tipo}:${id}`);
 
     socket.on('disconnect', () => {
-      socket.leave(`${tipo}:${id}`);
+      void socket.leave(`${tipo}:${id}`);
     });
   });
 
@@ -66,18 +66,18 @@ export function criarWebSocketServer(httpServer: HttpServer): SocketServer {
   corridasNs.on('connection', (socket: Socket) => {
     const { id, tipo } = socket.data.user;
 
-    socket.join(`${tipo}:${id}`);
+    void socket.join(`${tipo}:${id}`);
 
     // Entregador sinaliza que está online/offline
     socket.on('status', (online: boolean) => {
       socket.data.online = online;
-      if (online) socket.join('entregadores:online');
-      else socket.leave('entregadores:online');
+      if (online) void socket.join('entregadores:online');
+      else void socket.leave('entregadores:online');
     });
 
     socket.on('disconnect', () => {
-      socket.leave(`${tipo}:${id}`);
-      socket.leave('entregadores:online');
+      void socket.leave(`${tipo}:${id}`);
+      void socket.leave('entregadores:online');
     });
   });
 
@@ -89,10 +89,10 @@ export function criarWebSocketServer(httpServer: HttpServer): SocketServer {
 
   notificacoesNs.on('connection', (socket: Socket) => {
     const { id, tipo } = socket.data.user;
-    socket.join(`${tipo}:${id}`);
+    void socket.join(`${tipo}:${id}`);
 
     socket.on('disconnect', () => {
-      socket.leave(`${tipo}:${id}`);
+      void socket.leave(`${tipo}:${id}`);
     });
   });
 

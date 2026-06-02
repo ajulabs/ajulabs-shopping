@@ -4,9 +4,13 @@ import multer from 'multer';
 import { prisma } from '../utils/prisma';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { uploadImagemConsumidor } from '../utils/supabase';
+import { logger } from '../lib/logger';
 
 const router = Router();
-const uploadImagem = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadImagem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 const atualizarPerfilSchema = z.object({
   nome: z.string().min(2).max(100).optional(),
@@ -40,7 +44,7 @@ router.get('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
 
     res.json({ usuario });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[perfil] erro');
     res.status(500).json({ error: 'Erro ao buscar perfil' });
   }
 });
@@ -87,31 +91,37 @@ router.put('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
     res.json({ usuario });
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
-    console.error(error);
+    logger.error({ error }, '[perfil] erro');
     res.status(500).json({ error: 'Erro ao atualizar perfil' });
   }
 });
 
 // PATCH /perfil/avatar - Upload de foto de perfil
-router.patch('/avatar', authMiddleware, authUsuario, uploadImagem.single('avatar'), async (req: AuthRequest, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+router.patch(
+  '/avatar',
+  authMiddleware,
+  authUsuario,
+  uploadImagem.single('avatar'),
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+      }
+
+      const avatarUrl = await uploadImagemConsumidor(req.file.buffer, req.file.mimetype);
+
+      const usuario = await prisma.usuario.update({
+        where: { id: req.user!.id },
+        data: { avatarUrl },
+        select: { avatarUrl: true },
+      });
+
+      res.json({ avatarUrl: usuario.avatarUrl });
+    } catch (error) {
+      logger.error({ error }, '[perfil] erro');
+      res.status(500).json({ error: 'Erro ao atualizar foto de perfil' });
     }
-
-    const avatarUrl = await uploadImagemConsumidor(req.file.buffer, req.file.mimetype);
-
-    const usuario = await prisma.usuario.update({
-      where: { id: req.user!.id },
-      data: { avatarUrl },
-      select: { avatarUrl: true },
-    });
-
-    res.json({ avatarUrl: usuario.avatarUrl });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao atualizar foto de perfil' });
-  }
-});
+  },
+);
 
 export default router;

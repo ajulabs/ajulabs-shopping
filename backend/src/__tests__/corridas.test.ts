@@ -17,6 +17,7 @@ vi.mock('../utils/prisma', () => ({
     entregador: { findUnique: vi.fn(), update: vi.fn() },
     historicoStatusPedido: { create: vi.fn() },
     entregaRealizada: { upsert: vi.fn() },
+    chatPedido: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     solicitacaoSaque: { findMany: vi.fn() },
   },
 }));
@@ -52,6 +53,9 @@ vi.mock('../middleware/auth', () => ({
   authEntregador: (_r: unknown, _s: unknown, n: () => void) => n(),
   authUsuario: (_r: unknown, _s: unknown, n: () => void) => n(),
   authLojista: (_r: unknown, _s: unknown, n: () => void) => n(),
+  authColaborador: (_r: unknown, _s: unknown, n: () => void) => n(),
+  authLojistaOrColaborador: (_r: unknown, _s: unknown, n: () => void) => n(),
+  requirePapel: () => (_r: unknown, _s: unknown, n: () => void) => n(),
 }));
 
 const { prisma } = await import('../utils/prisma');

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../utils/prisma';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -18,29 +19,34 @@ router.get('/produtos', authMiddleware, authUsuario, async (req: AuthRequest, re
       },
     });
 
-    const produtos = favoritos.map(f => f.produto);
+    const produtos = favoritos.map((f) => f.produto);
     res.json({ produtos });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[favoritos] erro');
     res.status(500).json({ error: 'Erro ao buscar favoritos' });
   }
 });
 
-router.get('/produtos/:produtoId/check', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
-  try {
-    const usuarioId = req.user!.id;
-    const { produtoId } = req.params;
+router.get(
+  '/produtos/:produtoId/check',
+  authMiddleware,
+  authUsuario,
+  async (req: AuthRequest, res) => {
+    try {
+      const usuarioId = req.user!.id;
+      const { produtoId } = req.params;
 
-    const favorito = await prisma.favoritoProduto.findUnique({
-      where: { usuarioId_produtoId: { usuarioId, produtoId } },
-    });
+      const favorito = await prisma.favoritoProduto.findUnique({
+        where: { usuarioId_produtoId: { usuarioId, produtoId } },
+      });
 
-    res.json({ favoritado: !!favorito });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao verificar favorito' });
-  }
-});
+      res.json({ favoritado: !!favorito });
+    } catch (error) {
+      logger.error({ error }, '[favoritos] erro');
+      res.status(500).json({ error: 'Erro ao verificar favorito' });
+    }
+  },
+);
 
 router.post('/produtos/:produtoId', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
   try {
@@ -60,26 +66,31 @@ router.post('/produtos/:produtoId', authMiddleware, authUsuario, async (req: Aut
 
     res.status(201).json({ favoritado: true });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[favoritos] erro');
     res.status(500).json({ error: 'Erro ao favoritar produto' });
   }
 });
 
-router.delete('/produtos/:produtoId', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
-  try {
-    const usuarioId = req.user!.id;
-    const { produtoId } = req.params;
+router.delete(
+  '/produtos/:produtoId',
+  authMiddleware,
+  authUsuario,
+  async (req: AuthRequest, res) => {
+    try {
+      const usuarioId = req.user!.id;
+      const { produtoId } = req.params;
 
-    await prisma.favoritoProduto.deleteMany({
-      where: { usuarioId, produtoId },
-    });
+      await prisma.favoritoProduto.deleteMany({
+        where: { usuarioId, produtoId },
+      });
 
-    res.json({ favoritado: false });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao desfavoritar produto' });
-  }
-});
+      res.json({ favoritado: false });
+    } catch (error) {
+      logger.error({ error }, '[favoritos] erro');
+      res.status(500).json({ error: 'Erro ao desfavoritar produto' });
+    }
+  },
+);
 
 // ── Favoritos de Loja ────────────────────────────────────────
 
@@ -97,10 +108,10 @@ router.get('/lojas', authMiddleware, authUsuario, async (req: AuthRequest, res) 
       },
     });
 
-    const lojas = favoritos.map(f => f.loja);
+    const lojas = favoritos.map((f) => f.loja);
     res.json({ lojas });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[favoritos] erro');
     res.status(500).json({ error: 'Erro ao buscar lojas favoritas' });
   }
 });
@@ -116,7 +127,7 @@ router.get('/lojas/:lojaId/check', authMiddleware, authUsuario, async (req: Auth
 
     res.json({ favoritado: !!favorito });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[favoritos] erro');
     res.status(500).json({ error: 'Erro ao verificar favorito' });
   }
 });
@@ -137,7 +148,7 @@ router.post('/lojas/:lojaId', authMiddleware, authUsuario, async (req: AuthReque
 
     res.status(201).json({ favoritado: true });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[favoritos] erro');
     res.status(500).json({ error: 'Erro ao favoritar loja' });
   }
 });
@@ -151,7 +162,7 @@ router.delete('/lojas/:lojaId', authMiddleware, authUsuario, async (req: AuthReq
 
     res.json({ favoritado: false });
   } catch (error) {
-    console.error(error);
+    logger.error({ error }, '[favoritos] erro');
     res.status(500).json({ error: 'Erro ao desfavoritar loja' });
   }
 });
