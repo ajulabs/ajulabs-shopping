@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
 import { formatCPF } from '../lib/formatCPF';
+import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
 import { Field } from './components/Field';
 import { RecoveryModal } from './components/RecoveryModal';
 
@@ -50,7 +51,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           : typeof err === 'string'
             ? err
             : 'CPF ou senha incorretos. Tente novamente.';
-      setError(msg);
+      setError(enrichRateLimit(msg));
     } finally {
       setLoading(false);
     }
