@@ -167,12 +167,18 @@ function OfferSheet({
 interface HomeScreenProps {
   onAcceptRide: (ride: RideData) => void;
   activeRidesCount?: number;
+  online: boolean;
+  onToggleOnline: (v: boolean) => void;
 }
 
-export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenProps) {
+export function HomeScreen({
+  onAcceptRide,
+  activeRidesCount = 0,
+  online,
+  onToggleOnline,
+}: HomeScreenProps) {
   const token = useAuthEntregadorStore((s) => s.token);
   const entregadorId = useAuthEntregadorStore((s) => s.entregadorId);
-  const [online, setOnline] = useState(false);
   const [offer, setOffer] = useState<RideData | null>(null);
   const [countdown, setCountdown] = useState(15);
   const [ganhoHoje, setGanhoHoje] = useState(0);
@@ -246,7 +252,7 @@ export function HomeScreen({ onAcceptRide, activeRidesCount = 0 }: HomeScreenPro
 
   const toggleOnline = useCallback(
     async (value: boolean) => {
-      setOnline(value);
+      onToggleOnline(value);
       setOffer(null);
       if (token) {
         await EntregadorService.atualizarOnline(token, value).catch(() => {});

@@ -16,6 +16,7 @@ import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthEntregadorStore } from '../../../../store';
 import { formatCPF } from '../lib/formatCPF';
 import { Field } from './components/Field';
+import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
 
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
@@ -70,11 +71,13 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
           err.message.includes('fetch') ||
           err.message.includes('Failed'));
       setError(
-        isNetwork
-          ? 'Sem conexão. Verifique sua internet.'
-          : err instanceof Error
-            ? err.message
-            : 'Erro ao enviar.',
+        enrichRateLimit(
+          isNetwork
+            ? 'Sem conexão. Verifique sua internet.'
+            : err instanceof Error
+              ? err.message
+              : 'Erro ao enviar.',
+        ),
       );
     } finally {
       setLoading(false);
@@ -127,11 +130,13 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
           err.message.includes('fetch') ||
           err.message.includes('Failed'));
       setError(
-        isNetwork
-          ? 'Sem conexão. Verifique sua internet.'
-          : err instanceof Error
-            ? err.message
-            : 'Erro ao redefinir senha.',
+        enrichRateLimit(
+          isNetwork
+            ? 'Sem conexão. Verifique sua internet.'
+            : err instanceof Error
+              ? err.message
+              : 'Erro ao redefinir senha.',
+        ),
       );
     } finally {
       setLoading(false);
@@ -463,9 +468,11 @@ export function LoginEntregador({ onLoginSuccess }: LoginEntregadorProps) {
       const msg = e instanceof Error ? e.message : '';
       const isNetwork = msg.includes('Network') || msg.includes('fetch') || msg.includes('Failed');
       setError(
-        isNetwork
-          ? 'Sem conexão com o servidor. Verifique sua internet.'
-          : msg || 'CPF ou senha incorretos. Tente novamente.',
+        enrichRateLimit(
+          isNetwork
+            ? 'Sem conexão com o servidor. Verifique sua internet.'
+            : msg || 'CPF ou senha incorretos. Tente novamente.',
+        ),
       );
     } finally {
       setLoading(false);
