@@ -57,12 +57,14 @@ export function ActiveScreen({
   const [loadingRetirada, setLoadingRetirada] = useState(false);
   const [codigoEntrega, setCodigoEntrega] = useState('');
   const [loadingEntrega, setLoadingEntrega] = useState(false);
+  const [entregaError, setEntregaError] = useState<string | null>(null);
 
   const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [clientCoords, setClientCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocodeDone, setGeocodeDone] = useState(false);
 
   const [navMode, setNavMode] = useState<'internal' | 'external' | null>(null);
+  const [navChoiceOpen, setNavChoiceOpen] = useState(false);
   const [extNavUrl, setExtNavUrl] = useState<string | null>(null);
   const extNavTypeRef = useRef<'gmaps' | 'waze'>('gmaps');
 
@@ -102,6 +104,7 @@ export function ActiveScreen({
 
   useEffect(() => {
     setNavMode(null);
+    setNavChoiceOpen(false);
     setExtNavUrl(null);
   }, [stage]);
 
@@ -116,12 +119,14 @@ export function ActiveScreen({
       ? `${ride.loja.endereco}, ${ride.loja.bairro}`
       : `${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`;
 
-  const showNavChoiceModal = isMoving && geocodeDone && !!destination && navMode === null;
+  const showNavChoiceModal =
+    isMoving && geocodeDone && !!destination && (navMode === null || navChoiceOpen);
 
   const handleOpenExternalNav = useCallback(
     async (type: 'gmaps' | 'waze') => {
       extNavTypeRef.current = type;
       setNavMode('external');
+      setNavChoiceOpen(false);
 
       let origin: string | null = null;
       try {
@@ -254,14 +259,15 @@ export function ActiveScreen({
   const handleConfirmarEntrega = useCallback(async () => {
     if (!token || codigoEntrega.length < 4) return;
     setLoadingEntrega(true);
+    setEntregaError(null);
     try {
       await EntregadorService.confirmarEntrega(token, ride.id, codigoEntrega);
       onFinish();
     } catch (err: any) {
       const msg = err?.message?.includes('incorreto')
-        ? 'Código incorreto. Peça ao cliente para verificar.'
-        : 'Erro ao confirmar. Tente novamente.';
-      Alert.alert('Erro', msg);
+        ? 'Código incorreto. Confira os 4 últimos dígitos do telefone com o cliente.'
+        : 'Não foi possível confirmar. Verifique sua conexão e tente novamente.';
+      setEntregaError(msg);
     } finally {
       setLoadingEntrega(false);
     }
@@ -451,14 +457,24 @@ export function ActiveScreen({
             </View>
             <View style={s.extNavRow}>
               <ExternalNavBadge type={extNavTypeRef.current} />
-              <TouchableOpacity
-                style={s.extNavReopenBtn}
-                onPress={handleReopenExtNav}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="open-outline" size={14} color="#209CEF" />
-                <Text style={s.extNavReopenText}>Reabrir</Text>
-              </TouchableOpacity>
+              <View style={s.extNavActions}>
+                <TouchableOpacity
+                  style={s.extNavSwitchBtn}
+                  onPress={() => setNavChoiceOpen(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="swap-horizontal" size={14} color="#9099B3" />
+                  <Text style={s.extNavSwitchText}>Trocar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.extNavReopenBtn}
+                  onPress={handleReopenExtNav}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="open-outline" size={14} color="#209CEF" />
+                  <Text style={s.extNavReopenText}>Reabrir</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -480,6 +496,17 @@ export function ActiveScreen({
               <Text style={s.navStatVal}>{fmtDist(distanceRemaining)}</Text>
             </View>
           </View>
+        )}
+
+        {isMoving && navMode === 'internal' && (
+          <TouchableOpacity
+            style={s.switchNavBtn}
+            onPress={() => setNavChoiceOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="swap-horizontal" size={15} color="#209CEF" />
+            <Text style={s.switchNavText}>Trocar navegação</Text>
+          </TouchableOpacity>
         )}
 
         {stage === 'to-store' && (navigationStarted || navMode === 'external') && (
@@ -574,6 +601,7 @@ export function ActiveScreen({
               onPress={() => {
                 setStage('to-customer');
                 setCodigoEntrega('');
+                setEntregaError(null);
               }}
               activeOpacity={0.7}
             >
@@ -593,14 +621,23 @@ export function ActiveScreen({
               </Text>
             </View>
             <TextInput
-              style={s.codeInput}
+              style={[s.codeInput, entregaError && s.codeInputError]}
               placeholder="0000"
               placeholderTextColor="#9099B3"
               keyboardType="numeric"
               maxLength={4}
               value={codigoEntrega}
-              onChangeText={(v) => setCodigoEntrega(v.replace(/\D/g, '').slice(0, 4))}
+              onChangeText={(v) => {
+                setCodigoEntrega(v.replace(/\D/g, '').slice(0, 4));
+                if (entregaError) setEntregaError(null);
+              }}
             />
+            {entregaError && (
+              <View style={s.entregaErrorRow}>
+                <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                <Text style={s.entregaErrorText}>{entregaError}</Text>
+              </View>
+            )}
             <TouchableOpacity
               style={[
                 s.ctaBtn,
@@ -628,9 +665,13 @@ export function ActiveScreen({
         visible={showNavChoiceModal}
         destinationName={destName}
         destinationAddress={destAddress}
-        onInternal={() => setNavMode('internal')}
+        onInternal={() => {
+          setNavMode('internal');
+          setNavChoiceOpen(false);
+        }}
         onGoogleMaps={() => handleOpenExternalNav('gmaps')}
         onWaze={() => handleOpenExternalNav('waze')}
+        onClose={navMode !== null ? () => setNavChoiceOpen(false) : undefined}
       />
     </SafeAreaView>
   );
@@ -786,8 +827,22 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  extNavActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  extNavSwitchBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  extNavSwitchText: { fontSize: 13, fontWeight: '700', color: '#9099B3' },
   extNavReopenBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   extNavReopenText: { fontSize: 13, fontWeight: '700', color: '#209CEF' },
+  switchNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  switchNavText: { fontSize: 13, fontWeight: '700', color: '#209CEF' },
   calculatingText: { fontSize: 13, color: '#9099B3', fontWeight: '600' },
   geocodeErrorRow: {
     flexDirection: 'row',
@@ -878,6 +933,20 @@ const s = StyleSheet.create({
     paddingVertical: 16,
     borderWidth: 2,
     borderColor: '#E4E7F1',
+  },
+  codeInputError: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  entregaErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  entregaErrorText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#EF4444',
+    fontWeight: '600',
+    lineHeight: 17,
   },
 
   photoBtn: {
