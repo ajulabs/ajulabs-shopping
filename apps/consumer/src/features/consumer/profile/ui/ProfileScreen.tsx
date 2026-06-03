@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { ProfileHeader } from './ProfileHeader';
@@ -9,6 +10,7 @@ import { useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 
 export function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const [logoutVisible, setLogoutVisible] = useState(false);
@@ -65,7 +67,12 @@ export function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <Text style={[styles.titulo, { color: text }]}>Perfil</Text>
       </View>
 
@@ -142,7 +149,7 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  header: { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1 },
   titulo: { fontSize: 20, fontWeight: '700' },
 
   scroll: { padding: 16, paddingBottom: 40 },

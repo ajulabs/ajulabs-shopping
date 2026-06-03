@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -400,6 +401,7 @@ function StepHorarios({
 const TOTAL_STEPS = 3;
 
 export function OnboardingLoja() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
@@ -484,7 +486,7 @@ export function OnboardingLoja() {
       style={{ flex: 1, backgroundColor: '#fff' }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <View style={s.headerTop}>
           {step > 1 ? (
             <TouchableOpacity
@@ -576,7 +578,6 @@ const s = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
-    paddingTop: 56,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.n100,

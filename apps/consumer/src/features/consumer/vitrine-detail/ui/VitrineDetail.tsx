@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LojaService, ProdutoService, FavoritoLojaService } from '@ajulabs/api-client';
+import { setPendingChatContext } from '../../chat/model/pendingChatContext';
 import { Loja, Produto } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { ProdutoCard } from './ProdutoCard';
@@ -220,7 +221,10 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
 
             <TouchableOpacity
               style={styles.btnAju}
-              onPress={() => router.push('/(consumer)/chat')}
+              onPress={() => {
+                setPendingChatContext({ id: loja.id, nome: loja.nome });
+                router.push('/(consumer)/chat');
+              }}
               activeOpacity={0.85}
             >
               <Ionicons name="chatbubble-ellipses-outline" size={14} color={colors.n0} />

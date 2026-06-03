@@ -471,8 +471,20 @@ export function getSubcatNome(
 }
 
 export function derivarCategoriaString(v: TipoProdutoValue): string {
+  const cat = TIPOS_PRODUTO.find((c) => c.id === v.catId);
+  const subcat = cat?.subcats.find((s) => s.id === v.subcatId);
   const subNome = getSubcatNome(v.catId, v.subcatId, v.specs);
-  return subNome ? `${getCatNome(v.catId)} - ${subNome}` : getCatNome(v.catId);
+
+  const singleSpecValues = (subcat?.specs ?? [])
+    .filter((s) => !s.multiplo)
+    .map((s) => v.specs[s.id]?.[0])
+    .filter((val): val is string => !!val);
+
+  const parts = [getCatNome(v.catId)];
+  if (subNome) parts.push(subNome);
+  parts.push(...singleSpecValues);
+
+  return parts.join(' - ');
 }
 
 export function inferirTipoProduto(data: Record<string, unknown>): TipoProdutoValue | null {
@@ -484,6 +496,7 @@ export function inferirTipoProduto(data: Record<string, unknown>): TipoProdutoVa
   const parts = categoria.split(/\s+-\s+/);
   const catPart = norm(parts[0]);
   const subcatPart = parts[1] ? norm(parts[1]) : null;
+  const singleSpecParts = parts.slice(2).map(norm);
 
   const matchedCat = TIPOS_PRODUTO.find((cat) => {
     const n = norm(cat.nome);
@@ -517,6 +530,16 @@ export function inferirTipoProduto(data: Record<string, unknown>): TipoProdutoVa
         .filter((v): v is string => v !== null);
       if (values.length > 0) specs[spec.id] = values;
     }
+
+    // Recupera specs multiplo:false das partes extras da string de categoria
+    // ex: "Roupas - Masculino - Camisa" → singleSpecParts = ["camisa"]
+    const singleSpecs = matchedSubcat.specs.filter((s) => !s.multiplo);
+    singleSpecParts.forEach((part, idx) => {
+      const spec = singleSpecs[idx];
+      if (!spec || specs[spec.id]) return;
+      const matched = spec.opcoes.find((opt) => norm(opt) === part);
+      if (matched) specs[spec.id] = [matched];
+    });
   }
 
   return {

@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LojistaService } from '@ajulabs/api-client';
 import { Produto, NivelEstoque } from '@ajulabs/types';
 import { useAuthLojistaStore } from '../../auth/model/store';
@@ -74,6 +75,7 @@ interface Props {
 }
 
 export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) {
+  const insets = useSafeAreaInsets();
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const token = useAuthLojistaStore((s) => s.token);
 
@@ -163,7 +165,7 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
   return (
     <View style={s.root}>
       {/* Header com cor do nível */}
-      <View style={[s.header, { backgroundColor: cfg.color }]}>
+      <View style={[s.header, { backgroundColor: cfg.color, paddingTop: insets.top + 12 }]}>
         <TouchableOpacity style={s.backBtn} onPress={onVoltar} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -249,7 +251,6 @@ const s = StyleSheet.create({
 
   /* Header colorido */
   header: {
-    paddingTop: 56,
     paddingBottom: 20,
     paddingHorizontal: 16,
     flexDirection: 'row',

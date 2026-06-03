@@ -22,6 +22,7 @@ import {
   useAuthStore,
 } from '../../../../store';
 import { useTheme } from '../../../../hooks';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { EnderecoService, LojaService } from '@ajulabs/api-client';
@@ -52,6 +53,7 @@ function formatCEP(v: string) {
 }
 
 export function CartScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isDark, bg, surf, border, borderL, text, textSec, backBtn, iconBg, inputBg } = useTheme();
 
@@ -241,7 +243,12 @@ export function CartScreen() {
   if (grupos.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: bg }]}>
-        <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => router.push('/(consumer)/vitrines')}
             style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -278,7 +285,12 @@ export function CartScreen() {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.push('/(consumer)/vitrines')}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -675,7 +687,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 14,
     borderBottomWidth: 1,
   },

@@ -1,6 +1,15 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, FlatList, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { Produto, Loja } from '@ajulabs/types';
@@ -13,10 +22,16 @@ type Aba = 'produtos' | 'lojas';
 
 // ─── Card de produto favorito ─────────────────────────────────
 
-function ProdutoFavoritoCard({ produto, onRemove }: { produto: Produto; onRemove: (id: string) => void }) {
+function ProdutoFavoritoCard({
+  produto,
+  onRemove,
+}: {
+  produto: Produto;
+  onRemove: (id: string) => void;
+}) {
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
-  const adicionar = useCartStore(s => s.adicionar);
+  const token = useAuthStore((s) => s.token);
+  const adicionar = useCartStore((s) => s.adicionar);
   const { surf, borderL, text, textSec } = useTheme();
   const [imgError, setImgError] = useState(false);
 
@@ -45,7 +60,9 @@ function ProdutoFavoritoCard({ produto, onRemove }: { produto: Produto; onRemove
         />
       )}
       <View style={styles.prodInfo}>
-        <Text style={[styles.prodNome, { color: text }]} numberOfLines={2}>{produto.nome}</Text>
+        <Text style={[styles.prodNome, { color: text }]} numberOfLines={2}>
+          {produto.nome}
+        </Text>
         <Text style={[styles.prodCategoria, { color: textSec as string }]} numberOfLines={1}>
           {produto.categoria}
         </Text>
@@ -54,14 +71,15 @@ function ProdutoFavoritoCard({ produto, onRemove }: { produto: Produto; onRemove
         </Text>
         <TouchableOpacity
           style={[styles.btnAdd, !produto.disponivel && { opacity: 0.4 }]}
-          onPress={() => { adicionar(produto); router.push('/(consumer)/carrinho'); }}
+          onPress={() => {
+            adicionar(produto);
+            router.push('/(consumer)/carrinho');
+          }}
           disabled={!produto.disponivel}
           activeOpacity={0.8}
         >
           <Ionicons name="cart-outline" size={13} color={colors.orange600} />
-          <Text style={styles.btnAddTxt}>
-            {produto.disponivel ? 'Adicionar' : 'Indisponível'}
-          </Text>
+          <Text style={styles.btnAddTxt}>{produto.disponivel ? 'Adicionar' : 'Indisponível'}</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.heartBtn} onPress={handleDesfavoritar} hitSlop={8}>
@@ -75,7 +93,7 @@ function ProdutoFavoritoCard({ produto, onRemove }: { produto: Produto; onRemove
 
 function LojaFavoritoCard({ loja, onRemove }: { loja: Loja; onRemove: (id: string) => void }) {
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
+  const token = useAuthStore((s) => s.token);
   const { surf, borderL, text, textSec } = useTheme();
   const [imgError, setImgError] = useState(false);
 
@@ -109,7 +127,9 @@ function LojaFavoritoCard({ loja, onRemove }: { loja: Loja; onRemove: (id: strin
 
       {/* Info */}
       <View style={styles.lojaInfo}>
-        <Text style={[styles.lojaNome, { color: text }]} numberOfLines={1}>{loja.nome}</Text>
+        <Text style={[styles.lojaNome, { color: text }]} numberOfLines={1}>
+          {loja.nome}
+        </Text>
         <Text style={[styles.lojaEndereco, { color: textSec as string }]} numberOfLines={1}>
           {loja.endereco.bairro} · {loja.endereco.cidade}
         </Text>
@@ -124,7 +144,9 @@ function LojaFavoritoCard({ loja, onRemove }: { loja: Loja; onRemove: (id: strin
           <View style={[styles.lojaBadge, { backgroundColor: colors.orange100 }]}>
             <Ionicons name="cube-outline" size={10} color={colors.orange600} />
             <Text style={[styles.lojaBadgeTxt, { color: colors.orange600 }]}>
-              {loja.taxaEntrega === 0 ? 'Frete grátis' : `R$ ${loja.taxaEntrega.toFixed(2).replace('.', ',')}`}
+              {loja.taxaEntrega === 0
+                ? 'Frete grátis'
+                : `R$ ${loja.taxaEntrega.toFixed(2).replace('.', ',')}`}
             </Text>
           </View>
         </View>
@@ -155,8 +177,9 @@ function LojaFavoritoCard({ loja, onRemove }: { loja: Loja; onRemove: (id: strin
 // ─── Tela principal ───────────────────────────────────────────
 
 export default function FavoritosScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const token = useAuthStore(s => s.token);
+  const token = useAuthStore((s) => s.token);
   const [aba, setAba] = useState<Aba>('produtos');
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lojas, setLojas] = useState<Loja[]>([]);
@@ -179,8 +202,9 @@ export default function FavoritosScreen() {
     }, [token]),
   );
 
-  const handleRemoveProduto = (id: string) => setProdutos(prev => prev.filter(p => p.id !== id));
-  const handleRemoveLoja   = (id: string) => setLojas(prev => prev.filter(l => l.id !== id));
+  const handleRemoveProduto = (id: string) =>
+    setProdutos((prev) => prev.filter((p) => p.id !== id));
+  const handleRemoveLoja = (id: string) => setLojas((prev) => prev.filter((l) => l.id !== id));
 
   const tabLabel = (t: Aba) => {
     if (t === 'produtos') return `Produtos${produtos.length ? ` (${produtos.length})` : ''}`;
@@ -206,7 +230,12 @@ export default function FavoritosScreen() {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.navigate('/(consumer)/perfil')}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -218,14 +247,16 @@ export default function FavoritosScreen() {
 
       {/* Tabs */}
       <View style={[styles.tabs, { backgroundColor: surf, borderBottomColor: borderL }]}>
-        {(['produtos', 'lojas'] as Aba[]).map(t => (
+        {(['produtos', 'lojas'] as Aba[]).map((t) => (
           <TouchableOpacity
             key={t}
             style={[styles.tab, aba === t && styles.tabActive]}
             onPress={() => setAba(t)}
             activeOpacity={0.75}
           >
-            <Text style={[styles.tabTxt, { color: aba === t ? colors.orange : (textSec as string) }]}>
+            <Text
+              style={[styles.tabTxt, { color: aba === t ? colors.orange : (textSec as string) }]}
+            >
               {tabLabel(t)}
             </Text>
           </TouchableOpacity>
@@ -233,11 +264,16 @@ export default function FavoritosScreen() {
       </View>
 
       {/* ── Aba Produtos */}
-      {aba === 'produtos' && (
-        !token ? (
-          <Vazio mensagem="Faça login para ver favoritos" sub="Entre na sua conta para salvar produtos" />
+      {aba === 'produtos' &&
+        (!token ? (
+          <Vazio
+            mensagem="Faça login para ver favoritos"
+            sub="Entre na sua conta para salvar produtos"
+          />
         ) : loadingProd ? (
-          <View style={styles.center}><ActivityIndicator size="large" color={colors.orange} /></View>
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.orange} />
+          </View>
         ) : produtos.length === 0 ? (
           <Vazio
             mensagem="Nenhum produto favoritado"
@@ -246,22 +282,26 @@ export default function FavoritosScreen() {
         ) : (
           <FlatList
             data={produtos}
-            keyExtractor={p => p.id}
+            keyExtractor={(p) => p.id}
             renderItem={({ item }) => (
               <ProdutoFavoritoCard produto={item} onRemove={handleRemoveProduto} />
             )}
             contentContainerStyle={{ padding: 16, gap: 12 }}
             showsVerticalScrollIndicator={false}
           />
-        )
-      )}
+        ))}
 
       {/* ── Aba Lojas */}
-      {aba === 'lojas' && (
-        !token ? (
-          <Vazio mensagem="Faça login para ver favoritos" sub="Entre na sua conta para salvar lojas" />
+      {aba === 'lojas' &&
+        (!token ? (
+          <Vazio
+            mensagem="Faça login para ver favoritos"
+            sub="Entre na sua conta para salvar lojas"
+          />
         ) : loadingLojas ? (
-          <View style={styles.center}><ActivityIndicator size="large" color={colors.orange} /></View>
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.orange} />
+          </View>
         ) : lojas.length === 0 ? (
           <Vazio
             mensagem="Nenhuma loja favoritada"
@@ -270,15 +310,12 @@ export default function FavoritosScreen() {
         ) : (
           <FlatList
             data={lojas}
-            keyExtractor={l => l.id}
-            renderItem={({ item }) => (
-              <LojaFavoritoCard loja={item} onRemove={handleRemoveLoja} />
-            )}
+            keyExtractor={(l) => l.id}
+            renderItem={({ item }) => <LojaFavoritoCard loja={item} onRemove={handleRemoveLoja} />}
             contentContainerStyle={{ padding: 16, gap: 12 }}
             showsVerticalScrollIndicator={false}
           />
-        )
-      )}
+        ))}
     </View>
   );
 }
@@ -286,60 +323,107 @@ export default function FavoritosScreen() {
 // ─── Estilos ──────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:           { flex: 1 },
-  center:              { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header:              { flexDirection: 'row', alignItems: 'center', gap: 12,
-                         paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
-                         borderBottomWidth: 1 },
-  btnBack:             { width: 38, height: 38, borderRadius: 19,
-                         alignItems: 'center', justifyContent: 'center' },
-  titulo:              { fontSize: 20, fontWeight: '700' },
-  tabs:                { flexDirection: 'row', borderBottomWidth: 1 },
-  tab:                 { flex: 1, paddingVertical: 14, alignItems: 'center',
-                         borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive:           { borderBottomColor: colors.orange },
-  tabTxt:              { fontSize: 14, fontWeight: '600' },
-  vazio:               { flex: 1, alignItems: 'center', justifyContent: 'center',
-                         padding: 32, gap: 10 },
-  vazioTitulo:         { fontSize: 18, fontWeight: '700', marginTop: 8 },
-  vazioTxt:            { fontSize: 13, textAlign: 'center', lineHeight: 20 },
-  btnExplorar:         { marginTop: 12, paddingHorizontal: 28, paddingVertical: 13,
-                         backgroundColor: colors.orange, borderRadius: 14 },
-  btnExplorarTxt:      { color: colors.n0, fontSize: 14, fontWeight: '700' },
-  heartBtn:            { padding: 12, alignSelf: 'flex-start' },
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  btnBack: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titulo: { fontSize: 20, fontWeight: '700' },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1 },
+  tab: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: { borderBottomColor: colors.orange },
+  tabTxt: { fontSize: 14, fontWeight: '600' },
+  vazio: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
+  vazioTitulo: { fontSize: 18, fontWeight: '700', marginTop: 8 },
+  vazioTxt: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  btnExplorar: {
+    marginTop: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 13,
+    backgroundColor: colors.orange,
+    borderRadius: 14,
+  },
+  btnExplorarTxt: { color: colors.n0, fontSize: 14, fontWeight: '700' },
+  heartBtn: { padding: 12, alignSelf: 'flex-start' },
 
   // Produto
-  prodCard:            { flexDirection: 'row', borderRadius: 14, borderWidth: 1,
-                         overflow: 'hidden' },
-  prodImg:             { width: 100, aspectRatio: 1 },
-  prodImgFallback:     { width: 100, aspectRatio: 1, backgroundColor: colors.orange100,
-                         alignItems: 'center', justifyContent: 'center' },
-  prodImgFallbackTxt:  { fontSize: 32, fontWeight: '700', color: colors.orange600 },
-  prodInfo:            { flex: 1, padding: 12, justifyContent: 'space-between' },
-  prodNome:            { fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  prodCategoria:       { fontSize: 11, marginTop: 2 },
-  prodPreco:           { fontSize: 15, fontWeight: '800', marginTop: 4 },
-  btnAdd:              { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 4,
-                         backgroundColor: colors.orange100,
-                         paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
-                         alignSelf: 'flex-start' },
-  btnAddTxt:           { fontSize: 11.5, fontWeight: '600', color: colors.orange600 },
+  prodCard: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  prodImg: { width: 100, aspectRatio: 1 },
+  prodImgFallback: {
+    width: 100,
+    aspectRatio: 1,
+    backgroundColor: colors.orange100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prodImgFallbackTxt: { fontSize: 32, fontWeight: '700', color: colors.orange600 },
+  prodInfo: { flex: 1, padding: 12, justifyContent: 'space-between' },
+  prodNome: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  prodCategoria: { fontSize: 11, marginTop: 2 },
+  prodPreco: { fontSize: 15, fontWeight: '800', marginTop: 4 },
+  btnAdd: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.orange100,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  btnAddTxt: { fontSize: 11.5, fontWeight: '600', color: colors.orange600 },
 
   // Loja
-  lojaCard:            { flexDirection: 'row', borderRadius: 14, borderWidth: 1,
-                         padding: 12, gap: 12, alignItems: 'flex-start' },
-  lojaLogoWrap:        { width: 56, height: 56, borderRadius: 14, overflow: 'hidden',
-                         backgroundColor: colors.orange100 },
-  lojaLogo:            { width: 56, height: 56 },
-  lojaLogoFallback:    { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  lojaCard: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  lojaLogoWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: colors.orange100,
+  },
+  lojaLogo: { width: 56, height: 56 },
+  lojaLogoFallback: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
   lojaLogoFallbackTxt: { fontSize: 22, fontWeight: '700', color: colors.orange600 },
-  lojaInfo:            { flex: 1, gap: 4 },
-  lojaNome:            { fontSize: 14, fontWeight: '700' },
-  lojaEndereco:        { fontSize: 11.5 },
-  lojaBadgesRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  lojaBadge:           { flexDirection: 'row', alignItems: 'center', gap: 3,
-                         paddingHorizontal: 7, paddingVertical: 3, borderRadius: 99 },
-  lojaBadgeTxt:        { fontSize: 10.5, fontWeight: '600' },
-  lojaRatingRow:       { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  lojaRatingTxt:       { fontSize: 11, marginLeft: 2 },
+  lojaInfo: { flex: 1, gap: 4 },
+  lojaNome: { fontSize: 14, fontWeight: '700' },
+  lojaEndereco: { fontSize: 11.5 },
+  lojaBadgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  lojaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  lojaBadgeTxt: { fontSize: 10.5, fontWeight: '600' },
+  lojaRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
+  lojaRatingTxt: { fontSize: 11, marginLeft: 2 },
 });

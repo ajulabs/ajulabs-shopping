@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -62,6 +63,7 @@ interface Props {
 }
 
 export function MovimentacoesScreen({ onVoltar }: Props) {
+  const insets = useSafeAreaInsets();
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const token = useAuthLojistaStore((s) => s.token);
 
@@ -188,7 +190,7 @@ export function MovimentacoesScreen({ onVoltar }: Props) {
   return (
     <View style={s.root}>
       {/* Header */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity style={s.backBtn} onPress={onVoltar} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={20} color={C.sub} />
         </TouchableOpacity>
@@ -275,7 +277,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     paddingHorizontal: 16,
-    paddingTop: 56,
     paddingBottom: 16,
     backgroundColor: C.card,
     borderBottomWidth: 1,

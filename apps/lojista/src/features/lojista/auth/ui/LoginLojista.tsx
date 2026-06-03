@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthLojistaStore } from '../model/store';
 import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
@@ -419,6 +420,7 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
 }
 
 export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const login = useAuthLojistaStore((s) => s.login);
   const [cnpj, setCnpj] = useState('');
@@ -458,7 +460,7 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
   return (
     <View style={styles.container}>
       {/* Topo navy */}
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
         <View style={{ marginBottom: 16 }}>
           <AjuLogo size={52} />
         </View>
@@ -555,7 +557,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.navy },
 
   // Topo
-  top: { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
+  top: { paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   topTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   topSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
 

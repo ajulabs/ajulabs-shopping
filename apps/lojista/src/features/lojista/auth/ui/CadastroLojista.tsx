@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -54,6 +55,7 @@ interface EnderecoLoja {
 }
 
 export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const registrar = useAuthLojistaStore((s) => s.registrar);
   const [loading, setLoading] = useState(false);
@@ -347,7 +349,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
         <View style={{ marginBottom: 16 }}>
           <AjuLogo size={52} />
         </View>
@@ -670,7 +672,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.navy },
-  top: { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
+  top: { paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   topTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   topSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
   card: {
