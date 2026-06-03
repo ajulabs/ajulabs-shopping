@@ -22,13 +22,53 @@ import { colors } from '../../../../theme';
 import { usePermissions } from '../../rbac/hooks/usePermissions';
 import { useAuthLojistaStore } from '../../auth/model/store';
 import { TipoProdutoSelector } from './TipoProdutoSelector';
-import { TipoProdutoValue, derivarCategoriaString } from '../model/tipoProdutos';
+import {
+  TipoProdutoValue,
+  derivarCategoriaString,
+  inferirTipoProduto,
+  TIPOS_PRODUTO,
+} from '../model/tipoProdutos';
 import {
   VariacoesSection,
   VariacaoEstoque,
   gerarCombinacoes,
   syncVariacoes,
 } from './NovoProdutoEditStage';
+
+/**
+ * Infers the product type and reconstructs the selected spec values
+ * (sizes, colors, etc.) by parsing the existing variation names.
+ * Variation names use ' · ' as separator between spec axes, e.g. "P · Preto".
+ */
+function reconstruirTipoProduto(produto: Produto): TipoProdutoValue | null {
+  const base = inferirTipoProduto({ categoria: produto.categoria });
+  if (!base) return null;
+
+  const variacoes = produto.variacoes ?? [];
+  if (!variacoes.length) return base;
+
+  const cat = TIPOS_PRODUTO.find((c) => c.id === base.catId);
+  const subcat = cat?.subcats.find((s) => s.id === base.subcatId);
+  const multiSpecs = (subcat?.specs ?? []).filter((s) => s.multiplo);
+  if (!multiSpecs.length) return base;
+
+  const specsMap: Record<string, Set<string>> = {};
+  for (const v of variacoes) {
+    v.nome.split(' · ').forEach((parte, idx) => {
+      const spec = multiSpecs[idx];
+      if (!spec) return;
+      if (!specsMap[spec.id]) specsMap[spec.id] = new Set();
+      specsMap[spec.id].add(parte);
+    });
+  }
+
+  const specs: Record<string, string[]> = { ...base.specs };
+  for (const [id, vals] of Object.entries(specsMap)) {
+    if (vals.size > 0) specs[id] = Array.from(vals);
+  }
+
+  return { ...base, specs };
+}
 
 export interface EditForm {
   nome: string;
@@ -114,7 +154,7 @@ export function EditProdutoScreen({
     preco: produto.preco.toFixed(2).replace('.', ','),
     estoque: produto.estoque != null ? String(produto.estoque) : '',
     disponivel: produto.disponivel,
-    tipoProduto: null,
+    tipoProduto: reconstruirTipoProduto(produto),
     variacoesEstoque: (produto.variacoes ?? []).map((v) => ({
       nome: v.nome,
       estoque: v.estoque,
@@ -123,8 +163,15 @@ export function EditProdutoScreen({
   });
   const [saving, setSaving] = useState(false);
 
-  // Regenera variações quando o lojista seleciona/altera o tipo de produto na edição
+  const isMounted = useRef(false);
+
+  // Regenera variações quando o lojista seleciona/altera o tipo de produto na edição.
+  // Skips the initial mount so pre-loaded variations are not cleared or reordered.
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
     const nomes = gerarCombinacoes(form.tipoProduto);
     if (nomes.length === 0 && form.variacoesEstoque.length === 0) return;
     const synced = syncVariacoes(nomes, form.variacoesEstoque);
