@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -35,6 +36,7 @@ interface CadastroConsumerProps {
 }
 
 export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const registrar = useAuthStore((s) => s.registrar);
   const [nome, setNome] = useState('');
@@ -325,7 +327,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -673,7 +675,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.navy },
 
-  top: { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
+  top: { paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   backBtn: {
     position: 'absolute',
     top: 52,

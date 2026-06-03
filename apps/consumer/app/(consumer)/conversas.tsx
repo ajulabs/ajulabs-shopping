@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
@@ -25,6 +26,7 @@ function tempoRelativo(iso: string): string {
 }
 
 export default function ConversasScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const { bg, surf, border, borderL, text, textSec, backBtn } = useTheme();
@@ -51,7 +53,12 @@ export default function ConversasScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.navigate('/(consumer)/perfil')}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -122,7 +129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 14,
     borderBottomWidth: 1,
   },

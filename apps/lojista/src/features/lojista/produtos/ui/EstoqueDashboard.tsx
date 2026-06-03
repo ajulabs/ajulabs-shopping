@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { EstoqueService, LojistaService } from '@ajulabs/api-client';
@@ -66,6 +67,7 @@ export function EstoqueDashboard({
   onEditarProduto,
   onDeleteProduto,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const token = useAuthLojistaStore((s) => s.token);
   const { canViewStockValue } = usePermissions();
@@ -159,7 +161,7 @@ export function EstoqueDashboard({
 
   return (
     <View style={s.root}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         {onVoltar ? (
           <TouchableOpacity style={s.iconBtn} onPress={onVoltar} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={20} color={C.text} />
@@ -557,7 +559,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 56,
     paddingBottom: 14,
     backgroundColor: C.card,
     borderBottomWidth: 1,

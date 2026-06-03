@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ const FILTERS: { id: 'todos' | TicketStatus; label: string }[] = [
 ];
 
 export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const canGoBack = router.canGoBack();
   const handleBack = onBack ?? (canGoBack ? () => router.back() : undefined);
@@ -127,7 +129,12 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
 
   return (
     <View style={[s.container, { backgroundColor: bg }]}>
-      <View style={[s.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          s.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <View style={s.tituloRow}>
           {handleBack && (
             <TouchableOpacity onPress={handleBack} style={s.backBtn} activeOpacity={0.7}>
@@ -241,7 +248,7 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 0, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 0, borderBottomWidth: 1 },
   tituloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: {
     width: 34,

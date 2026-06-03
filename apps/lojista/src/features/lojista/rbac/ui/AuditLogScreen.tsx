@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RBACService } from '@ajulabs/api-client';
 import type { AuditLogEntry } from '@ajulabs/types';
 import { colors } from '../../../../theme';
@@ -64,6 +65,7 @@ function formatarData(iso: string) {
 }
 
 export function AuditLogScreen({ onVoltar }: Props) {
+  const insets = useSafeAreaInsets();
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const token = useAuthLojistaStore((s) => s.token);
 
@@ -151,7 +153,7 @@ export function AuditLogScreen({ onVoltar }: Props) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={onVoltar} hitSlop={12} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.navy} />
         </TouchableOpacity>
@@ -266,7 +268,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 20,
     backgroundColor: '#fff',

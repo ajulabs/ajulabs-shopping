@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService, ConsumerTicketService, AvaliacaoService } from '@ajulabs/api-client';
@@ -25,6 +26,7 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').rep
 type Screen = 'list' | 'tickets';
 
 export function OrdersScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
@@ -197,7 +199,12 @@ export function OrdersScreen() {
   if (pedidos.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: bg }]}>
-        <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+          ]}
+        >
           <View style={styles.headerRow}>
             <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
             <TouchableOpacity
@@ -235,7 +242,12 @@ export function OrdersScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <View style={styles.headerRow}>
           <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
           <TouchableOpacity
@@ -290,7 +302,7 @@ export function OrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titulo: { fontSize: 20, fontWeight: '700' },
   subtitulo: { fontSize: 12, marginTop: 2 },

@@ -1,5 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LojaService } from '@ajulabs/api-client';
@@ -15,49 +24,63 @@ interface VitrinasListProps {
 }
 
 export function VitrinesList({ dark = false }: VitrinasListProps) {
+  const insets = useSafeAreaInsets();
   const [busca, setBusca] = useState('');
   const [categoria, setCategoria] = useState('todos');
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const itensPorLoja = useCartStore(s => s.itensPorLoja);
+  const itensPorLoja = useCartStore((s) => s.itensPorLoja);
   const quantidadeItens = useMemo(() => calcularQuantidadeItens(itensPorLoja), [itensPorLoja]);
 
   useEffect(() => {
     LojaService.listar()
-      .then(data => setLojas(data))
+      .then((data) => setLojas(data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const textColor = dark ? colors.n0 : colors.navy;
-  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const bgMain    = dark ? colors.bgDark : '#FAFBFE';
-  const surface   = dark ? colors.surfDark : colors.n0;
-  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const bgMain = dark ? colors.bgDark : '#FAFBFE';
+  const surface = dark ? colors.surfDark : colors.n0;
+  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
   const normCategoria = (s: string) =>
-    s.toLowerCase()
-      .replace(/[àáâãä]/g, 'a').replace(/[èéêë]/g, 'e')
-      .replace(/[ìíîï]/g, 'i').replace(/[òóôõö]/g, 'o')
-      .replace(/[ùúûü]/g, 'u').replace(/[ç]/g, 'c')
+    s
+      .toLowerCase()
+      .replace(/[àáâãä]/g, 'a')
+      .replace(/[èéêë]/g, 'e')
+      .replace(/[ìíîï]/g, 'i')
+      .replace(/[òóôõö]/g, 'o')
+      .replace(/[ùúûü]/g, 'u')
+      .replace(/[ç]/g, 'c')
       .replace(/\s+/g, '');
 
-  const lojasFiltradas = lojas.filter(l => {
-    const buscaOk = busca === '' ||
+  const lojasFiltradas = lojas.filter((l) => {
+    const buscaOk =
+      busca === '' ||
       l.nome.toLowerCase().includes(busca.toLowerCase()) ||
       l.endereco.bairro.toLowerCase().includes(busca.toLowerCase());
     const categoriaOk = categoria === 'todos' || normCategoria(l.categoria) === categoria;
     return buscaOk && categoriaOk;
   });
 
-  const handleAbrirVitrine = useCallback((id: string) => {
-    router.push(`/(consumer)/vitrine/${id}`);
-  }, [router]);
+  const handleAbrirVitrine = useCallback(
+    (id: string) => {
+      router.push(`/(consumer)/vitrine/${id}`);
+    },
+    [router],
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
-      <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surface, borderBottomColor: border, paddingTop: insets.top + 12 },
+        ]}
+      >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.titulo, { color: textColor }]}>Lojas em Aracaju</Text>
@@ -76,10 +99,15 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
             </TouchableOpacity>
           )}
         </View>
-        <View style={[styles.buscaWrapper, {
-          backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50,
-          borderColor: border,
-        }]}>
+        <View
+          style={[
+            styles.buscaWrapper,
+            {
+              backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50,
+              borderColor: border,
+            },
+          ]}
+        >
           <Ionicons name="search-outline" size={16} color={subColor as string} />
           <TextInput
             style={[styles.buscaInput, { color: textColor }]}
@@ -118,7 +146,9 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
               )}
               {lojasFiltradas.length > 0 && (
                 <Text style={[styles.secaoTitulo, { color: textColor }]}>
-                  {categoria === 'todos' ? 'Todas as lojas' : CATEGORIAS.find(c => c.id === categoria)?.label}
+                  {categoria === 'todos'
+                    ? 'Todas as lojas'
+                    : CATEGORIAS.find((c) => c.id === categoria)?.label}
                 </Text>
               )}
             </>
@@ -133,19 +163,38 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
 }
 
 const styles = StyleSheet.create({
-  container:   { flex: 1 },
-  header:      { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 1 },
-  headerRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  titulo:      { fontWeight: '700', fontSize: 22, letterSpacing: -0.3 },
-  subtitulo:   { fontSize: 13, marginTop: 4 },
-  cartBtn:     { flexDirection: 'row', alignItems: 'center', gap: 5,
-                 backgroundColor: colors.orange, paddingHorizontal: 12, paddingVertical: 8,
-                 borderRadius: 99 },
-  cartBadgeTxt:{ color: colors.n0, fontSize: 13, fontWeight: '700' },
-  buscaWrapper:{ flexDirection: 'row', alignItems: 'center', gap: 10,
-                 borderWidth: 1, borderRadius: 14,
-                 paddingHorizontal: 14, paddingVertical: 10, marginTop: 14 },
-  buscaInput:  { flex: 1, fontSize: 14, padding: 0 },
-  secaoTitulo: { fontSize: 14, fontWeight: '700', marginBottom: 4, marginTop: 8, paddingHorizontal: 16 },
-  vazio:       { textAlign: 'center', marginTop: 40, fontSize: 14 },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  titulo: { fontWeight: '700', fontSize: 22, letterSpacing: -0.3 },
+  subtitulo: { fontSize: 13, marginTop: 4 },
+  cartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.orange,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 99,
+  },
+  cartBadgeTxt: { color: colors.n0, fontSize: 13, fontWeight: '700' },
+  buscaWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  buscaInput: { flex: 1, fontSize: 14, padding: 0 },
+  secaoTitulo: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+    marginTop: 8,
+    paddingHorizontal: 16,
+  },
+  vazio: { textAlign: 'center', marginTop: 40, fontSize: 14 },
 });

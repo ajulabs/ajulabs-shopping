@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Produto, AvaliacaoLoja, VariacaoProduto } from '@ajulabs/types';
 import { ProdutoService, AvaliacaoService, FavoritoService } from '@ajulabs/api-client';
 import { colors } from '@ajulabs/theme';
@@ -541,6 +542,7 @@ interface ProdutoDetailProps {
 }
 
 export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isDark, bg, surf, borderL, text, textSec, backBtn } = useTheme();
   const token = useAuthStore((s) => s.token);
@@ -701,7 +703,14 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
     <View style={[styles.container, { backgroundColor: bg }]}>
       {/* Header */}
       <View
-        style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL as string }]}
+        style={[
+          styles.header,
+          {
+            backgroundColor: surf,
+            borderBottomColor: borderL as string,
+            paddingTop: insets.top + 12,
+          },
+        ]}
       >
         <TouchableOpacity
           onPress={() => router.push(`/(consumer)/vitrine/${produto.lojaId}` as any)}
@@ -988,7 +997,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 14,
     borderBottomWidth: 1,
   },

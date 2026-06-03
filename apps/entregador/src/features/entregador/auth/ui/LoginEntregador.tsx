@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthEntregadorStore } from '../../../../store';
 import { formatCPF } from '../lib/formatCPF';
@@ -445,6 +446,7 @@ interface LoginEntregadorProps {
 }
 
 export function LoginEntregador({ onLoginSuccess }: LoginEntregadorProps) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const login = useAuthEntregadorStore((s) => s.login);
   const [cpf, setCpf] = useState('');
@@ -481,7 +483,7 @@ export function LoginEntregador({ onLoginSuccess }: LoginEntregadorProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
         <View style={{ marginBottom: 16 }}>
           <AjuLogo size={52} />
         </View>
@@ -569,7 +571,7 @@ export function LoginEntregador({ onLoginSuccess }: LoginEntregadorProps) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.navy },
 
-  top: { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
+  top: { paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   topTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   topSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
 
