@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,14 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  findNodeHandle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
+import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
 import { formatCPF, validateCPF } from '../lib/formatCPF';
 import { Field } from './components/Field';
 import { PhoneInput } from './components/PhoneInput';
@@ -44,6 +46,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const [confirmar, setConfirmar] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [endereco, setEndereco] = useState<EnderecoConsumer>({
     cep: '',
     rua: '',
@@ -53,13 +56,16 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const [locLoading, setLocLoading] = useState(false);
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldRefs = useRef<Record<string, View | null>>({});
+
   const setEnderecoField = useCallback((key: keyof EnderecoConsumer, value: string) => {
     setEndereco((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const usarLocalizacao = useCallback(async () => {
     setLocLoading(true);
-    setErrors((e) => ({ ...e, localizacao: '' }));
+    clearError('localizacao');
     try {
       let lat: number, lng: number;
       if (Platform.OS === 'web') {
@@ -93,6 +99,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         numero: '',
         bairro: data.bairro ?? '',
       });
+      clearError('cep', 'rua', 'bairro');
       setPinCoords({ lat, lng });
     } catch {
       setErrors((e) => ({ ...e, localizacao: 'Não foi possível obter sua localização.' }));
@@ -113,46 +120,160 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         rua: data.rua || prev.rua,
         bairro: data.bairro || prev.bairro,
       }));
+      clearError('cep', 'rua', 'bairro');
     } catch {
       /* silently keep previous values */
     }
   }, []);
 
-  const clearError = (key: string) => setErrors((e) => ({ ...e, [key]: '' }));
+  const clearError = (...keys: string[]) =>
+    setErrors((prev) => {
+      if (keys.every((k) => !prev[k])) return prev;
+      const next = { ...prev };
+      keys.forEach((k) => delete next[k]);
+      return next;
+    });
+
+  const checkDisponivel = useCallback(
+    async (field: 'cpf' | 'email' | 'telefone', value: string) => {
+      try {
+        const res = await fetch(
+          `${LAPI}/auth/usuario/check?field=${field}&value=${encodeURIComponent(value)}`,
+        );
+        if (!res.ok) return;
+        const { available } = await res.json();
+        if (!available) {
+          const msgs: Record<string, string> = {
+            cpf: 'Este CPF já possui uma conta. Faça login ou use outro CPF.',
+            email: 'Este e-mail já está em uso. Faça login ou use outro e-mail.',
+            telefone: 'Este telefone já está cadastrado. Faça login ou use outro número.',
+          };
+          setErrors((prev) => ({ ...prev, [field]: msgs[field] }));
+        }
+      } catch {
+        // falha silenciosa — o submit valida novamente no servidor
+      }
+    },
+    [],
+  );
 
   const blurNome = () => {
-    const parts = nome.trim().split(/\s+/);
-    if (nome.trim() && (parts.length < 2 || parts[1].length < 2))
+    const trimmed = nome.trim();
+    if (!trimmed || !trimmed.includes(' ')) return;
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2 || parts[1].length < 2)
       setErrors((e) => ({ ...e, nome: 'Informe seu nome e sobrenome.' }));
   };
 
-  const blurCpf = () => {
-    if (cpf.trim() && !validateCPF(cpf)) setErrors((e) => ({ ...e, cpf: 'CPF inválido.' }));
-  };
+  const blurCpf = useCallback(async () => {
+    const digits = cpf.replace(/\D/g, '');
+    if (!digits) return;
+    if (digits.length < 11) {
+      setErrors((e) => ({ ...e, cpf: 'CPF incompleto — informe os 11 dígitos.' }));
+    } else if (!validateCPF(cpf)) {
+      setErrors((e) => ({ ...e, cpf: 'CPF inválido. Verifique os números digitados.' }));
+    } else {
+      await checkDisponivel('cpf', digits);
+    }
+  }, [cpf, checkDisponivel]);
 
-  const blurEmail = () => {
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
+  const blurEmail = useCallback(async () => {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed)) {
       setErrors((e) => ({ ...e, email: 'Email inválido.' }));
-  };
+    } else {
+      await checkDisponivel('email', trimmed);
+    }
+  }, [email, checkDisponivel]);
+
+  const blurTelefone = useCallback(async () => {
+    const digits = telefoneCompleto.replace(/\D/g, '');
+    if (digits.length < 10) return;
+    await checkDisponivel('telefone', telefoneCompleto.replace(/[^\d+]/g, ''));
+  }, [telefoneCompleto, checkDisponivel]);
 
   const validate = useCallback(() => {
     const errs: Record<string, string> = {};
     const nomeParts = nome.trim().split(/\s+/);
     if (nomeParts.length < 2 || nomeParts[1].length < 2)
       errs.nome = 'Informe seu nome e sobrenome.';
-    if (!validateCPF(cpf)) errs.cpf = 'CPF inválido.';
+    const cpfDigits = cpf.replace(/\D/g, '');
+    if (cpfDigits.length < 11) errs.cpf = 'CPF incompleto — informe os 11 dígitos.';
+    else if (!validateCPF(cpf)) errs.cpf = 'CPF inválido. Verifique os números digitados.';
     if (telefoneCompleto.replace(/\D/g, '').length < 10) errs.telefone = 'Telefone inválido.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) errs.email = 'Email inválido.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) errs.email = 'Email inválido.';
     if (senha.length < 8) errs.senha = 'A senha deve ter pelo menos 8 caracteres.';
     else if (!/[A-Z]/.test(senha)) errs.senha = 'A senha deve conter pelo menos 1 letra maiúscula.';
     else if (!/[0-9]/.test(senha)) errs.senha = 'A senha deve conter pelo menos 1 número.';
-    if (senha !== confirmar) errs.confirmar = 'As senhas não coincidem.';
+    if (!confirmar) errs.confirmar = 'Confirme sua senha.';
+    else if (senha !== confirmar) errs.confirmar = 'As senhas não coincidem.';
+    const hasAnyAddress = endereco.cep || endereco.rua.trim() || endereco.bairro.trim();
+    if (hasAnyAddress) {
+      if (!endereco.cep) {
+        errs.cep = 'Informe o CEP para completar o endereço.';
+      } else if (endereco.cep.length < 8) {
+        errs.cep = 'CEP incompleto — informe os 8 dígitos (somente números).';
+      }
+      if (!endereco.rua.trim()) {
+        errs.rua = 'Informe a rua ou avenida.';
+      }
+      if (!endereco.bairro.trim()) {
+        errs.bairro = 'Informe o bairro.';
+      }
+    }
+    if (!aceitouTermos) errs.termos = 'Aceite os Termos de Uso para continuar.';
     setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }, [nome, cpf, telefoneCompleto, email, senha, confirmar]);
+    return errs;
+  }, [
+    nome,
+    cpf,
+    telefoneCompleto,
+    email,
+    senha,
+    confirmar,
+    endereco.cep,
+    endereco.rua,
+    endereco.bairro,
+    aceitouTermos,
+  ]);
+
+  const scrollToField = useCallback((key: string) => {
+    const ref = fieldRefs.current[key];
+    if (!ref) return;
+    if (Platform.OS === 'web') {
+      (ref as any).scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    } else {
+      const node = findNodeHandle(scrollRef.current);
+      if (node) {
+        ref.measureLayout(
+          node,
+          (_, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true }),
+          () => {},
+        );
+      }
+    }
+  }, []);
 
   const handleCadastro = useCallback(async () => {
-    if (!validate()) return;
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      const order = [
+        'nome',
+        'cpf',
+        'telefone',
+        'email',
+        'senha',
+        'confirmar',
+        'cep',
+        'bairro',
+        'rua',
+        'termos',
+      ];
+      const firstKey = order.find((k) => errs[k]);
+      if (firstKey) scrollToField(firstKey);
+      return;
+    }
     setLoading(true);
     try {
       await registrar({ nome, cpf, telefone: telefoneCompleto, email, senha });
@@ -190,7 +311,13 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         : err instanceof Error
           ? err.message
           : 'Erro ao criar conta. Tente novamente.';
-      setErrors({ geral: msg });
+      const field = (err as any)?.field as string | undefined;
+      if (field && fieldRefs.current[field]) {
+        setErrors({ [field]: enrichRateLimit(msg) });
+        scrollToField(field);
+      } else {
+        setErrors({ geral: enrichRateLimit(msg) });
+      }
     } finally {
       setLoading(false);
     }
@@ -210,6 +337,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.card}
         contentContainerStyle={styles.cardContent}
         showsVerticalScrollIndicator={false}
@@ -218,94 +346,176 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         <Text style={styles.cardTitle}>Seus dados</Text>
         <Text style={styles.cardSub}>Preencha para criar sua conta</Text>
 
-        <Field
-          label="NOME COMPLETO"
-          value={nome}
-          onChange={(v) => {
-            setNome(v.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''));
-            clearError('nome');
+        <View
+          ref={(r) => {
+            fieldRefs.current.nome = r;
           }}
-          placeholder="João da Silva"
-          autoCapitalize="words"
-          error={errors.nome}
-          onBlur={blurNome}
-        />
-        <Field
-          label="CPF"
-          value={cpf}
-          onChange={(v) => {
-            setCpf(formatCPF(v));
-            clearError('cpf');
+        >
+          <Field
+            label="NOME COMPLETO"
+            value={nome}
+            onChange={(v) => {
+              setNome(v.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''));
+              clearError('nome');
+            }}
+            placeholder="João da Silva"
+            autoCapitalize="words"
+            autoCorrect={false}
+            autoComplete="name"
+            textContentType="name"
+            error={errors.nome}
+            onBlur={blurNome}
+            isValid={
+              !errors.nome &&
+              (() => {
+                const p = nome.trim().split(/\s+/).filter(Boolean);
+                return p.length >= 2 && p[1].length >= 2;
+              })()
+            }
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.cpf = r;
           }}
-          placeholder="000.000.000-00"
-          keyboardType="numeric"
-          error={errors.cpf}
-          onBlur={blurCpf}
-        />
-        <Text style={styles.phoneLabel}>TELEFONE</Text>
-        <PhoneInput
-          value={telefone}
-          onChange={(local, full) => {
-            setTelefone(local);
-            setTelefoneCompleto(full);
-            clearError('telefone');
+        >
+          <Field
+            label="CPF"
+            value={cpf}
+            onChange={(v) => {
+              setCpf(formatCPF(v));
+              clearError('cpf');
+            }}
+            placeholder="000.000.000-00"
+            keyboardType="numeric"
+            autoComplete="off"
+            textContentType="none"
+            error={errors.cpf}
+            onBlur={blurCpf}
+            isValid={!errors.cpf && validateCPF(cpf)}
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.telefone = r;
           }}
-          error={errors.telefone}
-        />
-        <Field
-          label="EMAIL"
-          value={email}
-          onChange={(v) => {
-            setEmail(v);
-            clearError('email');
+        >
+          <Text style={styles.phoneLabel}>TELEFONE</Text>
+          <PhoneInput
+            value={telefone}
+            onChange={(local, full) => {
+              setTelefone(local);
+              setTelefoneCompleto(full);
+              clearError('telefone');
+            }}
+            onBlur={blurTelefone}
+            error={errors.telefone}
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.email = r;
           }}
-          placeholder="voce@email.com"
-          keyboardType="email-address"
-          error={errors.email}
-          onBlur={blurEmail}
-        />
-        <Field
-          label="SENHA"
-          value={senha}
-          onChange={(v) => {
-            setSenha(v);
-            clearError('senha');
+        >
+          <Field
+            label="EMAIL"
+            value={email}
+            onChange={(v) => {
+              setEmail(v);
+              clearError('email');
+            }}
+            placeholder="voce@email.com"
+            keyboardType="email-address"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            error={errors.email}
+            onBlur={blurEmail}
+            isValid={!errors.email && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())}
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.senha = r;
           }}
-          placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
-          secureTextEntry
-          error={errors.senha}
-        />
-        <Field
-          label="CONFIRMAR SENHA"
-          value={confirmar}
-          onChange={(v) => {
-            setConfirmar(v);
-            clearError('confirmar');
+        >
+          <Field
+            label="SENHA"
+            value={senha}
+            onChange={(v) => {
+              setSenha(v);
+              clearError('senha');
+            }}
+            placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={errors.senha}
+            isValid={
+              !errors.senha && senha.length >= 8 && /[A-Z]/.test(senha) && /[0-9]/.test(senha)
+            }
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.confirmar = r;
           }}
-          placeholder="Repita a senha"
-          secureTextEntry
-          error={errors.confirmar}
-        />
+        >
+          <Field
+            label="CONFIRMAR SENHA"
+            value={confirmar}
+            onChange={(v) => {
+              setConfirmar(v);
+              clearError('confirmar');
+            }}
+            placeholder="Repita a senha"
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={errors.confirmar}
+            isValid={!errors.confirmar && confirmar.length > 0 && confirmar === senha}
+          />
+        </View>
 
         {/* ── Endereço ─────────────────────────────────────── */}
         <View style={styles.enderecoSection}>
-          <Text style={styles.enderecoTitle}>ENDEREÇO</Text>
+          <View style={styles.enderecoTitleRow}>
+            <Text style={styles.enderecoTitle}>ENDEREÇO</Text>
+            <Text style={styles.enderecoOpcional}>opcional — melhora a entrega</Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.gpsBtn}
-            onPress={usarLocalizacao}
-            disabled={locLoading}
-            activeOpacity={0.8}
-          >
-            {locLoading ? (
-              <ActivityIndicator size="small" color={colors.orange} />
-            ) : (
-              <Ionicons name="location" size={15} color={colors.orange} />
+          <View style={styles.gpsBtnRow}>
+            <TouchableOpacity
+              style={styles.gpsBtn}
+              onPress={usarLocalizacao}
+              disabled={locLoading}
+              activeOpacity={0.8}
+            >
+              {locLoading ? (
+                <ActivityIndicator size="small" color={colors.orange} />
+              ) : (
+                <Ionicons name="location" size={15} color={colors.orange} />
+              )}
+              <Text style={styles.gpsBtnText}>
+                {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
+              </Text>
+            </TouchableOpacity>
+
+            {!!pinCoords && !locLoading && (
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => {
+                  setPinCoords(null);
+                  setEndereco({ cep: '', rua: '', numero: '', bairro: '' });
+                  clearError('cep', 'rua', 'bairro', 'localizacao');
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close-circle-outline" size={15} color={colors.n600} />
+                <Text style={styles.clearBtnText}>Limpar</Text>
+              </TouchableOpacity>
             )}
-            <Text style={styles.gpsBtnText}>
-              {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
-            </Text>
-          </TouchableOpacity>
+          </View>
 
           {!!errors.localizacao && (
             <Text style={[styles.errorGeral, { textAlign: 'left', marginBottom: 8 }]}>
@@ -325,33 +535,65 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           )}
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
+            <View
+              ref={(r) => {
+                fieldRefs.current.cep = r;
+              }}
+              style={{ flex: 1 }}
+            >
               <Field
                 label="CEP"
                 value={endereco.cep}
-                onChange={(v) => setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8))}
+                onChange={(v) => {
+                  setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8));
+                  clearError('cep');
+                }}
                 placeholder="49000000"
                 keyboardType="numeric"
+                autoComplete="off"
+                textContentType="none"
                 maxLength={8}
+                error={errors.cep}
+                isValid={!errors.cep && endereco.cep.length === 8}
               />
             </View>
-            <View style={{ flex: 2 }}>
+            <View
+              ref={(r) => {
+                fieldRefs.current.bairro = r;
+              }}
+              style={{ flex: 2 }}
+            >
               <Field
                 label="BAIRRO"
                 value={endereco.bairro}
-                onChange={(v) => setEnderecoField('bairro', v)}
+                onChange={(v) => {
+                  setEnderecoField('bairro', v);
+                  clearError('bairro');
+                }}
                 placeholder="Atalaia"
+                error={errors.bairro}
+                isValid={!errors.bairro && endereco.bairro.trim().length > 0}
               />
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
+            <View
+              ref={(r) => {
+                fieldRefs.current.rua = r;
+              }}
+              style={{ flex: 1 }}
+            >
               <Field
                 label="RUA / AV."
                 value={endereco.rua}
-                onChange={(v) => setEnderecoField('rua', v)}
+                onChange={(v) => {
+                  setEnderecoField('rua', v);
+                  clearError('rua');
+                }}
                 placeholder="Av. Beira Mar"
+                error={errors.rua}
+                isValid={!errors.rua && endereco.rua.trim().length > 0}
               />
             </View>
             <View style={{ width: 76, flexShrink: 0, overflow: 'hidden' }}>
@@ -389,11 +631,32 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.termos}>
-          Ao criar sua conta, você concorda com nossos{' '}
-          <Text style={styles.termosLink}>Termos de Uso</Text> e{' '}
-          <Text style={styles.termosLink}>Política de Privacidade</Text>.
-        </Text>
+        <TouchableOpacity
+          ref={(r) => {
+            fieldRefs.current.termos = r as any;
+          }}
+          style={styles.termosRow}
+          onPress={() => {
+            setAceitouTermos((v) => !v);
+            clearError('termos');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={aceitouTermos ? 'checkbox' : 'square-outline'}
+            size={20}
+            color={errors.termos ? '#E24B4A' : aceitouTermos ? colors.orange : colors.n300}
+          />
+          <Text style={styles.termos}>
+            Li e aceito os <Text style={styles.termosLink}>Termos de Uso</Text> e a{' '}
+            <Text style={styles.termosLink}>Política de Privacidade</Text>.
+          </Text>
+        </TouchableOpacity>
+        {errors.termos ? (
+          <Text style={[styles.errorGeral, { textAlign: 'left', marginTop: 4 }]}>
+            {errors.termos}
+          </Text>
+        ) : null}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -465,7 +728,13 @@ const styles = StyleSheet.create({
   loginText: { fontSize: 13, color: colors.n600 },
   loginLink: { fontSize: 13, fontWeight: '600', color: colors.orange600 },
 
-  termos: { fontSize: 11, color: colors.n500, textAlign: 'center', marginTop: 14, lineHeight: 16 },
+  termosRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 14,
+  },
+  termos: { flex: 1, fontSize: 11, color: colors.n500, lineHeight: 16 },
   termosLink: { color: colors.orange, fontWeight: '600' },
 
   enderecoSection: {
@@ -474,12 +743,28 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.n100,
   },
+  enderecoTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
   enderecoTitle: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.n600,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+  },
+  enderecoOpcional: {
+    fontSize: 11,
+    color: colors.n500,
+    fontStyle: 'italic',
+  },
+  gpsBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 10,
   },
   gpsBtn: {
@@ -491,10 +776,19 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.orange,
     paddingHorizontal: 14,
-    marginBottom: 10,
-    alignSelf: 'flex-start',
   },
   gpsBtnText: { fontSize: 13, fontWeight: '600', color: colors.orange },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    paddingHorizontal: 12,
+  },
+  clearBtnText: { fontSize: 13, fontWeight: '600', color: colors.n600 },
   mapBox: {
     height: 200,
     borderRadius: 12,

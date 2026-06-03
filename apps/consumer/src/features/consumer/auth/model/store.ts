@@ -147,7 +147,9 @@ export const useAuthStore = create<AuthState>()(
               .map((e: { message?: string }) => e.message ?? String(e))
               .join('. ');
           }
-          throw new Error(errorMsg);
+          const err = new Error(errorMsg);
+          if (typeof data.field === 'string') (err as any).field = data.field;
+          throw err;
         }
 
         const { token, refreshToken, usuario } = await res.json();
@@ -213,6 +215,7 @@ export const useAuthStore = create<AuthState>()(
         if (userId) salvarCarrinho(userId, itensPorLoja);
         limparTudo();
         disconnectSocket();
+        secureStorage.removeItem('ajulabs-consumer-auth').catch(() => {});
         set({
           isLoggedIn: false,
           token: null,
