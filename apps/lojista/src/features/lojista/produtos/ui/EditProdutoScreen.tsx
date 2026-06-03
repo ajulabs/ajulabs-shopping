@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -8,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
   Image,
   Animated,
   Dimensions,
@@ -137,6 +139,7 @@ export function EditProdutoScreen({
   onVoltar: () => void;
   onSalvo: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
   const { canEditPrices, isGerente, isFuncionario } = usePermissions();
@@ -162,6 +165,9 @@ export function EditProdutoScreen({
     })),
   });
   const [saving, setSaving] = useState(false);
+  const [discardAlertVisible, setDiscardAlertVisible] = useState(false);
+  const toastAnim = useRef(new Animated.Value(0)).current;
+  const initialFormRef = useRef(form);
 
   const isMounted = useRef(false);
 
@@ -192,6 +198,8 @@ export function EditProdutoScreen({
     while (filled.length < 4) filled.push({ type: 'empty' });
     return filled;
   });
+
+  const initialSlotsRef = useRef(slots);
 
   const set = useCallback(
     (
@@ -234,7 +242,19 @@ export function EditProdutoScreen({
     });
   }, []);
 
+  const showSuccessToast = useCallback(
+    (cb: () => void) => {
+      Animated.sequence([
+        Animated.timing(toastAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.delay(1200),
+        Animated.timing(toastAnim, { toValue: 0, duration: 280, useNativeDriver: true }),
+      ]).start(() => cb());
+    },
+    [toastAnim],
+  );
+
   const handleSalvar = useCallback(async () => {
+    if (discardAlertVisible) return;
     const existingImageUrls = slots
       .filter((s): s is { type: 'existing'; url: string } => s.type === 'existing')
       .map((s) => s.url);
@@ -291,13 +311,24 @@ export function EditProdutoScreen({
         }
         await RBACService.editarProduto(produto.id, token, dados);
       }
-      onSalvo();
+      showSuccessToast(onSalvo);
     } catch (e) {
       Alert.alert('Erro', e instanceof Error ? e.message : 'Erro ao salvar.');
     } finally {
       setSaving(false);
     }
-  }, [form, slots, produto.id, token, onSalvo, isLojistaDono, lojaId, canEditPrices]);
+  }, [
+    form,
+    slots,
+    produto.id,
+    token,
+    onSalvo,
+    isLojistaDono,
+    lojaId,
+    canEditPrices,
+    showSuccessToast,
+    discardAlertVisible,
+  ]);
 
   const handleSubmeterSolicitacao = useCallback(async () => {
     if (!precoSolicitado.trim() || !justificativa.trim()) {
@@ -331,15 +362,87 @@ export function EditProdutoScreen({
     }
   }, [precoSolicitado, justificativa, token, produto.id, lojaId]);
 
+  const hasChanges = useMemo(() => {
+    const init = initialFormRef.current;
+    return (
+      form.nome !== init.nome ||
+      form.descricao !== init.descricao ||
+      form.preco !== init.preco ||
+      form.estoque !== init.estoque ||
+      form.disponivel !== init.disponivel ||
+      form.categoria !== init.categoria ||
+      JSON.stringify(form.variacoesEstoque) !== JSON.stringify(init.variacoesEstoque) ||
+      JSON.stringify(slots) !== JSON.stringify(initialSlotsRef.current)
+    );
+  }, [form, slots]);
+
+  const handleDescartar = useCallback(() => {
+    const executar = () => {
+      setForm(initialFormRef.current);
+      setSlots(initialSlotsRef.current);
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Todas as alterações feitas serão perdidas. Deseja continuar?'))
+        executar();
+      return;
+    }
+
+    Alert.alert(
+      'Descartar alterações',
+      'Todas as alterações feitas serão perdidas. Deseja continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Descartar', style: 'destructive', onPress: executar },
+      ],
+    );
+  }, []);
+
+  const handleVoltar = useCallback(() => {
+    if (!hasChanges) {
+      onVoltar();
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Você tem alterações não salvas. Deseja descartar e sair?')) onVoltar();
+      return;
+    }
+
+    setDiscardAlertVisible(true);
+    Alert.alert(
+      'Alterações não salvas',
+      'Você tem alterações que ainda não foram salvas. Deseja descartar e sair?',
+      [
+        {
+          text: 'Continuar editando',
+          style: 'cancel',
+          onPress: () => setDiscardAlertVisible(false),
+        },
+        {
+          text: 'Descartar',
+          style: 'destructive',
+          onPress: () => {
+            setDiscardAlertVisible(false);
+            onVoltar();
+          },
+        },
+      ],
+      { onDismiss: () => setDiscardAlertVisible(false) },
+    );
+  }, [hasChanges, onVoltar]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onVoltar} activeOpacity={0.7}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleVoltar} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={22} color={colors.navy} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Editar produto</Text>
-          <Text style={styles.headerSub}>Altere os dados e salve</Text>
+          <Text style={[styles.headerSub, hasChanges && { color: colors.orange }]}>
+            {hasChanges ? '● Alterações não salvas' : 'Altere os dados e salve'}
+          </Text>
         </View>
       </View>
 
@@ -486,10 +589,10 @@ export function EditProdutoScreen({
         </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+          style={[styles.saveBtn, (saving || discardAlertVisible) && { opacity: 0.7 }]}
           onPress={handleSalvar}
           activeOpacity={0.85}
-          disabled={saving}
+          disabled={saving || discardAlertVisible}
         >
           {saving ? (
             <ActivityIndicator color="#fff" />
@@ -497,6 +600,17 @@ export function EditProdutoScreen({
             <Text style={styles.saveBtnText}>Salvar alterações</Text>
           )}
         </TouchableOpacity>
+
+        {hasChanges && (
+          <TouchableOpacity
+            style={styles.discardBtn}
+            onPress={handleDescartar}
+            activeOpacity={0.75}
+            disabled={saving}
+          >
+            <Text style={styles.discardBtnText}>Descartar alterações</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -560,6 +674,35 @@ export function EditProdutoScreen({
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 60,
+          left: 24,
+          right: 24,
+          backgroundColor: '#16a34a',
+          borderRadius: 14,
+          paddingVertical: 14,
+          paddingHorizontal: 18,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          opacity: toastAnim,
+          transform: [
+            { translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) },
+          ],
+          shadowColor: '#000',
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 6,
+        }}
+      >
+        <Ionicons name="checkmark-circle" size={22} color="#fff" />
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Alterações salvas!</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -570,7 +713,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 56,
     paddingBottom: 18,
     backgroundColor: colors.n0,
     borderBottomWidth: 1,
@@ -684,6 +826,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  discardBtn: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.n300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  discardBtnText: { fontSize: 14, fontWeight: '600', color: colors.n600 },
 
   precoReadonly: {
     flexDirection: 'row',
