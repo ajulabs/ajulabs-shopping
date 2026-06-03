@@ -70,7 +70,7 @@ export function Field({
             onBlur?.();
           }}
         />
-        {isValid && !error && !secureTextEntry && (
+        {isValid && !error && !secureTextEntry && !focused && (
           <Ionicons name="checkmark-circle" size={16} color="#16A34A" style={styles.validIcon} />
         )}
         {secureTextEntry && (
