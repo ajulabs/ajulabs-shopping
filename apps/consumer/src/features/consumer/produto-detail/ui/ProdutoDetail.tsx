@@ -483,7 +483,7 @@ function AvaliacaoItem({
 
 // ─── Card de produto similar ──────────────────────────────────
 
-function ProdutoSimilarCard({ produto, onAdd }: { produto: Produto; onAdd: (p: Produto) => void }) {
+function ProdutoSimilarCard({ produto }: { produto: Produto }) {
   const router = useRouter();
   const { surf, borderL, text, textSec } = useTheme();
   const [imgError, setImgError] = useState(false);
@@ -523,7 +523,7 @@ function ProdutoSimilarCard({ produto, onAdd }: { produto: Produto; onAdd: (p: P
         </Text>
         <TouchableOpacity
           style={[styles.simBtnAdd, !produto.disponivel && { opacity: 0.4 }]}
-          onPress={() => onAdd(produto)}
+          onPress={() => router.push(`/(consumer)/produto/${produto.id}` as any)}
           disabled={!produto.disponivel}
           activeOpacity={0.8}
         >
@@ -915,7 +915,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
               contentContainerStyle={styles.similaresScroll}
             >
               {similares.map((s) => (
-                <ProdutoSimilarCard key={s.id} produto={s} onAdd={handleAdd} />
+                <ProdutoSimilarCard key={s.id} produto={s} />
               ))}
             </ScrollView>
           </View>
