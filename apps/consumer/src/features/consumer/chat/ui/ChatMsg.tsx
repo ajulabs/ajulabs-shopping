@@ -105,7 +105,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           </Text>
         </View>
         <Text style={{ fontWeight: '700', fontSize: 14, color: '#f97316' }}>
-          R$ {pedido.total.toFixed(2)}
+          R$ {pedido.total.toFixed(2).replace('.', ',')}
         </Text>
       </View>
 
@@ -330,34 +330,45 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                       marginTop: 4,
                     }}
                   >
-                    {(produto.variacoes ?? []).slice(0, 3).map((v) => (
-                      <View
-                        key={v.id}
-                        style={{
-                          backgroundColor: chipBg,
-                          borderWidth: 1,
-                          borderColor: chipBorder,
-                          borderRadius: 6,
-                          paddingHorizontal: 5,
-                          paddingVertical: 2,
-                          alignSelf: 'flex-start',
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, color: chipText, fontWeight: '600' }}>
-                          {v.nome.split(' · ').pop()}
-                        </Text>
-                      </View>
-                    ))}
-                    {(produto.variacoes?.length ?? 0) > 3 && (
-                      <Text style={{ fontSize: 10, color: cardSub, alignSelf: 'center' }}>
-                        +{(produto.variacoes?.length ?? 0) - 3}
-                      </Text>
-                    )}
+                    {(() => {
+                      const chips = [
+                        ...new Set(
+                          (produto.variacoes ?? []).map((v) => v.nome.split(' · ').pop() ?? v.nome),
+                        ),
+                      ];
+                      return (
+                        <>
+                          {chips.slice(0, 3).map((chip) => (
+                            <View
+                              key={chip}
+                              style={{
+                                backgroundColor: chipBg,
+                                borderWidth: 1,
+                                borderColor: chipBorder,
+                                borderRadius: 6,
+                                paddingHorizontal: 5,
+                                paddingVertical: 2,
+                                alignSelf: 'flex-start',
+                              }}
+                            >
+                              <Text style={{ fontSize: 10, color: chipText, fontWeight: '600' }}>
+                                {chip}
+                              </Text>
+                            </View>
+                          ))}
+                          {chips.length > 3 && (
+                            <Text style={{ fontSize: 10, color: cardSub, alignSelf: 'center' }}>
+                              +{chips.length - 3}
+                            </Text>
+                          )}
+                        </>
+                      );
+                    })()}
                   </View>
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>
-                        R$ {produto.preco.toFixed(2)}
+                        R$ {produto.preco.toFixed(2).replace('.', ',')}
                       </Text>
                       {produto.precoOriginal && (
                         <Text
@@ -367,7 +378,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                             textDecorationLine: 'line-through',
                           }}
                         >
-                          R$ {produto.precoOriginal.toFixed(2)}
+                          R$ {produto.precoOriginal.toFixed(2).replace('.', ',')}
                         </Text>
                       )}
                     </View>

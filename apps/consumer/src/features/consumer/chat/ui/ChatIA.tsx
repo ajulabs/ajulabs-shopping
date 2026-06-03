@@ -15,10 +15,11 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
 import { useAuthStore } from '../../../../store';
+import { takePendingChatContext } from '../model/pendingChatContext';
 import { useTranscricao } from '../model/useTranscricao';
 import { useTicketRealtime } from '@ajulabs/realtime';
 import * as SecureStore from 'expo-secure-store';
@@ -162,6 +163,14 @@ export function ChatIA() {
     });
   }, [userId]);
 
+  // Auto-send when chat gains focus after navigating from a store page
+  useFocusEffect(() => {
+    if (!token) return;
+    const ctx = takePendingChatContext();
+    if (!ctx) return;
+    enviarMensagem(`Quero ver produtos da loja ${ctx.nome} [lojaId:${ctx.id}]`);
+  });
+
   useEffect(() => {
     storage.getItem(ONBOARDING_KEY).then((done) => {
       if (!done) {
@@ -210,10 +219,11 @@ export function ChatIA() {
   async function enviarMensagem(texto: string, pedidoSelecionadoId?: string) {
     if (!texto.trim() || carregando) return;
 
+    const textoExibido = texto.replace(/\s*\[lojaId:[^\]]+\]/g, '');
     const msgUsuario: MensagemChat = {
       id: Date.now().toString(),
       remetente: 'usuario',
-      conteudo: texto,
+      conteudo: textoExibido,
       criadaEm: new Date().toISOString(),
     };
 
@@ -221,46 +231,56 @@ export function ChatIA() {
     setSugestoes([]);
     setCarregando(true);
 
-    const resposta = await matchAju(mensagens, texto, token, conversaId, pedidoSelecionadoId);
+    try {
+      const resposta = await matchAju(mensagens, texto, token, conversaId, pedidoSelecionadoId);
 
-    if (resposta.conversaId && !conversaId) {
-      setConversaId(resposta.conversaId);
-    }
-
-    const isTicketDuplicado = resposta.texto.toLowerCase().includes('já tem uma reclamação');
-    const isTicketCriado =
-      !isTicketDuplicado &&
-      (/TKT-\d+/i.test(resposta.texto) ||
-        resposta.texto.toLowerCase().includes('ticket registrado') ||
-        resposta.texto.toLowerCase().includes('ticket aberto'));
-
-    const msgAju: MensagemChat = {
-      id: (Date.now() + 1).toString(),
-      remetente: 'aju',
-      conteudo: resposta.texto,
-      resposta: isTicketCriado
-        ? { ...resposta, tipo: 'ticketCriado' }
-        : isTicketDuplicado
-          ? { ...resposta, tipo: 'ticketDuplicado' }
-          : resposta,
-      criadaEm: new Date().toISOString(),
-    };
-
-    setMensagens((prev) => {
-      const atualizadas = [...prev, msgAju];
-      // Persiste as últimas 50 mensagens + conversaId para restaurar após fechar o app
-      if (userId) {
-        const cid = resposta.conversaId ?? conversaId;
-        storage
-          .setItem(
-            chatKey(userId),
-            JSON.stringify({ conversaId: cid, mensagens: atualizadas.slice(-50) }),
-          )
-          .catch(() => {});
+      if (resposta.conversaId && !conversaId) {
+        setConversaId(resposta.conversaId);
       }
-      return atualizadas;
-    });
-    setCarregando(false);
+
+      const isTicketDuplicado = resposta.texto.toLowerCase().includes('já tem uma reclamação');
+      const isTicketCriado =
+        !isTicketDuplicado &&
+        (/TKT-\d+/i.test(resposta.texto) ||
+          resposta.texto.toLowerCase().includes('ticket registrado') ||
+          resposta.texto.toLowerCase().includes('ticket aberto'));
+
+      const msgAju: MensagemChat = {
+        id: (Date.now() + 1).toString(),
+        remetente: 'aju',
+        conteudo: resposta.texto,
+        resposta: isTicketCriado
+          ? { ...resposta, tipo: 'ticketCriado' }
+          : isTicketDuplicado
+            ? { ...resposta, tipo: 'ticketDuplicado' }
+            : resposta,
+        criadaEm: new Date().toISOString(),
+      };
+
+      setMensagens((prev) => {
+        const atualizadas = [...prev, msgAju];
+        if (userId) {
+          const cid = resposta.conversaId ?? conversaId;
+          storage
+            .setItem(
+              chatKey(userId),
+              JSON.stringify({ conversaId: cid, mensagens: atualizadas.slice(-50) }),
+            )
+            .catch(() => {});
+        }
+        return atualizadas;
+      });
+    } catch {
+      const msgErro: MensagemChat = {
+        id: (Date.now() + 1).toString(),
+        remetente: 'aju',
+        conteudo: 'Ops, tive um problema de conexão. Tente novamente em instantes.',
+        criadaEm: new Date().toISOString(),
+      };
+      setMensagens((prev) => [...prev, msgErro]);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   function handleEnviar() {
@@ -269,6 +289,34 @@ export function ChatIA() {
     setInputValue('');
     enviarMensagem(texto);
   }
+
+  function getDesambiguacao(input: string): { label: string; msg: string }[] {
+    const trimmed = input.trim();
+    if (!trimmed || carregando) return [];
+
+    if (/^\d+$/.test(trimmed) && trimmed.length <= 6) {
+      const chips: { label: string; msg: string }[] = [
+        { label: `🔍 Produtos até R$ ${trimmed}`, msg: `Quero produtos até R$ ${trimmed}` },
+      ];
+      if (trimmed.length <= 10) {
+        chips.push({ label: `📦 Pedido #${trimmed}`, msg: `Quero rastrear o pedido #${trimmed}` });
+      }
+      return chips;
+    }
+
+    if (/^r\$?\s*\d+/i.test(trimmed)) {
+      return [
+        {
+          label: `🔍 Buscar com esse orçamento`,
+          msg: `Quero produtos com orçamento de ${trimmed}`,
+        },
+      ];
+    }
+
+    return [];
+  }
+
+  const desambiguacao = getDesambiguacao(inputValue);
 
   return (
     <KeyboardAvoidingView
@@ -388,6 +436,51 @@ export function ChatIA() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {desambiguacao.length > 0 && (
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 8,
+              paddingHorizontal: 16,
+              paddingBottom: 8,
+              backgroundColor: bg,
+            }}
+          >
+            {desambiguacao.map((d) => (
+              <TouchableOpacity
+                key={d.msg}
+                onPress={() => {
+                  setInputValue('');
+                  enviarMensagem(d.msg);
+                }}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: isDark ? 'rgba(249,115,22,0.15)' : '#fff7ed',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(249,115,22,0.35)' : '#fed7aa',
+                  borderRadius: 20,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: '600',
+                    color: isDark ? '#fb923c' : '#c2410c',
+                  }}
+                >
+                  {d.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <ChatInput
           value={inputValue}

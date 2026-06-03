@@ -21,14 +21,14 @@ function calcularScore(loja: Loja): number {
 
 export function LojasDestaque({ lojas, onAbrirVitrine, dark = false }: Props) {
   const textColor = dark ? colors.n0 : colors.navy;
-  const subColor  = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const surface   = dark ? colors.surfDark : colors.n0;
-  const border    = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
+  const surface = dark ? colors.surfDark : colors.n0;
+  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
 
   const destaques = useMemo(() => {
     return lojas
-      .filter(l => l.aberta)
-      .map(l => ({ loja: l, score: calcularScore(l) }))
+      .filter((l) => l.aberta)
+      .map((l) => ({ loja: l, score: calcularScore(l) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
       .map(({ loja }) => loja);
@@ -43,8 +43,12 @@ export function LojasDestaque({ lojas, onAbrirVitrine, dark = false }: Props) {
         <Text style={[s.titulo, { color: textColor }]}>Destaques</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        {destaques.map(loja => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.scroll}
+      >
+        {destaques.map((loja) => (
           <TouchableOpacity
             key={loja.id}
             style={[s.card, { backgroundColor: surface, borderColor: border }]}
@@ -59,14 +63,20 @@ export function LojasDestaque({ lojas, onAbrirVitrine, dark = false }: Props) {
             </View>
 
             <View style={s.info}>
-              <Text style={[s.nome, { color: textColor }]} numberOfLines={1}>{loja.nome}</Text>
-              <Text style={[s.desc, { color: subColor }]} numberOfLines={1}>
-                {loja.descricao}
-              </Text>
-              <View style={s.row}>
-                <Ionicons name="star" size={12} color={colors.orange} />
-                <Text style={s.rating}>{loja.avaliacao.toFixed(1)}</Text>
-                <Text style={[s.sub, { color: subColor }]}>· {loja.tempoEntregaMin}–{loja.tempoEntregaMax} min</Text>
+              <View style={s.infoContent}>
+                <Text style={[s.nome, { color: textColor }]} numberOfLines={1}>
+                  {loja.nome}
+                </Text>
+                <Text style={[s.desc, { color: subColor }]} numberOfLines={1}>
+                  {loja.descricao}
+                </Text>
+                <View style={s.row}>
+                  <Ionicons name="star" size={12} color={colors.orange} />
+                  <Text style={s.rating}>{loja.avaliacao.toFixed(1)}</Text>
+                  <Text style={[s.sub, { color: subColor }]}>
+                    · {loja.tempoEntregaMin}–{loja.tempoEntregaMax} min
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity
                 style={s.btnVer}
@@ -86,27 +96,52 @@ export function LojasDestaque({ lojas, onAbrirVitrine, dark = false }: Props) {
 const CARD_WIDTH = 200;
 
 const s = StyleSheet.create({
-  container:     { paddingTop: 16, paddingBottom: 4 },
-  tituloRow:     { flexDirection: 'row', alignItems: 'center', gap: 6,
-                   paddingHorizontal: 16, marginBottom: 12 },
-  titulo:        { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
-  scroll:        { paddingHorizontal: 16, gap: 12 },
-  card:          { width: CARD_WIDTH, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
-  img:           { width: '100%', height: 110 },
-  imgOverlay:    { position: 'absolute', top: 0, left: 0, right: 0, height: 110,
-                   backgroundColor: 'rgba(0,9,51,0.18)' },
-  badgeDestaque: { position: 'absolute', top: 10, left: 10, flexDirection: 'row',
-                   alignItems: 'center', gap: 3,
-                   backgroundColor: colors.orange,
-                   paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
-  badgeText:     { color: '#fff', fontSize: 10, fontWeight: '700' },
-  info:          { padding: 10 },
-  nome:          { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.2 },
-  desc:          { fontSize: 11, marginTop: 2, color: '#9099B3' },
-  row:           { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
-  rating:        { fontSize: 12, fontWeight: '700', color: colors.orange },
-  sub:           { fontSize: 11 },
-  btnVer:        { marginTop: 10, backgroundColor: colors.orange,
-                   borderRadius: 10, paddingVertical: 7, alignItems: 'center' },
-  btnVerText:    { fontSize: 12.5, fontWeight: '700', color: '#fff' },
+  container: { paddingTop: 16, paddingBottom: 4 },
+  tituloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  titulo: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
+  scroll: { paddingHorizontal: 16, gap: 12 },
+  card: { width: CARD_WIDTH, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  img: { width: '100%', height: 110 },
+  imgOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 110,
+    backgroundColor: 'rgba(0,9,51,0.18)',
+  },
+  badgeDestaque: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.orange,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  info: { padding: 10, flexDirection: 'column' },
+  infoContent: { flex: 1 },
+  nome: { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.2 },
+  desc: { fontSize: 11, marginTop: 2, color: '#9099B3', minHeight: 15 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+  rating: { fontSize: 12, fontWeight: '700', color: colors.orange },
+  sub: { fontSize: 11 },
+  btnVer: {
+    marginTop: 10,
+    backgroundColor: colors.orange,
+    borderRadius: 10,
+    paddingVertical: 7,
+    alignItems: 'center',
+  },
+  btnVerText: { fontSize: 12.5, fontWeight: '700', color: '#fff' },
 });

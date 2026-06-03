@@ -1,5 +1,10 @@
 import { prisma } from '../utils/prisma';
-import { buscarProdutosRAG, buscarProdutosFallback, ProdutoRAG } from '../utils/ragSearch';
+import {
+  buscarProdutosRAG,
+  buscarProdutosFallback,
+  buscarProdutosPorLoja,
+  ProdutoRAG,
+} from '../utils/ragSearch';
 import { logger } from '../lib/logger';
 
 // ─── Result types ────────────────────────────────────────────────────────────
@@ -21,7 +26,11 @@ export type ToolResult =
 
 // ─── Executors ────────────────────────────────────────────────────────────────
 
-export async function executarBuscarProdutos(query: string): Promise<ToolResult> {
+export async function executarBuscarProdutos(query: string, lojaId?: string): Promise<ToolResult> {
+  if (lojaId) {
+    const produtos = await buscarProdutosPorLoja(lojaId);
+    return { tipo: 'produtos', dados: produtos };
+  }
   const produtos = await buscarProdutosRAG(query);
   if (produtos.length === 0) {
     return { tipo: 'produtos', dados: await buscarProdutosFallback(query) };
@@ -105,7 +114,7 @@ export async function executarTool(
 ): Promise<ToolResult> {
   switch (nome) {
     case 'buscar_produtos':
-      return executarBuscarProdutos(args.query ?? '');
+      return executarBuscarProdutos(args.query ?? '', args.lojaId);
     case 'listar_pedidos':
       return executarListarPedidos(usuarioId);
     case 'criar_ticket':

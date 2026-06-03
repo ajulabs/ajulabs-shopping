@@ -14,6 +14,11 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
             type: 'string',
             description: 'Termos de busca refinados baseados na intenção real do usuário',
           },
+          lojaId: {
+            type: 'string',
+            description:
+              'UUID da loja específica para filtrar produtos. Use quando o usuário pedir produtos de uma loja específica.',
+          },
         },
         required: ['query'],
       },
