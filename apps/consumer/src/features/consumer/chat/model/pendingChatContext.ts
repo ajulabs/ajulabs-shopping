@@ -11,3 +11,17 @@ export function takePendingChatContext(): { id: string; nome: string } | null {
   pending = null;
   return ctx;
 }
+
+/** Module-level singleton to trigger a quick action in ChatIA from any screen. */
+let pendingAction: string | null = null;
+
+export function setPendingChatAction(action: string) {
+  pendingAction = action;
+}
+
+/** Returns and clears the pending action (call once when chat gains focus). */
+export function takePendingChatAction(): string | null {
+  const action = pendingAction;
+  pendingAction = null;
+  return action;
+}

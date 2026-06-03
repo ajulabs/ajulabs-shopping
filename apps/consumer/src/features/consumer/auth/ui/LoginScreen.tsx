@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, AjuLogo } from '@ajulabs/theme';
@@ -58,76 +59,79 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   }, [cpf, senha, login, onLoginSuccess]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.top}>
-        <View style={{ marginBottom: 16 }}>
-          <AjuLogo size={52} />
-        </View>
-        <Text style={styles.topTitle}>AjuLabs Shopping</Text>
-        <Text style={styles.topSub}>Seu shopping digital em Aracaju.</Text>
-      </View>
-
+    <KeyboardAvoidingView style={styles.container} behavior="padding">
       <ScrollView
-        style={styles.card}
-        contentContainerStyle={styles.cardContent}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.cardTitle}>Entrar</Text>
-        <Text style={styles.cardSub}>Use seu CPF cadastrado</Text>
-
-        <Field
-          label="CPF"
-          value={cpf}
-          onChange={(v) => {
-            setCpf(formatCPF(v));
-            setError('');
-          }}
-          placeholder="000.000.000-00"
-          keyboardType="numeric"
-        />
-        <Field
-          label="SENHA"
-          value={senha}
-          onChange={(v) => {
-            setSenha(v);
-            setError('');
-          }}
-          placeholder="••••••••"
-          secureTextEntry
-        />
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <TouchableOpacity
-          style={styles.forgotRow}
-          onPress={() => setShowRecovery(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.forgotText}>Esqueci minha senha</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitBtnText}>Entrar</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Primeira vez? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')} activeOpacity={0.8}>
-            <Text style={styles.registerLink}>Criar conta</Text>
-          </TouchableOpacity>
+        <View style={styles.top}>
+          <View style={{ marginBottom: 16 }}>
+            <AjuLogo size={52} />
+          </View>
+          <Text style={styles.topTitle}>AjuLabs Shopping</Text>
+          <Text style={styles.topSub}>Seu shopping digital em Aracaju.</Text>
         </View>
 
-        <View style={{ height: 32 }} />
+        <View style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Entrar</Text>
+            <Text style={styles.cardSub}>Use seu CPF cadastrado</Text>
+
+            <Field
+              label="CPF"
+              value={cpf}
+              onChange={(v) => {
+                setCpf(formatCPF(v));
+                setError('');
+              }}
+              placeholder="000.000.000-00"
+              keyboardType="numeric"
+            />
+            <Field
+              label="SENHA"
+              value={senha}
+              onChange={(v) => {
+                setSenha(v);
+                setError('');
+              }}
+              placeholder="••••••••"
+              secureTextEntry
+            />
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity
+              style={styles.forgotRow}
+              onPress={() => setShowRecovery(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.forgotText}>Esqueci minha senha</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>Entrar</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.registerRow}>
+              <Text style={styles.registerText}>Primeira vez? </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/register')} activeOpacity={0.8}>
+                <Text style={styles.registerLink}>Criar conta</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ height: 32 }} />
+          </View>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -137,22 +141,24 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       </View>
 
       <RecoveryModal visible={showRecovery} onClose={() => setShowRecovery(false)} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.navy },
 
+  scrollContent: { flexGrow: 1 },
+
   top: { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   topTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   topSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
 
   card: {
+    flex: 1,
     backgroundColor: colors.n0,
-    borderRadius: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   cardContent: { padding: 28, paddingBottom: 0 },
   cardTitle: { fontSize: 20, fontWeight: '700', color: colors.navy },
