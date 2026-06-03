@@ -547,6 +547,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
   const { isDark, bg, surf, borderL, text, textSec, backBtn } = useTheme();
   const token = useAuthStore((s) => s.token);
   const adicionar = useCartStore((s) => s.adicionar);
+  const itensPorLoja = useCartStore((s) => s.itensPorLoja);
 
   const [produto, setProduto] = useState<Produto | null>(null);
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoLoja[]>([]);
@@ -563,6 +564,16 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
 
   const heartScale = useRef(new Animated.Value(1)).current;
   const addScale = useRef(new Animated.Value(1)).current;
+
+  // Bug 3: sync `added` with actual cart state — reset when item is removed from cart
+  useEffect(() => {
+    if (!added || !produto) return;
+    const varId = variacaoSelecionada?.id;
+    const isInCart = Object.values(itensPorLoja).some((items) =>
+      items.some((i) => i.produto.id === produtoId && i.variacaoId === varId),
+    );
+    if (!isInCart) setAdded(false);
+  }, [itensPorLoja, added, produto, variacaoSelecionada, produtoId]);
 
   useEffect(() => {
     setLoading(true);
@@ -624,10 +635,16 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         return;
       }
       const variacaoEfetiva = p.id === produtoId ? variacaoSelecionada : undefined;
+      // Bug 1: fallback-size products have no real variacoes — pass the selected size as nome
+      const variacaoNomeFinal =
+        variacaoEfetiva?.nome ??
+        (p.id === produtoId && !hasVariacoes
+          ? (tamanhoFallbackSelecionado ?? undefined)
+          : undefined);
       adicionar(
         p,
         variacaoEfetiva?.id,
-        variacaoEfetiva?.nome,
+        variacaoNomeFinal,
         variacaoEfetiva?.preco != null ? variacaoEfetiva.preco : undefined,
       );
       if (p.id === produtoId) {
@@ -643,7 +660,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         ]).start();
       }
     },
-    [produto, adicionar, produtoId, variacaoSelecionada],
+    [produto, adicionar, produtoId, variacaoSelecionada, tamanhoFallbackSelecionado],
   );
 
   if (loading) {

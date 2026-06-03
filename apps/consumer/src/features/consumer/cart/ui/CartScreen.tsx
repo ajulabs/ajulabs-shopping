@@ -439,6 +439,14 @@ export function CartScreen() {
 
       <View style={[styles.footer, { backgroundColor: surf, borderTopColor: borderL }]}>
         <TouchableOpacity
+          style={[styles.btnContinuar, { borderColor: colors.orange }]}
+          onPress={() => router.push('/(consumer)/vitrines')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="storefront-outline" size={16} color={colors.orange} />
+          <Text style={styles.btnContinuarTxt}>Continuar comprando</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.btnFinalizar}
           onPress={() => router.push('/(consumer)/checkout')}
           activeOpacity={0.9}
@@ -745,7 +753,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   endOpcaoAddTxt: { fontSize: 13, color: colors.orange, fontWeight: '600' },
-  footer: { padding: 16, paddingBottom: 24, borderTopWidth: 1 },
+  footer: { padding: 16, paddingBottom: 24, borderTopWidth: 1, gap: 10 },
+  btnContinuar: {
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  btnContinuarTxt: { color: colors.orange, fontSize: 14, fontWeight: '600' },
   btnFinalizar: {
     backgroundColor: colors.orange,
     height: 52,
