@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@ajulabs/theme';
+import { colors } from '../../../../../theme';
 
 interface FieldProps {
   label: string;
@@ -52,7 +52,7 @@ export function Field({
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={[styles.inputRow, borderStyle]}>
         <TextInput
-          style={styles.input}
+          style={styles.inputInner}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
@@ -83,13 +83,13 @@ export function Field({
           </TouchableOpacity>
         )}
       </View>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {!!error && <Text style={styles.fieldError}>{error}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  field: { marginBottom: 14 },
+  field: { marginBottom: 12 },
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
   inputRowFocused: { borderColor: colors.orange },
   inputRowError: { borderColor: '#E24B4A' },
   inputRowValid: { borderColor: '#16A34A' },
-  input: { flex: 1, fontSize: 14, color: colors.navy },
+  inputInner: { flex: 1, fontSize: 14, color: colors.navy },
   validIcon: { marginLeft: 8 },
   eyeBtn: { paddingLeft: 8 },
-  errorText: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
+  fieldError: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
 });

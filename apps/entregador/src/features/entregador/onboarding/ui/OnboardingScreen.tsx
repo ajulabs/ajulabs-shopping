@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
+  TextInputProps,
   TouchableOpacity,
   Image,
   StyleSheet,
@@ -21,6 +22,8 @@ import { useAuthEntregadorStore } from '../../../../store';
 import { EntregadorService } from '@ajulabs/api-client';
 import { formatCPF, validateCPF } from '../../auth/lib/formatCPF';
 import { PhoneInput } from './PhoneInput';
+import { LocationPickerMap } from '../../../../components/LocationPickerMap';
+import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
 
 const LAPI =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
@@ -44,6 +47,11 @@ function Input({
   secureTextEntry,
   keyboardType = 'default',
   autoCapitalize = 'none',
+  autoCorrect,
+  autoComplete,
+  textContentType,
+  maxLength,
+  onBlur: onBlurProp,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -51,6 +59,11 @@ function Input({
   secureTextEntry?: boolean;
   keyboardType?: KB;
   autoCapitalize?: 'none' | 'words' | 'sentences';
+  autoCorrect?: boolean;
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
+  maxLength?: number;
+  onBlur?: () => void;
 }) {
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
@@ -64,9 +77,16 @@ function Input({
         secureTextEntry={secureTextEntry && !shown}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
+        autoComplete={autoComplete}
+        textContentType={textContentType}
+        maxLength={maxLength}
         style={s.inputInner}
         onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onBlur={() => {
+          setFocused(false);
+          onBlurProp?.();
+        }}
       />
       {secureTextEntry && (
         <TouchableOpacity onPress={() => setShown((v) => !v)} hitSlop={10} style={s.eyeBtn}>
@@ -215,18 +235,30 @@ function StepPessoal({
   onPickPhoto,
   onGps,
   locLoading,
-  gpsCapturado,
+  gpsCoords,
+  onPinMoved,
+  onClearGps,
+  onBlurCpf,
+  onBlurEmail,
 }: StepProps & {
   erros: Record<string, string>;
   photoUri: string | null;
   onPickPhoto: () => void;
   onGps: () => void;
   locLoading: boolean;
-  gpsCapturado: boolean;
+  gpsCoords: { lat: number; lng: number } | null;
+  onPinMoved: (lat: number, lng: number) => void;
+  onClearGps: () => void;
+  onBlurCpf?: () => void;
+  onBlurEmail?: () => void;
 }) {
   return (
     <View>
-      <TouchableOpacity style={s.photoBtn} activeOpacity={0.8} onPress={onPickPhoto}>
+      <TouchableOpacity
+        style={[s.photoBtn, !!erros.foto && s.photoBtnError]}
+        activeOpacity={0.8}
+        onPress={onPickPhoto}
+      >
         {photoUri ? (
           <Image
             source={{ uri: photoUri }}
@@ -234,11 +266,18 @@ function StepPessoal({
           />
         ) : (
           <>
-            <Ionicons name="camera" size={26} color="#F2760F" />
-            <Text style={s.photoBtnText}>Foto de perfil</Text>
+            <Ionicons name="camera" size={26} color={erros.foto ? '#E24B4A' : '#F2760F'} />
+            <Text style={[s.photoBtnText, !!erros.foto && { color: '#E24B4A' }]}>
+              Foto de perfil
+            </Text>
           </>
         )}
       </TouchableOpacity>
+      {erros.foto ? (
+        <Text style={[s.fieldError, { textAlign: 'center', marginTop: 4 }]}>{erros.foto}</Text>
+      ) : (
+        <Text style={s.photoHint}>Sua foto aparece para o cliente durante a entrega</Text>
+      )}
 
       <Field label="Nome completo" error={erros.nome}>
         <Input
@@ -246,6 +285,8 @@ function StepPessoal({
           onChange={(v) => up('nome', v)}
           placeholder="Nome e Sobrenome"
           autoCapitalize="words"
+          autoComplete="name"
+          textContentType="name"
         />
       </Field>
       <Field label="CPF" error={erros.cpf}>
@@ -254,6 +295,9 @@ function StepPessoal({
           onChange={(v) => up('cpf', formatCPF(v))}
           placeholder="000.000.000-00"
           keyboardType="numeric"
+          autoComplete="off"
+          textContentType="none"
+          onBlur={onBlurCpf}
         />
       </Field>
       <Field label="Celular" error={erros.celular}>
@@ -265,7 +309,6 @@ function StepPessoal({
           }}
           error={undefined}
         />
-        {!!erros.celular && <Text style={s.fieldError}>{erros.celular}</Text>}
       </Field>
       <Field label="Email" error={erros.email}>
         <Input
@@ -273,6 +316,10 @@ function StepPessoal({
           onChange={(v) => up('email', v)}
           placeholder="seu@email.com"
           keyboardType="email-address"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
+          onBlur={onBlurEmail}
         />
       </Field>
       <Field label="Senha" error={erros.senha}>
@@ -281,6 +328,8 @@ function StepPessoal({
           onChange={(v) => up('senha', v)}
           placeholder="Mínimo 6 caracteres"
           secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
         />
       </Field>
       <Field label="Confirmar senha" error={erros.confirmarSenha}>
@@ -289,34 +338,108 @@ function StepPessoal({
           onChange={(v) => up('confirmarSenha', v)}
           placeholder="Repita a senha"
           secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
         />
       </Field>
 
       <View style={s.gpsSection}>
-        <TouchableOpacity
-          style={[s.gpsBtn, gpsCapturado && s.gpsBtnDone]}
-          onPress={onGps}
-          disabled={locLoading}
-          activeOpacity={0.8}
-        >
-          {locLoading ? (
-            <ActivityIndicator size="small" color="#F2760F" />
-          ) : (
-            <Ionicons
-              name={gpsCapturado ? 'checkmark-circle' : 'location'}
-              size={16}
-              color={gpsCapturado ? '#039855' : '#F2760F'}
-            />
+        <View style={s.gpsTitleRow}>
+          <Text style={s.gpsSectionTitle}>LOCALIZAÇÃO</Text>
+          <Text style={s.gpsSectionOpcional}>opcional</Text>
+        </View>
+
+        <View style={s.gpsBtnRow}>
+          <TouchableOpacity
+            style={[s.gpsBtn, !!gpsCoords && s.gpsBtnDone]}
+            onPress={onGps}
+            disabled={locLoading}
+            activeOpacity={0.8}
+          >
+            {locLoading ? (
+              <ActivityIndicator size="small" color="#F2760F" />
+            ) : (
+              <Ionicons
+                name={gpsCoords ? 'checkmark-circle' : 'location'}
+                size={16}
+                color={gpsCoords ? '#039855' : '#F2760F'}
+              />
+            )}
+            <Text style={[s.gpsBtnText, !!gpsCoords && { color: '#039855' }]}>
+              {locLoading
+                ? 'Obtendo localização...'
+                : gpsCoords
+                  ? 'Localização capturada'
+                  : 'Usar minha localização'}
+            </Text>
+          </TouchableOpacity>
+
+          {!!gpsCoords && !locLoading && (
+            <TouchableOpacity style={s.clearBtn} onPress={onClearGps} activeOpacity={0.8}>
+              <Ionicons name="close-circle-outline" size={15} color="#9099B3" />
+              <Text style={s.clearBtnText}>Limpar</Text>
+            </TouchableOpacity>
           )}
-          <Text style={[s.gpsBtnText, gpsCapturado && { color: '#039855' }]}>
-            {locLoading
-              ? 'Obtendo localização...'
-              : gpsCapturado
-                ? 'Localização capturada'
-                : 'Usar minha localização'}
-          </Text>
-        </TouchableOpacity>
+        </View>
+
         {erros.localizacao ? <Text style={s.fieldError}>{erros.localizacao}</Text> : null}
+
+        {!!gpsCoords && (
+          <View style={s.mapBox}>
+            <LocationPickerMap
+              lat={gpsCoords.lat}
+              lng={gpsCoords.lng}
+              onLocationChange={onPinMoved}
+              style={{ flex: 1 }}
+            />
+          </View>
+        )}
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+          <View style={{ flex: 1 }}>
+            <Field label="CEP" error={undefined}>
+              <Input
+                value={data.cep || ''}
+                onChange={(v) => up('cep', v.replace(/\D/g, '').slice(0, 8))}
+                placeholder="49000000"
+                keyboardType="numeric"
+                autoComplete="off"
+                textContentType="none"
+              />
+            </Field>
+          </View>
+          <View style={{ flex: 2 }}>
+            <Field label="BAIRRO" error={undefined}>
+              <Input
+                value={data.bairro || ''}
+                onChange={(v) => up('bairro', v)}
+                placeholder="Atalaia"
+              />
+            </Field>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Field label="RUA / AV." error={undefined}>
+              <Input
+                value={data.rua || ''}
+                onChange={(v) => up('rua', v)}
+                placeholder="Av. Beira Mar"
+              />
+            </Field>
+          </View>
+          <View style={{ width: 76 }}>
+            <Field label="Nº" error={undefined}>
+              <Input
+                value={data.numero || ''}
+                onChange={(v) => up('numero', v.replace(/\D/g, '').slice(0, 7))}
+                placeholder="100"
+                keyboardType="numeric"
+              />
+            </Field>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -379,7 +502,7 @@ function StepDocs({ frenteUri, versoUri, onPickDoc, tipoTransporte }: StepDocsPr
 }
 
 // ─── Passo 3: Transporte ──────────────────────────────────────────
-function StepTransporte({ data, up }: StepProps) {
+function StepTransporte({ data, up, erros }: StepProps & { erros: Record<string, string> }) {
   return (
     <View>
       <Text style={s.stepDesc}>Qual meio de transporte você vai usar?</Text>
@@ -413,31 +536,178 @@ function StepTransporte({ data, up }: StepProps) {
           </TouchableOpacity>
         );
       })}
+      {!!erros.transporte && <Text style={s.fieldError}>{erros.transporte}</Text>}
     </View>
   );
 }
 
+function formatPlaca(value: string): string {
+  const clean = value
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 7);
+  if (clean.length <= 3) return clean;
+  return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+}
+
+const CORES_VEICULO = [
+  { nome: 'Preto', hex: '#1a1a1a' },
+  { nome: 'Branco', hex: '#e8e8e8' },
+  { nome: 'Prata', hex: '#C0C0C0' },
+  { nome: 'Cinza', hex: '#808080' },
+  { nome: 'Azul', hex: '#1565C0' },
+  { nome: 'Vermelho', hex: '#C62828' },
+  { nome: 'Verde', hex: '#2E7D32' },
+  { nome: 'Amarelo', hex: '#F9A825' },
+  { nome: 'Laranja', hex: '#E65100' },
+  { nome: 'Marrom', hex: '#6D4C41' },
+  { nome: 'Bege', hex: '#D7CCC8' },
+  { nome: 'Dourado', hex: '#B8860B' },
+  { nome: 'Vinho', hex: '#880E4F' },
+  { nome: 'Roxo', hex: '#6A1B9A' },
+];
+
+const NOMES_CORES = CORES_VEICULO.map((c) => c.nome);
+
 // ─── Passo 4: Veículo ────────────────────────────────────────────
-function StepVeiculo({ data, up }: StepProps) {
+function StepVeiculo({ data, up, erros }: StepProps & { erros: Record<string, string> }) {
+  const [corModal, setCorModal] = useState(false);
+  const corAtual = data.cor || '';
+  const isPredefinida = NOMES_CORES.includes(corAtual);
+
+  const OPCOES_COR = [...CORES_VEICULO, { nome: 'Outra...', hex: '' }];
+
   return (
     <View>
-      <Field label="Placa">
-        <Input value={data.placa || ''} onChange={(v) => up('placa', v)} placeholder="ABC-1D23" />
+      <Field label="Placa" error={erros.placa}>
+        <Input
+          value={data.placa || ''}
+          onChange={(v) => up('placa', formatPlaca(v))}
+          placeholder="ABC-1D23"
+          maxLength={8}
+          autoComplete="off"
+          textContentType="none"
+        />
       </Field>
-      <Field label="Modelo">
+      <Field label="Modelo" error={erros.modelo}>
         <Input
           value={data.modelo || ''}
           onChange={(v) => up('modelo', v)}
           placeholder="Ex: Honda CG 160"
+          autoCapitalize="words"
         />
       </Field>
-      <Field label="Cor">
-        <Input value={data.cor || ''} onChange={(v) => up('cor', v)} placeholder="Ex: Preta" />
-      </Field>
-      <Field label="Ano">
+
+      <View style={s.field}>
+        <Text style={s.fieldLabel}>COR</Text>
+        <TouchableOpacity
+          style={[s.bankSelector, !!erros.cor && { borderColor: '#E24B4A' }]}
+          onPress={() => setCorModal(true)}
+          activeOpacity={0.8}
+        >
+          {corAtual ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              {isPredefinida && (
+                <View
+                  style={[
+                    s.corDot,
+                    {
+                      backgroundColor:
+                        CORES_VEICULO.find((c) => c.nome === corAtual)?.hex ?? '#ccc',
+                    },
+                  ]}
+                />
+              )}
+              <Text style={s.bankSelectorValue}>{corAtual}</Text>
+            </View>
+          ) : (
+            <Text style={s.bankSelectorPlaceholder}>Selecione a cor</Text>
+          )}
+          <Ionicons name="chevron-down" size={16} color="#9099B3" />
+        </TouchableOpacity>
+
+        {/* Modal de cores */}
+        <Modal
+          visible={corModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setCorModal(false)}
+        >
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+            <View style={s.bankModalHeader}>
+              <TouchableOpacity onPress={() => setCorModal(false)} style={s.bankModalClose}>
+                <Ionicons name="close" size={22} color="#000933" />
+              </TouchableOpacity>
+              <Text style={s.bankModalTitle}>Cor do veículo</Text>
+            </View>
+            <FlatList
+              data={OPCOES_COR}
+              keyExtractor={(item) => item.nome}
+              renderItem={({ item }) => {
+                const sel = corAtual === item.nome && item.nome !== 'Outra...';
+                return (
+                  <TouchableOpacity
+                    style={[s.corModalItem, sel && s.corModalItemSel]}
+                    onPress={() => {
+                      if (item.nome === 'Outra...') {
+                        up('cor', '');
+                      } else {
+                        up('cor', item.nome);
+                      }
+                      setCorModal(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {item.hex ? (
+                      <View
+                        style={[
+                          s.corDot,
+                          { backgroundColor: item.hex, width: 22, height: 22, borderRadius: 11 },
+                        ]}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="pencil-outline"
+                        size={20}
+                        color={sel ? '#F2760F' : '#9099B3'}
+                      />
+                    )}
+                    <Text style={[s.corModalText, sel && { color: '#F2760F', fontWeight: '700' }]}>
+                      {item.nome}
+                    </Text>
+                    {sel && (
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color="#F2760F"
+                        style={{ marginLeft: 'auto' as any }}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </SafeAreaView>
+        </Modal>
+        {!!erros.cor && <Text style={[s.fieldError, { marginTop: 4 }]}>{erros.cor}</Text>}
+      </View>
+
+      {/* Campo livre quando "Outra..." foi escolhida */}
+      {!isPredefinida && (
+        <View style={{ marginTop: -4, marginBottom: 12 }}>
+          <Input
+            value={corAtual}
+            onChange={(v) => up('cor', v.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
+            placeholder="Digite a cor do veículo..."
+            autoCapitalize="words"
+          />
+        </View>
+      )}
+
+      <Field label="Ano" error={erros.ano}>
         <Input
           value={data.ano || ''}
-          onChange={(v) => up('ano', v)}
+          onChange={(v) => up('ano', v.replace(/\D/g, '').slice(0, 4))}
           placeholder="2022"
           keyboardType="numeric"
         />
@@ -447,7 +717,7 @@ function StepVeiculo({ data, up }: StepProps) {
 }
 
 // ─── Passo 5: Bancário ───────────────────────────────────────────
-function StepBancario({ data, up }: StepProps) {
+function StepBancario({ data, up, erros }: StepProps & { erros: Record<string, string> }) {
   const [bancoModal, setBancoModal] = useState(false);
   const [busca, setBusca] = useState('');
 
@@ -497,7 +767,7 @@ function StepBancario({ data, up }: StepProps) {
         })}
       </View>
 
-      <Field label="Chave Pix">
+      <Field label="Chave Pix" error={erros.pix}>
         <Input
           value={data.pix || ''}
           onChange={handlePixChange}
@@ -540,7 +810,7 @@ function StepBancario({ data, up }: StepProps) {
           </Field>
         </View>
         <View style={{ flex: 1 }}>
-          <Field label="Conta">
+          <Field label="Conta" error={erros.conta}>
             <Input
               value={data.conta || ''}
               onChange={(v) => up('conta', v)}
@@ -661,12 +931,15 @@ function validarPasso1(data: Data): Record<string, string> {
   const e: Record<string, string> = {};
   const nomeParts = (data.nome || '').trim().split(/\s+/);
   if (nomeParts.length < 2 || nomeParts[1].length < 2) e.nome = 'Informe seu nome e sobrenome.';
-  if (!validateCPF(data.cpf || '')) e.cpf = 'CPF inválido.';
+  const cpfDigits = (data.cpf || '').replace(/\D/g, '');
+  if (cpfDigits.length < 11) e.cpf = 'CPF incompleto — informe os 11 dígitos.';
+  else if (!validateCPF(data.cpf || '')) e.cpf = 'CPF inválido. Verifique os números digitados.';
   if ((data.celularCompleto || data.celular || '').replace(/\D/g, '').length < 10)
     e.celular = 'Celular inválido.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(data.email || '')) e.email = 'Email inválido.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((data.email || '').trim())) e.email = 'Email inválido.';
   if ((data.senha || '').length < 6) e.senha = 'Mínimo 6 caracteres.';
-  if ((data.senha || '') !== (data.confirmarSenha || ''))
+  if (!(data.confirmarSenha || '')) e.confirmarSenha = 'Confirme sua senha.';
+  else if ((data.senha || '') !== (data.confirmarSenha || ''))
     e.confirmarSenha = 'As senhas não coincidem.';
   return e;
 }
@@ -691,6 +964,44 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   const [docModal, setDocModal] = useState<'frente' | 'verso' | null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const checkDisponivel = useCallback(
+    async (field: 'cpf' | 'email' | 'telefone', value: string) => {
+      try {
+        const res = await fetch(
+          `${LAPI}/auth/entregador/check?field=${field}&value=${encodeURIComponent(value)}`,
+        );
+        if (!res.ok) return;
+        const { available } = await res.json();
+        if (!available) {
+          const msgs: Record<string, string> = {
+            cpf: 'Este CPF já possui uma conta. Faça login ou use outro CPF.',
+            email: 'Este e-mail já está em uso. Faça login ou use outro e-mail.',
+            telefone: 'Este celular já está cadastrado. Faça login ou use outro número.',
+          };
+          setErros((prev) => ({
+            ...prev,
+            [field === 'telefone' ? 'celular' : field]: msgs[field],
+          }));
+        }
+      } catch {
+        // falha silenciosa
+      }
+    },
+    [],
+  );
+
+  const onBlurCpf = useCallback(async () => {
+    const digits = (data.cpf || '').replace(/\D/g, '');
+    if (digits.length < 11 || !validateCPF(data.cpf || '')) return;
+    await checkDisponivel('cpf', digits);
+  }, [data.cpf, checkDisponivel]);
+
+  const onBlurEmail = useCallback(async () => {
+    const trimmed = (data.email || '').trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed)) return;
+    await checkDisponivel('email', trimmed);
+  }, [data.email, checkDisponivel]);
 
   const pickDoc = (lado: 'frente' | 'verso') => setDocModal(lado);
 
@@ -739,8 +1050,29 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
+      setErros((e) => {
+        const n = { ...e };
+        delete n.foto;
+        return n;
+      });
     }
   };
+
+  const geocodeCoords = useCallback(async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
+      if (!res.ok) return;
+      const geoData = await res.json();
+      setData((d) => ({
+        ...d,
+        cep: (geoData.cep ?? d.cep ?? '').replace(/\D/g, ''),
+        rua: geoData.rua || d.rua || '',
+        bairro: geoData.bairro || d.bairro || '',
+      }));
+    } catch {
+      // geocode falhou silenciosamente — usuário pode preencher manualmente
+    }
+  }, []);
 
   const usarLocalizacao = async () => {
     setLocLoading(true);
@@ -748,15 +1080,24 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     try {
       let lat: number, lng: number;
       if (Platform.OS === 'web') {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          }),
-        );
-        lat = pos.coords.latitude;
-        lng = pos.coords.longitude;
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 15000,
+              maximumAge: 60000,
+            }),
+          );
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch (geoErr: any) {
+          const msg =
+            geoErr?.code === 1
+              ? 'Permissão de localização negada. Permita o acesso no navegador e tente novamente.'
+              : 'Não foi possível obter sua localização. Verifique se o GPS está ativo.';
+          setErros((e) => ({ ...e, localizacao: msg }));
+          return;
+        }
       } else {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -764,20 +1105,35 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
           return;
         }
         const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.BestForNavigation,
+          accuracy: Location.Accuracy.Balanced,
         });
         lat = loc.coords.latitude;
         lng = loc.coords.longitude;
       }
       setGpsCoords({ lat, lng });
-    } catch {
-      setErros((e) => ({ ...e, localizacao: 'Não foi possível obter sua localização.' }));
+      await geocodeCoords(lat, lng);
     } finally {
       setLocLoading(false);
     }
   };
 
-  const up = (k: string, v: string) => setData((d) => ({ ...d, [k]: v }));
+  const handlePinMoved = useCallback(
+    async (lat: number, lng: number) => {
+      setGpsCoords({ lat, lng });
+      await geocodeCoords(lat, lng);
+    },
+    [geocodeCoords],
+  );
+
+  const up = (k: string, v: string) => {
+    setData((d) => ({ ...d, [k]: v }));
+    setErros((e) => {
+      if (!e[k]) return e;
+      const next = { ...e };
+      delete next[k];
+      return next;
+    });
+  };
   const needsVehicle = data.transporte !== 'bike';
 
   // Transporte vem antes de Documentos para que o label CNH/RG seja correto
@@ -797,6 +1153,60 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     // Valida campos obrigatórios
     if (step === 0) {
       const e = validarPasso1(data);
+      if (!photoUri) e.foto = 'Adicione uma foto de perfil para continuar.';
+      if (Object.keys(e).length > 0) {
+        setErros(e);
+        return;
+      }
+      setErros({});
+    }
+
+    if (cur.title === 'Transporte') {
+      if (!data.transporte) {
+        setErros({ transporte: 'Selecione seu meio de transporte para continuar.' });
+        return;
+      }
+      setErros({});
+    }
+
+    if (cur.title === 'Veículo') {
+      const e: Record<string, string> = {};
+      const placaClean = (data.placa || '').replace(/[^a-zA-Z0-9]/g, '');
+      if (!placaClean) {
+        e.placa = 'Informe a placa do veículo.';
+      } else if (placaClean.length < 7) {
+        e.placa = 'Placa incompleta — formato: ABC-1234 ou ABC-1D23.';
+      }
+      if (!data.modelo?.trim()) e.modelo = 'Informe o modelo do veículo.';
+      if (!data.cor?.trim()) {
+        e.cor = 'Informe a cor do veículo.';
+      }
+      if (!data.ano?.trim()) {
+        e.ano = 'Informe o ano do veículo.';
+      } else {
+        const ano = parseInt(data.ano, 10);
+        const anoAtual = new Date().getFullYear();
+        if (isNaN(ano) || ano < 1990 || ano > anoAtual) {
+          e.ano = `Informe um ano válido entre 1990 e ${anoAtual}.`;
+        }
+      }
+      if (Object.keys(e).length > 0) {
+        setErros(e);
+        return;
+      }
+      setErros({});
+    }
+
+    if (cur.title === 'Bancário') {
+      const hasPix = !!data.pix?.trim();
+      const hasBanco = !!data.banco;
+      const hasAgenciaConta = !!data.agencia?.trim() && !!data.conta?.trim();
+      const e: Record<string, string> = {};
+      if (!hasPix && !hasBanco) {
+        e.pix = 'Informe sua chave Pix ou selecione um banco para continuar.';
+      } else if (hasBanco && !hasAgenciaConta) {
+        e.conta = 'Informe a agência e a conta do banco selecionado.';
+      }
       if (Object.keys(e).length > 0) {
         setErros(e);
         return;
@@ -938,11 +1348,18 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
         (e.message.includes('Network') ||
           e.message.includes('fetch') ||
           e.message.includes('Failed'));
-      setSubmitError(
+      const msg = enrichRateLimit(
         isNetwork
           ? 'Sem conexão com o servidor. Verifique sua internet.'
           : (e?.message ?? 'Erro ao cadastrar. Tente novamente.'),
       );
+      const field = e?.field as string | undefined;
+      if (field) {
+        setErros((prev) => ({ ...prev, [field === 'telefone' ? 'celular' : field]: msg }));
+        setStep(0);
+      } else {
+        setSubmitError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -994,7 +1411,15 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
             onPickPhoto={pickPhoto}
             onGps={usarLocalizacao}
             locLoading={locLoading}
-            gpsCapturado={gpsCoords !== null}
+            gpsCoords={gpsCoords}
+            onPinMoved={handlePinMoved}
+            onClearGps={() => {
+              setGpsCoords(null);
+              setData((d) => ({ ...d, cep: '', rua: '', bairro: '' }));
+              setErros((e) => ({ ...e, localizacao: '' }));
+            }}
+            onBlurCpf={onBlurCpf}
+            onBlurEmail={onBlurEmail}
           />
         )}
         {cur.title === 'Documentos' && (
@@ -1005,9 +1430,9 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
             tipoTransporte={data.transporte || 'moto'}
           />
         )}
-        {cur.title === 'Transporte' && <StepTransporte data={data} up={up} />}
-        {cur.title === 'Veículo' && <StepVeiculo data={data} up={up} />}
-        {cur.title === 'Bancário' && <StepBancario data={data} up={up} />}
+        {cur.title === 'Transporte' && <StepTransporte data={data} up={up} erros={erros} />}
+        {cur.title === 'Veículo' && <StepVeiculo data={data} up={up} erros={erros} />}
+        {cur.title === 'Bancário' && <StepBancario data={data} up={up} erros={erros} />}
         {cur.title === 'Revisão' && <StepRevisao data={data} />}
       </ScrollView>
 
@@ -1171,6 +1596,15 @@ const s = StyleSheet.create({
     gap: 4,
   },
   photoBtnText: { fontSize: 11, color: '#F2760F', fontWeight: '600' },
+  photoBtnError: { borderColor: '#E24B4A', backgroundColor: 'rgba(226,75,74,0.06)' },
+  photoHint: {
+    fontSize: 11,
+    color: '#9099B3',
+    textAlign: 'center',
+    marginTop: -12,
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
   stepDesc: { fontSize: 13, color: '#9099B3', lineHeight: 19, marginBottom: 18 },
 
   docBtn: {
@@ -1355,11 +1789,38 @@ const s = StyleSheet.create({
   tipText: { flex: 1, fontSize: 12, color: '#F2760F', lineHeight: 18 },
 
   gpsSection: { marginTop: 6, marginBottom: 4 },
+  gpsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  corDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+  },
+  corModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E7F1',
+  },
+  corModalItemSel: { backgroundColor: 'rgba(242,118,15,0.06)' },
+  corModalText: { fontSize: 15, color: '#000933' },
+  gpsSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9099B3',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  gpsSectionOpcional: { fontSize: 11, color: '#B0B8CC', fontStyle: 'italic' },
+  gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   gpsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    alignSelf: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
@@ -1369,6 +1830,18 @@ const s = StyleSheet.create({
   },
   gpsBtnDone: { borderColor: '#039855', backgroundColor: 'rgba(3,152,85,0.07)' },
   gpsBtnText: { fontSize: 13, fontWeight: '600', color: '#F2760F' },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E4E7F1',
+  },
+  clearBtnText: { fontSize: 13, fontWeight: '600', color: '#9099B3' },
+  mapBox: { height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalSheet: {

@@ -100,7 +100,10 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
         });
         const data = await resp.json();
         if (!resp.ok) {
-          throw new Error(typeof data.error === 'string' ? data.error : 'Erro ao cadastrar');
+          const errorMsg = typeof data.error === 'string' ? data.error : 'Erro ao cadastrar';
+          const err = new Error(errorMsg);
+          if (typeof data.field === 'string') (err as any).field = data.field;
+          throw err;
         }
         set({
           isLoggedIn: true,
@@ -116,6 +119,7 @@ export const useAuthEntregadorStore = create<AuthEntregadorState>()(
 
       logout: () => {
         disconnectSocket();
+        secureStorage.removeItem('ajulabs-entregador-auth').catch(() => {});
         set({
           isLoggedIn: false,
           needsOnboarding: false,

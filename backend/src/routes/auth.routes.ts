@@ -225,6 +225,28 @@ const registrarEntregadorSchema = z.object({
   tipoTransporte: z.enum(['bike', 'moto', 'carro']),
 });
 
+router.get('/entregador/check', async (req, res) => {
+  try {
+    const { field, value } = req.query;
+    if (
+      typeof field !== 'string' ||
+      typeof value !== 'string' ||
+      !value.trim() ||
+      !['cpf', 'email', 'telefone'].includes(field)
+    ) {
+      return res.status(400).json({ error: 'Parâmetros inválidos' });
+    }
+    const existe = await prisma.entregador.findFirst({
+      where: { [field]: value.trim() },
+      select: { id: true },
+    });
+    res.json({ available: !existe });
+  } catch (error) {
+    logger.error({ err: error }, 'Erro ao verificar disponibilidade (entregador)');
+    res.status(500).json({ error: 'Erro ao verificar' });
+  }
+});
+
 router.post(
   '/entregador/registrar',
   specValidatorMiddleware(registrarEntregadorSpec),
@@ -236,9 +258,27 @@ router.post(
         where: {
           OR: [{ cpf: dados.cpf }, { telefone: dados.telefone }, { email: dados.email }],
         },
+        select: { cpf: true, telefone: true, email: true },
       });
 
-      if (existe) return res.status(400).json({ error: 'CPF, telefone ou email já cadastrado' });
+      if (existe) {
+        if (existe.cpf === dados.cpf) {
+          return res.status(400).json({
+            error: 'Este CPF já possui uma conta. Faça login ou use outro CPF.',
+            field: 'cpf',
+          });
+        }
+        if (existe.email === dados.email) {
+          return res.status(400).json({
+            error: 'Este e-mail já está em uso. Faça login ou use outro e-mail.',
+            field: 'email',
+          });
+        }
+        return res.status(400).json({
+          error: 'Este telefone já está cadastrado. Faça login ou use outro número.',
+          field: 'telefone',
+        });
+      }
 
       const { senha, ...dadosEntregador } = dados;
       const senhaHash = await hashSenha(senha);
@@ -317,6 +357,28 @@ const registrarLojistaSchema = z.object({
   telefone: z.string().regex(/^\+55\d{11}$/),
 });
 
+router.get('/lojista/check', async (req, res) => {
+  try {
+    const { field, value } = req.query;
+    if (
+      typeof field !== 'string' ||
+      typeof value !== 'string' ||
+      !value.trim() ||
+      !['cnpj', 'email', 'telefone'].includes(field)
+    ) {
+      return res.status(400).json({ error: 'Parâmetros inválidos' });
+    }
+    const existe = await prisma.lojista.findFirst({
+      where: { [field]: value.trim() },
+      select: { id: true },
+    });
+    res.json({ available: !existe });
+  } catch (error) {
+    logger.error({ err: error }, 'Erro ao verificar disponibilidade (lojista)');
+    res.status(500).json({ error: 'Erro ao verificar' });
+  }
+});
+
 router.post(
   '/lojista/registrar',
   specValidatorMiddleware(registrarLojistaSpec),
@@ -326,9 +388,21 @@ router.post(
 
       const existe = await prisma.lojista.findFirst({
         where: { OR: [{ cnpj: dados.cnpj }, { email: dados.email }] },
+        select: { cnpj: true, email: true },
       });
 
-      if (existe) return res.status(400).json({ error: 'CNPJ ou email já cadastrado' });
+      if (existe) {
+        if (existe.cnpj === dados.cnpj) {
+          return res.status(400).json({
+            error: 'Este CNPJ já possui uma conta. Faça login ou use outro CNPJ.',
+            field: 'cnpj',
+          });
+        }
+        return res.status(400).json({
+          error: 'Este e-mail já está em uso. Faça login ou use outro e-mail.',
+          field: 'email',
+        });
+      }
 
       const { senha, ...dadosLojista } = dados;
       const senhaHash = await hashSenha(senha);

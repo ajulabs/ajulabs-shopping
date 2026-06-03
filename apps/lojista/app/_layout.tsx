@@ -24,7 +24,12 @@ export default function RootLayout() {
     if (!isLoggedIn && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isLoggedIn && inAuthGroup) {
-      router.replace('/(lojista)/pedidos');
+      // When coming from register the screen itself navigates to onboarding —
+      // let it handle navigation instead of overriding with pedidos.
+      const currentScreen = segments[1];
+      if (currentScreen !== 'register') {
+        router.replace('/(lojista)/pedidos');
+      }
     }
   }, [isLoggedIn, hasHydrated, segments, mounted]);
 

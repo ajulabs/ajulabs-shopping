@@ -183,6 +183,7 @@ export function CourierApp() {
 
   const [screen, setScreen] = useState<Screen>(needsOnboarding ? 'onboarding' : 'main');
   const [tab, setTab] = useState<Tab>('home');
+  const [isOnline, setIsOnline] = useState(false);
   const [chatPedidoId, setChatPedidoId] = useState<string | null>(null);
   const [chatFromScreen, setChatFromScreen] = useState<'conversas' | 'active'>('conversas');
 
@@ -337,7 +338,12 @@ export function CourierApp() {
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, overflow: 'hidden' }}>
         <View style={[{ flex: 1 }, tab !== 'home' && { display: 'none' }]}>
-          <HomeScreen onAcceptRide={handleAcceptRide} activeRidesCount={activeRides.length} />
+          <HomeScreen
+            onAcceptRide={handleAcceptRide}
+            activeRidesCount={activeRides.length}
+            online={isOnline}
+            onToggleOnline={setIsOnline}
+          />
         </View>
         {tab === 'entregas' && (
           <EntregasAndamentoScreen rides={activeRides} onSelectRide={handleSelectRide} />

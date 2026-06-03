@@ -1,13 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   StyleSheet,
   ActivityIndicator,
   Platform,
+  findNodeHandle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,11 +15,22 @@ import * as Location from 'expo-location';
 import { colors, AjuLogo } from '../../../../theme';
 import { useAuthLojistaStore } from '../model/store';
 import { validateCNPJ } from '../lib/validateCNPJ';
+import { Field } from './components/Field';
 import { PhoneInput } from './components/PhoneInput';
 import { LocationPickerMap } from '../../../../components/LocationPickerMap';
+import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
 
 const LAPI =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
+
+function formatCNPJ(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  return digits
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
 
 interface CadastroLojistaProps {
   onCadastroSuccess?: () => void;
@@ -42,81 +53,12 @@ interface EnderecoLoja {
   bairro: string;
 }
 
-function formatCNPJ(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 14);
-  return digits
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2');
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  secureTextEntry = false,
-  keyboardType = 'default',
-  error,
-  onBlur,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
-  error?: string;
-  onBlur?: () => void;
-}) {
-  const [focused, setFocused] = useState(false);
-  const [shown, setShown] = useState(false);
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View
-        style={[
-          styles.inputRow,
-          focused && styles.inputRowFocused,
-          !!error && styles.inputRowError,
-        ]}
-      >
-        <TextInput
-          style={styles.inputInner}
-          value={value}
-          onChangeText={onChange}
-          placeholder={placeholder}
-          placeholderTextColor={colors.n600}
-          secureTextEntry={secureTextEntry && !shown}
-          keyboardType={keyboardType}
-          autoCapitalize="none"
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            onBlur?.();
-          }}
-        />
-        {secureTextEntry && (
-          <TouchableOpacity onPress={() => setShown((s) => !s)} hitSlop={10} style={styles.eyeBtn}>
-            <Ionicons
-              name={shown ? 'eye-off-outline' : 'eye-outline'}
-              size={18}
-              color={colors.n600}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-      {!!error && <Text style={styles.fieldError}>{error}</Text>}
-    </View>
-  );
-}
-
 export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const router = useRouter();
   const registrar = useAuthLojistaStore((s) => s.registrar);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [form, setForm] = useState<FormData>({
     cnpj: '',
     nomeLoja: '',
@@ -135,25 +77,65 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const [locLoading, setLocLoading] = useState(false);
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldRefs = useRef<Record<string, View | null>>({});
+
   const setEnderecoField = useCallback((key: keyof EnderecoLoja, value: string) => {
     setEndereco((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const clearError = useCallback(
+    (...keys: string[]) =>
+      setErrors((prev) => {
+        if (keys.every((k) => !prev[k])) return prev;
+        const next = { ...prev };
+        keys.forEach((k) => delete next[k]);
+        return next;
+      }),
+    [],
+  );
+
+  const scrollToField = useCallback((key: string) => {
+    const ref = fieldRefs.current[key];
+    if (!ref) return;
+    if (Platform.OS === 'web') {
+      (ref as any).scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    } else {
+      const node = findNodeHandle(scrollRef.current);
+      if (node) {
+        ref.measureLayout(
+          node,
+          (_, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true }),
+          () => {},
+        );
+      }
+    }
+  }, []);
+
   const usarLocalizacao = useCallback(async () => {
     setLocLoading(true);
-    setErrors((e) => ({ ...e, localizacao: '' }));
+    clearError('localizacao');
     try {
       let lat: number, lng: number;
       if (Platform.OS === 'web') {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          }),
-        );
-        lat = pos.coords.latitude;
-        lng = pos.coords.longitude;
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 15000,
+              maximumAge: 60000,
+            }),
+          );
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch (geoErr: any) {
+          const msg =
+            geoErr?.code === 1
+              ? 'Permissão de localização negada. Permita o acesso no navegador e tente novamente.'
+              : 'Não foi possível obter sua localização. Verifique se o GPS está ativo.';
+          setErrors((e) => ({ ...e, localizacao: msg }));
+          return;
+        }
       } else {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -161,73 +143,153 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           return;
         }
         const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.BestForNavigation,
+          accuracy: Location.Accuracy.Balanced,
         });
         lat = loc.coords.latitude;
         lng = loc.coords.longitude;
       }
+
+      // GPS obtido — exibe mapa mesmo que o geocode falhe
       setPinCoords({ lat, lng });
-      const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setEndereco({
-        cep: (data.cep ?? '').replace(/\D/g, ''),
-        rua: data.rua ?? '',
-        numero: '',
-        bairro: data.bairro ?? '',
-      });
-    } catch {
-      setErrors((e) => ({ ...e, localizacao: 'Não foi possível obter sua localização.' }));
+
+      try {
+        const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        setEndereco({
+          cep: (data.cep ?? '').replace(/\D/g, ''),
+          rua: data.rua ?? '',
+          numero: '',
+          bairro: data.bairro ?? '',
+        });
+        clearError('cep', 'rua', 'bairro');
+      } catch {
+        // Geocode falhou mas coordenadas estão disponíveis — usuário pode preencher manualmente
+      }
     } finally {
       setLocLoading(false);
     }
-  }, []);
+  }, [clearError]);
 
-  const handlePinMoved = useCallback(async (lat: number, lng: number) => {
-    setPinCoords({ lat, lng });
-    try {
-      const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setEndereco((prev) => ({
-        ...prev,
-        cep: (data.cep ?? prev.cep).replace(/\D/g, ''),
-        rua: data.rua || prev.rua,
-        bairro: data.bairro || prev.bairro,
-      }));
-    } catch {}
-  }, []);
+  const handlePinMoved = useCallback(
+    async (lat: number, lng: number) => {
+      setPinCoords({ lat, lng });
+      try {
+        const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEndereco((prev) => ({
+          ...prev,
+          cep: (data.cep ?? prev.cep).replace(/\D/g, ''),
+          rua: data.rua || prev.rua,
+          bairro: data.bairro || prev.bairro,
+        }));
+        clearError('cep', 'rua', 'bairro');
+      } catch {}
+    },
+    [clearError],
+  );
 
-  const setField = useCallback((key: keyof FormData, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((e) => ({ ...e, [key]: '' }));
-  }, []);
+  const setField = useCallback(
+    (key: keyof FormData, value: string) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+      clearError(key);
+    },
+    [clearError],
+  );
 
-  const blurCnpj = () => {
-    if (form.cnpj && !validateCNPJ(form.cnpj)) setErrors((e) => ({ ...e, cnpj: 'CNPJ inválido.' }));
-  };
+  const checkDisponivel = useCallback(
+    async (field: 'cnpj' | 'email' | 'telefone', value: string) => {
+      try {
+        const res = await fetch(
+          `${LAPI}/auth/lojista/check?field=${field}&value=${encodeURIComponent(value)}`,
+        );
+        if (!res.ok) return;
+        const { available } = await res.json();
+        if (!available) {
+          const msgs: Record<string, string> = {
+            cnpj: 'Este CNPJ já possui uma conta. Faça login ou use outro CNPJ.',
+            email: 'Este e-mail já está em uso. Faça login ou use outro e-mail.',
+            telefone: 'Este telefone já está cadastrado. Faça login ou use outro número.',
+          };
+          setErrors((prev) => ({ ...prev, [field]: msgs[field] }));
+        }
+      } catch {
+        // falha silenciosa — o submit valida novamente no servidor
+      }
+    },
+    [],
+  );
 
-  const blurEmail = () => {
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email))
+  const blurCnpj = useCallback(async () => {
+    const digits = form.cnpj.replace(/\D/g, '');
+    if (!digits) return;
+    if (digits.length < 14) {
+      setErrors((e) => ({ ...e, cnpj: 'CNPJ incompleto — informe os 14 dígitos.' }));
+    } else if (!validateCNPJ(form.cnpj)) {
+      setErrors((e) => ({ ...e, cnpj: 'CNPJ inválido. Verifique os números digitados.' }));
+    } else {
+      await checkDisponivel('cnpj', digits);
+    }
+  }, [form.cnpj, checkDisponivel]);
+
+  const blurEmail = useCallback(async () => {
+    const trimmed = form.email.trim();
+    if (!trimmed) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed)) {
       setErrors((e) => ({ ...e, email: 'Email inválido.' }));
-  };
+    } else {
+      await checkDisponivel('email', trimmed);
+    }
+  }, [form.email, checkDisponivel]);
 
-  const validate = useCallback((): boolean => {
+  const blurTelefone = useCallback(async () => {
+    const digits = form.telefoneCompleto.replace(/\D/g, '');
+    if (digits.length < 10) return;
+    await checkDisponivel('telefone', form.telefoneCompleto.replace(/[^\d+]/g, ''));
+  }, [form.telefoneCompleto, checkDisponivel]);
+
+  const validate = useCallback(() => {
     const errs: Record<string, string> = {};
-    if (!validateCNPJ(form.cnpj)) errs.cnpj = 'CNPJ inválido.';
+    const cnpjDigits = form.cnpj.replace(/\D/g, '');
+    if (cnpjDigits.length < 14) errs.cnpj = 'CNPJ incompleto — informe os 14 dígitos.';
+    else if (!validateCNPJ(form.cnpj)) errs.cnpj = 'CNPJ inválido. Verifique os números digitados.';
     if (!form.nomeLoja.trim()) errs.nomeLoja = 'Informe o nome da loja.';
     if (form.telefoneCompleto.replace(/\D/g, '').length < 10) errs.telefone = 'Telefone inválido.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email)) errs.email = 'Email inválido.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) errs.email = 'Email inválido.';
     if (form.senha.length < 8) errs.senha = 'Mínimo 8 caracteres.';
     else if (!/[A-Z]/.test(form.senha)) errs.senha = 'Inclua ao menos 1 letra maiúscula.';
     else if (!/[0-9]/.test(form.senha)) errs.senha = 'Inclua ao menos 1 número.';
-    if (form.senha !== form.confirmarSenha) errs.confirmarSenha = 'As senhas não coincidem.';
+    if (!form.confirmarSenha) errs.confirmarSenha = 'Confirme sua senha.';
+    else if (form.senha !== form.confirmarSenha) errs.confirmarSenha = 'As senhas não coincidem.';
+    if (!endereco.cep) errs.cep = 'Informe o CEP da loja.';
+    else if (endereco.cep.length < 8) errs.cep = 'CEP incompleto — informe os 8 dígitos.';
+    if (!endereco.rua.trim()) errs.rua = 'Informe a rua ou avenida da loja.';
+    if (!endereco.bairro.trim()) errs.bairro = 'Informe o bairro da loja.';
+    if (!aceitouTermos) errs.termos = 'Aceite os Termos de Uso para continuar.';
     setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }, [form]);
+    return errs;
+  }, [form, endereco, aceitouTermos]);
 
   const handleCadastro = useCallback(async () => {
-    if (!validate()) return;
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      const order = [
+        'cnpj',
+        'nomeLoja',
+        'telefone',
+        'email',
+        'senha',
+        'confirmarSenha',
+        'cep',
+        'bairro',
+        'rua',
+        'termos',
+      ];
+      const firstKey = order.find((k) => errs[k]);
+      if (firstKey) scrollToField(firstKey);
+      return;
+    }
     setLoading(true);
     try {
       await registrar({
@@ -238,7 +300,6 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         senha: form.senha,
       });
 
-      // Se endereço preenchido, persiste na loja recém-criada
       if (endereco.rua.trim() && endereco.cep.trim()) {
         const { lojaId, token } = useAuthLojistaStore.getState();
         if (lojaId && token) {
@@ -267,17 +328,22 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         (e.message.includes('Network') ||
           e.message.includes('fetch') ||
           e.message.includes('Failed'));
-      setErrors({
-        geral: isNetwork
-          ? 'Sem conexão com o servidor.'
-          : e instanceof Error
-            ? e.message
-            : 'Erro ao criar conta.',
-      });
+      const msg = isNetwork
+        ? 'Sem conexão com o servidor.'
+        : e instanceof Error
+          ? e.message
+          : 'Erro ao criar conta.';
+      const field = (e as any)?.field as string | undefined;
+      if (field && fieldRefs.current[field]) {
+        setErrors({ [field]: enrichRateLimit(msg) });
+        scrollToField(field);
+      } else {
+        setErrors({ geral: enrichRateLimit(msg) });
+      }
     } finally {
       setLoading(false);
     }
-  }, [form, validate, registrar, onCadastroSuccess, router]);
+  }, [form, validate, registrar, onCadastroSuccess, router, scrollToField, pinCoords, endereco]);
 
   return (
     <View style={styles.container}>
@@ -290,6 +356,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.card}
         contentContainerStyle={styles.cardContent}
         showsVerticalScrollIndicator={false}
@@ -298,82 +365,167 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         <Text style={styles.cardTitle}>Criar conta</Text>
         <Text style={styles.cardSub}>Preencha os dados da sua loja para começar</Text>
 
-        <Field
-          label="CNPJ"
-          value={form.cnpj}
-          onChange={(v) => setField('cnpj', formatCNPJ(v))}
-          placeholder="00.000.000/0001-00"
-          keyboardType="numeric"
-          error={errors.cnpj}
-          onBlur={blurCnpj}
-        />
-        <Field
-          label="NOME DA LOJA"
-          value={form.nomeLoja}
-          onChange={(v) => setField('nomeLoja', v)}
-          placeholder="Ex: Loja do Chico — Calçados"
-          error={errors.nomeLoja}
-        />
+        <View
+          ref={(r) => {
+            fieldRefs.current.cnpj = r;
+          }}
+        >
+          <Field
+            label="CNPJ"
+            value={form.cnpj}
+            onChange={(v) => setField('cnpj', formatCNPJ(v))}
+            placeholder="00.000.000/0001-00"
+            keyboardType="numeric"
+            autoComplete="off"
+            textContentType="none"
+            error={errors.cnpj}
+            onBlur={blurCnpj}
+            isValid={!errors.cnpj && validateCNPJ(form.cnpj)}
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.nomeLoja = r;
+          }}
+        >
+          <Field
+            label="NOME DA LOJA"
+            value={form.nomeLoja}
+            onChange={(v) => setField('nomeLoja', v)}
+            placeholder="Ex: Loja do Chico — Calçados"
+            autoCapitalize="words"
+            autoComplete="organization"
+            textContentType="organizationName"
+            error={errors.nomeLoja}
+            isValid={!errors.nomeLoja && form.nomeLoja.trim().length > 0}
+          />
+        </View>
 
-        <View style={styles.field}>
+        <View
+          ref={(r) => {
+            fieldRefs.current.telefone = r;
+          }}
+        >
           <Text style={styles.fieldLabel}>TELEFONE / WHATSAPP</Text>
           <PhoneInput
             value={form.telefone}
             onChange={(local, full) => {
               setForm((f) => ({ ...f, telefone: local, telefoneCompleto: full }));
-              setErrors((e) => ({ ...e, telefone: '' }));
+              clearError('telefone');
             }}
+            onBlur={blurTelefone}
             error={errors.telefone}
           />
         </View>
 
-        <Field
-          label="EMAIL"
-          value={form.email}
-          onChange={(v) => setField('email', v)}
-          placeholder="loja@email.com"
-          keyboardType="email-address"
-          error={errors.email}
-          onBlur={blurEmail}
-        />
-        <Field
-          label="SENHA"
-          value={form.senha}
-          onChange={(v) => setField('senha', v)}
-          placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
-          secureTextEntry
-          error={errors.senha}
-        />
-        <Field
-          label="CONFIRMAR SENHA"
-          value={form.confirmarSenha}
-          onChange={(v) => setField('confirmarSenha', v)}
-          placeholder="Repita a senha"
-          secureTextEntry
-          error={errors.confirmarSenha}
-        />
+        <View
+          ref={(r) => {
+            fieldRefs.current.email = r;
+          }}
+        >
+          <Field
+            label="EMAIL"
+            value={form.email}
+            onChange={(v) => setField('email', v)}
+            placeholder="loja@email.com"
+            keyboardType="email-address"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            error={errors.email}
+            onBlur={blurEmail}
+            isValid={!errors.email && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())}
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.senha = r;
+          }}
+        >
+          <Field
+            label="SENHA"
+            value={form.senha}
+            onChange={(v) => setField('senha', v)}
+            placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={errors.senha}
+            isValid={
+              !errors.senha &&
+              form.senha.length >= 8 &&
+              /[A-Z]/.test(form.senha) &&
+              /[0-9]/.test(form.senha)
+            }
+          />
+        </View>
+        <View
+          ref={(r) => {
+            fieldRefs.current.confirmarSenha = r;
+          }}
+        >
+          <Field
+            label="CONFIRMAR SENHA"
+            value={form.confirmarSenha}
+            onChange={(v) => setField('confirmarSenha', v)}
+            placeholder="Repita a senha"
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={errors.confirmarSenha}
+            isValid={
+              !errors.confirmarSenha &&
+              form.confirmarSenha.length > 0 &&
+              form.confirmarSenha === form.senha
+            }
+          />
+        </View>
 
-        {/* ── Endereço da loja (opcional) ─────────────────── */}
+        {/* ── Endereço da loja ─────────────────────────────── */}
         <View style={styles.enderecoSection}>
-          <Text style={styles.enderecoTitle}>ENDEREÇO DA LOJA</Text>
+          <View style={styles.enderecoTitleRow}>
+            <Text style={styles.enderecoTitle}>ENDEREÇO DA LOJA</Text>
+            <Text style={styles.enderecoOpcional}>obrigatório</Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.gpsBtn}
-            onPress={usarLocalizacao}
-            disabled={locLoading}
-            activeOpacity={0.8}
-          >
-            {locLoading ? (
-              <ActivityIndicator size="small" color={colors.orange} />
-            ) : (
-              <Ionicons name="location" size={15} color={colors.orange} />
+          <View style={styles.gpsBtnRow}>
+            <TouchableOpacity
+              style={styles.gpsBtn}
+              onPress={usarLocalizacao}
+              disabled={locLoading}
+              activeOpacity={0.8}
+            >
+              {locLoading ? (
+                <ActivityIndicator size="small" color={colors.orange} />
+              ) : (
+                <Ionicons name="location" size={15} color={colors.orange} />
+              )}
+              <Text style={styles.gpsBtnText}>
+                {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
+              </Text>
+            </TouchableOpacity>
+
+            {!!pinCoords && !locLoading && (
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => {
+                  setPinCoords(null);
+                  setEndereco({ cep: '', rua: '', numero: '', bairro: '' });
+                  clearError('cep', 'rua', 'bairro', 'localizacao');
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close-circle-outline" size={15} color={colors.n600} />
+                <Text style={styles.clearBtnText}>Limpar</Text>
+              </TouchableOpacity>
             )}
-            <Text style={styles.gpsBtnText}>
-              {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
-            </Text>
-          </TouchableOpacity>
+          </View>
 
-          {!!errors.localizacao && <Text style={styles.fieldError}>{errors.localizacao}</Text>}
+          {!!errors.localizacao && (
+            <Text style={[styles.errorGeral, { textAlign: 'left', marginBottom: 8 }]}>
+              {errors.localizacao}
+            </Text>
+          )}
 
           {pinCoords && (
             <View style={styles.mapContainer}>
@@ -387,32 +539,65 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           )}
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
+            <View
+              ref={(r) => {
+                fieldRefs.current.cep = r;
+              }}
+              style={{ flex: 1 }}
+            >
               <Field
                 label="CEP"
                 value={endereco.cep}
-                onChange={(v) => setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8))}
+                onChange={(v) => {
+                  setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8));
+                  clearError('cep');
+                }}
                 placeholder="49000000"
                 keyboardType="numeric"
+                autoComplete="off"
+                textContentType="none"
+                maxLength={8}
+                error={errors.cep}
+                isValid={!errors.cep && endereco.cep.length === 8}
               />
             </View>
-            <View style={{ flex: 2 }}>
+            <View
+              ref={(r) => {
+                fieldRefs.current.bairro = r;
+              }}
+              style={{ flex: 2 }}
+            >
               <Field
                 label="BAIRRO"
                 value={endereco.bairro}
-                onChange={(v) => setEnderecoField('bairro', v)}
+                onChange={(v) => {
+                  setEnderecoField('bairro', v);
+                  clearError('bairro');
+                }}
                 placeholder="Atalaia"
+                error={errors.bairro}
+                isValid={!errors.bairro && endereco.bairro.trim().length > 0}
               />
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
+            <View
+              ref={(r) => {
+                fieldRefs.current.rua = r;
+              }}
+              style={{ flex: 1 }}
+            >
               <Field
                 label="RUA / AV."
                 value={endereco.rua}
-                onChange={(v) => setEnderecoField('rua', v)}
+                onChange={(v) => {
+                  setEnderecoField('rua', v);
+                  clearError('rua');
+                }}
                 placeholder="Av. Beira Mar"
+                error={errors.rua}
+                isValid={!errors.rua && endereco.rua.trim().length > 0}
               />
             </View>
             <View style={{ width: 76, flexShrink: 0, overflow: 'hidden' }}>
@@ -422,16 +607,38 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
                 onChange={(v) => setEnderecoField('numero', v.replace(/\D/g, '').slice(0, 7))}
                 placeholder="100"
                 keyboardType="numeric"
+                maxLength={7}
               />
             </View>
           </View>
         </View>
 
-        <Text style={styles.terms}>
-          Ao criar sua conta você concorda com os{' '}
-          <Text style={styles.termsLink}>Termos de Uso</Text> e a{' '}
-          <Text style={styles.termsLink}>Política de Privacidade</Text> da AjuLabs.
-        </Text>
+        <TouchableOpacity
+          ref={(r) => {
+            fieldRefs.current.termos = r as any;
+          }}
+          style={styles.termosRow}
+          onPress={() => {
+            setAceitouTermos((v) => !v);
+            clearError('termos');
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={aceitouTermos ? 'checkbox' : 'square-outline'}
+            size={20}
+            color={errors.termos ? '#E24B4A' : aceitouTermos ? colors.orange : colors.n300}
+          />
+          <Text style={styles.terms}>
+            Li e aceito os <Text style={styles.termsLink}>Termos de Uso</Text> e a{' '}
+            <Text style={styles.termsLink}>Política de Privacidade</Text> da AjuLabs.
+          </Text>
+        </TouchableOpacity>
+        {errors.termos ? (
+          <Text style={[styles.errorGeral, { textAlign: 'left', marginTop: 4 }]}>
+            {errors.termos}
+          </Text>
+        ) : null}
 
         {errors.geral ? <Text style={styles.errorGeral}>{errors.geral}</Text> : null}
 
@@ -475,7 +682,6 @@ const styles = StyleSheet.create({
   cardContent: { padding: 28, paddingBottom: 0 },
   cardTitle: { fontSize: 20, fontWeight: '700', color: colors.navy },
   cardSub: { fontSize: 13, color: colors.n600, marginTop: 4, marginBottom: 20 },
-  field: { marginBottom: 12 },
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -483,30 +689,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 5,
+    marginTop: 2,
   },
-  inputRow: {
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    backgroundColor: colors.n50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-  inputRowFocused: { borderColor: colors.orange },
-  inputRowError: { borderColor: '#E24B4A' },
-  inputInner: { flex: 1, fontSize: 14, color: colors.navy },
-  eyeBtn: { paddingLeft: 8 },
-  fieldError: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
-  terms: {
-    fontSize: 12,
-    color: colors.n600,
-    textAlign: 'center',
-    marginVertical: 14,
-    lineHeight: 18,
-  },
-  termsLink: { color: colors.orange600, fontWeight: '600' },
   errorGeral: {
     fontSize: 13,
     color: '#E24B4A',
@@ -520,6 +704,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 14,
   },
   submitBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16 },
@@ -532,14 +717,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.n100,
   },
+  enderecoTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   enderecoTitle: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.n600,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginBottom: 10,
   },
+  enderecoOpcional: { fontSize: 11, color: colors.orange600, fontStyle: 'italic' },
+  gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   gpsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -549,9 +736,21 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.orange,
     paddingHorizontal: 14,
-    marginBottom: 10,
-    alignSelf: 'flex-start',
   },
   gpsBtnText: { fontSize: 13, fontWeight: '600', color: colors.orange },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.n200,
+    paddingHorizontal: 12,
+  },
+  clearBtnText: { fontSize: 13, fontWeight: '600', color: colors.n600 },
   mapContainer: { height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
+  termosRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 },
+  terms: { flex: 1, fontSize: 11, color: colors.n500, lineHeight: 16 },
+  termsLink: { color: colors.orange, fontWeight: '600' },
 });
