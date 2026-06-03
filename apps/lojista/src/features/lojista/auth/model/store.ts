@@ -147,7 +147,9 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           const errorMsg = typeof data.error === 'string' ? data.error : 'Erro ao criar conta';
-          throw new Error(errorMsg);
+          const err = new Error(errorMsg);
+          if (typeof data.field === 'string') (err as any).field = data.field;
+          throw err;
         }
 
         const { token, refreshToken, lojista } = await res.json();
@@ -168,6 +170,7 @@ export const useAuthLojistaStore = create<AuthLojistaState>()(
 
       logout: () => {
         disconnectSocket();
+        secureStorage.removeItem('ajulabs-lojista-auth').catch(() => {});
         set({
           isLoggedIn: false,
           token: null,

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthLojistaStore } from '../model/store';
+import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
 
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1/';
@@ -128,11 +129,13 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
           err.message.includes('fetch') ||
           err.message.includes('Failed'));
       setError(
-        isNetwork
-          ? 'Sem conexão. Verifique sua internet.'
-          : err instanceof Error
-            ? err.message
-            : 'Erro ao enviar.',
+        enrichRateLimit(
+          isNetwork
+            ? 'Sem conexão. Verifique sua internet.'
+            : err instanceof Error
+              ? err.message
+              : 'Erro ao enviar.',
+        ),
       );
     } finally {
       setLoading(false);
@@ -185,11 +188,13 @@ function RecoveryModal({ visible, onClose }: { visible: boolean; onClose: () => 
           err.message.includes('fetch') ||
           err.message.includes('Failed'));
       setError(
-        isNetwork
-          ? 'Sem conexão. Verifique sua internet.'
-          : err instanceof Error
-            ? err.message
-            : 'Erro ao redefinir senha.',
+        enrichRateLimit(
+          isNetwork
+            ? 'Sem conexão. Verifique sua internet.'
+            : err instanceof Error
+              ? err.message
+              : 'Erro ao redefinir senha.',
+        ),
       );
     } finally {
       setLoading(false);
@@ -444,7 +449,7 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
         : err instanceof Error
           ? err.message
           : 'CNPJ ou senha incorretos. Tente novamente.';
-      setError(msg);
+      setError(enrichRateLimit(msg));
     } finally {
       setLoading(false);
     }
