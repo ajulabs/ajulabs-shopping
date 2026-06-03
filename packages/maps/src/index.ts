@@ -10,3 +10,11 @@ export { useRouteDisplay } from './hooks/useRouteDisplay';
 export { haversine, nearestIdx, buildInstruction } from './utils/geo';
 export { fetchOsrmFull, fetchOsrmSimple } from './utils/osrm';
 export { getCachedRoute, setCachedRoute } from './utils/routeCache';
+export {
+  rasterStyle,
+  deltaToZoom,
+  boundsFromPoints,
+  TILE_OSM,
+  TILE_LIGHT,
+  TILE_DARK,
+} from './native/rasterStyle';

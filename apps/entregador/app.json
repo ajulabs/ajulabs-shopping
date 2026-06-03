@@ -38,6 +38,7 @@
     "plugins": [
       "expo-router",
       "expo-task-manager",
+      "@maplibre/maplibre-react-native",
       [
         "expo-location",
         {

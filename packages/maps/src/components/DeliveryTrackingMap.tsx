@@ -1,26 +1,22 @@
-import React, {
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-  memo,
-} from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, useColorScheme } from 'react-native';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  useColorScheme,
-} from 'react-native';
-import MapView, {
-  UrlTile,
+  Map,
+  Camera,
+  GeoJSONSource,
+  Layer,
   Marker,
-  Polyline,
-  PROVIDER_DEFAULT,
-} from 'react-native-maps';
+  type CameraRef,
+  type ViewStateChangeEvent,
+} from '@maplibre/maplibre-react-native';
 import { fetchOsrmSimple } from '../utils/osrm';
+import {
+  rasterStyle,
+  deltaToZoom,
+  boundsFromPoints,
+  TILE_LIGHT,
+  TILE_DARK,
+} from '../native/rasterStyle';
 import type { NavStep } from '@ajulabs/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,28 +77,26 @@ export interface DeliveryTrackingMapProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DELTA = 0.01;
+const ZOOM = deltaToZoom(DELTA);
 const FIT_PADDING = { top: 100, right: 60, bottom: 260, left: 60 };
-// CartoDB Voyager: light, colourful, great contrast for blue/orange delivery UI.
-const TILE_LIGHT = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
-const TILE_DARK  = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
 
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; color: string }> = {
-  pendente:  { label: 'Aguardando entregador', color: '#F2760F' },
-  aceito:    { label: 'Entregador a caminho',  color: '#209CEF' },
-  coletado:  { label: 'Saiu para entrega',     color: '#39FF89' },
-  entregue:  { label: 'Entregue!',             color: '#39FF89' },
-  cancelado: { label: 'Cancelado',             color: '#E14B3C' },
+  pendente: { label: 'Aguardando entregador', color: '#F2760F' },
+  aceito: { label: 'Entregador a caminho', color: '#209CEF' },
+  coletado: { label: 'Saiu para entrega', color: '#39FF89' },
+  entregue: { label: 'Entregue!', color: '#39FF89' },
+  cancelado: { label: 'Cancelado', color: '#E14B3C' },
 };
 
 const STEP_ICONS: Record<string, string> = {
-  left:          '←',
-  right:         '→',
-  'sharp left':  '↩',
+  left: '←',
+  right: '→',
+  'sharp left': '↩',
   'sharp right': '↪',
   'slight left': '↖',
-  'slight right':'↗',
-  straight:      '↑',
-  uturn:         '↩↩',
+  'slight right': '↗',
+  straight: '↑',
+  uturn: '↩↩',
 };
 
 // ─── Sub-components (memoized) ────────────────────────────────────────────────
@@ -141,26 +135,37 @@ const EntregadorMarker = memo(function EntregadorMarker({ heading }: { heading: 
 });
 
 const mk = StyleSheet.create({
-  wrap:   { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  wrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   shadow: {
     position: 'absolute',
-    width: 40, height: 40, borderRadius: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(32,156,239,0.18)',
   },
   circle: {
-    width: 30, height: 30, borderRadius: 15,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#209CEF',
-    borderWidth: 3, borderColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3, shadowRadius: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
     elevation: 8,
   },
   arrow: {
-    width: 0, height: 0,
-    borderLeftWidth: 5, borderRightWidth: 5, borderBottomWidth: 10,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
     borderBottomColor: '#FFFFFF',
     marginTop: -3,
   },
@@ -173,7 +178,7 @@ const DestinationMarker = memo(function DestinationMarker() {
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1.6, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,   duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
       ]),
     );
     anim.start();
@@ -194,23 +199,35 @@ const DestinationMarker = memo(function DestinationMarker() {
 const dm = StyleSheet.create({
   wrap: { alignItems: 'center' },
   ring: {
-    position: 'absolute', top: -6,
-    width: 40, height: 40, borderRadius: 20,
-    borderWidth: 2, borderColor: '#F2760F',
+    position: 'absolute',
+    top: -6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#F2760F',
   },
   pin: {
-    width: 26, height: 26, borderRadius: 13,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#F2760F',
-    borderWidth: 3, borderColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3, shadowRadius: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
     elevation: 7,
   },
   tail: {
-    width: 0, height: 0,
-    borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 9,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 9,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
     borderTopColor: '#F2760F',
     marginTop: -1,
   },
@@ -240,64 +257,64 @@ export function DeliveryTrackingMap({
   const systemTheme = useColorScheme();
   const isDark = theme === 'auto' ? systemTheme === 'dark' : theme === 'dark';
 
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const [following, setFollowing] = useState(defaultFollowing);
   const [internalRoute, setInternalRoute] = useState<{ latitude: number; longitude: number }[]>([]);
   const internalRouteKeyRef = useRef('');
 
+  // Style JSON do MapLibre (memoizado — recriar o objeto recarrega o mapa).
+  const mapStyle = useMemo(() => rasterStyle(isDark ? TILE_DARK : TILE_LIGHT, 512), [isDark]);
+
   // ── Auto-follow ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!following || !entregadorLocation || !mapRef.current) return;
-    mapRef.current.animateToRegion(
-      {
-        latitude: entregadorLocation.lat,
-        longitude: entregadorLocation.lng,
-        latitudeDelta: DELTA,
-        longitudeDelta: DELTA,
-      },
-      450,
-    );
+    if (!following || !entregadorLocation || !cameraRef.current) return;
+    cameraRef.current.easeTo({
+      center: [entregadorLocation.lng, entregadorLocation.lat],
+      zoom: ZOOM,
+      duration: 450,
+    });
   }, [following, entregadorLocation?.lat, entregadorLocation?.lng]);
 
   // ── External center trigger (re-follows driver) ──────────────────────────
   useEffect(() => {
-    if (centerTrigger === 0 || !entregadorLocation || !mapRef.current) return;
+    if (centerTrigger === 0 || !entregadorLocation || !cameraRef.current) return;
     setFollowing(true);
-    mapRef.current.animateToRegion(
-      {
-        latitude: entregadorLocation.lat,
-        longitude: entregadorLocation.lng,
-        latitudeDelta: 0.004,
-        longitudeDelta: 0.004,
-      },
-      400,
-    );
+    cameraRef.current.easeTo({
+      center: [entregadorLocation.lng, entregadorLocation.lat],
+      zoom: deltaToZoom(0.004),
+      duration: 400,
+    });
   }, [centerTrigger]);
 
   // ── External fit trigger (route overview — fires when route first loads) ──
   useEffect(() => {
-    if (fitTrigger === 0 || !mapRef.current) return;
-    const pts: { latitude: number; longitude: number }[] = [];
-    if (entregadorLocation)
-      pts.push({ latitude: entregadorLocation.lat, longitude: entregadorLocation.lng });
-    if (destination)
-      pts.push({ latitude: destination.lat, longitude: destination.lng });
-    if (pts.length >= 2) {
+    if (fitTrigger === 0 || !cameraRef.current) return;
+    const pts: { lat: number; lng: number }[] = [];
+    if (entregadorLocation) pts.push({ lat: entregadorLocation.lat, lng: entregadorLocation.lng });
+    if (destination) pts.push({ lat: destination.lat, lng: destination.lng });
+    const bounds = boundsFromPoints(pts);
+    if (bounds && pts.length >= 2) {
       setFollowing(false);
-      mapRef.current.fitToCoordinates(pts, { edgePadding: FIT_PADDING, animated: true });
+      cameraRef.current.fitBounds(bounds, { padding: FIT_PADDING, duration: 500 });
     }
   }, [fitTrigger]);
 
   // ── Internal route fetch (when routeCoords not provided) ─────────────────
   useEffect(() => {
-    if (!entregadorLocation || !destination) { setInternalRoute([]); return; }
-    if (routeCoords && routeCoords.length > 1) { setInternalRoute([]); return; }
+    if (!entregadorLocation || !destination) {
+      setInternalRoute([]);
+      return;
+    }
+    if (routeCoords && routeCoords.length > 1) {
+      setInternalRoute([]);
+      return;
+    }
 
     const key = `${entregadorLocation.lat.toFixed(3)},${entregadorLocation.lng.toFixed(3)}→${destination.lat.toFixed(3)},${destination.lng.toFixed(3)}`;
     if (key === internalRouteKeyRef.current) return;
     internalRouteKeyRef.current = key;
 
-    fetchOsrmSimple(entregadorLocation, destination).then(coords => {
+    fetchOsrmSimple(entregadorLocation, destination).then((coords) => {
       if (key === internalRouteKeyRef.current) setInternalRoute(coords);
     });
   }, [
@@ -310,43 +327,52 @@ export function DeliveryTrackingMap({
 
   // ── Fit both markers (manual FAB) ────────────────────────────────────────
   const fitRoute = useCallback(() => {
-    if (!mapRef.current) return;
-    const pts: { latitude: number; longitude: number }[] = [];
-    if (entregadorLocation)
-      pts.push({ latitude: entregadorLocation.lat, longitude: entregadorLocation.lng });
-    if (destination)
-      pts.push({ latitude: destination.lat, longitude: destination.lng });
-    if (pts.length >= 2) {
+    if (!cameraRef.current) return;
+    const pts: { lat: number; lng: number }[] = [];
+    if (entregadorLocation) pts.push({ lat: entregadorLocation.lat, lng: entregadorLocation.lng });
+    if (destination) pts.push({ lat: destination.lat, lng: destination.lng });
+    const bounds = boundsFromPoints(pts);
+    if (bounds && pts.length >= 2) {
       setFollowing(false);
-      mapRef.current.fitToCoordinates(pts, { edgePadding: FIT_PADDING, animated: true });
+      cameraRef.current.fitBounds(bounds, { padding: FIT_PADDING, duration: 500 });
     }
   }, [entregadorLocation, destination]);
 
-  // ── Computed polyline ─────────────────────────────────────────────────────
-  const polyline = useMemo(() => {
-    if (routeCoords && routeCoords.length > 1)
-      return routeCoords.map(c => ({ latitude: c.lat, longitude: c.lng }));
-    return internalRoute;
+  // ── Computed route (GeoJSON LineString, coords em [lng, lat]) ─────────────
+  const routeCoordinates = useMemo<[number, number][]>(() => {
+    const src =
+      routeCoords && routeCoords.length > 1
+        ? routeCoords.map((c) => ({ latitude: c.lat, longitude: c.lng }))
+        : internalRoute;
+    return src.map((p) => [p.longitude, p.latitude]);
   }, [routeCoords, internalRoute]);
 
-  // ── Pan handler (stop following) ─────────────────────────────────────────
-  const handlePan = useCallback(() => {
-    if (following) setFollowing(false);
-  }, [following]);
+  const routeFeature = useMemo<GeoJSON.Feature<GeoJSON.LineString>>(
+    () => ({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: routeCoordinates },
+    }),
+    [routeCoordinates],
+  );
+
+  // ── Pan handler (stop following on user interaction) ──────────────────────
+  const handleRegionChanging = useCallback(
+    (e: { nativeEvent: ViewStateChangeEvent }) => {
+      if (e.nativeEvent.userInteraction && following) setFollowing(false);
+    },
+    [following],
+  );
 
   // ── Follow button ─────────────────────────────────────────────────────────
   const handleFollow = useCallback(() => {
     setFollowing(true);
-    if (!entregadorLocation || !mapRef.current) return;
-    mapRef.current.animateToRegion(
-      {
-        latitude: entregadorLocation.lat,
-        longitude: entregadorLocation.lng,
-        latitudeDelta: DELTA,
-        longitudeDelta: DELTA,
-      },
-      450,
-    );
+    if (!entregadorLocation || !cameraRef.current) return;
+    cameraRef.current.easeTo({
+      center: [entregadorLocation.lng, entregadorLocation.lat],
+      zoom: ZOOM,
+      duration: 450,
+    });
   }, [entregadorLocation]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -371,57 +397,44 @@ export function DeliveryTrackingMap({
   return (
     <View style={[s.container, style]}>
       {/* ── Map ─────────────────────────────────────────────────────────── */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_DEFAULT}
+      <Map
         style={s.map}
-        mapType="none"
-        initialRegion={{
-          latitude: center.lat,
-          longitude: center.lng,
-          latitudeDelta: DELTA,
-          longitudeDelta: DELTA,
-        }}
-        showsCompass={false}
-        showsScale={false}
-        onPanDrag={handlePan}
-        moveOnMarkerPress={false}
+        mapStyle={mapStyle}
+        compass={false}
+        attribution={false}
+        logo={false}
+        scaleBar={false}
+        onRegionIsChanging={handleRegionChanging}
       >
-        <UrlTile
-          urlTemplate={isDark ? TILE_DARK : TILE_LIGHT}
-          maximumZ={19}
-          flipY={false}
+        <Camera
+          ref={cameraRef}
+          initialViewState={{ center: [center.lng, center.lat], zoom: ZOOM }}
         />
 
         {/* Route polyline — white border underneath + blue on top (Uber/iFood style) */}
-        {polyline.length > 1 && (
-          <Polyline
-            coordinates={polyline}
-            strokeColor="rgba(255,255,255,0.85)"
-            strokeWidth={9}
-            lineCap="round"
-            lineJoin="round"
-            zIndex={1}
-          />
-        )}
-        {polyline.length > 1 && (
-          <Polyline
-            coordinates={polyline}
-            strokeColor="#209CEF"
-            strokeWidth={5}
-            lineCap="round"
-            lineJoin="round"
-            zIndex={2}
-          />
+        {routeCoordinates.length > 1 && (
+          <GeoJSONSource id="route" data={routeFeature}>
+            <Layer
+              id="route-border"
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': 'rgba(255,255,255,0.85)', 'line-width': 9 }}
+            />
+            <Layer
+              id="route-line"
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': '#209CEF', 'line-width': 5 }}
+            />
+          </GeoJSONSource>
         )}
 
         {/* Entregador marker */}
         {entregadorLocation && (
           <Marker
-            coordinate={{ latitude: entregadorLocation.lat, longitude: entregadorLocation.lng }}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges
-            flat
+            id="entregador"
+            lngLat={[entregadorLocation.lng, entregadorLocation.lat]}
+            anchor="center"
           >
             <EntregadorMarker heading={entregadorLocation.heading ?? 0} />
           </Marker>
@@ -429,18 +442,14 @@ export function DeliveryTrackingMap({
 
         {/* Destination marker */}
         {destination && !isFinished && (
-          <Marker
-            coordinate={{ latitude: destination.lat, longitude: destination.lng }}
-            anchor={{ x: 0.5, y: 1 }}
-            tracksViewChanges={false}
-          >
+          <Marker id="destination" lngLat={[destination.lng, destination.lat]} anchor="bottom">
             <DestinationMarker />
           </Marker>
         )}
-      </MapView>
+      </Map>
 
       {/* ── ETA banner (top) ─────────────────────────────────────────────── */}
-      {!isFinished && (etaSeconds != null && etaSeconds > 0) && (
+      {!isFinished && etaSeconds != null && etaSeconds > 0 && (
         <View style={[s.etaBanner, isDark && s.etaBannerDark]}>
           <Text style={[s.etaTime, isDark && s.textWhite]}>{fmtEta(etaSeconds)}</Text>
           {distanceRemaining != null && distanceRemaining > 0 && (
@@ -455,7 +464,12 @@ export function DeliveryTrackingMap({
       {/* ── Navigation HUD ───────────────────────────────────────────────── */}
       {isNavigationMode && currentStep && (
         <View style={[s.stepCard, isDark && s.stepCardDark, isUrgent && s.stepCardUrgent]}>
-          <View style={[s.stepIconBox, isUrgent ? s.stepIconUrgent : (isDark ? s.stepIconDark : s.stepIconLight)]}>
+          <View
+            style={[
+              s.stepIconBox,
+              isUrgent ? s.stepIconUrgent : isDark ? s.stepIconDark : s.stepIconLight,
+            ]}
+          >
             <Text style={s.stepIconText}>{stepIcon}</Text>
           </View>
           <View style={s.stepTextBox}>
@@ -497,7 +511,7 @@ export function DeliveryTrackingMap({
       {/* ── Off-route banner ─────────────────────────────────────────────── */}
       {isOffRoute && (
         <View style={s.offRoute}>
-          <Text style={s.offRouteTxt}>↺  Recalculando rota...</Text>
+          <Text style={s.offRouteTxt}>↺ Recalculando rota...</Text>
         </View>
       )}
 
@@ -527,7 +541,9 @@ export function DeliveryTrackingMap({
           onPress={fitRoute}
           activeOpacity={0.85}
         >
-          <Text style={[s.fabIcon, { color: isDark ? '#FFFFFF' : '#000933', fontSize: 16 }]}>⊞</Text>
+          <Text style={[s.fabIcon, { color: isDark ? '#FFFFFF' : '#000933', fontSize: 16 }]}>
+            ⊞
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -538,102 +554,170 @@ export function DeliveryTrackingMap({
 
 const s = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
-  map:       { flex: 1 },
+  map: { flex: 1 },
 
   // ETA banner
   etaBanner: {
-    position: 'absolute', top: 14, alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    position: 'absolute',
+    top: 14,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 18, paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 99,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22, shadowRadius: 12, elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
   },
   etaBannerDark: { backgroundColor: '#1A1F3A' },
-  etaTime:  { fontSize: 18, fontWeight: '800', color: '#000933' },
-  etaDist:  { fontSize: 14, fontWeight: '600', color: '#9099B3' },
-  etaSep:   { width: 1, height: 18, backgroundColor: '#E4E7F1' },
+  etaTime: { fontSize: 18, fontWeight: '800', color: '#000933' },
+  etaDist: { fontSize: 14, fontWeight: '600', color: '#9099B3' },
+  etaSep: { width: 1, height: 18, backgroundColor: '#E4E7F1' },
   etaSepDark: { backgroundColor: '#2E3555' },
 
   // Step card (turn-by-turn)
   stepCard: {
-    position: 'absolute', top: 70, left: 14, right: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    position: 'absolute',
+    top: 70,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: '#000933',
-    borderRadius: 16, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
+    borderRadius: 16,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  stepCardDark:   { backgroundColor: '#131836' },
+  stepCardDark: { backgroundColor: '#131836' },
   stepCardUrgent: { backgroundColor: '#F2760F' },
-  stepIconBox:  { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  stepIconLight:  { backgroundColor: '#209CEF' },
-  stepIconDark:   { backgroundColor: '#209CEF' },
+  stepIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepIconLight: { backgroundColor: '#209CEF' },
+  stepIconDark: { backgroundColor: '#209CEF' },
   stepIconUrgent: { backgroundColor: 'rgba(255,255,255,0.25)' },
   stepIconText: { fontSize: 22, color: '#FFFFFF' },
-  stepTextBox:  { flex: 1 },
+  stepTextBox: { flex: 1 },
   stepInstruction: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', lineHeight: 19 },
-  stepNext:        { fontSize: 11, color: '#9099B3', marginTop: 2 },
-  stepDist:        { fontSize: 16, fontWeight: '800', color: '#FFFFFF', minWidth: 54, textAlign: 'right' },
-  stepDistUrgent:  { color: '#FFFFFF' },
+  stepNext: { fontSize: 11, color: '#9099B3', marginTop: 2 },
+  stepDist: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', minWidth: 54, textAlign: 'right' },
+  stepDistUrgent: { color: '#FFFFFF' },
 
   // Stats bar
   statsBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12, paddingBottom: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 12, elevation: 6,
+    paddingVertical: 12,
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   statsBarDark: { backgroundColor: '#131836' },
-  statCell:     { flex: 1, alignItems: 'center' },
-  statLabel:    { fontSize: 9, color: '#9099B3', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue:    { fontSize: 16, fontWeight: '800', color: '#000933', marginTop: 3 },
-  statDivider:  { width: 1, height: 28, backgroundColor: '#E4E7F1' },
+  statCell: { flex: 1, alignItems: 'center' },
+  statLabel: {
+    fontSize: 9,
+    color: '#9099B3',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statValue: { fontSize: 16, fontWeight: '800', color: '#000933', marginTop: 3 },
+  statDivider: { width: 1, height: 28, backgroundColor: '#E4E7F1' },
   statDividerDark: { backgroundColor: '#2E3555' },
 
   // Off-route
   offRoute: {
-    position: 'absolute', top: 70, alignSelf: 'center',
+    position: 'absolute',
+    top: 70,
+    alignSelf: 'center',
     backgroundColor: '#EF4444',
-    paddingHorizontal: 14, paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 99,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   offRouteTxt: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
   // Status badge
   statusBadge: {
-    position: 'absolute', bottom: 90, alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center', gap: 7,
+    position: 'absolute',
+    bottom: 90,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 99, borderWidth: 1.5,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 99,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  statusDot:   { width: 8, height: 8, borderRadius: 4 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusLabel: { fontSize: 12.5, fontWeight: '700' },
 
   // FABs
   fab: {
-    position: 'absolute', bottom: 100, right: 16,
-    width: 46, height: 46, borderRadius: 23,
+    position: 'absolute',
+    bottom: 100,
+    right: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.25, shadowRadius: 14, elevation: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 7,
   },
   fabFit: {
-    position: 'absolute', bottom: 156, right: 16,
-    width: 42, height: 42, borderRadius: 21,
+    position: 'absolute',
+    bottom: 156,
+    right: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 10, elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   fabDark: { backgroundColor: '#1A1F3A' },
   fabIcon: { fontSize: 22, fontWeight: '700' },
