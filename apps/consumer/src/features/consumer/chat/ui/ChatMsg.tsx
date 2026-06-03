@@ -256,7 +256,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
               <View
                 style={{
                   width: 160,
-                  height: 264,
+                  height: 230,
                   backgroundColor: cardBg,
                   borderRadius: 14,
                   overflow: 'hidden',
@@ -320,51 +320,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                       {produto.loja}
                     </Text>
                   </View>
-                  {/* Variações — sempre ocupa altura fixa para alinhar todos os cards */}
-                  <View
-                    style={{
-                      height: 26,
-                      flexDirection: 'row',
-                      flexWrap: 'wrap',
-                      gap: 4,
-                      marginTop: 4,
-                    }}
-                  >
-                    {(() => {
-                      const chips = [
-                        ...new Set(
-                          (produto.variacoes ?? []).map((v) => v.nome.split(' · ').pop() ?? v.nome),
-                        ),
-                      ];
-                      return (
-                        <>
-                          {chips.slice(0, 3).map((chip) => (
-                            <View
-                              key={chip}
-                              style={{
-                                backgroundColor: chipBg,
-                                borderWidth: 1,
-                                borderColor: chipBorder,
-                                borderRadius: 6,
-                                paddingHorizontal: 5,
-                                paddingVertical: 2,
-                                alignSelf: 'flex-start',
-                              }}
-                            >
-                              <Text style={{ fontSize: 10, color: chipText, fontWeight: '600' }}>
-                                {chip}
-                              </Text>
-                            </View>
-                          ))}
-                          {chips.length > 3 && (
-                            <Text style={{ fontSize: 10, color: cardSub, alignSelf: 'center' }}>
-                              +{chips.length - 3}
-                            </Text>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </View>
+
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>

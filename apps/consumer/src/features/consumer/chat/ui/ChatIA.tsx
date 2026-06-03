@@ -15,6 +15,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
@@ -121,6 +122,7 @@ export function ChatIA() {
   const welcomeOpacity = useRef(new Animated.Value(0)).current;
 
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const token = useAuthStore((s) => s.token) ?? '';
   const userId = useAuthStore((s) => s.userId);
@@ -332,7 +334,7 @@ export function ChatIA() {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 16,
-            paddingTop: 56,
+            paddingTop: insets.top + 12,
             paddingBottom: 16,
             backgroundColor: surf,
             borderBottomWidth: 1,
@@ -497,7 +499,7 @@ export function ChatIA() {
             textAlign: 'center',
             fontSize: 11,
             color: textSec,
-            paddingBottom: 16,
+            paddingBottom: 16 + insets.bottom,
             backgroundColor: bg,
           }}
         >
