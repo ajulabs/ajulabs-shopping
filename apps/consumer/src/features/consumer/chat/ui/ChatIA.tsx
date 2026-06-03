@@ -20,7 +20,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
 import { useAuthStore } from '../../../../store';
-import { takePendingChatContext } from '../model/pendingChatContext';
+import { takePendingChatContext, takePendingChatAction } from '../model/pendingChatContext';
 import { useTranscricao } from '../model/useTranscricao';
 import { useTicketRealtime } from '@ajulabs/realtime';
 import * as SecureStore from 'expo-secure-store';
@@ -165,12 +165,20 @@ export function ChatIA() {
     });
   }, [userId]);
 
-  // Auto-send when chat gains focus after navigating from a store page
+  // Auto-send when chat gains focus after navigating from another screen
   useFocusEffect(() => {
     if (!token) return;
+
     const ctx = takePendingChatContext();
-    if (!ctx) return;
-    enviarMensagem(`Quero ver produtos da loja ${ctx.nome} [lojaId:${ctx.id}]`);
+    if (ctx) {
+      enviarMensagem(`Quero ver produtos da loja ${ctx.nome} [lojaId:${ctx.id}]`);
+      return;
+    }
+
+    const action = takePendingChatAction();
+    if (action === 'reclamar') {
+      enviarMensagem('Tive um problema com meu pedido');
+    }
   });
 
   useEffect(() => {

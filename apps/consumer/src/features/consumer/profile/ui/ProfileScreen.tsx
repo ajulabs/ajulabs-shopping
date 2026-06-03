@@ -1,6 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { setPendingChatAction } from '../../chat/model/pendingChatContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
@@ -59,7 +60,10 @@ export function ProfileScreen() {
     {
       icon: 'help-circle-outline',
       label: 'Ajuda e suporte',
-      onPress: () => Alert.alert('Em breve', 'Suporte em desenvolvimento'),
+      onPress: () => {
+        setPendingChatAction('reclamar');
+        router.push('/(consumer)/chat');
+      },
     },
   ];
 
