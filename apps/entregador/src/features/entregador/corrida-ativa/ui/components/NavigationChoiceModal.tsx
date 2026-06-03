@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Image, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
@@ -9,6 +9,8 @@ interface Props {
   onInternal: () => void;
   onGoogleMaps: () => void;
   onWaze: () => void;
+  /** When provided, the sheet can be dismissed (e.g. when changing a previous choice). */
+  onClose?: () => void;
 }
 
 export function NavigationChoiceModal({
@@ -18,18 +20,42 @@ export function NavigationChoiceModal({
   onInternal,
   onGoogleMaps,
   onWaze,
+  onClose,
 }: Props) {
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <View style={s.overlay}>
+        {onClose && <Pressable style={s.backdrop} onPress={onClose} />}
         <View style={s.sheet}>
           <View style={s.handle} />
-          <Text style={s.title}>Como deseja navegar?</Text>
+          <View style={s.titleRow}>
+            <Text style={s.title}>Como deseja navegar?</Text>
+            {onClose && (
+              <TouchableOpacity
+                onPress={onClose}
+                style={s.closeBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={22} color="#9099B3" />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={s.destRow}>
             <Ionicons name="navigate" size={14} color="#F2760F" />
-            <Text style={s.destName} numberOfLines={1}>{destinationName}</Text>
+            <Text style={s.destName} numberOfLines={1}>
+              {destinationName}
+            </Text>
           </View>
-          <Text style={s.destAddr} numberOfLines={2}>{destinationAddress}</Text>
+          <Text style={s.destAddr} numberOfLines={2}>
+            {destinationAddress}
+          </Text>
 
           <View style={s.options}>
             <OptionRow
@@ -65,9 +91,7 @@ export function NavigationChoiceModal({
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 function MapInternalIcon() {
-  return (
-    <Ionicons name="map" size={26} color="#209CEF" />
-  );
+  return <Ionicons name="map" size={26} color="#209CEF" />;
 }
 
 function GoogleMapsIcon() {
@@ -95,20 +119,16 @@ function WazeIcon() {
 export function ExternalNavBadge({ type }: { type: 'gmaps' | 'waze' }) {
   return (
     <View style={bs.badge}>
-      <View style={bs.iconWrap}>
-        {type === 'gmaps' ? <GoogleMapsIcon /> : <WazeIcon />}
-      </View>
-      <Text style={bs.badgeText}>
-        {type === 'gmaps' ? 'Google Maps' : 'Waze'}
-      </Text>
+      <View style={bs.iconWrap}>{type === 'gmaps' ? <GoogleMapsIcon /> : <WazeIcon />}</View>
+      <Text style={bs.badgeText}>{type === 'gmaps' ? 'Google Maps' : 'Waze'}</Text>
     </View>
   );
 }
 
 const bs = StyleSheet.create({
-  badge:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconWrap: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  badgeText:{ fontSize: 13, fontWeight: '700', color: '#000933' },
+  badgeText: { fontSize: 13, fontWeight: '700', color: '#000933' },
 });
 
 // ── Option row ─────────────────────────────────────────────────────────────────
@@ -128,9 +148,7 @@ function OptionRow({
 }) {
   return (
     <TouchableOpacity style={s.option} onPress={onPress} activeOpacity={0.7}>
-      <View style={[s.optionIcon, { backgroundColor: bg }]}>
-        {icon}
-      </View>
+      <View style={[s.optionIcon, { backgroundColor: bg }]}>{icon}</View>
       <View style={s.optionLabels}>
         <Text style={s.optionTitle}>{title}</Text>
         <Text style={s.optionSub}>{sub}</Text>
@@ -144,6 +162,7 @@ function OptionRow({
 
 const s = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,9,51,0.55)', justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject },
   sheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
@@ -152,22 +171,42 @@ const s = StyleSheet.create({
     paddingBottom: 40,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: '#E4E7F1', alignSelf: 'center', marginBottom: 18,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E4E7F1',
+    alignSelf: 'center',
+    marginBottom: 18,
   },
-  title:    { fontSize: 18, fontWeight: '800', color: '#000933', marginBottom: 12 },
-  destRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  closeBtn: { marginLeft: 12 },
+  title: { fontSize: 18, fontWeight: '800', color: '#000933', flex: 1 },
+  destRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   destName: { fontSize: 14, fontWeight: '700', color: '#000933', flex: 1 },
   destAddr: { fontSize: 12, color: '#9099B3', marginBottom: 20 },
 
-  options:  { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#F0F1F6' },
-  divider:  { height: 1, backgroundColor: '#F0F1F6' },
-  option:   {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    padding: 14, backgroundColor: '#FFFFFF',
+  options: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#F0F1F6' },
+  divider: { height: 1, backgroundColor: '#F0F1F6' },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
   },
-  optionIcon:   { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  optionIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionLabels: { flex: 1 },
-  optionTitle:  { fontSize: 15, fontWeight: '700', color: '#000933' },
-  optionSub:    { fontSize: 12, color: '#9099B3', marginTop: 1 },
+  optionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
+  optionSub: { fontSize: 12, color: '#9099B3', marginTop: 1 },
 });

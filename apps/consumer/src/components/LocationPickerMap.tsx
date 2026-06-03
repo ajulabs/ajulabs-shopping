@@ -1,6 +1,13 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
+import React, { useRef, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native';
+import {
+  Map,
+  Camera,
+  ViewAnnotation,
+  type CameraRef,
+  type ViewAnnotationEvent,
+} from '@maplibre/maplibre-react-native';
+import { rasterStyle, deltaToZoom, TILE_OSM } from '@ajulabs/maps';
 
 interface LocationPickerMapProps {
   lat: number;
@@ -10,48 +17,39 @@ interface LocationPickerMapProps {
 }
 
 const DELTA = 0.003;
+const ZOOM = deltaToZoom(DELTA);
 
 export function LocationPickerMap({ lat, lng, onLocationChange, style }: LocationPickerMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
+  const mapStyle = useMemo(() => rasterStyle(TILE_OSM, 256), []);
 
   useEffect(() => {
-    mapRef.current?.animateToRegion(
-      { latitude: lat, longitude: lng, latitudeDelta: DELTA, longitudeDelta: DELTA },
-      300,
-    );
+    cameraRef.current?.easeTo({ center: [lng, lat], zoom: ZOOM, duration: 300 });
   }, [lat, lng]);
+
+  const handleDragEnd = (e: NativeSyntheticEvent<ViewAnnotationEvent>) => {
+    const [newLng, newLat] = e.nativeEvent.lngLat;
+    onLocationChange?.(newLat, newLng);
+  };
 
   return (
     <View style={[styles.container, style]}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_DEFAULT}
+      <Map
         style={styles.map}
-        mapType="none"
-        initialRegion={{
-          latitude: lat,
-          longitude: lng,
-          latitudeDelta: DELTA,
-          longitudeDelta: DELTA,
-        }}
-        showsCompass={false}
-        showsScale={false}
+        mapStyle={mapStyle}
+        compass={false}
+        attribution={false}
+        logo={false}
+        scaleBar={false}
       >
-        <UrlTile
-          urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
-          flipY={false}
-        />
-        <Marker
-          coordinate={{ latitude: lat, longitude: lng }}
-          draggable
-          onDragEnd={(e) => {
-            const { latitude, longitude } = e.nativeEvent.coordinate;
-            onLocationChange?.(latitude, longitude);
-          }}
-          anchor={{ x: 0.5, y: 1 }}
-        />
-      </MapView>
+        <Camera ref={cameraRef} initialViewState={{ center: [lng, lat], zoom: ZOOM }} />
+        <ViewAnnotation lngLat={[lng, lat]} anchor="bottom" draggable onDragEnd={handleDragEnd}>
+          <View style={styles.pinWrap}>
+            <View style={styles.pin} />
+            <View style={styles.pinTail} />
+          </View>
+        </ViewAnnotation>
+      </Map>
       <View style={styles.hint} pointerEvents="none">
         <Text style={styles.hintText}>Arraste o marcador para ajustar</Text>
       </View>
@@ -62,6 +60,27 @@ export function LocationPickerMap({ lat, lng, onLocationChange, style }: Locatio
 const styles = StyleSheet.create({
   container: { position: 'relative', overflow: 'hidden', borderRadius: 12 },
   map: { flex: 1 },
+  pinWrap: { alignItems: 'center' },
+  pin: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F2760F',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    elevation: 6,
+  },
+  pinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 9,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#F2760F',
+    marginTop: -1,
+  },
   hint: {
     position: 'absolute',
     bottom: 10,

@@ -169,6 +169,9 @@ interface HomeScreenProps {
   activeRidesCount?: number;
   online: boolean;
   onToggleOnline: (v: boolean) => void;
+  /** True quando a aba "Corridas" está visível. Ao voltar a ficar visível, a tela
+   *  atualiza os dados e remonta o mapa (a view nativa colapsa sob display:none). */
+  isFocused?: boolean;
 }
 
 export function HomeScreen({
@@ -176,6 +179,7 @@ export function HomeScreen({
   activeRidesCount = 0,
   online,
   onToggleOnline,
+  isFocused = true,
 }: HomeScreenProps) {
   const token = useAuthEntregadorStore((s) => s.token);
   const entregadorId = useAuthEntregadorStore((s) => s.entregadorId);
@@ -186,10 +190,16 @@ export function HomeScreen({
   const [waitingRides, setWaitingRides] = useState<RideData[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // Remontado ao reganhar foco para forçar o mapa nativo a re-medir o layout.
+  const [mapKey, setMapKey] = useState(0);
+  const wasFocused = useRef(isFocused);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   // IDs rejeitados localmente — evita que polling ou WebSocket reexibam a mesma corrida
   const rejectedIds = useRef<Set<string>>(new Set());
+  // IDs cuja oferta (popup) o entregador dispensou: o popup não reabre para elas,
+  // mas a corrida permanece em "Entregas em espera" e pode ser aceita pela lista.
+  const dismissedOfferIds = useRef<Set<string>>(new Set());
 
   const ARACAJU = { lat: -10.9167, lng: -37.05 };
 
@@ -244,9 +254,12 @@ export function HomeScreen({
     });
     const rides = corridas.map(mapCorridaToRide).filter((r) => !rejectedIds.current.has(r.id));
     setWaitingRides(rides);
-    if (rides.length > 0 && !offer) {
-      setOffer(rides[0]);
-      setCountdown(15);
+    if (!offer) {
+      const next = rides.find((r) => !dismissedOfferIds.current.has(r.id));
+      if (next) {
+        setOffer(next);
+        setCountdown(15);
+      }
     }
   }, [token, online, offer, activeRidesCount]);
 
@@ -285,6 +298,17 @@ export function HomeScreen({
     };
   }, [online, buscarCorridas]);
 
+  // Ao voltar para a aba "Corridas" (oculta → visível): atualiza os dados e
+  // remonta o mapa, que colapsa enquanto fica sob display:none em outra aba.
+  useEffect(() => {
+    if (isFocused && !wasFocused.current) {
+      setMapKey((k) => k + 1);
+      buscarGanhos();
+      buscarCorridas();
+    }
+    wasFocused.current = isFocused;
+  }, [isFocused, buscarGanhos, buscarCorridas]);
+
   useCorridasRealtime({
     apiUrl: API_URL,
     entregadorId,
@@ -314,8 +338,11 @@ export function HomeScreen({
         if (exists) return prev;
         return [...prev, novo];
       });
-      setOffer((prev) => prev ?? novo);
-      setCountdown(15);
+      // Não reabre o popup de uma oferta já dispensada — ela segue na lista de espera.
+      if (!dismissedOfferIds.current.has(corrida.id)) {
+        setOffer((prev) => prev ?? novo);
+        setCountdown(15);
+      }
     },
     onAceita: ({ pedidoId }) => {
       // Outro entregador (ou este) pegou a corrida — some da lista na hora e
@@ -386,6 +413,7 @@ export function HomeScreen({
   return (
     <SafeAreaView style={s.safeArea}>
       <LeafletMap
+        key={mapKey}
         center={userLocation ?? ARACAJU}
         userLocation={userLocation}
         zoom={15}
@@ -537,9 +565,10 @@ export function HomeScreen({
           countdown={countdown}
           onAccept={handleAccept}
           onReject={() => {
-            rejectedIds.current.add(offer.id);
-            setWaitingRides((prev) => prev.filter((r) => r.id !== offer.id));
-            if (token) EntregadorService.rejeitarCorrida(token, offer.id).catch(() => {});
+            // Apenas dispensa o popup desta corrida: ela continua em "Entregas em
+            // espera" e pode ser aceita pela lista. Não rejeita no backend (o que a
+            // removeria das disponíveis) nem some da lista.
+            dismissedOfferIds.current.add(offer.id);
             setOffer(null);
           }}
         />

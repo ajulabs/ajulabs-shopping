@@ -1,7 +1,15 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import MapView, { UrlTile, Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import {
+  Map,
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Marker,
+  type CameraRef,
+} from '@maplibre/maplibre-react-native';
 import { fetchOsrmSimple } from '../utils/osrm';
+import { rasterStyle, deltaToZoom, TILE_OSM } from '../native/rasterStyle';
 
 export interface MapMarker {
   lat: number;
@@ -23,15 +31,24 @@ export interface BaseMapProps {
 }
 
 const DELTA = 0.012;
+const ZOOM = deltaToZoom(DELTA);
 
 export function BaseMap({
-  center, userLocation, markers = [],
-  routeCoords, routeTo, heading = 0, showUserMarker = true, style,
+  center,
+  userLocation,
+  markers = [],
+  routeCoords,
+  routeTo,
+  heading = 0,
+  showUserMarker = true,
+  style,
 }: BaseMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const rotateAnim = useRef(new Animated.Value(heading)).current;
   const [fallbackRoute, setFallbackRoute] = useState<{ latitude: number; longitude: number }[]>([]);
   const lastFallbackKey = useRef('');
+
+  const mapStyle = useMemo(() => rasterStyle(TILE_OSM, 256), []);
 
   useEffect(() => {
     Animated.timing(rotateAnim, {
@@ -42,11 +59,12 @@ export function BaseMap({
   }, [heading]);
 
   useEffect(() => {
-    if (!userLocation || !mapRef.current) return;
-    mapRef.current.animateToRegion(
-      { latitude: userLocation.lat, longitude: userLocation.lng, latitudeDelta: DELTA, longitudeDelta: DELTA },
-      400
-    );
+    if (!userLocation || !cameraRef.current) return;
+    cameraRef.current.easeTo({
+      center: [userLocation.lng, userLocation.lat],
+      zoom: ZOOM,
+      duration: 400,
+    });
   }, [userLocation?.lat, userLocation?.lng]);
 
   useEffect(() => {
@@ -65,10 +83,22 @@ export function BaseMap({
     routeTo?.lng,
   ]);
 
-  const displayRoute: { latitude: number; longitude: number }[] =
-    routeCoords && routeCoords.length > 1
-      ? routeCoords.map(c => ({ latitude: c.lat, longitude: c.lng }))
-      : fallbackRoute;
+  const routeCoordinates = useMemo<[number, number][]>(() => {
+    const src =
+      routeCoords && routeCoords.length > 1
+        ? routeCoords.map((c) => ({ latitude: c.lat, longitude: c.lng }))
+        : fallbackRoute;
+    return src.map((p) => [p.longitude, p.latitude]);
+  }, [routeCoords, fallbackRoute]);
+
+  const routeFeature = useMemo<GeoJSON.Feature<GeoJSON.LineString>>(
+    () => ({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: routeCoordinates },
+    }),
+    [routeCoordinates],
+  );
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 360],
@@ -76,32 +106,29 @@ export function BaseMap({
   });
 
   return (
-    <MapView
-      ref={mapRef}
-      provider={PROVIDER_DEFAULT}
+    <Map
       style={[styles.map, style]}
-      mapType="none"
-      initialRegion={{
-        latitude: center.lat,
-        longitude: center.lng,
-        latitudeDelta: DELTA,
-        longitudeDelta: DELTA,
-      }}
-      showsCompass={false}
-      showsScale={false}
+      mapStyle={mapStyle}
+      compass={false}
+      attribution={false}
+      logo={false}
+      scaleBar={false}
     >
-      <UrlTile urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} />
+      <Camera ref={cameraRef} initialViewState={{ center: [center.lng, center.lat], zoom: ZOOM }} />
 
-      {displayRoute.length > 1 && (
-        <Polyline coordinates={displayRoute} strokeColor="#209CEF" strokeWidth={5} />
+      {routeCoordinates.length > 1 && (
+        <GeoJSONSource id="route" data={routeFeature}>
+          <Layer
+            id="route-line"
+            type="line"
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            paint={{ 'line-color': '#209CEF', 'line-width': 5, 'line-opacity': 0.85 }}
+          />
+        </GeoJSONSource>
       )}
 
       {showUserMarker && userLocation && (
-        <Marker
-          coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
-          anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={true}
-        >
+        <Marker id="user" lngLat={[userLocation.lng, userLocation.lat]} anchor="center">
           <Animated.View style={[styles.userMarkerWrap, { transform: [{ rotate: spin }] }]}>
             <View style={styles.userMarker} />
           </Animated.View>
@@ -109,17 +136,11 @@ export function BaseMap({
       )}
 
       {markers.map((m, i) => (
-        <Marker
-          key={i}
-          coordinate={{ latitude: m.lat, longitude: m.lng }}
-          title={m.label}
-          anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={false}
-        >
+        <Marker key={i} id={`marker-${i}`} lngLat={[m.lng, m.lat]} anchor="center">
           <View style={[styles.markerDot, { backgroundColor: m.color }]} />
         </Marker>
       ))}
-    </MapView>
+    </Map>
   );
 }
 
@@ -127,7 +148,8 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   userMarkerWrap: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   userMarker: {
-    width: 22, height: 22,
+    width: 22,
+    height: 22,
     backgroundColor: '#209CEF',
     borderRadius: 11,
     borderBottomRightRadius: 2,
@@ -136,7 +158,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   markerDot: {
-    width: 18, height: 18,
+    width: 18,
+    height: 18,
     borderRadius: 9,
     borderWidth: 2.5,
     borderColor: '#fff',

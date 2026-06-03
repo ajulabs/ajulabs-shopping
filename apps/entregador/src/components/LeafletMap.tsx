@@ -1,6 +1,14 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import MapView, { UrlTile, Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import {
+  Map,
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Marker,
+  type CameraRef,
+} from '@maplibre/maplibre-react-native';
+import { rasterStyle, deltaToZoom, TILE_OSM } from '@ajulabs/maps';
 
 export interface MapMarker {
   lat: number;
@@ -25,6 +33,7 @@ interface LeafletMapProps {
 }
 
 const DELTA = 0.012;
+const ZOOM = deltaToZoom(DELTA);
 
 async function fetchOsrmSimple(
   from: { lat: number; lng: number },
@@ -35,18 +44,28 @@ async function fetchOsrmSimple(
     const res = await fetch(url);
     const data = await res.json();
     const coords: number[][] = data.routes?.[0]?.geometry?.coordinates ?? [];
-    return coords.map(c => ({ latitude: c[1], longitude: c[0] }));
-  } catch { return []; }
+    return coords.map((c) => ({ latitude: c[1], longitude: c[0] }));
+  } catch {
+    return [];
+  }
 }
 
 export function LeafletMap({
-  center, userLocation, markers = [],
-  routeCoords, routeTo, heading = 0, centerTrigger = 0, style,
+  center,
+  userLocation,
+  markers = [],
+  routeCoords,
+  routeTo,
+  heading = 0,
+  centerTrigger = 0,
+  style,
 }: LeafletMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const rotateAnim = useRef(new Animated.Value(heading)).current;
   const [fallbackRoute, setFallbackRoute] = useState<{ latitude: number; longitude: number }[]>([]);
   const lastFallbackKey = useRef('');
+
+  const mapStyle = useMemo(() => rasterStyle(TILE_OSM, 256), []);
 
   // Animate heading rotation on the marker
   useEffect(() => {
@@ -59,24 +78,21 @@ export function LeafletMap({
 
   // Follow user location
   useEffect(() => {
-    if (!userLocation || !mapRef.current) return;
-    mapRef.current.animateToRegion(
-      {
-        latitude: userLocation.lat,
-        longitude: userLocation.lng,
-        latitudeDelta: DELTA,
-        longitudeDelta: DELTA,
-      },
-      400
-    );
+    if (!userLocation || !cameraRef.current) return;
+    cameraRef.current.easeTo({
+      center: [userLocation.lng, userLocation.lat],
+      zoom: ZOOM,
+      duration: 400,
+    });
   }, [userLocation?.lat, userLocation?.lng]);
 
   useEffect(() => {
-    if (!userLocation || !mapRef.current || centerTrigger === 0) return;
-    mapRef.current.animateToRegion(
-      { latitude: userLocation.lat, longitude: userLocation.lng, latitudeDelta: 0.003, longitudeDelta: 0.003 },
-      400,
-    );
+    if (!userLocation || !cameraRef.current || centerTrigger === 0) return;
+    cameraRef.current.easeTo({
+      center: [userLocation.lng, userLocation.lat],
+      zoom: deltaToZoom(0.003),
+      duration: 400,
+    });
   }, [centerTrigger]);
 
   // Fallback: fetch route when routeTo set and no pre-computed routeCoords
@@ -96,11 +112,23 @@ export function LeafletMap({
     routeTo?.lng,
   ]);
 
-  // Choose which route to display
-  const displayRoute: { latitude: number; longitude: number }[] =
-    routeCoords && routeCoords.length > 1
-      ? routeCoords.map(c => ({ latitude: c.lat, longitude: c.lng }))
-      : fallbackRoute;
+  // Choose which route to display (GeoJSON coords em [lng, lat])
+  const routeCoordinates = useMemo<[number, number][]>(() => {
+    const src =
+      routeCoords && routeCoords.length > 1
+        ? routeCoords.map((c) => ({ latitude: c.lat, longitude: c.lng }))
+        : fallbackRoute;
+    return src.map((p) => [p.longitude, p.latitude]);
+  }, [routeCoords, fallbackRoute]);
+
+  const routeFeature = useMemo<GeoJSON.Feature<GeoJSON.LineString>>(
+    () => ({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: routeCoordinates },
+    }),
+    [routeCoordinates],
+  );
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 360],
@@ -108,36 +136,29 @@ export function LeafletMap({
   });
 
   return (
-    <MapView
-      ref={mapRef}
-      provider={PROVIDER_DEFAULT}
+    <Map
       style={[styles.map, style]}
-      mapType="none"
-      initialRegion={{
-        latitude: center.lat,
-        longitude: center.lng,
-        latitudeDelta: DELTA,
-        longitudeDelta: DELTA,
-      }}
-      showsCompass={false}
-      showsScale={false}
+      mapStyle={mapStyle}
+      compass={false}
+      attribution={false}
+      logo={false}
+      scaleBar={false}
     >
-      <UrlTile
-        urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maximumZ={19}
-        flipY={false}
-      />
+      <Camera ref={cameraRef} initialViewState={{ center: [center.lng, center.lat], zoom: ZOOM }} />
 
-      {displayRoute.length > 1 && (
-        <Polyline coordinates={displayRoute} strokeColor="#209CEF" strokeWidth={5} />
+      {routeCoordinates.length > 1 && (
+        <GeoJSONSource id="route" data={routeFeature}>
+          <Layer
+            id="route-line"
+            type="line"
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            paint={{ 'line-color': '#209CEF', 'line-width': 5 }}
+          />
+        </GeoJSONSource>
       )}
 
       {userLocation && (
-        <Marker
-          coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
-          anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={true}
-        >
+        <Marker id="user" lngLat={[userLocation.lng, userLocation.lat]} anchor="center">
           <Animated.View style={[styles.userMarkerWrap, { transform: [{ rotate: spin }] }]}>
             <View style={styles.userMarker} />
           </Animated.View>
@@ -145,17 +166,11 @@ export function LeafletMap({
       )}
 
       {markers.map((m, i) => (
-        <Marker
-          key={i}
-          coordinate={{ latitude: m.lat, longitude: m.lng }}
-          title={m.label}
-          anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={false}
-        >
+        <Marker key={i} id={`marker-${i}`} lngLat={[m.lng, m.lat]} anchor="center">
           <View style={[styles.markerDot, { backgroundColor: m.color }]} />
         </Marker>
       ))}
-    </MapView>
+    </Map>
   );
 }
 

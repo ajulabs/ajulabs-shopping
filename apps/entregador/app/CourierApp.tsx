@@ -343,6 +343,7 @@ export function CourierApp() {
             activeRidesCount={activeRides.length}
             online={isOnline}
             onToggleOnline={setIsOnline}
+            isFocused={tab === 'home'}
           />
         </View>
         {tab === 'entregas' && (

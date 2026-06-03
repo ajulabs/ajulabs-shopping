@@ -8,6 +8,7 @@
     "@ajulabs/types": "workspace:*"
   },
   "peerDependencies": {
+    "@maplibre/maplibre-react-native": "*",
     "react": "*",
     "react-native": "*"
   }
