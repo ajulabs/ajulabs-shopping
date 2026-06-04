@@ -13,7 +13,8 @@
     "ios": "expo run:ios",
     "prepare": "husky",
     "lint": "pnpm --filter backend run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json}\" --ignore-path .prettierignore"
+    "format": "prettier --write \"**/*.{ts,tsx,js,json}\" --ignore-path .prettierignore",
+    "postinstall": "node scripts/patch-maplibre-codegen.js"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.18.0",
