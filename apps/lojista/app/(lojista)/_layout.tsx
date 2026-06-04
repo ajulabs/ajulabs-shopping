@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthLojistaStore } from '../../src/features/lojista/auth/model/store';
 import { useTicketRealtime } from '@ajulabs/realtime';
@@ -15,6 +15,7 @@ export default function LojistaLayout() {
   const isFuncionario = !isLojistaDono && papel === 'funcionario';
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [toast, setToast] = useState<ToastData | null>(null);
 
@@ -65,8 +66,8 @@ export default function LojistaLayout() {
             backgroundColor: '#FFFFFF',
             borderTopColor: '#E4E7F1',
             borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 88 : 64,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+            height: 64 + insets.bottom,
+            paddingBottom: insets.bottom + 8,
             paddingTop: 8,
           },
           tabBarLabelStyle: {
