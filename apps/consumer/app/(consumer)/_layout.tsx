@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore, calcularQuantidadeItens } from '../../src/store';
 import { useAuthStore } from '../../src/store';
@@ -25,6 +25,7 @@ export default function ConsumerLayout() {
   const { isDark } = useTheme();
   const userId = useAuthStore((s) => s.userId);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [toast, setToast] = useState<ToastData | null>(null);
 
@@ -66,8 +67,8 @@ export default function ConsumerLayout() {
             backgroundColor: isDark ? colors.surfDark : '#FFFFFF',
             borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#E4E7F1',
             borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 88 : 64,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+            height: 64 + insets.bottom,
+            paddingBottom: insets.bottom + 8,
             paddingTop: 8,
           },
           tabBarLabelStyle: {

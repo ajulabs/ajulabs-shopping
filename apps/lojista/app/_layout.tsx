@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { useAuthLojistaStore } from '../src/features/lojista/auth/model/store';
 import { usePushRegistrationLojista } from '../src/hooks';
+import { SplashLojista } from '../src/features/lojista/splash';
 
 export default function RootLayout() {
   const isLoggedIn = useAuthLojistaStore((s) => s.isLoggedIn);
@@ -10,6 +12,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   usePushRegistrationLojista();
 
@@ -34,13 +37,17 @@ export default function RootLayout() {
   }, [isLoggedIn, hasHydrated, segments, mounted]);
 
   return (
-    <>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="light" backgroundColor="#000933" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(lojista)" />
-        <Stack.Screen name="(auth)" />
-      </Stack>
-    </>
+      {isLoggedIn && showSplash ? (
+        <SplashLojista onDone={() => setShowSplash(false)} />
+      ) : (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(lojista)" />
+          <Stack.Screen name="(auth)" />
+        </Stack>
+      )}
+    </SafeAreaProvider>
   );
 }

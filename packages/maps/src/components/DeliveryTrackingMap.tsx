@@ -71,6 +71,13 @@ export interface DeliveryTrackingMapProps {
    * Fires automatically from useRideNavigation when route first becomes ready.
    */
   fitTrigger?: number;
+  /**
+   * Navigation camera ("heading-up"). When true, the map rotates so the
+   * entregador's travel direction points up and tilts forward (Waze/Google
+   * style), and it keeps following after the initial route overview. When
+   * false (default — consumer/lojista tracking), the camera stays north-up.
+   */
+  headingUp?: boolean;
   style?: object;
 }
 
@@ -79,6 +86,15 @@ export interface DeliveryTrackingMapProps {
 const DELTA = 0.01;
 const ZOOM = deltaToZoom(DELTA);
 const FIT_PADDING = { top: 100, right: 60, bottom: 260, left: 60 };
+
+// Navigation (heading-up) tuning. Closer zoom + forward tilt, Waze/Google style.
+const NAV_ZOOM = deltaToZoom(0.004); // ~16.5 — turn-by-turn detail
+const NAV_PITCH = 50; // 3D forward perspective ("visão de frente")
+// Below this speed (km/h) the GPS course is noise → keep the last bearing so the
+// map doesn't spin while the entregador is stopped at a light.
+const MIN_SPEED_TO_ROTATE = 3;
+// How long the route overview stays before diving into the follow view.
+const OVERVIEW_HOLD_MS = 2200;
 
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; color: string }> = {
   pendente: { label: 'Aguardando entregador', color: '#F2760F' },
@@ -252,6 +268,7 @@ export function DeliveryTrackingMap({
   defaultFollowing = true,
   centerTrigger = 0,
   fitTrigger = 0,
+  headingUp = false,
   style,
 }: DeliveryTrackingMapProps) {
   const systemTheme = useColorScheme();
@@ -265,15 +282,46 @@ export function DeliveryTrackingMap({
   // Style JSON do MapLibre (memoizado — recriar o objeto recarrega o mapa).
   const mapStyle = useMemo(() => rasterStyle(isDark ? TILE_DARK : TILE_LIGHT, 512), [isDark]);
 
+  // Last camera bearing (deg) used in heading-up mode. Held while stopped.
+  const lastBearingRef = useRef(0);
+  const computeBearing = useCallback(
+    (loc: { heading?: number; speedKmh?: number }) => {
+      const spd = loc.speedKmh ?? speedKmh ?? 0;
+      const hdg = loc.heading;
+      if (spd >= MIN_SPEED_TO_ROTATE && hdg != null && Number.isFinite(hdg)) {
+        lastBearingRef.current = ((hdg % 360) + 360) % 360;
+      }
+      return lastBearingRef.current;
+    },
+    [speedKmh],
+  );
+
   // ── Auto-follow ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!following || !entregadorLocation || !cameraRef.current) return;
     cameraRef.current.easeTo({
       center: [entregadorLocation.lng, entregadorLocation.lat],
-      zoom: ZOOM,
+      zoom: headingUp ? NAV_ZOOM : ZOOM,
+      ...(headingUp ? { bearing: computeBearing(entregadorLocation), pitch: NAV_PITCH } : {}),
       duration: 450,
     });
-  }, [following, entregadorLocation?.lat, entregadorLocation?.lng]);
+  }, [
+    following,
+    entregadorLocation?.lat,
+    entregadorLocation?.lng,
+    entregadorLocation?.heading,
+    headingUp,
+    computeBearing,
+  ]);
+
+  // ── Reset to flat north-up when leaving navigation mode ───────────────────
+  useEffect(() => {
+    if (headingUp || !cameraRef.current) return;
+    lastBearingRef.current = 0;
+    const c = entregadorLocation ?? destination;
+    if (!c) return;
+    cameraRef.current.easeTo({ center: [c.lng, c.lat], bearing: 0, pitch: 0, duration: 300 });
+  }, [headingUp]);
 
   // ── External center trigger (re-follows driver) ──────────────────────────
   useEffect(() => {
@@ -281,7 +329,8 @@ export function DeliveryTrackingMap({
     setFollowing(true);
     cameraRef.current.easeTo({
       center: [entregadorLocation.lng, entregadorLocation.lat],
-      zoom: deltaToZoom(0.004),
+      zoom: headingUp ? NAV_ZOOM : deltaToZoom(0.004),
+      ...(headingUp ? { bearing: computeBearing(entregadorLocation), pitch: NAV_PITCH } : {}),
       duration: 400,
     });
   }, [centerTrigger]);
@@ -296,6 +345,12 @@ export function DeliveryTrackingMap({
     if (bounds && pts.length >= 2) {
       setFollowing(false);
       cameraRef.current.fitBounds(bounds, { padding: FIT_PADDING, duration: 500 });
+      // In navigation mode, show the overview briefly then dive into the
+      // heading-up follow view automatically (Uber/iFood style).
+      if (headingUp) {
+        const t = setTimeout(() => setFollowing(true), OVERVIEW_HOLD_MS);
+        return () => clearTimeout(t);
+      }
     }
   }, [fitTrigger]);
 
@@ -370,10 +425,11 @@ export function DeliveryTrackingMap({
     if (!entregadorLocation || !cameraRef.current) return;
     cameraRef.current.easeTo({
       center: [entregadorLocation.lng, entregadorLocation.lat],
-      zoom: ZOOM,
+      zoom: headingUp ? NAV_ZOOM : ZOOM,
+      ...(headingUp ? { bearing: computeBearing(entregadorLocation), pitch: NAV_PITCH } : {}),
       duration: 450,
     });
-  }, [entregadorLocation]);
+  }, [entregadorLocation, headingUp, computeBearing]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const fmtDist = (m?: number) => {
@@ -436,7 +492,11 @@ export function DeliveryTrackingMap({
             lngLat={[entregadorLocation.lng, entregadorLocation.lat]}
             anchor="center"
           >
-            <EntregadorMarker heading={entregadorLocation.heading ?? 0} />
+            {/* When the map itself is rotated to the heading (heading-up follow),
+                the arrow stays pointing up; otherwise it rotates to show course. */}
+            <EntregadorMarker
+              heading={headingUp && following ? 0 : (entregadorLocation.heading ?? 0)}
+            />
           </Marker>
         )}
 
