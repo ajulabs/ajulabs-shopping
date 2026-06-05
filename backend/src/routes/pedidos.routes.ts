@@ -211,6 +211,9 @@ router.post(
             }
           }
 
+          const variacaoVenda = item.variacaoId
+            ? variacoes.find((v) => v.id === item.variacaoId)
+            : null;
           await tx.movimentacaoEstoque.create({
             data: {
               produtoId: item.produtoId,
@@ -220,6 +223,8 @@ router.post(
               estoqueAntes,
               estoqueDepois,
               pedidoId: pedido.id,
+              variacaoId: variacaoVenda?.id ?? null,
+              variacaoNome: variacaoVenda?.nome ?? null,
             },
           });
         }

@@ -42,7 +42,12 @@ function getMultiSpecs(tipoProduto: TipoProdutoValue | null): EspecConfig[] {
   if (!tipoProduto?.catId || !tipoProduto?.subcatId) return [];
   const cat = TIPOS_PRODUTO.find((c) => c.id === tipoProduto.catId);
   const subcat = cat?.subcats.find((s) => s.id === tipoProduto.subcatId);
-  return (subcat?.specs ?? []).filter((s) => s.multiplo);
+  const tipoSelecionado = tipoProduto.specs['tipo']?.[0];
+  return (subcat?.specs ?? []).filter(
+    (s) =>
+      s.multiplo &&
+      (!s.hideForTipos || !tipoSelecionado || !s.hideForTipos.includes(tipoSelecionado)),
+  );
 }
 
 export function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[] {
@@ -56,6 +61,9 @@ export function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[]
   for (const vals of eixos) {
     combos = combos.flatMap((combo) => vals.map((v) => [...combo, v]));
   }
+  // Só há variações reais com mais de uma combinação. Com um único valor por
+  // eixo (ex: 1 cor + 1 tamanho) o produto é único e usa o estoque global.
+  if (combos.length <= 1) return [];
   return combos.map((combo) => combo.join(' · '));
 }
 
@@ -77,8 +85,13 @@ function getMissingSpecs(tipoProduto: TipoProdutoValue | null): string[] {
   if (!tipoProduto?.catId || !tipoProduto?.subcatId) return [];
   const cat = TIPOS_PRODUTO.find((c) => c.id === tipoProduto.catId);
   const subcat = cat?.subcats.find((s) => s.id === tipoProduto.subcatId);
+  const tipoSelecionado = tipoProduto.specs['tipo']?.[0];
   return (subcat?.specs ?? [])
-    .filter((spec) => (tipoProduto.specs[spec.id] ?? []).length === 0)
+    .filter((spec) => {
+      if (spec.hideForTipos && tipoSelecionado && spec.hideForTipos.includes(tipoSelecionado))
+        return false;
+      return (tipoProduto.specs[spec.id] ?? []).length === 0;
+    })
     .map((spec) => spec.id);
 }
 
@@ -111,10 +124,13 @@ export function VariacoesSection({
   variacoes,
   precoBase,
   onChange,
+  estoqueReadOnly = false,
 }: {
   variacoes: VariacaoEstoque[];
   precoBase: string;
   onChange: (v: VariacaoEstoque[]) => void;
+  /** No editar produto o estoque é gerenciado em "Ajustar estoque" (somente leitura aqui). */
+  estoqueReadOnly?: boolean;
 }) {
   const totalEstoque = variacoes.reduce((s, v) => s + (v.estoque || 0), 0);
 
@@ -165,20 +181,28 @@ export function VariacoesSection({
             keyboardType="decimal-pad"
             maxLength={8}
           />
-          <TextInput
-            style={varStyles.estoqueInput}
-            value={v.estoque === 0 ? '' : String(v.estoque)}
-            onChangeText={(raw) => updateEstoque(v.nome, raw)}
-            placeholder="0"
-            placeholderTextColor={colors.n300}
-            keyboardType="number-pad"
-            maxLength={5}
-          />
+          {estoqueReadOnly ? (
+            <View style={varStyles.estoqueReadonly}>
+              <Text style={varStyles.estoqueReadonlyTxt}>{v.estoque}</Text>
+            </View>
+          ) : (
+            <TextInput
+              style={varStyles.estoqueInput}
+              value={v.estoque === 0 ? '' : String(v.estoque)}
+              onChangeText={(raw) => updateEstoque(v.nome, raw)}
+              placeholder="0"
+              placeholderTextColor={colors.n300}
+              keyboardType="number-pad"
+              maxLength={5}
+            />
+          )}
         </View>
       ))}
 
       <Text style={varStyles.hint}>
-        Preço vazio usa o preço base. Estoque 0 = sem estoque para esta variação.
+        {estoqueReadOnly
+          ? 'O estoque de cada variação é gerenciado em "Ajustar estoque".'
+          : 'Preço vazio usa o preço base. Estoque 0 = sem estoque para esta variação.'}
       </Text>
     </View>
   );
@@ -259,6 +283,15 @@ const varStyles = StyleSheet.create({
     fontWeight: '700',
     color: colors.navy,
   },
+  estoqueReadonly: {
+    width: 72,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.n100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  estoqueReadonlyTxt: { fontSize: 14, fontWeight: '700', color: colors.n600 },
   hint: {
     fontSize: 11,
     color: colors.n500,

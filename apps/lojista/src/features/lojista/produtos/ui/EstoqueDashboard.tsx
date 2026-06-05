@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G } from 'react-native-svg';
@@ -77,6 +79,7 @@ export function EstoqueDashboard({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ajusteTarget, setAjusteTarget] = useState<Produto | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   const carregar = useCallback(
@@ -168,12 +171,9 @@ export function EstoqueDashboard({
           </TouchableOpacity>
         ) : null}
         <Text style={[s.headerTitle, !onVoltar && s.headerTitleMain]}>Produtos</Text>
-        <TouchableOpacity
-          style={[s.iconBtn, { backgroundColor: C.orange + '18' }]}
-          onPress={onVerMovimentacoes}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="time-outline" size={18} color={C.orange} />
+        <TouchableOpacity style={s.histBtn} onPress={onVerMovimentacoes} activeOpacity={0.7}>
+          <Ionicons name="time-outline" size={15} color={C.orange} />
+          <Text style={s.histBtnText}>Histórico</Text>
         </TouchableOpacity>
       </View>
 
@@ -293,8 +293,18 @@ export function EstoqueDashboard({
 
           <View style={s.section}>
             <View style={s.sectionHead}>
-              <Text style={s.sectionTitle}>Produtos</Text>
-              <Text style={s.sectionSub}>{produtos.length} cadastrados</Text>
+              <View>
+                <Text style={s.sectionTitle}>Produtos</Text>
+                <Text style={s.sectionSub}>{produtos.length} cadastrados</Text>
+              </View>
+              <TouchableOpacity
+                style={s.adjustBtn}
+                onPress={() => setShowPicker(true)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="swap-vertical-outline" size={15} color={C.orange} />
+                <Text style={s.adjustBtnText}>Ajustar estoque</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={s.addBtn} onPress={onAdicionarProduto} activeOpacity={0.85}>
                 <Ionicons name="add" size={16} color="#fff" />
                 <Text style={s.addBtnText}>Adicionar</Text>
@@ -307,7 +317,7 @@ export function EstoqueDashboard({
               </View>
             ) : (
               produtos.map((produto) => {
-                const nivel = calcNivel(produto.estoque ?? 0);
+                const nivel = calcNivel(produto.estoque ?? 0, produto.estoqueMinimo ?? 0);
                 const cfg = NIVEL_CFG[nivel];
                 const hasImg = produto.imagem && !imgErrors[produto.id];
                 return (
@@ -404,7 +414,10 @@ export function EstoqueDashboard({
                       <Text style={s.movNome} numberOfLines={1}>
                         {m.produto?.nome ?? '—'}
                       </Text>
-                      <Text style={s.movTipo}>{TIPO_LABEL[m.tipo] ?? m.tipo}</Text>
+                      <Text style={s.movTipo} numberOfLines={1}>
+                        {TIPO_LABEL[m.tipo] ?? m.tipo}
+                        {m.variacaoNome ? ` · ${m.variacaoNome}` : ''}
+                      </Text>
                     </View>
                     <View style={s.movRight}>
                       <Text style={[s.movQty, { color: cor }]}>
@@ -422,6 +435,62 @@ export function EstoqueDashboard({
           )}
         </ScrollView>
       )}
+
+      {/* Seletor de produto para ajuste de estoque */}
+      <Modal
+        visible={showPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPicker(false)}
+      >
+        <View style={s.pickerOverlay}>
+          <View style={s.pickerSheet}>
+            <View style={s.pickerHandle} />
+            <View style={s.pickerHead}>
+              <Text style={s.pickerTitle}>Qual produto ajustar?</Text>
+              <TouchableOpacity
+                style={s.pickerClose}
+                onPress={() => setShowPicker(false)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={16} color={C.sub} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={produtos}
+              keyExtractor={(p) => p.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={s.pickerList}
+              renderItem={({ item: p }) => {
+                const nivel = calcNivel(p.estoque ?? 0, p.estoqueMinimo ?? 0);
+                const cfg = NIVEL_CFG[nivel];
+                return (
+                  <TouchableOpacity
+                    style={s.pickerItem}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      setShowPicker(false);
+                      setAjusteTarget(p);
+                    }}
+                  >
+                    <View style={[s.pickerItemIcon, { backgroundColor: cfg.color + '18' }]}>
+                      <Ionicons name={cfg.icon as any} size={16} color={cfg.color} />
+                    </View>
+                    <Text style={s.pickerItemNome} numberOfLines={1}>
+                      {p.nome}
+                    </Text>
+                    <View style={[s.pickerItemBadge, { backgroundColor: cfg.color }]}>
+                      <Text style={s.pickerItemQty}>{p.estoque ?? 0}</Text>
+                      <Text style={s.pickerItemUnit}>un</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color={C.mute} />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {ajusteTarget && lojaId && token && (
         <AjusteRapidoModal
@@ -443,8 +512,13 @@ export function EstoqueDashboard({
   );
 }
 
-function calcNivel(estoque: number): NivelEstoque {
+function calcNivel(estoque: number, estoqueMinimo = 0): NivelEstoque {
   if (estoque <= 0) return 'zerado';
+  if (estoqueMinimo > 0) {
+    if (estoque < estoqueMinimo) return 'critico';
+    if (estoque < estoqueMinimo * 2) return 'atencao';
+    return 'saudavel';
+  }
   if (estoque < 10) return 'critico';
   if (estoque < 20) return 'atencao';
   return 'saudavel';
@@ -574,6 +648,18 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
   },
+  histBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.orange + '15',
+    borderWidth: 1,
+    borderColor: C.orange + '40',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  histBtnText: { fontSize: 13, fontWeight: '700', color: C.orange },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: C.text },
   headerTitleMain: { fontSize: 26, letterSpacing: -0.5 },
 
@@ -626,7 +712,13 @@ const s = StyleSheet.create({
   gridLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)', lineHeight: 14 },
 
   section: { paddingHorizontal: 16, marginTop: 24 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    justifyContent: 'space-between',
+  },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: C.text },
   sectionSub: { fontSize: 12, color: C.sub },
   sectionBadge: {
@@ -639,11 +731,22 @@ const s = StyleSheet.create({
   },
   sectionBadgeText: { fontSize: 12, fontWeight: '700' },
   sectionLink: { fontSize: 13, fontWeight: '700', color: C.orange },
+  adjustBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.orange + '15',
+    borderWidth: 1,
+    borderColor: C.orange + '40',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  adjustBtnText: { color: C.orange, fontSize: 13, fontWeight: '700' },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginLeft: 'auto',
     backgroundColor: C.orange,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -761,4 +864,72 @@ const s = StyleSheet.create({
   movRight: { alignItems: 'flex-end', gap: 2 },
   movQty: { fontSize: 16, fontWeight: '800' },
   movData: { fontSize: 10, color: C.mute },
+
+  /* Picker de produto */
+  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  pickerSheet: {
+    backgroundColor: C.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 44,
+    maxHeight: '80%',
+    borderTopWidth: 1,
+    borderColor: C.border,
+  },
+  pickerHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.border,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 18,
+  },
+  pickerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  pickerTitle: { fontSize: 18, fontWeight: '800', color: C.text },
+  pickerClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerList: { gap: 8, paddingBottom: 8 },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.bg,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  pickerItemIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerItemNome: { flex: 1, fontSize: 14, fontWeight: '600', color: C.text },
+  pickerItemBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  pickerItemQty: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  pickerItemUnit: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
 });

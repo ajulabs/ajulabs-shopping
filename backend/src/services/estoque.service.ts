@@ -1,14 +1,25 @@
 import { TipoMovimentacao } from '@prisma/client';
 import { prisma } from '../utils/prisma';
-import { emitEstoqueAtualizado, emitEstoqueAlerta } from '../utils/socket';
+import { emitEstoqueAtualizado, emitEstoqueAlerta, emitProdutoVariacoes } from '../utils/socket';
 
 export type NivelEstoque = 'saudavel' | 'atencao' | 'critico' | 'zerado';
 
 const LIMITE_CRITICO = 10;
 const LIMITE_ATENCAO = 20;
 
-export function nivelEstoque(estoque: number): NivelEstoque {
+/**
+ * Classifica o nível de estoque de um produto.
+ * Se `estoqueMinimo > 0`, usa o mínimo do produto como threshold de crítico
+ * e o dobro dele como threshold de atenção.
+ * Quando `estoqueMinimo` não está definido, usa os limites globais (10 / 20).
+ */
+export function nivelEstoque(estoque: number, estoqueMinimo = 0): NivelEstoque {
   if (estoque <= 0) return 'zerado';
+  if (estoqueMinimo > 0) {
+    if (estoque < estoqueMinimo) return 'critico';
+    if (estoque < estoqueMinimo * 2) return 'atencao';
+    return 'saudavel';
+  }
   if (estoque < LIMITE_CRITICO) return 'critico';
   if (estoque < LIMITE_ATENCAO) return 'atencao';
   return 'saudavel';
@@ -34,27 +45,64 @@ export async function registrarMovimentacao(
   return (db as typeof prisma).movimentacaoEstoque.create({ data: params });
 }
 
+type TipoAjusteManual = 'entrada_manual' | 'saida_manual' | 'ajuste_inventario' | 'devolucao';
+
+/** Aplica o tipo de ajuste sobre um estoque base. Lança erro se a saída excede o disponível. */
+function aplicarAjuste(tipo: TipoAjusteManual, atual: number, quantidade: number): number {
+  if (tipo === 'ajuste_inventario') return quantidade;
+  if (tipo === 'saida_manual') {
+    if (quantidade > atual) {
+      throw Object.assign(new Error(`Estoque insuficiente. Disponível: ${atual} un.`), {
+        statusCode: 409,
+      });
+    }
+    return atual - quantidade;
+  }
+  return atual + quantidade;
+}
+
+/** Notifica clientes via socket sobre a mudança de estoque (e alerta se aplicável). */
+function notificarEstoque(
+  lojaId: string,
+  produtoId: string,
+  produtoNome: string,
+  estoque: number,
+  estoqueMinimo: number,
+) {
+  emitEstoqueAtualizado(lojaId, { produtoId, produtoNome, estoque, estoqueMinimo });
+  const nivel = nivelEstoque(estoque, estoqueMinimo);
+  if (nivel !== 'saudavel') {
+    emitEstoqueAlerta(lojaId, { produtoId, produtoNome, estoque, estoqueMinimo, nivel });
+  }
+}
+
 export async function ajustarEstoqueManual(
   produtoId: string,
   lojaId: string,
   lojistaId: string,
-  tipo: 'entrada_manual' | 'saida_manual' | 'ajuste_inventario' | 'devolucao',
+  tipo: TipoAjusteManual,
   quantidade: number,
   motivo?: string,
+  variacaoId?: string,
 ) {
+  if (variacaoId) {
+    return ajustarEstoqueVariacao(
+      produtoId,
+      lojaId,
+      lojistaId,
+      tipo,
+      quantidade,
+      variacaoId,
+      motivo,
+    );
+  }
+
   const produto = await prisma.produto.findUniqueOrThrow({
     where: { id: produtoId, lojaId },
     select: { estoque: true, estoqueMinimo: true, nome: true, disponivel: true },
   });
 
-  let novoEstoque: number;
-  if (tipo === 'ajuste_inventario') {
-    novoEstoque = quantidade;
-  } else if (tipo === 'saida_manual') {
-    novoEstoque = Math.max(0, produto.estoque - quantidade);
-  } else {
-    novoEstoque = produto.estoque + quantidade;
-  }
+  const novoEstoque = aplicarAjuste(tipo, produto.estoque, quantidade);
 
   const [produtoAtualizado] = await prisma.$transaction([
     prisma.produto.update({
@@ -63,6 +111,7 @@ export async function ajustarEstoqueManual(
         estoque: novoEstoque,
         disponivel: novoEstoque > 0 ? produto.disponivel : false,
       },
+      include: { variacoes: true },
     }),
     prisma.movimentacaoEstoque.create({
       data: {
@@ -78,24 +127,88 @@ export async function ajustarEstoqueManual(
     }),
   ]);
 
-  emitEstoqueAtualizado(lojaId, {
-    produtoId,
-    produtoNome: produto.nome,
-    estoque: novoEstoque,
-    estoqueMinimo: produto.estoqueMinimo,
-  });
+  notificarEstoque(lojaId, produtoId, produto.nome, novoEstoque, produto.estoqueMinimo);
+  return produtoAtualizado;
+}
 
-  const nivel = nivelEstoque(novoEstoque);
-  if (nivel !== 'saudavel') {
-    emitEstoqueAlerta(lojaId, {
-      produtoId,
-      produtoNome: produto.nome,
-      estoque: novoEstoque,
-      estoqueMinimo: produto.estoqueMinimo,
-      nivel,
-    });
+/**
+ * Ajuste manual de uma variação específica. Mantém o total do produto coerente
+ * (= soma das variações), igual ao decremento de venda em pedidos.routes.ts.
+ */
+async function ajustarEstoqueVariacao(
+  produtoId: string,
+  lojaId: string,
+  lojistaId: string,
+  tipo: TipoAjusteManual,
+  quantidade: number,
+  variacaoId: string,
+  motivo?: string,
+) {
+  const variacao = await prisma.variacaoProduto.findFirst({
+    where: { id: variacaoId, produtoId },
+    select: { id: true, nome: true, estoque: true },
+  });
+  if (!variacao) {
+    throw Object.assign(new Error('Variação não encontrada'), { statusCode: 404 });
   }
 
+  const produto = await prisma.produto.findUniqueOrThrow({
+    where: { id: produtoId, lojaId },
+    select: { estoqueMinimo: true, nome: true, disponivel: true },
+  });
+
+  const novoEstoqueVar = aplicarAjuste(tipo, variacao.estoque, quantidade);
+  const delta = novoEstoqueVar - variacao.estoque;
+
+  const produtoAtualizado = await prisma.$transaction(async (tx) => {
+    await tx.variacaoProduto.update({
+      where: { id: variacao.id },
+      data: { estoque: novoEstoqueVar },
+    });
+
+    const todasVars = await tx.variacaoProduto.findMany({
+      where: { produtoId },
+      select: { estoque: true },
+    });
+    const totalDepois = todasVars.reduce((s, v) => s + v.estoque, 0);
+    const totalAntes = totalDepois - delta;
+
+    const atualizado = await tx.produto.update({
+      where: { id: produtoId },
+      data: {
+        estoque: totalDepois,
+        disponivel: totalDepois > 0 ? produto.disponivel : false,
+      },
+      include: { variacoes: true },
+    });
+
+    await tx.movimentacaoEstoque.create({
+      data: {
+        produtoId,
+        lojaId,
+        lojistaId,
+        tipo,
+        quantidade: Math.abs(delta),
+        estoqueAntes: totalAntes,
+        estoqueDepois: totalDepois,
+        motivo,
+        variacaoId: variacao.id,
+        variacaoNome: variacao.nome,
+      },
+    });
+
+    return atualizado;
+  });
+
+  notificarEstoque(
+    lojaId,
+    produtoId,
+    produto.nome,
+    produtoAtualizado.estoque,
+    produto.estoqueMinimo,
+  );
+  // Atualiza o estoque por variação na PDP do consumidor em tempo real.
+  emitProdutoVariacoes(lojaId, produtoId, produtoAtualizado.variacoes);
   return produtoAtualizado;
 }
 
@@ -124,23 +237,25 @@ export async function getDashboard(lojaId: string) {
         estoqueAntes: true,
         estoqueDepois: true,
         motivo: true,
+        variacaoNome: true,
         criadoEm: true,
         produto: { select: { id: true, nome: true, imagemUrl: true } },
       },
     }),
   ]);
 
-  const semEstoque = produtos.filter((p) => p.estoque <= 0);
-  const criticos = produtos.filter((p) => p.estoque > 0 && p.estoque < LIMITE_CRITICO);
-  const atencao = produtos.filter((p) => p.estoque >= LIMITE_CRITICO && p.estoque < LIMITE_ATENCAO);
+  const produtosComNivel = produtos.map((p) => ({
+    ...p,
+    nivel: nivelEstoque(p.estoque, p.estoqueMinimo),
+  }));
+
+  const semEstoque = produtosComNivel.filter((p) => p.nivel === 'zerado');
+  const criticos = produtosComNivel.filter((p) => p.nivel === 'critico');
+  const atencao = produtosComNivel.filter((p) => p.nivel === 'atencao');
 
   const valorTotalEstoque = produtos.reduce((acc, p) => acc + Number(p.preco) * p.estoque, 0);
 
-  const alertas = [
-    ...semEstoque.map((p) => ({ ...p, nivel: 'zerado' as NivelEstoque })),
-    ...criticos.map((p) => ({ ...p, nivel: 'critico' as NivelEstoque })),
-    ...atencao.map((p) => ({ ...p, nivel: 'atencao' as NivelEstoque })),
-  ];
+  const alertas = [...semEstoque, ...criticos, ...atencao];
 
   return {
     totalProdutos: produtos.length,
@@ -187,6 +302,7 @@ export async function getMovimentacoes(
         estoqueDepois: true,
         motivo: true,
         pedidoId: true,
+        variacaoNome: true,
         criadoEm: true,
         produto: { select: { id: true, nome: true, imagemUrl: true } },
       },
@@ -198,7 +314,7 @@ export async function getMovimentacoes(
 
 export async function getAlertas(lojaId: string) {
   const produtos = await prisma.produto.findMany({
-    where: { lojaId, estoqueMinimo: { gt: 0 } },
+    where: { lojaId },
     select: {
       id: true,
       nome: true,
@@ -210,7 +326,7 @@ export async function getAlertas(lojaId: string) {
   });
 
   return produtos
-    .map((p) => ({ ...p, nivel: nivelEstoque(p.estoque) }))
+    .map((p) => ({ ...p, nivel: nivelEstoque(p.estoque, p.estoqueMinimo) }))
     .filter((p) => p.nivel !== 'saudavel')
     .sort((a, b) => {
       const order = { zerado: 0, critico: 1, atencao: 2, saudavel: 3 };

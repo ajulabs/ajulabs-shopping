@@ -164,7 +164,16 @@ export function MovimentacoesScreen({ onVoltar }: Props) {
           <Text style={s.cardNome} numberOfLines={1}>
             {m.produto?.nome ?? '—'}
           </Text>
-          <Text style={s.cardTipo}>{meta.label}</Text>
+          <View style={s.cardTipoRow}>
+            <Text style={s.cardTipo}>{meta.label}</Text>
+            {m.variacaoNome ? (
+              <View style={s.varTag}>
+                <Text style={s.varTagText} numberOfLines={1}>
+                  {m.variacaoNome}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           {m.motivo ? (
             <Text style={s.cardMotivo} numberOfLines={1}>
               "{m.motivo}"
@@ -346,7 +355,17 @@ const s = StyleSheet.create({
   },
   cardBody: { flex: 1, gap: 2 },
   cardNome: { fontSize: 14, fontWeight: '700', color: C.text },
+  cardTipoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   cardTipo: { fontSize: 12, color: C.sub },
+  varTag: {
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  varTagText: { fontSize: 10, fontWeight: '700', color: C.sub, maxWidth: 160 },
   cardMotivo: { fontSize: 11, color: C.mute, fontStyle: 'italic' },
   cardRight: { alignItems: 'flex-end', gap: 3 },
   cardQty: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },

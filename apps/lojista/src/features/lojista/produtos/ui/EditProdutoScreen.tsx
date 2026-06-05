@@ -512,6 +512,16 @@ export function EditProdutoScreen({
               placeholder="Ou informe a categoria manualmente"
             />
           )}
+          {/* Hint variações: aparece quando há tipo selecionado mas ainda sem variações geradas */}
+          {form.tipoProduto && form.variacoesEstoque.length === 0 && (
+            <View style={styles.varHint}>
+              <Ionicons name="color-palette-outline" size={14} color={colors.orange} />
+              <Text style={styles.varHintText}>
+                Para adicionar variações (cor, tamanho…), selecione{' '}
+                <Text style={styles.varHintBold}>2 ou mais valores</Text> nas opções acima.
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.fieldGroup}>
@@ -552,21 +562,6 @@ export function EditProdutoScreen({
               )}
             </View>
           )}
-          {form.variacoesEstoque.length === 0 && (
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>Estoque</Text>
-              <TextInput
-                style={[styles.input, form.estoque === '0' && styles.inputEsgotado]}
-                value={form.estoque}
-                onChangeText={(v) => set('estoque', v.replace(/[^0-9]/g, ''))}
-                placeholder="0"
-                keyboardType="number-pad"
-              />
-              {form.estoque === '0' && (
-                <Text style={styles.estoqueAviso}>Produto ficará fora da vitrine</Text>
-              )}
-            </View>
-          )}
         </View>
 
         {form.variacoesEstoque.length > 0 && (
@@ -576,6 +571,7 @@ export function EditProdutoScreen({
               variacoes={form.variacoesEstoque}
               precoBase={form.preco}
               onChange={(v) => set('variacoesEstoque', v)}
+              estoqueReadOnly
             />
           </View>
         )}
@@ -896,4 +892,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.navy,
   },
+  varHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+    marginTop: 10,
+    backgroundColor: colors.orange100,
+    borderWidth: 1,
+    borderColor: colors.orange + '40',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  varHintText: { flex: 1, fontSize: 12, color: colors.orange600, lineHeight: 17 },
+  varHintBold: { fontWeight: '700' },
 });

@@ -383,7 +383,7 @@ Campos obrigatórios:
 
 Campos opcionais — inclua apenas se visível ou aplicável ao produto:
 - "cor": array de cores detectadas. Valores permitidos: Preto, Branco, Azul, Rosa, Vermelho, Verde, Amarelo, Cinza, Bege, Marrom, Nude, Prata, Dourado, Rosê, Coral, Marinho, Inox
-- "tipo": tipo da peça (roupas) ou tipo de produto (beleza). Valores: Vestido, Blusa, Calça, Saia, Short, Casaco, Camisa, Camiseta, Bermuda, Moletom, Jaqueta, Base, Batom, Blush, Sombra, Rímel, Perfume, Colônia, Shampoo, Condicionador, Máscara
+- "tipo": tipo da peça (roupas) ou tipo de produto (beleza). Valores: Vestido, Blusa, Calça, Saia, Short, Casaco, Íntima, Camisa, Camiseta, Bermuda, Moletom, Jaqueta, Base, Batom, Blush, Sombra, Rímel, Perfume, Colônia, Shampoo, Condicionador, Máscara
 - "armazenamento": array para eletrônicos com memória. Valores: 64GB, 128GB, 256GB, 512GB, 1TB
 - "material": array para joias/acessórios. Valores: Ouro, Prata, Rosê, Aço, Banhado a Ouro
 - "volume": array para perfumes/cosméticos. Valores: 30ml, 50ml, 75ml, 100ml, 200ml`,
@@ -485,19 +485,28 @@ export async function updateProduto(
   let atualizado;
   if (variacoes !== undefined) {
     atualizado = await prisma.$transaction(async (tx) => {
+      // O estoque das variações é gerenciado em "Ajustar estoque". Ao editar o
+      // produto, preservamos o estoque atual de cada variação (casado por nome);
+      // variações novas começam com o que veio no payload (geralmente 0).
+      const existentes = await tx.variacaoProduto.findMany({
+        where: { produtoId },
+        select: { nome: true, estoque: true },
+      });
+      const estoquePorNome = new Map(existentes.map((v) => [v.nome, v.estoque]));
+      const variacoesFinais = variacoes.map((v) => ({
+        nome: v.nome,
+        estoque: estoquePorNome.get(v.nome) ?? v.estoque,
+        preco: v.preco ?? null,
+      }));
+
       await tx.variacaoProduto.deleteMany({ where: { produtoId } });
       return tx.produto.update({
         where: { id: produtoId },
         data: {
           ...dados,
-          ...(variacoes.length > 0 && {
-            variacoes: {
-              create: variacoes.map((v) => ({
-                nome: v.nome,
-                estoque: v.estoque,
-                preco: v.preco ?? null,
-              })),
-            },
+          estoque: variacoesFinais.reduce((s, v) => s + v.estoque, 0),
+          ...(variacoesFinais.length > 0 && {
+            variacoes: { create: variacoesFinais },
           }),
         },
         include: { variacoes: true },

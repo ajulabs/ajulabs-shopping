@@ -9,6 +9,8 @@ export type {
   CorridaOfertaPayload,
   TicketNovoPayload,
   ChatMensagemNovaPayload,
+  ProdutoVariacaoPayload,
+  EstoqueAtualizadoPayload,
 } from './events';
 export { useDeliveryTracking } from './hooks/useDeliveryTracking';
 export { useLocationEmitter } from './hooks/useLocationEmitter';
@@ -18,3 +20,4 @@ export { useCorridasRealtime } from './hooks/useCorridasRealtime';
 export { usePedidoConsumerRealtime } from './hooks/usePedidoConsumerRealtime';
 export { usePedidoLojistaRealtime } from './hooks/usePedidoLojistaRealtime';
 export { useChatPedidoRealtime } from './hooks/useChatPedidoRealtime';
+export { useProdutoEstoqueRealtime } from './hooks/useProdutoEstoqueRealtime';

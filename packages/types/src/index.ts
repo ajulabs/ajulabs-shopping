@@ -315,6 +315,7 @@ export interface MovimentacaoEstoque {
   estoqueDepois: number;
   motivo?: string | null;
   pedidoId?: string | null;
+  variacaoNome?: string | null;
   criadoEm: string;
   produto: { id: string; nome: string; imagemUrl?: string | null };
 }
