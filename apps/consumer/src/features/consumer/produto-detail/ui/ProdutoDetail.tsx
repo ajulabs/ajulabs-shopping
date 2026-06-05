@@ -16,11 +16,13 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Produto, AvaliacaoLoja, VariacaoProduto } from '@ajulabs/types';
 import { ProdutoService, AvaliacaoService, FavoritoService } from '@ajulabs/api-client';
+import { useProdutoEstoqueRealtime } from '@ajulabs/realtime';
 import { colors } from '@ajulabs/theme';
 import { useCartStore, useAuthStore } from '../../../../store';
 import { useTheme } from '../../../../hooks';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 // ─── Helpers de variação ──────────────────────────────────────
 
@@ -598,6 +600,21 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
       setLoading(false);
     });
   }, [produtoId]);
+
+  // Estoque/variações em tempo real (lojista ajustou o estoque).
+  useProdutoEstoqueRealtime({
+    apiUrl: API_URL,
+    produtoId,
+    onVariacoes: (variacoes) => {
+      setProduto((prev) => (prev ? { ...prev, variacoes } : prev));
+      setVariacaoSelecionada((sel) =>
+        sel ? (variacoes.find((v) => v.nome === sel.nome) ?? sel) : sel,
+      );
+    },
+    onEstoque: ({ estoque }) => {
+      setProduto((prev) => (prev ? { ...prev, estoque } : prev));
+    },
+  });
 
   const handleFavorito = useCallback(async () => {
     if (!token) {

@@ -83,6 +83,20 @@ export function initSocket(server: http.Server): Server {
       salas.add(sala);
     });
 
+    // Consumidor entra/sai da sala de um produto enquanto vê a PDP, para
+    // receber atualizações de estoque/variações em tempo real.
+    socket.on('produto:join', (produtoId: string) => {
+      const sala = `produto:${produtoId}`;
+      void socket.join(sala);
+      salas.add(sala);
+    });
+
+    socket.on('produto:leave', (produtoId: string) => {
+      const sala = `produto:${produtoId}`;
+      void socket.leave(sala);
+      salas.delete(sala);
+    });
+
     socket.on('disconnect', () => {
       for (const sala of salas) void socket.leave(sala);
       salas.clear();
@@ -229,15 +243,25 @@ export function emitChatMensagem(
 
 export function emitProdutoVariacoes(lojaId: string, produtoId: string, variacoes: object[]): void {
   try {
-    getIo().to(`loja:${lojaId}`).emit('produto:variacoes', { produtoId, variacoes });
+    // Sala do lojista (dashboard) + sala do produto (consumidores na PDP).
+    getIo().to(`loja:${lojaId}`).to(`produto:${produtoId}`).emit('produto:variacoes', {
+      produtoId,
+      variacoes,
+    });
   } catch {
     /* intentional */
   }
 }
 
-export function emitEstoqueAtualizado(lojaId: string, payload: object): void {
+export function emitEstoqueAtualizado(
+  lojaId: string,
+  payload: { produtoId: string } & Record<string, unknown>,
+): void {
   try {
-    getIo().to(`loja:${lojaId}`).emit('estoque:atualizado', payload);
+    getIo()
+      .to(`loja:${lojaId}`)
+      .to(`produto:${payload.produtoId}`)
+      .emit('estoque:atualizado', payload);
   } catch {
     /* intentional */
   }

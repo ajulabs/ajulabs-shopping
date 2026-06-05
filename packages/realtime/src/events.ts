@@ -83,5 +83,7 @@ export interface ClientEvents {
   'usuario:join': (usuarioId: string) => void;
   'entregador:join': (entregadorId: string) => void;
   'lojista:join': (lojaId: string) => void;
+  'produto:join': (produtoId: string) => void;
+  'produto:leave': (produtoId: string) => void;
   'localizacao:update': (payload: Omit<LocationPayload, 'pedidoId'> & { pedidoId: string }) => void;
 }
