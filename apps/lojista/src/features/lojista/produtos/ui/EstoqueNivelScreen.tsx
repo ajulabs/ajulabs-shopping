@@ -38,19 +38,19 @@ const NIVEL_CFG: Record<
   saudavel: {
     color: '#10B981',
     label: 'Saudável',
-    desc: 'Estoque ≥ 20 unidades',
+    desc: 'Estoque acima do nível de atenção',
     icon: 'checkmark-circle',
   },
   atencao: {
     color: '#F59E0B',
     label: 'Atenção',
-    desc: 'Estoque entre 10 e 19 un.',
+    desc: 'Estoque próximo ao mínimo',
     icon: 'alert-circle',
   },
   critico: {
     color: '#EF4444',
     label: 'Crítico',
-    desc: 'Estoque abaixo de 10 un.',
+    desc: 'Estoque abaixo do mínimo definido',
     icon: 'warning',
   },
   zerado: {
@@ -61,8 +61,13 @@ const NIVEL_CFG: Record<
   },
 };
 
-function calcNivel(estoque: number): NivelEstoque {
+function calcNivel(estoque: number, estoqueMinimo = 0): NivelEstoque {
   if (estoque <= 0) return 'zerado';
+  if (estoqueMinimo > 0) {
+    if (estoque < estoqueMinimo) return 'critico';
+    if (estoque < estoqueMinimo * 2) return 'atencao';
+    return 'saudavel';
+  }
   if (estoque < 10) return 'critico';
   if (estoque < 20) return 'atencao';
   return 'saudavel';
@@ -93,7 +98,9 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
       if (!silent) setLoading(true);
       try {
         const lista = await LojistaService.listarProdutos(lojaId, token);
-        const filtrados = lista.filter((p) => calcNivel(p.estoque ?? 0) === nivel);
+        const filtrados = lista.filter(
+          (p) => calcNivel(p.estoque ?? 0, p.estoqueMinimo ?? 0) === nivel,
+        );
         setProdutos(filtrados);
       } finally {
         setLoading(false);
@@ -133,9 +140,9 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
             {produto.nome}
           </Text>
           <Text style={s.preco}>R$ {Number(produto.preco).toFixed(2).replace('.', ',')}</Text>
-          {produto.categorias?.[0] && (
+          {produto.categoria && (
             <Text style={s.categoria} numberOfLines={1}>
-              {produto.categorias[0]}
+              {produto.categoria}
             </Text>
           )}
         </View>
@@ -235,7 +242,7 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
             setProdutos((prev) =>
               prev
                 .map((p) => (p.id === atualizado.id ? { ...p, ...atualizado } : p))
-                .filter((p) => calcNivel(p.estoque ?? 0) === nivel),
+                .filter((p) => calcNivel(p.estoque ?? 0, p.estoqueMinimo ?? 0) === nivel),
             );
             setAjusteTarget(null);
           }}

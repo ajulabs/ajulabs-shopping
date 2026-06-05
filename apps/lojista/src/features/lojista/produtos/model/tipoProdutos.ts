@@ -3,6 +3,7 @@ export interface EspecConfig {
   label: string;
   multiplo: boolean;
   opcoes: string[];
+  hideForTipos?: string[];
 }
 
 export interface SubcatConfig {
@@ -174,7 +175,7 @@ export const TIPOS_PRODUTO: CatConfig[] = [
             id: 'tipo',
             label: 'Tipo de peça',
             multiplo: false,
-            opcoes: ['Vestido', 'Blusa', 'Calça', 'Saia', 'Short', 'Casaco', 'Outro'],
+            opcoes: ['Vestido', 'Blusa', 'Calça', 'Saia', 'Short', 'Casaco', 'Íntima', 'Outro'],
           },
           {
             id: 'tamanho-letra',
@@ -187,6 +188,7 @@ export const TIPOS_PRODUTO: CatConfig[] = [
             label: 'Tamanho (número)',
             multiplo: true,
             opcoes: ['34', '36', '38', '40', '42', '44', '46'],
+            hideForTipos: ['Íntima'],
           },
           {
             id: 'cor',
@@ -214,7 +216,16 @@ export const TIPOS_PRODUTO: CatConfig[] = [
             id: 'tipo',
             label: 'Tipo de peça',
             multiplo: false,
-            opcoes: ['Camisa', 'Camiseta', 'Calça', 'Bermuda', 'Moletom', 'Jaqueta', 'Outro'],
+            opcoes: [
+              'Camisa',
+              'Camiseta',
+              'Calça',
+              'Bermuda',
+              'Moletom',
+              'Jaqueta',
+              'Íntima',
+              'Outro',
+            ],
           },
           {
             id: 'tamanho',

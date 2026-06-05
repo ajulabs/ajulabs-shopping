@@ -399,8 +399,9 @@ model VariacaoProduto {
   estoque   Int
   preco     Decimal? @db.Decimal(10, 2)
 
-  produto Produto      @relation(fields: [produtoId], references: [id], onDelete: Cascade)
-  itens   ItemPedido[]
+  produto       Produto               @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  itens         ItemPedido[]
+  movimentacoes MovimentacaoEstoque[]
 
   @@map("variacoes_produto")
 }
@@ -590,10 +591,13 @@ model MovimentacaoEstoque {
   estoqueDepois Int              @map("estoque_depois")
   motivo        String?
   pedidoId      String?          @map("pedido_id")
+  variacaoId    String?          @map("variacao_id")
+  variacaoNome  String?          @map("variacao_nome")
   criadoEm      DateTime         @default(now()) @map("criado_em")
 
-  produto Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
-  loja    Loja     @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  produto  Produto          @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  loja     Loja             @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  variacao VariacaoProduto? @relation(fields: [variacaoId], references: [id], onDelete: SetNull)
 
   @@index([lojaId, criadoEm(sort: Desc)])
   @@index([produtoId, criadoEm(sort: Desc)])

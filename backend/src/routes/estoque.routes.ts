@@ -99,6 +99,7 @@ const movimentacaoSchema = z.object({
   tipo: z.enum(['entrada_manual', 'saida_manual', 'ajuste_inventario', 'devolucao']),
   quantidade: z.number().int().positive(),
   motivo: z.string().optional(),
+  variacaoId: z.string().min(1).optional(),
 });
 
 router.post('/movimentacao', authMiddleware, authLojista, async (req: AuthRequest, res) => {
@@ -117,6 +118,7 @@ router.post('/movimentacao', authMiddleware, authLojista, async (req: AuthReques
       body.tipo,
       body.quantidade,
       body.motivo,
+      body.variacaoId,
     );
 
     res.json({ produto });

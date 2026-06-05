@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EstoqueService } from '@ajulabs/api-client';
@@ -27,10 +28,15 @@ const C = {
 
 type TipoAjuste = 'entrada_manual' | 'saida_manual' | 'ajuste_inventario' | 'devolucao';
 
+/** Mantém apenas dígitos (web/teclado físico ignoram keyboard="number-pad"). */
+const onlyDigits = (v: string) => v.replace(/[^0-9]/g, '');
+const MAX_QTY_LEN = 6;
+
 const TIPOS: {
   tipo: TipoAjuste;
   label: string;
   desc: string;
+  hint: string;
   icon: string;
   color: string;
 }[] = [
@@ -38,6 +44,7 @@ const TIPOS: {
     tipo: 'entrada_manual',
     label: 'Entrada',
     desc: 'Adicionar unidades',
+    hint: 'Use quando chegar mercadoria. A quantidade informada é somada ao estoque atual.',
     icon: 'arrow-down-circle',
     color: '#10B981',
   },
@@ -45,6 +52,7 @@ const TIPOS: {
     tipo: 'saida_manual',
     label: 'Saída',
     desc: 'Remover unidades',
+    hint: 'Use para registrar perdas, quebras ou consumos. A quantidade é subtraída do estoque atual.',
     icon: 'arrow-up-circle',
     color: '#F43F5E',
   },
@@ -52,6 +60,7 @@ const TIPOS: {
     tipo: 'ajuste_inventario',
     label: 'Inventário',
     desc: 'Definir total exato',
+    hint: 'Use após uma contagem física. O valor informado substitui o estoque atual, independente do que estava registrado.',
     icon: 'calculator',
     color: '#A78BFA',
   },
@@ -59,6 +68,7 @@ const TIPOS: {
     tipo: 'devolucao',
     label: 'Devolução',
     desc: 'Retorno de produto',
+    hint: 'Use quando um cliente devolver um produto. A quantidade retorna ao estoque e fica registrada separadamente no histórico.',
     icon: 'return-up-back',
     color: '#60A5FA',
   },
@@ -74,27 +84,55 @@ interface Props {
 }
 
 export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, onSaved }: Props) {
+  const variacoes = produto.variacoes ?? [];
+  const temVariacoes = variacoes.length > 0;
+
   const [tipo, setTipo] = useState<TipoAjuste>('entrada_manual');
   const [qty, setQty] = useState('');
   const [motivo, setMotivo] = useState('');
   const [minimo, setMinimo] = useState(String(produto.estoqueMinimo ?? 0));
+  const [variacaoId, setVariacaoId] = useState<string | undefined>(
+    temVariacoes ? variacoes[0].id : undefined,
+  );
   const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState<{ produto: Produto; resumo: string } | null>(null);
+  const toastAnim = useRef(new Animated.Value(0)).current;
+
+  // Após o sucesso, exibe o card flutuante (fade + escala), segura e fecha.
+  useEffect(() => {
+    if (!done) return;
+    Animated.sequence([
+      Animated.spring(toastAnim, { toValue: 1, useNativeDriver: true, friction: 7, tension: 80 }),
+      Animated.delay(1100),
+      Animated.timing(toastAnim, { toValue: 0, duration: 240, useNativeDriver: true }),
+    ]).start(() => onSaved(done.produto));
+    return () => toastAnim.stopAnimation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done]);
 
   useEffect(() => {
     setMinimo(String(produto.estoqueMinimo ?? 0));
+    setVariacaoId(temVariacoes ? variacoes[0].id : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produto.id]);
+
+  const variacaoSel = temVariacoes
+    ? (variacoes.find((v) => v.id === variacaoId) ?? variacoes[0])
+    : null;
 
   const cfg = TIPOS.find((t) => t.tipo === tipo)!;
   const isInvent = tipo === 'ajuste_inventario';
   const qtyNum = parseInt(qty, 10);
-  const qtyValida = !isNaN(qtyNum) && qtyNum > 0;
-  const atual = produto.estoque ?? 0;
+  // No inventário é válido definir o total como 0 (zerar o estoque).
+  const qtyValida = !isNaN(qtyNum) && (isInvent ? qtyNum >= 0 : qtyNum > 0);
+  const atual = variacaoSel ? variacaoSel.estoque : (produto.estoque ?? 0);
+  const estoqueInsuficiente = tipo === 'saida_manual' && qtyValida && qtyNum > atual;
   const novoEstoque = !qtyValida
     ? null
     : isInvent
       ? qtyNum
       : tipo === 'saida_manual'
-        ? Math.max(0, atual - qtyNum)
+        ? atual - qtyNum // sem clamp — estoqueInsuficiente bloqueia antes
         : atual + qtyNum;
   const delta = novoEstoque != null ? novoEstoque - atual : null;
 
@@ -117,14 +155,16 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
           tipo,
           quantidade: qtyNum,
           motivo: motivo.trim() || undefined,
+          variacaoId: variacaoSel?.id,
         }),
         minimoChanged
           ? EstoqueService.setEstoqueMinimo(produto.id, minimoNum, token)
           : Promise.resolve(),
       ]);
+      const resumo = `${variacaoSel ? `${variacaoSel.nome} · ` : ''}${atual} → ${novoEstoque} un`;
       setQty('');
       setMotivo('');
-      onSaved(atualizado);
+      setDone({ produto: atualizado, resumo });
     } catch (e) {
       const m = e instanceof Error ? e.message : 'Erro ao registrar';
       Platform.OS === 'web' ? alert(m) : Alert.alert('Erro', m);
@@ -153,6 +193,46 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Variação (apenas se o produto tiver variações) */}
+            {temVariacoes && (
+              <View style={s.varWrap}>
+                <Text style={s.fieldLabel}>Variação a ajustar</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.varRow}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {variacoes.map((v) => {
+                    const active = variacaoSel?.id === v.id;
+                    return (
+                      <TouchableOpacity
+                        key={v.id}
+                        style={[
+                          s.varChip,
+                          active && { borderColor: cfg.color, backgroundColor: cfg.color + '12' },
+                        ]}
+                        onPress={() => setVariacaoId(v.id)}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[s.varChipNome, active && { color: cfg.color }]}
+                          numberOfLines={1}
+                        >
+                          {v.nome}
+                        </Text>
+                        <View style={[s.varChipBadge, active && { backgroundColor: cfg.color }]}>
+                          <Text style={[s.varChipQty, active && { color: '#fff' }]}>
+                            {v.estoque}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
             {/* Tipo */}
             <View style={s.tipoRow}>
               {TIPOS.map((t) => {
@@ -178,6 +258,22 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               })}
             </View>
 
+            {/* Dica contextual do tipo selecionado */}
+            <View
+              style={[
+                s.hintBox,
+                { borderColor: cfg.color + '30', backgroundColor: cfg.color + '0C' },
+              ]}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={15}
+                color={cfg.color}
+                style={{ marginTop: 1 }}
+              />
+              <Text style={[s.hintText, { color: cfg.color }]}>{cfg.hint}</Text>
+            </View>
+
             {/* Quantidade */}
             <View style={s.qtyWrap}>
               <Text style={s.fieldLabel}>
@@ -186,7 +282,9 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               <View style={[s.qtyRow, { borderColor: cfg.color + '40' }]}>
                 <TouchableOpacity
                   style={[s.qtyBtn, { backgroundColor: cfg.color + '12' }]}
-                  onPress={() => setQty((v) => String(Math.max(1, (parseInt(v, 10) || 0) - 1)))}
+                  onPress={() =>
+                    setQty((v) => String(Math.max(isInvent ? 0 : 1, (parseInt(v, 10) || 0) - 1)))
+                  }
                   activeOpacity={0.7}
                 >
                   <Ionicons name="remove" size={22} color={cfg.color} />
@@ -194,10 +292,12 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
                 <TextInput
                   style={[s.qtyInput, { color: cfg.color }]}
                   keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={MAX_QTY_LEN}
                   placeholder="0"
                   placeholderTextColor={C.mute}
                   value={qty}
-                  onChangeText={setQty}
+                  onChangeText={(t) => setQty(onlyDigits(t))}
                   textAlign="center"
                 />
                 <TouchableOpacity
@@ -234,6 +334,17 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               </View>
             )}
 
+            {/* Aviso de estoque insuficiente para saída */}
+            {estoqueInsuficiente && (
+              <View style={s.erroBox}>
+                <Ionicons name="warning" size={15} color="#DC2626" />
+                <Text style={s.erroText}>
+                  Estoque insuficiente. Disponível: {atual} un. Reduza a quantidade ou use
+                  Inventário para zerar.
+                </Text>
+              </View>
+            )}
+
             {/* Estoque mínimo */}
             <View style={s.minimoBox}>
               <View style={s.minimoHead}>
@@ -251,8 +362,10 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
                 <TextInput
                   style={s.minimoInput}
                   keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={MAX_QTY_LEN}
                   value={minimo}
-                  onChangeText={setMinimo}
+                  onChangeText={(t) => setMinimo(onlyDigits(t))}
                   placeholder="0"
                   placeholderTextColor={C.mute}
                   textAlign="center"
@@ -290,10 +403,10 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               style={[
                 s.saveBtn,
                 { backgroundColor: cfg.color },
-                (!qtyValida || saving) && s.saveBtnOff,
+                (!qtyValida || saving || estoqueInsuficiente) && s.saveBtnOff,
               ]}
               onPress={salvar}
-              disabled={!qtyValida || saving}
+              disabled={!qtyValida || saving || estoqueInsuficiente}
               activeOpacity={0.85}
             >
               {saving ? (
@@ -306,6 +419,44 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               )}
             </TouchableOpacity>
           </ScrollView>
+
+          {/* Confirmação de sucesso — card flutuante que aparece e some */}
+          {done && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFillObject,
+                s.toastWrap,
+                {
+                  opacity: toastAnim,
+                  backgroundColor: toastAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['rgba(15,23,42,0)', 'rgba(15,23,42,0.15)'],
+                  }),
+                },
+              ]}
+            >
+              <Animated.View
+                style={[
+                  s.toastCard,
+                  {
+                    transform: [
+                      {
+                        scale: toastAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.85, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <Ionicons name="checkmark-circle" size={44} color="#10B981" />
+                <Text style={s.toastTitle}>Estoque atualizado</Text>
+                <Text style={s.toastResumo}>{done.resumo}</Text>
+              </Animated.View>
+            </Animated.View>
+          )}
         </View>
       </View>
     </Modal>
@@ -353,6 +504,32 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  /* Variação */
+  varWrap: { marginBottom: 18 },
+  varRow: { gap: 8, paddingVertical: 2 },
+  varChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.bg,
+  },
+  varChipNome: { fontSize: 13, fontWeight: '700', color: C.sub, maxWidth: 140 },
+  varChipBadge: {
+    minWidth: 24,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: C.border,
+    alignItems: 'center',
+  },
+  varChipQty: { fontSize: 12, fontWeight: '800', color: C.sub },
+
   /* Tipo */
   tipoRow: { flexDirection: 'row', gap: 8, marginBottom: 22 },
   tipoBtn: {
@@ -373,6 +550,19 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   tipoBtnLabel: { fontSize: 11, fontWeight: '800', color: C.sub, textAlign: 'center' },
+
+  /* Dica contextual */
+  hintBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  hintText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
 
   /* Quantidade */
   qtyWrap: { marginBottom: 16 },
@@ -473,6 +663,21 @@ const s = StyleSheet.create({
   minimoUnit: { fontSize: 12, color: C.mute, fontWeight: '600' },
   minimoHint: { fontSize: 11, color: C.mute, lineHeight: 16 },
 
+  /* Aviso estoque insuficiente */
+  erroBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  erroText: { flex: 1, fontSize: 13, color: '#DC2626', fontWeight: '500', lineHeight: 18 },
+
   /* Motivo */
   motivoWrap: { marginBottom: 20 },
   optional: { fontWeight: '500', color: C.mute },
@@ -500,4 +705,23 @@ const s = StyleSheet.create({
   },
   saveBtnOff: { opacity: 0.3 },
   saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+
+  /* Sucesso — card flutuante */
+  toastWrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  toastCard: {
+    backgroundColor: C.card,
+    borderRadius: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: 300,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+  },
+  toastTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 2 },
+  toastResumo: { fontSize: 15, fontWeight: '700', color: '#10B981', textAlign: 'center' },
 });

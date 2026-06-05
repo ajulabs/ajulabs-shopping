@@ -1334,6 +1334,7 @@ export const EstoqueService = {
       tipo: 'entrada_manual' | 'saida_manual' | 'ajuste_inventario' | 'devolucao';
       quantidade: number;
       motivo?: string;
+      variacaoId?: string;
     },
   ): Promise<Produto> => {
     const res = await fetch(`${API_URL}/lojista/estoque/movimentacao`, {

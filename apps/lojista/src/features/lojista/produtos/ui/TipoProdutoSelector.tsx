@@ -17,6 +17,8 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
 
   const specsSectionY = useRef(0);
   const specGroupYs = useRef<Record<string, number>>({});
+  // Lembra a última configuração de cada categoria, para restaurar ao voltar.
+  const catMemory = useRef<Record<string, TipoProdutoValue>>({});
 
   const reportPositions = () => {
     if (!onSpecLayout) return;
@@ -34,8 +36,17 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
       : null;
 
   const selectCat = (catId: string) => {
+    // Guarda a configuração atual antes de sair, para poder restaurar depois.
+    if (value?.catId && value.subcatId) {
+      catMemory.current[value.catId] = value;
+    }
     if (value?.catId === catId) {
       onChange(null);
+      return;
+    }
+    const remembered = catMemory.current[catId];
+    if (remembered) {
+      onChange(remembered);
       return;
     }
     const cfg = TIPOS_PRODUTO.find((c) => c.id === catId);
@@ -253,6 +264,14 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
           }}
         >
           {subcat.specs.map((spec) => {
+            const tipoSelecionado = value?.specs['tipo']?.[0];
+            if (
+              spec.hideForTipos &&
+              tipoSelecionado &&
+              spec.hideForTipos.includes(tipoSelecionado)
+            ) {
+              return null;
+            }
             const selected = value?.specs[spec.id] ?? [];
             return (
               <View
