@@ -4,18 +4,17 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
   Modal,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
-const brl = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -31,18 +30,63 @@ function buildWeekdayLabels(dailyData: any[] | null): string[] {
   return Array.from({ length: 7 }, (_, i) => WEEKDAY_LABELS[(today - 6 + i + 7) % 7]);
 }
 
-function PixModal({ visible, ganho, onClose }: { visible: boolean; ganho: number; onClose: () => void }) {
+function PixModal({
+  visible,
+  ganho,
+  onClose,
+}: {
+  visible: boolean;
+  ganho: number;
+  onClose: () => void;
+}) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,9,51,0.6)', justifyContent: 'flex-end' }}>
-        <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, paddingBottom: 40 }}>
-          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E4E7F1', alignSelf: 'center', marginBottom: 20 }} />
-          <Text style={{ fontSize: 20, fontWeight: '700', color: '#000933', marginBottom: 6 }}>Sacar via Pix</Text>
-          <Text style={{ fontSize: 13, color: '#9099B3', marginBottom: 20, lineHeight: 19 }}>
-            O valor disponível para saque será transferido para a chave Pix cadastrada nos seus dados bancários.
+        <View
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 28,
+            paddingBottom: 40,
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: '#E4E7F1',
+              alignSelf: 'center',
+              marginBottom: 20,
+            }}
+          />
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#000933', marginBottom: 6 }}>
+            Sacar via Pix
           </Text>
-          <View style={{ backgroundColor: '#FEF0E3', borderRadius: 14, padding: 16, marginBottom: 20, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#9099B3', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+          <Text style={{ fontSize: 13, color: '#9099B3', marginBottom: 20, lineHeight: 19 }}>
+            O valor disponível para saque será transferido para a chave Pix cadastrada nos seus
+            dados bancários.
+          </Text>
+          <View
+            style={{
+              backgroundColor: '#FEF0E3',
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 20,
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                color: '#9099B3',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                marginBottom: 4,
+              }}
+            >
               Disponível para saque
             </Text>
             <Text style={{ fontSize: 36, fontWeight: '800', color: '#F2760F' }}>
@@ -50,17 +94,36 @@ function PixModal({ visible, ganho, onClose }: { visible: boolean; ganho: number
             </Text>
           </View>
           <TouchableOpacity
-            style={{ height: 50, borderRadius: 14, backgroundColor: '#F2760F', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}
+            style={{
+              height: 50,
+              borderRadius: 14,
+              backgroundColor: '#F2760F',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 10,
+            }}
             onPress={() => {
               onClose();
-              Alert.alert('Saque solicitado!', 'Seu saque foi processado e será creditado em até 1 dia útil na chave Pix cadastrada.');
+              Alert.alert(
+                'Saque solicitado!',
+                'Seu saque foi processado e será creditado em até 1 dia útil na chave Pix cadastrada.',
+              );
             }}
             activeOpacity={0.85}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>Confirmar saque</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
+              Confirmar saque
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E4E7F1', alignItems: 'center', justifyContent: 'center' }}
+            style={{
+              height: 44,
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor: '#E4E7F1',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
             onPress={onClose}
             activeOpacity={0.8}
           >
@@ -73,7 +136,7 @@ function PixModal({ visible, ganho, onClose }: { visible: boolean; ganho: number
 }
 
 export function EarningsScreen() {
-  const token = useAuthEntregadorStore(s => s.token);
+  const token = useAuthEntregadorStore((s) => s.token);
   const [ganhos, setGanhos] = useState<any>(null);
   const [entregas, setEntregas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,14 +144,19 @@ export function EarningsScreen() {
   const [selectedDay, setSelectedDay] = useState<number>(6);
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     Promise.all([
       EntregadorService.buscarGanhos(token).catch(() => null),
       EntregadorService.listarEntregas(token).catch(() => []),
-    ]).then(([g, e]) => {
-      setGanhos(g);
-      setEntregas(e ?? []);
-    }).finally(() => setLoading(false));
+    ])
+      .then(([g, e]) => {
+        setGanhos(g);
+        setEntregas(e ?? []);
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
   const ganhoSemana = Number(ganhos?.semana?.total ?? 0);
@@ -106,7 +174,10 @@ export function EarningsScreen() {
   const selectedDailyEntry = dailyData ? dailyData.slice(-7)[selectedDay] : null;
   const selectedCorridas = selectedDailyEntry?.corridas ?? selectedDailyEntry?.total_corridas ?? 0;
   const selectedDate = selectedDailyEntry
-    ? new Date(selectedDailyEntry.dia ?? selectedDailyEntry.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    ? new Date(selectedDailyEntry.dia ?? selectedDailyEntry.data).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+      })
     : null;
 
   if (loading) {
@@ -138,7 +209,11 @@ export function EarningsScreen() {
             {corridasSemana} corridas
           </Text>
           <View style={s.heroBtns}>
-            <TouchableOpacity style={s.heroBtn} onPress={() => setShowPix(true)} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={s.heroBtn}
+              onPress={() => setShowPix(true)}
+              activeOpacity={0.85}
+            >
               <Ionicons name="flash" size={15} color="#FFFFFF" />
               <Text style={s.heroBtnText}>Sacar via Pix</Text>
             </TouchableOpacity>
@@ -157,14 +232,29 @@ export function EarningsScreen() {
               const isSel = i === selectedDay;
               const barColor = isSel ? '#F2760F' : isToday ? 'rgba(242,118,15,0.25)' : '#E4E7F1';
               return (
-                <TouchableOpacity key={i} style={s.chartCol} onPress={() => setSelectedDay(i)} activeOpacity={0.7}>
+                <TouchableOpacity
+                  key={i}
+                  style={s.chartCol}
+                  onPress={() => setSelectedDay(i)}
+                  activeOpacity={0.7}
+                >
                   <Text style={[s.chartBarVal, { color: isSel ? '#F2760F' : '#9099B3' }]}>
                     {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)}
                   </Text>
                   <View style={s.chartBarTrack}>
-                    <View style={[s.chartBar, { height: `${h}%` as any, backgroundColor: barColor }]} />
+                    <View
+                      style={[s.chartBar, { height: `${h}%` as any, backgroundColor: barColor }]}
+                    />
                   </View>
-                  <Text style={[s.chartDay, { color: isSel ? '#F2760F' : isToday ? 'rgba(242,118,15,0.6)' : '#9099B3', fontWeight: isSel ? '700' : '500' }]}>
+                  <Text
+                    style={[
+                      s.chartDay,
+                      {
+                        color: isSel ? '#F2760F' : isToday ? 'rgba(242,118,15,0.6)' : '#9099B3',
+                        fontWeight: isSel ? '700' : '500',
+                      },
+                    ]}
+                  >
                     {weekLabels[i]}
                   </Text>
                   {isSel && <View style={s.chartSelDot} />}
@@ -177,10 +267,13 @@ export function EarningsScreen() {
           <View style={s.dayDetail}>
             <View style={{ flex: 1 }}>
               <Text style={s.dayDetailLabel}>
-                {selectedLabel}{selectedDate ? ` · ${selectedDate}` : ''}
+                {selectedLabel}
+                {selectedDate ? ` · ${selectedDate}` : ''}
               </Text>
               <Text style={s.dayDetailSub}>
-                {selectedCorridas > 0 ? `${selectedCorridas} corrida${selectedCorridas !== 1 ? 's' : ''}` : 'Sem corridas'}
+                {selectedCorridas > 0
+                  ? `${selectedCorridas} corrida${selectedCorridas !== 1 ? 's' : ''}`
+                  : 'Sem corridas'}
               </Text>
             </View>
             <Text style={[s.dayDetailAmount, { color: selectedValue > 0 ? '#000933' : '#9099B3' }]}>
@@ -203,7 +296,12 @@ export function EarningsScreen() {
             const bairro = e.pedido?.enderecoEntrega?.bairro ?? '–';
             const valor = Number(e.valorRecebido ?? 0) + Number(e.bonus ?? 0);
             const data = e.criadoEm
-              ? new Date(e.criadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+              ? new Date(e.criadoEm).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
               : '–';
             return (
               <View key={e.id} style={s.historyRow}>
@@ -223,11 +321,7 @@ export function EarningsScreen() {
         )}
       </ScrollView>
 
-      <PixModal
-        visible={showPix}
-        ganho={ganhoSemana}
-        onClose={() => setShowPix(false)}
-      />
+      <PixModal visible={showPix} ganho={ganhoSemana} onClose={() => setShowPix(false)} />
     </SafeAreaView>
   );
 }
@@ -257,7 +351,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  heroLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  heroLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   trendBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -265,7 +365,13 @@ const s = StyleSheet.create({
     borderRadius: 99,
   },
   trendText: { fontSize: 11, fontWeight: '700', color: '#39FF89' },
-  heroAmount: { fontSize: 40, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1, marginBottom: 16 },
+  heroAmount: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -1,
+    marginBottom: 16,
+  },
   heroBtns: { flexDirection: 'row', gap: 10 },
   heroBtn: {
     flex: 1,

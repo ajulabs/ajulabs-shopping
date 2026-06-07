@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
 import { formatCPF } from '../lib/formatCPF';
@@ -22,6 +23,7 @@ interface LoginScreenProps {
 
 export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const login = useAuthStore((s) => s.login);
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
@@ -65,7 +67,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.top}>
+        <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
           <View style={{ marginBottom: 16 }}>
             <AjuLogo size={52} />
           </View>
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
 
   scrollContent: { flexGrow: 1 },
 
-  top: { paddingTop: 52, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
+  top: { paddingBottom: 28, paddingHorizontal: 24, alignItems: 'center' },
   topTitle: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   topSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 6 },
 

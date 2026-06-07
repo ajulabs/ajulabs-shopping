@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store';
 import { SplashConsumer } from '../src/features/consumer/splash';
 import { usePushRegistration } from '../src/hooks';
@@ -53,9 +53,17 @@ export default function RootLayout() {
     }
   }, [isLoggedIn, hasHydrated, tokenReady, segments, mounted]);
 
+  if (isLoggedIn && showSplash) {
+    return (
+      <SafeAreaProvider>
+        <SplashConsumer onDone={() => setShowSplash(false)} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      {isLoggedIn && showSplash ? <SplashConsumer onDone={() => setShowSplash(false)} /> : <Slot />}
+    <SafeAreaProvider>
+      <Slot />
     </SafeAreaProvider>
   );
 }

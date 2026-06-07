@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthEntregadorStore } from '../src/store';
 import { usePushRegistrationEntregador } from '../src/hooks';
 import { setupNotificationChannels } from '../src/tasks/notificationChannels';
-import { SplashEntregador } from '../src/features/entregador/splash';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -12,7 +11,6 @@ export default function RootLayout() {
   const hasHydrated = useAuthEntregadorStore((s) => s.hasHydrated);
   const segments = useSegments();
   const [mounted, setMounted] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
 
   usePushRegistrationEntregador();
 
@@ -35,12 +33,8 @@ export default function RootLayout() {
   }, [isLoggedIn, hasHydrated, segments, mounted]);
 
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      {isLoggedIn && showSplash ? (
-        <SplashEntregador onDone={() => setShowSplash(false)} />
-      ) : (
-        <Stack screenOptions={{ headerShown: false }} />
-      )}
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }} />
     </SafeAreaProvider>
   );
 }

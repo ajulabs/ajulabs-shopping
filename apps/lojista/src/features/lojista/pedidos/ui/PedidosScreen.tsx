@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Animated,
   StatusBar,
-  SafeAreaView,
   ActivityIndicator,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LojistaService, ApiUnauthorizedError } from '@ajulabs/api-client';
 import { usePedidosRealtime, usePedidoLojistaRealtime } from '@ajulabs/realtime';
 import { useAuthLojistaStore } from '../../../../store';

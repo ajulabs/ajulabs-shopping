@@ -4,12 +4,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AvaliacaoService } from '@ajulabs/api-client';
 import {
   TAGS_AVALIACAO_ENTREGADOR,
@@ -119,12 +119,7 @@ function StarRow({ nota, size = 16 }: { nota: number; size?: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Ionicons
-          key={n}
-          name={n <= nota ? 'star' : 'star-outline'}
-          size={size}
-          color="#F59E0B"
-        />
+        <Ionicons key={n} name={n <= nota ? 'star' : 'star-outline'} size={size} color="#F59E0B" />
       ))}
     </View>
   );
@@ -217,7 +212,9 @@ function ListaAvaliacoes({ avaliacoes }: { avaliacoes: AvaliacaoDetalhada[] }) {
           <View key={av.id} style={s.avCard}>
             <View style={s.avHeader}>
               <View style={s.avAvatar}>
-                <Text style={s.avAvatarTxt}>{(av.usuario.nome ?? '?').charAt(0).toUpperCase()}</Text>
+                <Text style={s.avAvatarTxt}>
+                  {(av.usuario.nome ?? '?').charAt(0).toUpperCase()}
+                </Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.avNome}>{av.usuario.nome}</Text>

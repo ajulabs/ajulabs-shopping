@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetodoPagamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService } from '@ajulabs/api-client';
@@ -22,6 +23,7 @@ const STEP_TITLES = ['Endereço', 'Pagamento', 'Confirmação'];
 
 export function CheckoutScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const itensPorLoja = useCartStore((s) => s.itensPorLoja);
   const lojasCache = useCartStore((s) => s.lojasCache);
@@ -117,7 +119,7 @@ export function CheckoutScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={handleBack} style={styles.btnBack} activeOpacity={0.85}>
           <Ionicons name="chevron-back" size={20} color={colors.navy} />
         </TouchableOpacity>
@@ -197,7 +199,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 10,
     backgroundColor: colors.n0,
   },

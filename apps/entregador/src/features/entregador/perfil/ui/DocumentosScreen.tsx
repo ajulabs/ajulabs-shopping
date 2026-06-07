@@ -1,18 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, ActivityIndicator, Image, Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
 type StatusDoc = 'pendente' | 'aprovado' | 'rejeitado' | null;
 
-const STATUS_CONFIG: Record<NonNullable<StatusDoc>, { label: string; color: string; bg: string; icon: string }> = {
-  aprovado:  { label: 'Aprovado',    color: '#039855', bg: 'rgba(3,152,85,0.1)',   icon: 'checkmark-circle' },
-  pendente:  { label: 'Em análise',  color: '#F2760F', bg: 'rgba(242,118,15,0.1)', icon: 'time' },
-  rejeitado: { label: 'Reprovado',   color: '#E14B3C', bg: 'rgba(225,75,60,0.1)',  icon: 'close-circle' },
+const STATUS_CONFIG: Record<
+  NonNullable<StatusDoc>,
+  { label: string; color: string; bg: string; icon: string }
+> = {
+  aprovado: {
+    label: 'Aprovado',
+    color: '#039855',
+    bg: 'rgba(3,152,85,0.1)',
+    icon: 'checkmark-circle',
+  },
+  pendente: { label: 'Em análise', color: '#F2760F', bg: 'rgba(242,118,15,0.1)', icon: 'time' },
+  rejeitado: {
+    label: 'Reprovado',
+    color: '#E14B3C',
+    bg: 'rgba(225,75,60,0.1)',
+    icon: 'close-circle',
+  },
 };
 
 function StatusBadge({ status }: { status: StatusDoc }) {
@@ -26,14 +46,29 @@ function StatusBadge({ status }: { status: StatusDoc }) {
   );
 }
 const sb = StyleSheet.create({
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 },
-  text:  { fontSize: 11, fontWeight: '700' },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+  },
+  text: { fontSize: 11, fontWeight: '700' },
 });
 
 function DocCard({
-  title, subtitle, imageUrl, status, onPreview,
+  title,
+  subtitle,
+  imageUrl,
+  status,
+  onPreview,
 }: {
-  title: string; subtitle: string; imageUrl: string | null; status: StatusDoc; onPreview: (url: string) => void;
+  title: string;
+  subtitle: string;
+  imageUrl: string | null;
+  status: StatusDoc;
+  onPreview: (url: string) => void;
 }) {
   return (
     <View style={s.docCard}>
@@ -58,31 +93,37 @@ function DocCard({
         <Text style={s.docTitle}>{title}</Text>
         <Text style={s.docSubtitle}>{subtitle}</Text>
         <View style={{ marginTop: 6 }}>
-          {imageUrl
-            ? <StatusBadge status={status} />
-            : <View style={[sb.badge, { backgroundColor: '#F6F7FB' }]}>
-                <Ionicons name="alert-circle-outline" size={12} color="#9099B3" />
-                <Text style={[sb.text, { color: '#9099B3' }]}>Não enviado</Text>
-              </View>
-          }
+          {imageUrl ? (
+            <StatusBadge status={status} />
+          ) : (
+            <View style={[sb.badge, { backgroundColor: '#F6F7FB' }]}>
+              <Ionicons name="alert-circle-outline" size={12} color="#9099B3" />
+              <Text style={[sb.text, { color: '#9099B3' }]}>Não enviado</Text>
+            </View>
+          )}
         </View>
       </View>
     </View>
   );
 }
 
-interface Props { onBack: () => void }
+interface Props {
+  onBack: () => void;
+}
 
 export function DocumentosScreen({ onBack }: Props) {
-  const token = useAuthEntregadorStore(s => s.token);
+  const token = useAuthEntregadorStore((s) => s.token);
   const [loading, setLoading] = useState(true);
-  const [perfil, setPerfil]   = useState<any>(null);
+  const [perfil, setPerfil] = useState<any>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     EntregadorService.buscarPerfil(token)
-      .then(p => setPerfil(p))
+      .then((p) => setPerfil(p))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -107,17 +148,23 @@ export function DocumentosScreen({ onBack }: Props) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-
           {/* Banner de status geral */}
           {docIdentidade && (
-            <View style={[s.banner, { backgroundColor: STATUS_CONFIG[statusId!]?.bg ?? 'rgba(242,118,15,0.1)' }]}>
+            <View
+              style={[
+                s.banner,
+                { backgroundColor: STATUS_CONFIG[statusId!]?.bg ?? 'rgba(242,118,15,0.1)' },
+              ]}
+            >
               <Ionicons
                 name={(STATUS_CONFIG[statusId!]?.icon ?? 'time') as any}
                 size={18}
                 color={STATUS_CONFIG[statusId!]?.color ?? '#F2760F'}
               />
               <View style={{ flex: 1 }}>
-                <Text style={[s.bannerTitle, { color: STATUS_CONFIG[statusId!]?.color ?? '#F2760F' }]}>
+                <Text
+                  style={[s.bannerTitle, { color: STATUS_CONFIG[statusId!]?.color ?? '#F2760F' }]}
+                >
                   {statusId === 'aprovado'
                     ? 'Documentos aprovados'
                     : statusId === 'rejeitado'
@@ -186,9 +233,18 @@ export function DocumentosScreen({ onBack }: Props) {
       )}
 
       {/* Modal de preview full-screen */}
-      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
+      <Modal
+        visible={!!preview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreview(null)}
+      >
         <View style={s.previewModal}>
-          <TouchableOpacity style={s.previewClose} onPress={() => setPreview(null)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.previewClose}
+            onPress={() => setPreview(null)}
+            activeOpacity={0.8}
+          >
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           {preview && (
@@ -201,33 +257,101 @@ export function DocumentosScreen({ onBack }: Props) {
 }
 
 const s = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: '#F6F7FB' },
-  header:      { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E4E7F1' },
-  backBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F6F7FB', alignItems: 'center', justifyContent: 'center' },
+  safe: { flex: 1, backgroundColor: '#F6F7FB' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E7F1',
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F6F7FB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933' },
-  content:     { padding: 16, paddingBottom: 48 },
+  content: { padding: 16, paddingBottom: 48 },
 
-  banner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 14, marginBottom: 20 },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 20,
+  },
   bannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  bannerSub:   { fontSize: 12, color: '#5A6480', lineHeight: 17 },
+  bannerSub: { fontSize: 12, color: '#5A6480', lineHeight: 17 },
 
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9099B3', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 10 },
-  section:      { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E4E7F1', overflow: 'hidden' },
-  cardDivider:  { height: 1, backgroundColor: '#E4E7F1', marginHorizontal: 16 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9099B3',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 10,
+  },
+  section: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+    overflow: 'hidden',
+  },
+  cardDivider: { height: 1, backgroundColor: '#E4E7F1', marginHorizontal: 16 },
 
-  docCard:       { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
-  docThumbWrap:  { width: 60, height: 60, borderRadius: 10, overflow: 'hidden', backgroundColor: '#F6F7FB', alignItems: 'center', justifyContent: 'center' },
+  docCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
+  docThumbWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#F6F7FB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   docThumbEmpty: { borderWidth: 1.5, borderColor: '#E4E7F1', borderStyle: 'dashed' },
-  docThumb:      { width: 60, height: 60 },
-  previewOverlay:{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', borderTopLeftRadius: 6 },
-  docTitle:      { fontSize: 14, fontWeight: '700', color: '#000933' },
-  docSubtitle:   { fontSize: 12, color: '#9099B3', marginTop: 1 },
+  docThumb: { width: 60, height: 60 },
+  previewOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopLeftRadius: 6,
+  },
+  docTitle: { fontSize: 14, fontWeight: '700', color: '#000933' },
+  docSubtitle: { fontSize: 12, color: '#9099B3', marginTop: 1 },
 
-  emptyBox:   { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  emptyBox: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#000933' },
-  emptyText:  { fontSize: 13, color: '#9099B3', textAlign: 'center' },
+  emptyText: { fontSize: 13, color: '#9099B3', textAlign: 'center' },
 
-  previewModal: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
-  previewClose: { position: 'absolute', top: 50, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  previewModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   previewImage: { width: '90%', height: '70%' },
 });

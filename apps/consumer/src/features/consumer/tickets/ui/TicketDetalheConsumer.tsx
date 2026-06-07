@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
 import { ConsumerTicketService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
@@ -153,6 +154,7 @@ const av = StyleSheet.create({
 export function TicketDetalheConsumer() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
   const { bg, surf, borderL, text, textSec, textMut, inputBg } = useTheme();
@@ -313,7 +315,12 @@ export function TicketDetalheConsumer() {
       keyboardVerticalOffset={80}
     >
       {/* Header */}
-      <View style={[s.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          s.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.push('/(consumer)/tickets' as any)}
           style={s.backBtn}
@@ -485,7 +492,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 14,
     borderBottomWidth: 1,
     gap: 10,

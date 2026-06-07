@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Image,
   TextInput,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { EntregadorService } from '@ajulabs/api-client';
 import { useLocationEmitter } from '@ajulabs/realtime';
@@ -32,9 +32,6 @@ import { ExternalNavBadge } from './components/NavigationChoiceModal';
 import { useRideNavigation } from '../hooks/useRideNavigation';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-
-// Raio (m) para considerar o entregador "chegou" ao destino da etapa.
-const ARRIVAL_RADIUS = 50;
 
 interface ActiveScreenProps {
   ride: ActiveRide;
@@ -277,11 +274,7 @@ export function ActiveScreen({
   }, [token, ride.id, codigoEntrega, onFinish]);
 
   const routeCoordsDisplay = routeCoords.length > 1 ? routeCoords : undefined;
-  // "Chegou" (< ARRIVAL_RADIUS) tem prioridade sobre "está chegando" (até 150 m).
-  const hasArrived =
-    navigationStarted && distanceRemaining > 0 && distanceRemaining < ARRIVAL_RADIUS;
-  const isArrivingSoon =
-    navigationStarted && distanceRemaining >= ARRIVAL_RADIUS && distanceRemaining < 150;
+  const isArrivingSoon = navigationStarted && distanceRemaining > 0 && distanceRemaining < 150;
   // Geocode failed for the current stage destination
   const geocodeError = geocodeDone && !destination;
 
@@ -296,7 +289,6 @@ export function ActiveScreen({
         destination={destination}
         routeCoords={routeCoordsDisplay}
         defaultFollowing={true}
-        headingUp={navMode === 'internal'}
         theme="light"
         centerTrigger={centerTrigger}
         fitTrigger={fitTrigger}
@@ -519,17 +511,12 @@ export function ActiveScreen({
 
         {stage === 'to-store' && (navigationStarted || navMode === 'external') && (
           <>
-            {navMode === 'internal' && hasArrived ? (
-              <View style={s.arrivedBanner}>
-                <Ionicons name="checkmark-circle" size={16} color="#002B12" />
-                <Text style={s.arrivedText}>Você chegou até a loja!</Text>
-              </View>
-            ) : navMode === 'internal' && isArrivingSoon ? (
+            {isArrivingSoon && navMode === 'internal' && (
               <View style={s.arrivingBanner}>
                 <Ionicons name="location" size={14} color="#39FF89" />
                 <Text style={s.arrivingText}>Você está chegando ao estabelecimento!</Text>
               </View>
-            ) : null}
+            )}
             <StageCard
               icon="storefront"
               iconColor="#000933"
@@ -589,23 +576,18 @@ export function ActiveScreen({
 
         {stage === 'to-customer' && (navigationStarted || navMode === 'external') && (
           <>
-            {navMode === 'internal' && hasArrived ? (
-              <View style={s.arrivedBanner}>
-                <Ionicons name="checkmark-circle" size={16} color="#002B12" />
-                <Text style={s.arrivedText}>Você chegou até o local da entrega!</Text>
-              </View>
-            ) : navMode === 'internal' && isArrivingSoon ? (
+            {isArrivingSoon && navMode === 'internal' && (
               <View style={s.arrivingBanner}>
                 <Ionicons name="location" size={14} color="#39FF89" />
                 <Text style={s.arrivingText}>Você está chegando ao destino do cliente!</Text>
               </View>
-            ) : null}
+            )}
             <StageCard
               icon="home"
               iconColor="#209CEF"
               primary={ride.cliente.nome}
               secondary={`${ride.cliente.endereco}${ride.cliente.complemento ? ` · ${ride.cliente.complemento}` : ''}`}
-              cta="Registrar chegada"
+              cta="Pedido entregue"
               onCta={advanceStage}
               codigoEntrega={ride.id.slice(0, 8).toUpperCase()}
             />
@@ -671,7 +653,7 @@ export function ActiveScreen({
               ) : (
                 <>
                   <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                  <Text style={s.ctaBtnText}>Pedido entregue · {brl(ride.ganho)}</Text>
+                  <Text style={s.ctaBtnText}>Confirmar entrega · {brl(ride.ganho)}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -890,16 +872,6 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   arrivingText: { fontSize: 13, color: '#39FF89', fontWeight: '700', flex: 1 },
-  arrivedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#39FF89',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-  },
-  arrivedText: { fontSize: 13.5, color: '#002B12', fontWeight: '800', flex: 1 },
 
   navStats: {
     flexDirection: 'row',

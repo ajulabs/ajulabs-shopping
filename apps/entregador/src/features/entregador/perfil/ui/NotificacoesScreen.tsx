@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   Switch,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
 import { useAuthEntregadorStore } from '../../../../store';
 
