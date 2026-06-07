@@ -123,7 +123,7 @@ export default function ChatPedidoScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: bg }]}>
         <View
           style={[
             styles.header,
@@ -147,7 +147,7 @@ export default function ChatPedidoScreen() {
 
   if (!chat) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: bg }]}>
         <View
           style={[
             styles.header,
@@ -332,7 +332,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
