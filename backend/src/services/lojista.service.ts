@@ -7,6 +7,7 @@ import {
   getEntregadorLocalizacao,
   emitPedidoAtualizado,
   emitCorridaOferta,
+  emitCorridaCancelada,
   emitTicketMensagem,
   emitTicketStatus,
   emitProdutoVariacoes,
@@ -727,4 +728,9 @@ export async function cancelarPedidoLojista(
 
   emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'cancelado', pedido.lojaId);
   void notificarStatusPedido(pedido.consumidorId, pedidoId, 'cancelado');
+  // Pedido estava em 'pronto' → corrida já havia sido ofertada aos entregadores.
+  // Remove da lista em tempo real para evitar tentativa de aceitar pedido cancelado.
+  if (pedido.status === 'pronto') {
+    emitCorridaCancelada(pedidoId);
+  }
 }

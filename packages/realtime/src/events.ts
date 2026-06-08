@@ -70,6 +70,7 @@ export interface ServerEvents {
   'pedido:atualizado': (payload: { pedidoId: string; status: string }) => void;
   'corrida:oferta': (payload: CorridaOfertaPayload) => void;
   'corrida:aceita': (payload: { pedidoId: string; entregadorId: string }) => void;
+  'corrida:cancelada': (payload: { pedidoId: string }) => void;
   'ticket:mensagem': (payload: TicketMensagemPayload) => void;
   'ticket:status': (payload: { ticketId: string; status: string }) => void;
   'ticket:novo': (payload: TicketNovoPayload) => void;

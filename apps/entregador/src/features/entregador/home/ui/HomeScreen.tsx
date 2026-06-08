@@ -357,6 +357,12 @@ export function HomeScreen({
       setWaitingRides((prev) => prev.filter((r) => r.id !== pedidoId));
       setOffer((prev) => (prev?.id === pedidoId ? null : prev));
     },
+    onCancelada: ({ pedidoId }) => {
+      // Lojista cancelou o pedido enquanto ele estava em 'pronto' (corrida já ofertada).
+      rejectedIds.current.add(pedidoId);
+      setWaitingRides((prev) => prev.filter((r) => r.id !== pedidoId));
+      setOffer((prev) => (prev?.id === pedidoId ? null : prev));
+    },
   });
 
   useEffect(() => {
