@@ -101,6 +101,13 @@ export interface Produto {
   variacoes?: VariacaoProduto[];
 }
 
+export interface HorarioFuncionamento {
+  diaSemana: number;
+  ativo: boolean;
+  abertura: string;
+  fechamento: string;
+}
+
 export interface Loja {
   id: string;
   nome: string;
@@ -108,7 +115,9 @@ export interface Loja {
   categoria: string;
   imagem: string;
   logo?: string;
+  telefone?: string;
   endereco: Endereco;
+  horarios?: HorarioFuncionamento[];
   avaliacao: number;
   totalAvaliacoes: number;
   tempoEntregaMin: number;

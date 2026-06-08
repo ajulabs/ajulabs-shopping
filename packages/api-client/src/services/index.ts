@@ -17,6 +17,7 @@ import {
   StatusSolicitacaoPreco,
   AuditLogEntry,
 } from '@ajulabs/types';
+import { Platform } from 'react-native';
 export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 
 export class ApiUnauthorizedError extends Error {
@@ -39,11 +40,13 @@ function mapLoja(raw: any): Loja {
   return {
     id: raw.id,
     nome: raw.nome,
-    descricao: raw.descricao,
+    descricao: raw.descricao ?? '',
     categoria: raw.categoria,
     imagem: raw.logoUrl ?? raw.bannerUrl ?? '',
     logo: raw.logoUrl ?? undefined,
+    telefone: raw.telefone ?? undefined,
     endereco: raw.endereco ?? { rua: '', numero: '', bairro: '', cidade: '', cep: '' },
+    horarios: Array.isArray(raw.horarios) ? raw.horarios : undefined,
     avaliacao: Number(raw.avaliacao ?? 0),
     totalAvaliacoes: raw.totalAvaliacoes ?? 0,
     tempoEntregaMin: raw.tempoEntregaMin ?? 0,
@@ -625,8 +628,13 @@ export const LojistaService = {
 
   analisarImagem: async (token: string, imageUri: string): Promise<any> => {
     const formData = new FormData();
-    const blob = await fetch(imageUri).then((r) => r.blob());
-    formData.append('imagem', blob, 'produto.jpg');
+    if (Platform.OS === 'web') {
+      const blob = await fetch(imageUri).then((r) => r.blob());
+      formData.append('imagem', blob, 'produto.jpg');
+    } else {
+      // Native (iOS/Android): fetch(content://) falha em APK — usar objeto RN nativo
+      formData.append('imagem', { uri: imageUri, name: 'produto.jpg', type: 'image/jpeg' } as any);
+    }
     const res = await fetch(`${API_URL}/lojista/produtos/analisar`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -1016,6 +1024,30 @@ export const EntregadorService = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar dados');
+    }
+  },
+
+  atualizarEndereco: async (
+    token: string,
+    dados: {
+      cep: string;
+      rua: string;
+      numero: string;
+      bairro: string;
+      cidade: string;
+      complemento?: string;
+      lat?: number;
+      lng?: number;
+    },
+  ): Promise<void> => {
+    const res = await fetch(`${API_URL}/entregador/endereco`, {
+      method: 'PATCH',
+      headers: { ...authHeader(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar endereço');
     }
   },
 

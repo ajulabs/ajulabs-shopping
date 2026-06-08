@@ -205,21 +205,7 @@ export function OrdersScreen() {
             { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
           ]}
         >
-          <View style={styles.headerRow}>
-            <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
-            <TouchableOpacity
-              onPress={() => setScreen('tickets')}
-              style={styles.ticketBtn}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="ticket-outline" size={20} color={text} />
-              {ticketsAbertos > 0 && (
-                <View style={styles.ticketBadge}>
-                  <Text style={styles.ticketBadgeTxt}>{ticketsAbertos}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
         </View>
         <View style={styles.vazio}>
           <Text style={{ fontSize: 56 }}>📦</Text>
@@ -248,27 +234,46 @@ export function OrdersScreen() {
           { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
         ]}
       >
-        <View style={styles.headerRow}>
-          <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
-          <TouchableOpacity
-            onPress={() => setScreen('tickets')}
-            style={styles.ticketBtn}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="ticket-outline" size={20} color={text} />
-            {ticketsAbertos > 0 && (
-              <View style={styles.ticketBadge}>
-                <Text style={styles.ticketBadgeTxt}>{ticketsAbertos}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
         <Text style={[styles.subtitulo, { color: textSec as string }]}>
           {pedidos.length} pedidos
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity
+          style={[styles.ticketCard, { backgroundColor: surf, borderColor: borderL }]}
+          onPress={() => setScreen('tickets')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.ticketCardLeft}>
+            <View
+              style={[
+                styles.ticketCardIconWrap,
+                { backgroundColor: isDark ? 'rgba(255,126,0,0.15)' : '#FFF3E8' },
+              ]}
+            >
+              <Ionicons name="ticket-outline" size={18} color={colors.orange} />
+            </View>
+            <View>
+              <Text style={[styles.ticketCardTitle, { color: text }]}>Meus Tickets</Text>
+              <Text style={[styles.ticketCardSub, { color: textSec as string }]}>
+                {ticketsAbertos > 0
+                  ? `${ticketsAbertos} ticket${ticketsAbertos > 1 ? 's' : ''} aberto${ticketsAbertos > 1 ? 's' : ''}`
+                  : 'Visualize aqui seus tickets criados'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.ticketCardRight}>
+            {ticketsAbertos > 0 && (
+              <View style={styles.ticketCardBadge}>
+                <Text style={styles.ticketCardBadgeTxt}>{ticketsAbertos}</Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={16} color={textSec as string} />
+          </View>
+        </TouchableOpacity>
+
         {ativos.length > 0 && (
           <>
             <Text style={[styles.secao, { color: textSec as string }]}>Em andamento</Text>
@@ -303,33 +308,38 @@ export function OrdersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titulo: { fontSize: 20, fontWeight: '700' },
   subtitulo: { fontSize: 12, marginTop: 2 },
-  ticketBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ticketBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#DC2626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  ticketBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#fff', lineHeight: 12 },
 
   scroll: { padding: 16, paddingBottom: 24 },
+
+  ticketCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  ticketCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ticketCardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketCardTitle: { fontSize: 13, fontWeight: '600' },
+  ticketCardSub: { fontSize: 11, marginTop: 1 },
+  ticketCardRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ticketCardBadge: {
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  ticketCardBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
   secao: {
     fontSize: 13,
     fontWeight: '600',

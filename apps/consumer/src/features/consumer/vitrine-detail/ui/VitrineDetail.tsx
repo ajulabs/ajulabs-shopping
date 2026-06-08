@@ -9,12 +9,19 @@ import {
   Pressable,
   ActivityIndicator,
   Animated,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LojaService, ProdutoService, FavoritoLojaService } from '@ajulabs/api-client';
 import { setPendingChatContext } from '../../chat/model/pendingChatContext';
-import { Loja, Produto } from '@ajulabs/types';
+import { Loja, Produto, HorarioFuncionamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { ProdutoCard } from './ProdutoCard';
 import { useCartStore, useAuthStore } from '../../../../store';
@@ -58,6 +65,27 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const adicionar = useCartStore((s) => s.adicionar);
   const token = useAuthStore((s) => s.token);
   const heartScale = useRef(new Animated.Value(1)).current;
+  const [sobreAberto, setSobreAberto] = useState(true);
+  const chevronRot = useRef(new Animated.Value(1)).current;
+
+  const toggleSobre = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const novoEstado = !sobreAberto;
+    setSobreAberto(novoEstado);
+    Animated.timing(chevronRot, {
+      toValue: novoEstado ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [sobreAberto, chevronRot]);
+
+  const chevronRotStyle = {
+    transform: [
+      {
+        rotate: chevronRot.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }),
+      },
+    ],
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -143,6 +171,12 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
       </View>
     );
   }
+
+  // Horário de hoje: lojista usa 0=Seg...6=Dom; JS getDay() usa 0=Dom...6=Sáb
+  const lojistaIdx = (new Date().getDay() + 6) % 7;
+  const hojeHorario: HorarioFuncionamento | undefined = loja.horarios?.find(
+    (h) => h.diaSemana === lojistaIdx,
+  );
 
   const cats = ['Todos', ...Array.from(new Set(produtos.map((p) => p.categoria)))];
   const produtosFiltrados =
@@ -232,6 +266,123 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {(() => {
+          const temInfo = !!(loja.descricao || loja.endereco?.rua || hojeHorario || loja.telefone);
+          return (
+            <View style={[styles.sobreSection, { backgroundColor: surface, borderColor: border }]}>
+              <TouchableOpacity
+                style={styles.sobreHeader}
+                onPress={temInfo ? toggleSobre : undefined}
+                activeOpacity={temInfo ? 0.7 : 1}
+              >
+                <Text style={[styles.sobreTitulo, { color: textColor }]}>Sobre a Loja</Text>
+                {temInfo && (
+                  <Animated.View style={chevronRotStyle}>
+                    <Ionicons name="chevron-up" size={16} color={subColor} />
+                  </Animated.View>
+                )}
+              </TouchableOpacity>
+
+              {!temInfo ? (
+                <Text style={[styles.sobreVazio, { color: subColor }]}>
+                  Esta loja ainda não adicionou informações.
+                </Text>
+              ) : (
+                sobreAberto && (
+                  <>
+                    {!!loja.descricao && (
+                      <Text style={[styles.sobreDescricao, { color: subColor }]}>
+                        {loja.descricao}
+                      </Text>
+                    )}
+
+                    {(loja.endereco?.rua || hojeHorario || loja.telefone) && (
+                      <View style={[styles.sobreDivider, { backgroundColor: border }]} />
+                    )}
+
+                    {!!loja.endereco?.rua && (
+                      <View style={styles.sobreItem}>
+                        <View
+                          style={[
+                            styles.sobreIconBox,
+                            { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : colors.n100 },
+                          ]}
+                        >
+                          <Ionicons name="location-outline" size={15} color={colors.orange} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.sobreItemLabel, { color: subColor }]}>Endereço</Text>
+                          <Text style={[styles.sobreItemValue, { color: textColor }]}>
+                            {loja.endereco.rua}
+                            {loja.endereco.numero ? `, ${loja.endereco.numero}` : ''}
+                          </Text>
+                          <Text style={[styles.sobreItemSub, { color: subColor }]}>
+                            {loja.endereco.bairro} · {loja.endereco.cidade}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {hojeHorario && (
+                      <View style={styles.sobreItem}>
+                        <View
+                          style={[
+                            styles.sobreIconBox,
+                            { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : colors.n100 },
+                          ]}
+                        >
+                          <Ionicons name="time-outline" size={15} color={colors.orange} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.sobreItemLabel, { color: subColor }]}>
+                            Horário de hoje
+                          </Text>
+                          <Text style={[styles.sobreItemValue, { color: textColor }]}>
+                            {hojeHorario.ativo
+                              ? `${hojeHorario.abertura} – ${hojeHorario.fechamento}`
+                              : 'Fechado hoje'}
+                          </Text>
+                        </View>
+                        {hojeHorario.ativo && (
+                          <View
+                            style={[
+                              styles.sobreStatusChip,
+                              { backgroundColor: 'rgba(57,255,137,0.15)' },
+                            ]}
+                          >
+                            <Text style={[styles.sobreStatusText, { color: '#046C2E' }]}>
+                              Aberta
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {!!loja.telefone && (
+                      <View style={styles.sobreItem}>
+                        <View
+                          style={[
+                            styles.sobreIconBox,
+                            { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : colors.n100 },
+                          ]}
+                        >
+                          <Ionicons name="call-outline" size={15} color={colors.orange} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.sobreItemLabel, { color: subColor }]}>Telefone</Text>
+                          <Text style={[styles.sobreItemValue, { color: textColor }]}>
+                            {loja.telefone}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </>
+                )
+              )}
+            </View>
+          );
+        })()}
 
         <ScrollView
           horizontal
@@ -340,6 +491,58 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   badgeText: { fontSize: 11.5, fontWeight: '600' },
+  sobreSection: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  sobreHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sobreTitulo: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  sobreDescricao: {
+    fontSize: 13.5,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  sobreDivider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  sobreItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 6,
+  },
+  sobreIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sobreItemLabel: { fontSize: 11, marginBottom: 2 },
+  sobreItemValue: { fontSize: 13.5, fontWeight: '600' },
+  sobreItemSub: { fontSize: 12, marginTop: 1 },
+  sobreStatusChip: {
+    alignSelf: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 99,
+  },
+  sobreStatusText: { fontSize: 11, fontWeight: '700' },
+  sobreVazio: { fontSize: 13, fontStyle: 'italic' },
   btnAju: {
     marginTop: 14,
     paddingVertical: 10,
