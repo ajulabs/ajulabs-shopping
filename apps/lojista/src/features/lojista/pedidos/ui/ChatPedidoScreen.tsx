@@ -9,9 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PedidoChatService } from '@ajulabs/api-client';
 import { useChatPedidoRealtime } from '@ajulabs/realtime';
 import type { ChatMensagemPedido, TipoParticipanteChat } from '@ajulabs/types';

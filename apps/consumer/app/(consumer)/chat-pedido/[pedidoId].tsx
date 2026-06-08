@@ -9,10 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
 import { PedidoChatService } from '@ajulabs/api-client';
 import { useChatPedidoRealtime } from '@ajulabs/realtime';
@@ -31,6 +31,7 @@ export default function ChatPedidoScreen() {
     destinatario?: string;
   }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
   const { isDark, bg, surf, border, borderL, text, textSec, backBtn } = useTheme();
@@ -122,8 +123,13 @@ export default function ChatPedidoScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-        <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: bg }]}>
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => router.push(`/(consumer)/tracking/${pedidoId}`)}
             style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -141,8 +147,13 @@ export default function ChatPedidoScreen() {
 
   if (!chat) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-        <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: bg }]}>
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => router.push(`/(consumer)/tracking/${pedidoId}`)}
             style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -166,7 +177,12 @@ export default function ChatPedidoScreen() {
       keyboardVerticalOffset={0}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.push(`/(consumer)/tracking/${pedidoId}`)}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -258,7 +274,12 @@ export default function ChatPedidoScreen() {
 
       {/* Input */}
       {!chatEncerrado && (
-        <View style={[styles.inputRow, { backgroundColor: surf, borderTopColor: borderL }]}>
+        <View
+          style={[
+            styles.inputRow,
+            { backgroundColor: surf, borderTopColor: borderL, paddingBottom: insets.bottom + 12 },
+          ]}
+        >
           <TextInput
             style={[
               styles.input,
@@ -288,7 +309,12 @@ export default function ChatPedidoScreen() {
       )}
 
       {chatEncerrado && (
-        <View style={[styles.encerradoBanner, { backgroundColor: surf, borderTopColor: borderL }]}>
+        <View
+          style={[
+            styles.encerradoBanner,
+            { backgroundColor: surf, borderTopColor: borderL, paddingBottom: insets.bottom + 14 },
+          ]}
+        >
           <Ionicons name="lock-closed-outline" size={14} color={textSec as string} />
           <Text style={[styles.encerradoTxt, { color: textSec as string }]}>
             Pedido finalizado — chat encerrado
@@ -306,7 +332,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 14,
     borderBottomWidth: 1,
   },

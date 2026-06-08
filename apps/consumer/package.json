@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "eas-build-pre-install": "cd ../.. && npm install -g pnpm@10.33.4 && pnpm install --frozen-lockfile"
+    "eas-build-post-install": "cd ../.. && node scripts/patch-maplibre-codegen.js"
   },
   "dependencies": {
     "@ajulabs/api-client": "workspace:*",

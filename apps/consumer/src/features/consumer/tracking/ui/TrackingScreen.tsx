@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService, AvaliacaoService } from '@ajulabs/api-client';
@@ -33,6 +34,7 @@ interface Props {
 
 export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
   const { isDark, bg, surf, border, borderL, text, textSec, textMut, backBtn, iconBg } = useTheme();
@@ -163,7 +165,12 @@ export function TrackingScreen({ pedidoId }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.header, { backgroundColor: surf, borderBottomColor: borderL }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.navigate('/(consumer)/pedidos')}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
@@ -447,7 +454,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,
-    paddingTop: 52,
     paddingBottom: 14,
     borderBottomWidth: 1,
   },

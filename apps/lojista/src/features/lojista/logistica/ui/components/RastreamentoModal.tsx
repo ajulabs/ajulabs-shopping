@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { EntregaMap } from '../../components/EntregaMap';
 import { useRastreamento } from '../../hooks/useRastreamento';
 import type { EntregaDisplay } from '../../model/types';

@@ -1,4 +1,4 @@
-{
+﻿{
   "expo": {
     "name": "AjuLabs Lojista",
     "slug": "ajulabs-lojista",
@@ -15,7 +15,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000933"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -34,6 +37,11 @@
         }
       ]
     ],
-    "scheme": "ajulabs-lojista"
+    "scheme": "ajulabs-lojista",
+    "extra": {
+      "eas": {
+        "projectId": "ee478d9e-4ac0-4181-a841-6b158cfde24c"
+      }
+    }
   }
 }
