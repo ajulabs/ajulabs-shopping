@@ -280,15 +280,17 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
                 {isInvent ? 'Total correto em estoque' : 'Quantidade'}
               </Text>
               <View style={[s.qtyRow, { borderColor: cfg.color + '40' }]}>
-                <TouchableOpacity
-                  style={[s.qtyBtn, { backgroundColor: cfg.color + '12' }]}
-                  onPress={() =>
-                    setQty((v) => String(Math.max(isInvent ? 0 : 1, (parseInt(v, 10) || 0) - 1)))
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="remove" size={22} color={cfg.color} />
-                </TouchableOpacity>
+                {!isNaN(qtyNum) && qtyNum > (isInvent ? 0 : 1) && (
+                  <TouchableOpacity
+                    style={[s.qtyBtn, { backgroundColor: cfg.color + '12' }]}
+                    onPress={() =>
+                      setQty((v) => String(Math.max(isInvent ? 0 : 1, (parseInt(v, 10) || 0) - 1)))
+                    }
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="remove" size={22} color={cfg.color} />
+                  </TouchableOpacity>
+                )}
                 <TextInput
                   style={[s.qtyInput, { color: cfg.color }]}
                   keyboardType="number-pad"
@@ -352,13 +354,17 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
                 <Text style={s.minimoTitle}>Alerta de estoque mínimo</Text>
               </View>
               <View style={s.minimoCtrl}>
-                <TouchableOpacity
-                  style={s.minimoBtn}
-                  onPress={() => setMinimo((v) => String(Math.max(0, (parseInt(v, 10) || 0) - 1)))}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="remove" size={16} color={C.sub} />
-                </TouchableOpacity>
+                {(parseInt(minimo, 10) || 0) > 0 && (
+                  <TouchableOpacity
+                    style={s.minimoBtn}
+                    onPress={() =>
+                      setMinimo((v) => String(Math.max(0, (parseInt(v, 10) || 0) - 1)))
+                    }
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="remove" size={16} color={C.sub} />
+                  </TouchableOpacity>
+                )}
                 <TextInput
                   style={s.minimoInput}
                   keyboardType="number-pad"

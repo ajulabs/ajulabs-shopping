@@ -59,6 +59,7 @@ interface Props {
   onAdicionarProduto: () => void;
   onEditarProduto: (p: Produto) => void;
   onDeleteProduto: (p: Produto) => void;
+  skipTopInset?: boolean;
 }
 
 export function EstoqueDashboard({
@@ -68,6 +69,7 @@ export function EstoqueDashboard({
   onAdicionarProduto,
   onEditarProduto,
   onDeleteProduto,
+  skipTopInset = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
@@ -164,7 +166,7 @@ export function EstoqueDashboard({
 
   return (
     <View style={s.root}>
-      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+      <View style={[s.header, { paddingTop: (skipTopInset ? 0 : insets.top) + 12 }]}>
         {onVoltar ? (
           <TouchableOpacity style={s.iconBtn} onPress={onVoltar} activeOpacity={0.7}>
             <Ionicons name="chevron-back" size={20} color={C.text} />

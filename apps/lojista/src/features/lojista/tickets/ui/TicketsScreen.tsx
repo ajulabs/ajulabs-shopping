@@ -157,6 +157,21 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
         </ScrollView>
       </View>
 
+      <View style={s.tooltip}>
+        <Ionicons
+          name="information-circle-outline"
+          size={16}
+          color="#DE6708"
+          style={{ marginTop: 1 }}
+        />
+        <Text style={s.tooltipTxt}>
+          Tickets são abertos pelos seus clientes quando relatam um problema pelo{' '}
+          <Text style={{ color: '#DE6708', fontWeight: '600' }}>Chat Aju</Text>
+          {'. '}
+          Você recebe uma notificação assim que um novo ticket é criado.
+        </Text>
+      </View>
+
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#DE6708" />
@@ -311,6 +326,20 @@ const s = StyleSheet.create({
   filterCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
   filterCountText: { fontSize: 10, fontWeight: '700', color: '#9099B3' },
   filterCountTextActive: { color: '#fff' },
+  tooltip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFD9B3',
+    backgroundColor: '#FFF8F2',
+  },
+  tooltipTxt: { flex: 1, fontSize: 12, lineHeight: 17, color: '#9099B3' },
   list: { flex: 1 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 10 },
   empty: { textAlign: 'center', color: '#9099B3', fontSize: 13 },

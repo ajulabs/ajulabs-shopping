@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Alert, Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService, RBACService } from '@ajulabs/api-client';
 import { Produto, NivelEstoque } from '@ajulabs/types';
@@ -30,6 +31,7 @@ export function ProdutosScreen() {
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const { canManageUsers, canApprovePrice, canViewAuditLog, isFuncionario, isAdmin, isGerente } =
     usePermissions();
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<Mode>('main');
   const [editando, setEditando] = useState<Produto | null>(null);
@@ -154,7 +156,7 @@ export function ProdutosScreen() {
   return (
     <View style={{ flex: 1 }}>
       {showRbacBar && (
-        <View style={styles.rbacBar}>
+        <View style={[styles.rbacBar, { paddingTop: insets.top + 8 }]}>
           {(canApprovePrice || isFuncionario) && (
             <TouchableOpacity style={styles.rbacBtn} onPress={() => setMode('solicitacoes')}>
               <View style={styles.rbacBtnContent}>
@@ -190,6 +192,7 @@ export function ProdutosScreen() {
       )}
       <EstoqueDashboard
         key={refreshKey}
+        skipTopInset={showRbacBar}
         onVerMovimentacoes={() => setMode('movimentacoes')}
         onVerNivel={(nivel) => {
           setNivelAtivo(nivel);
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 8,
     gap: 8,
   },
   rbacBtn: {
