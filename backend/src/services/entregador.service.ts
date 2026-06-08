@@ -22,7 +22,32 @@ export async function getPerfil(entregadorId: string) {
 
   if (!entregador) throw Object.assign(new Error('Entregador não encontrado'), { statusCode: 404 });
 
-  const { senhaHash: _, ...entregadorSemSenha } = entregador;
+  const {
+    senhaHash: _,
+    endCep,
+    endRua,
+    endNumero,
+    endBairro,
+    endCidade,
+    endComplemento,
+    endLat,
+    endLng,
+    ...rest
+  } = entregador;
+
+  const entregadorFormatado = {
+    ...rest,
+    endereco: {
+      cep: endCep ?? '',
+      rua: endRua ?? '',
+      numero: endNumero ?? '',
+      bairro: endBairro ?? '',
+      cidade: endCidade ?? '',
+      complemento: endComplemento ?? '',
+      lat: endLat ?? null,
+      lng: endLng ?? null,
+    },
+  };
 
   const onboarding = {
     documentosEnviados: !!entregador.documentos,
@@ -32,7 +57,35 @@ export async function getPerfil(entregadorId: string) {
     contaAtiva: entregador.statusConta === 'ativo',
   };
 
-  return { entregador: entregadorSemSenha, onboarding, docVeiculo: ultimaTroca ?? null };
+  return { entregador: entregadorFormatado, onboarding, docVeiculo: ultimaTroca ?? null };
+}
+
+export async function updateEndereco(
+  entregadorId: string,
+  dados: {
+    cep: string;
+    rua: string;
+    numero: string;
+    bairro: string;
+    cidade: string;
+    complemento?: string;
+    lat?: number;
+    lng?: number;
+  },
+) {
+  await prisma.entregador.update({
+    where: { id: entregadorId },
+    data: {
+      endCep: dados.cep,
+      endRua: dados.rua,
+      endNumero: dados.numero,
+      endBairro: dados.bairro,
+      endCidade: dados.cidade,
+      endComplemento: dados.complemento ?? null,
+      endLat: dados.lat ?? null,
+      endLng: dados.lng ?? null,
+    },
+  });
 }
 
 export async function updateFoto(entregadorId: string, file: Express.Multer.File) {
