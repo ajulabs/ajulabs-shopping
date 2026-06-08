@@ -57,12 +57,35 @@ export function VitrinesList({ dark = false }: VitrinasListProps) {
       .replace(/[ç]/g, 'c')
       .replace(/\s+/g, '');
 
+  // Maps consumer filter IDs to all lojista category labels (normalized) they cover.
+  // Needed because lojista uses descriptive labels ("Pet Shop", "Esportes e Lazer")
+  // while consumer filters use short IDs ("pet", "esportes").
+  const CATEGORIA_GRUPOS: Record<string, string[]> = {
+    mercado: ['alimentacao', 'padariaeconfeitaria', 'acougueepeixaria', 'hortifruti', 'bebidas'],
+    moda: [
+      'modainfantil',
+      'modapraiaeesporte',
+      'roupaseacessorios',
+      'bijuteriasejoias',
+      'cosmeticosebeleza',
+    ],
+    pet: ['petshop'],
+    esportes: ['esportoselazer'],
+    eletronicos: ['eletronicos', 'informatica', 'eletrodomesticos'],
+  };
+
+  const categoriaMatchLoja = (lojaCategoria: string, filtro: string): boolean => {
+    const norm = normCategoria(lojaCategoria);
+    if (norm === filtro) return true;
+    return CATEGORIA_GRUPOS[filtro]?.includes(norm) ?? false;
+  };
+
   const lojasFiltradas = lojas.filter((l) => {
     const buscaOk =
       busca === '' ||
       l.nome.toLowerCase().includes(busca.toLowerCase()) ||
       l.endereco.bairro.toLowerCase().includes(busca.toLowerCase());
-    const categoriaOk = categoria === 'todos' || normCategoria(l.categoria) === categoria;
+    const categoriaOk = categoria === 'todos' || categoriaMatchLoja(l.categoria, categoria);
     return buscaOk && categoriaOk;
   });
 
