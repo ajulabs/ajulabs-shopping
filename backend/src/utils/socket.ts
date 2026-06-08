@@ -188,6 +188,14 @@ export function emitCorridaOferta(payload: object): void {
   }
 }
 
+export function emitCorridaCancelada(pedidoId: string): void {
+  try {
+    getIo().to('entregadores').emit('corrida:cancelada', { pedidoId });
+  } catch {
+    /* intentional */
+  }
+}
+
 export function emitTicketMensagem(
   consumidorId: string,
   lojaId: string | null,

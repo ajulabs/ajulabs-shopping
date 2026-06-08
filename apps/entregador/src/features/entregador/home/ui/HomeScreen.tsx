@@ -16,6 +16,12 @@ import { useAuthEntregadorStore } from '../../auth/model/store';
 import { useCorridasRealtime } from '@ajulabs/realtime';
 import { startIdleTracking, stopIdleTracking } from '../../../../tasks/locationTask';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+
+// Module-level sets: survive HomeScreen unmount caused by sub-screen navigation in CourierApp.
+// When the user navigates to a profile sub-screen and returns, HomeScreen remounts from scratch
+// but these sets are NOT recreated, so dismissed/rejected rides stay filtered out.
+const _rejectedRideIds = new Set<string>();
+const _dismissedOfferRideIds = new Set<string>();
 import { LeafletMap } from '../../../../components/LeafletMap';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -195,11 +201,8 @@ export function HomeScreen({
   const wasFocused = useRef(isFocused);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
-  // IDs rejeitados localmente — evita que polling ou WebSocket reexibam a mesma corrida
-  const rejectedIds = useRef<Set<string>>(new Set());
-  // IDs cuja oferta (popup) o entregador dispensou: o popup não reabre para elas,
-  // mas a corrida permanece em "Entregas em espera" e pode ser aceita pela lista.
-  const dismissedOfferIds = useRef<Set<string>>(new Set());
+  const rejectedIds = useRef(_rejectedRideIds);
+  const dismissedOfferIds = useRef(_dismissedOfferRideIds);
 
   const ARACAJU = { lat: -10.9167, lng: -37.05 };
 
@@ -279,8 +282,11 @@ export function HomeScreen({
           startIdleTracking({ token, apiUrl: API_URL }).catch(() => {});
         }
       } else {
-        // Ao ficar offline, para o foreground service.
+        // Ao ficar offline, para o foreground service e limpa os filtros de corridas
+        // para que ao voltar online todas as corridas disponíveis reapareçam normalmente.
         stopIdleTracking().catch(() => {});
+        _rejectedRideIds.clear();
+        _dismissedOfferRideIds.clear();
       }
     },
     [token, buscarGanhos],
@@ -347,6 +353,12 @@ export function HomeScreen({
     onAceita: ({ pedidoId }) => {
       // Outro entregador (ou este) pegou a corrida — some da lista na hora e
       // fecha a oferta se for a que está aberta, evitando aceitar algo já tomado.
+      rejectedIds.current.add(pedidoId);
+      setWaitingRides((prev) => prev.filter((r) => r.id !== pedidoId));
+      setOffer((prev) => (prev?.id === pedidoId ? null : prev));
+    },
+    onCancelada: ({ pedidoId }) => {
+      // Lojista cancelou o pedido enquanto ele estava em 'pronto' (corrida já ofertada).
       rejectedIds.current.add(pedidoId);
       setWaitingRides((prev) => prev.filter((r) => r.id !== pedidoId));
       setOffer((prev) => (prev?.id === pedidoId ? null : prev));
