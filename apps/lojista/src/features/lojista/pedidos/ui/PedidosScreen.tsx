@@ -345,18 +345,6 @@ export function PedidosScreen() {
               <Ionicons name="musical-notes" size={18} color="#9099B3" />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => setScreen('tickets')}
-              style={s.refreshBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="ticket-outline" size={18} color="#9099B3" />
-              {openTickets > 0 && (
-                <View style={s.ticketBadge}>
-                  <Text style={s.ticketBadgeText}>{openTickets > 9 ? '9+' : openTickets}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
               onPress={handleRefresh}
               style={s.refreshBtn}
               activeOpacity={0.7}
@@ -443,6 +431,34 @@ export function PedidosScreen() {
         </View>
       ) : (
         <ScrollView style={s.list} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          <TouchableOpacity
+            style={s.ticketCard}
+            onPress={() => setScreen('tickets')}
+            activeOpacity={0.8}
+          >
+            <View style={s.ticketCardLeft}>
+              <View style={s.ticketCardIconWrap}>
+                <Ionicons name="ticket-outline" size={18} color="#DE6708" />
+              </View>
+              <View>
+                <Text style={s.ticketCardTitle}>Tickets de Suporte</Text>
+                <Text style={s.ticketCardSub}>
+                  {openTickets > 0
+                    ? `${openTickets} ticket${openTickets > 1 ? 's' : ''} aberto${openTickets > 1 ? 's' : ''}`
+                    : 'Visualize os tickets dos seus clientes'}
+                </Text>
+              </View>
+            </View>
+            <View style={s.ticketCardRight}>
+              {openTickets > 0 && (
+                <View style={s.ticketCardBadge}>
+                  <Text style={s.ticketCardBadgeTxt}>{openTickets > 9 ? '9+' : openTickets}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={16} color="#9099B3" />
+            </View>
+          </TouchableOpacity>
+
           {list.length === 0 && <Text style={s.empty}>Nenhum pedido nesse filtro agora.</Text>}
           {list.map((o) => {
             const meta = STATUS_META[o.status];
@@ -671,21 +687,36 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ticketBadge: {
-    position: 'absolute',
-    top: -3,
-    right: -3,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#DC2626',
+  ticketCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+    backgroundColor: '#fff',
+    marginBottom: 16,
+  },
+  ticketCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ticketCardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFF5EE',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#fff',
   },
-  ticketBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff', lineHeight: 12 },
+  ticketCardTitle: { fontSize: 13, fontWeight: '600', color: '#000933' },
+  ticketCardSub: { fontSize: 11, marginTop: 1, color: '#9099B3' },
+  ticketCardRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ticketCardBadge: {
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  ticketCardBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
   alertBanner: {
     marginTop: 14,
     padding: 12,

@@ -10,6 +10,7 @@ import {
 } from '../src/features/entregador/andamento/ui/EntregasAndamentoScreen';
 import { EarningsScreen } from '../src/features/entregador/ganhos';
 import { ProfileScreen } from '../src/features/entregador/perfil';
+import { EnderecoScreen } from '../src/features/entregador/perfil/ui/EnderecoScreen';
 import { DadosBancariosScreen } from '../src/features/entregador/perfil/ui/DadosBancariosScreen';
 import { DocumentosScreen } from '../src/features/entregador/perfil/ui/DocumentosScreen';
 import { NotificacoesScreen } from '../src/features/entregador/perfil/ui/NotificacoesScreen';
@@ -117,6 +118,7 @@ type Screen =
   | 'notificacoes'
   | 'avaliacoes'
   | 'seguranca'
+  | 'endereco'
   | 'conversas'
   | 'chat';
 
@@ -298,6 +300,7 @@ export function CourierApp() {
   if (screen === 'avaliacoes')
     return <AvaliacoesScreenEntregador onBack={() => setScreen('main')} />;
   if (screen === 'seguranca') return <SegurancaScreen onBack={() => setScreen('main')} />;
+  if (screen === 'endereco') return <EnderecoScreen onBack={() => setScreen('main')} />;
   if (screen === 'veiculo') return <VeiculoScreen onBack={() => setScreen('main')} />;
   if (screen === 'conversas')
     return (

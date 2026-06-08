@@ -1068,6 +1068,7 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
         cep: (geoData.cep ?? d.cep ?? '').replace(/\D/g, ''),
         rua: geoData.rua || d.rua || '',
         bairro: geoData.bairro || d.bairro || '',
+        cidade: geoData.cidade || d.cidade || '',
       }));
     } catch {
       // geocode falhou silenciosamente — usuário pode preencher manualmente
@@ -1299,6 +1300,18 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
           body: JSON.stringify({ lat: gpsCoords.lat, lng: gpsCoords.lng }),
         }).catch(() => {});
+      }
+
+      // Salvar endereço se todos os campos obrigatórios estiverem preenchidos
+      if (currentToken && data.cep && data.rua && data.numero && data.bairro && data.cidade) {
+        await EntregadorService.atualizarEndereco(currentToken, {
+          cep: data.cep.replace(/\D/g, ''),
+          rua: data.rua.trim(),
+          numero: data.numero.trim(),
+          bairro: data.bairro.trim(),
+          cidade: data.cidade.trim(),
+          ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng } : {}),
+        }).catch((err) => console.warn('[Entregador][Onboarding] Falha ao salvar endereço:', err));
       }
 
       // Salvar dados bancários

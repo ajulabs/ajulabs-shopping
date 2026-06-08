@@ -105,6 +105,20 @@ const localizacaoSpec = {
   },
 } as const;
 
+const enderecoSpec = {
+  name: 'PATCH_entregador_endereco',
+  input: {
+    cep: { required: true, type: 'string' },
+    rua: { required: true, type: 'string' },
+    numero: { required: true, type: 'string' },
+    bairro: { required: true, type: 'string' },
+    cidade: { required: true, type: 'string' },
+    complemento: { required: false, type: 'string' },
+    lat: { required: false, type: 'number' },
+    lng: { required: false, type: 'number' },
+  },
+} as const;
+
 const saqueSpec = {
   name: 'POST_entregador_saque',
   input: {
@@ -230,6 +244,29 @@ router.post(
       .parse(req.body);
     const dadosBancarios = await svc.cadastrarDadosBancarios(req.user!.id, dados);
     res.status(201).json({ dadosBancarios });
+  },
+);
+
+// ── Endereço ──────────────────────────────────────────────────────────────────
+
+router.patch(
+  '/endereco',
+  specValidatorMiddleware(enderecoSpec),
+  async (req: AuthRequest, res: Response) => {
+    const dados = z
+      .object({
+        cep: z.string().length(8),
+        rua: z.string().min(1),
+        numero: z.string().min(1),
+        bairro: z.string().min(1),
+        cidade: z.string().min(1),
+        complemento: z.string().optional(),
+        lat: z.number().optional(),
+        lng: z.number().optional(),
+      })
+      .parse(req.body);
+    await svc.updateEndereco(req.user!.id, dados);
+    res.json({ ok: true });
   },
 );
 

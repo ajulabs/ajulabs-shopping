@@ -24,7 +24,8 @@ export type PerfilNavDestino =
   | 'notificacoes'
   | 'avaliacoes'
   | 'seguranca'
-  | 'conversas';
+  | 'conversas'
+  | 'endereco';
 
 interface ProfileScreenProps {
   onLogout: () => void;
@@ -102,6 +103,9 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
         case 'Segurança':
           onNavigate('seguranca');
           break;
+        case 'Endereço':
+          onNavigate('endereco');
+          break;
         case 'Conversas':
           onNavigate('conversas');
           break;
@@ -119,6 +123,7 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
 
   const menuItems = [
     { icon: 'chatbubbles', label: 'Conversas' },
+    { icon: 'location', label: 'Endereço' },
     {
       icon: 'document-text',
       label: 'Documentos',

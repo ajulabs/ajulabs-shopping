@@ -40,7 +40,7 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
   const handleBack = onBack ?? (canGoBack ? () => router.back() : undefined);
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
-  const { bg, surf, borderL, text, textSec, textMut } = useTheme();
+  const { isDark, bg, surf, borderL, text, textSec, textMut } = useTheme();
 
   const [tickets, setTickets] = useState<TicketConsumidor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +179,29 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
         </ScrollView>
       </View>
 
+      <View
+        style={[
+          s.tooltip,
+          {
+            backgroundColor: isDark ? 'rgba(255,126,0,0.1)' : '#FFF8F2',
+            borderColor: isDark ? 'rgba(255,126,0,0.25)' : '#FFD9B3',
+          },
+        ]}
+      >
+        <Ionicons
+          name="information-circle-outline"
+          size={16}
+          color={colors.orange}
+          style={{ marginTop: 1 }}
+        />
+        <Text style={[s.tooltipTxt, { color: textSec as string }]}>
+          Tickets são abertos quando você relata um problema pelo{' '}
+          <Text style={{ color: colors.orange, fontWeight: '600' }}>Chat Aju</Text>
+          {'. '}
+          Acesse o chat e descreva seu problema para criar um novo ticket.
+        </Text>
+      </View>
+
       {list.length === 0 ? (
         <View style={s.vazio}>
           <Ionicons name="ticket-outline" size={52} color={colors.n300} />
@@ -286,6 +309,18 @@ const s = StyleSheet.create({
   },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
   filterBadgeTxt: { fontSize: 10, fontWeight: '700', color: colors.n500 },
+  tooltip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tooltipTxt: { flex: 1, fontSize: 12, lineHeight: 17 },
   scroll: { padding: 16, paddingBottom: 24 },
   vazio: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
   vazioTitulo: { fontSize: 17, fontWeight: '700' },
