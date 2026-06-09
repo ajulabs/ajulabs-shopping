@@ -97,6 +97,20 @@ export function initSocket(server: http.Server): Server {
       salas.delete(sala);
     });
 
+    // Consumidor entra/sai da sala pública de uma loja enquanto navega na vitrine,
+    // para receber atualizações do catálogo (produto novo/editado/removido) em tempo real.
+    socket.on('vitrine:join', (lojaId: string) => {
+      const sala = `vitrine:${lojaId}`;
+      void socket.join(sala);
+      salas.add(sala);
+    });
+
+    socket.on('vitrine:leave', (lojaId: string) => {
+      const sala = `vitrine:${lojaId}`;
+      void socket.leave(sala);
+      salas.delete(sala);
+    });
+
     socket.on('disconnect', () => {
       for (const sala of salas) void socket.leave(sala);
       salas.clear();
@@ -278,6 +292,21 @@ export function emitEstoqueAtualizado(
 export function emitEstoqueAlerta(lojaId: string, payload: object): void {
   try {
     getIo().to(`loja:${lojaId}`).emit('estoque:alerta', payload);
+  } catch {
+    /* intentional */
+  }
+}
+
+// Notifica consumidores que estão vendo a vitrine de uma loja que o catálogo mudou
+// (produto criado/editado/removido) → o app refaz a busca dos produtos.
+export function emitVitrineAtualizada(
+  lojaId: string,
+  payload: { produtoId?: string; acao?: 'novo' | 'atualizado' | 'removido' } = {},
+): void {
+  try {
+    getIo()
+      .to(`vitrine:${lojaId}`)
+      .emit('vitrine:atualizada', { lojaId, ...payload });
   } catch {
     /* intentional */
   }
