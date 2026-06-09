@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useHardwareBack } from '../../../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetodoPagamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
@@ -23,6 +24,10 @@ const STEP_TITLES = ['Endereço', 'Pagamento', 'Confirmação'];
 
 export function CheckoutScreen() {
   const router = useRouter();
+  useHardwareBack(() => {
+    router.back();
+    return true;
+  });
   const insets = useSafeAreaInsets();
 
   const itensPorLoja = useCartStore((s) => s.itensPorLoja);

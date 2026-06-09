@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { ConsumerTicketService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme, useHardwareBack } from '../../../../hooks';
 import {
   TicketConsumidor,
   TicketStatus,
@@ -38,6 +38,13 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
   const router = useRouter();
   const canGoBack = router.canGoBack();
   const handleBack = onBack ?? (canGoBack ? () => router.back() : undefined);
+  useHardwareBack(() => {
+    if (handleBack) {
+      handleBack();
+      return true;
+    }
+    return false;
+  });
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
   const { isDark, bg, surf, borderL, text, textSec, textMut } = useTheme();

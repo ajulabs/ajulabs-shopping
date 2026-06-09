@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { PedidoChatService } from '@ajulabs/api-client';
-import { useTheme } from '../../src/hooks';
+import { useTheme, useSmartBack } from '../../src/hooks';
 import { useAuthStore } from '../../src/store';
 
 function tempoRelativo(iso: string): string {
@@ -28,6 +28,9 @@ function tempoRelativo(iso: string): string {
 export default function ConversasScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Voltar (físico + visual) segue a pilha; fallback para o perfil
+  const goBack = useSmartBack('/(consumer)/perfil');
+
   const token = useAuthStore((s) => s.token);
   const { bg, surf, border, borderL, text, textSec, backBtn } = useTheme();
 
@@ -60,7 +63,7 @@ export default function ConversasScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate('/(consumer)/perfil')}
+          onPress={() => goBack()}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
         >
           <Ionicons name="chevron-back" size={20} color={text} />

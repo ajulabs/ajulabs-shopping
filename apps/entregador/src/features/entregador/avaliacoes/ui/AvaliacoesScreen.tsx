@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AvaliacaoService } from '@ajulabs/api-client';
+import { withAuthRefresh } from '../../../../lib/withAuthRefresh';
 import {
   TAGS_AVALIACAO_ENTREGADOR,
   type DashboardAvaliacoes,
@@ -39,7 +40,7 @@ export function AvaliacoesScreen({ onBack }: Props) {
       return;
     }
     try {
-      const dashboard = await AvaliacaoService.dashboardEntregador(token);
+      const dashboard = await withAuthRefresh((t) => AvaliacaoService.dashboardEntregador(t));
       setData(dashboard);
       setErro('');
     } catch (err) {

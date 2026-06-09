@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useHardwareBack } from '../../../../hooks';
 import * as ImagePicker from 'expo-image-picker';
-import { EntregadorService } from '@ajulabs/api-client';
+import { EntregadorService } from '../../../../lib/authServices';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
 const TIPOS = [
@@ -48,6 +49,16 @@ export function VeiculoScreen({ onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<Mode>('view');
+
+  // Botão físico: de 'request' volta para 'view'; de 'view' sai da tela.
+  useHardwareBack(() => {
+    if (mode === 'request') {
+      setMode('view');
+      return true;
+    }
+    onBack();
+    return true;
+  });
 
   // Current data
   const [currentVehicle, setCurrentVehicle] = useState<any>(null);

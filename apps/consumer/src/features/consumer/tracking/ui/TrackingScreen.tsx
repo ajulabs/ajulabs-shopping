@@ -15,7 +15,7 @@ import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { PedidoService, AvaliacaoService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme, useSmartBack } from '../../../../hooks';
 import { TrackingTimeline } from './TrackingTimeline';
 import { DeliveryMap } from '../../../../components/DeliveryMap';
 import { useEntregadorTracking } from '../hooks/useEntregadorTracking';
@@ -34,6 +34,7 @@ interface Props {
 
 export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
+  const goBack = useSmartBack('/(consumer)/pedidos');
   const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
@@ -172,7 +173,7 @@ export function TrackingScreen({ pedidoId }: Props) {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate('/(consumer)/pedidos')}
+          onPress={() => goBack()}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
           activeOpacity={0.85}
         >

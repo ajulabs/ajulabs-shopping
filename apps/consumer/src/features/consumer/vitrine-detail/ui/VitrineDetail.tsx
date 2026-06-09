@@ -19,6 +19,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useHardwareBack } from '../../../../hooks';
 import { LojaService, ProdutoService, FavoritoLojaService } from '@ajulabs/api-client';
 import { setPendingChatContext } from '../../chat/model/pendingChatContext';
 import { Loja, Produto, HorarioFuncionamento } from '@ajulabs/types';
@@ -56,6 +57,10 @@ function BannerImg({ uri }: { uri: string }) {
 
 export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   const router = useRouter();
+  useHardwareBack(() => {
+    router.back();
+    return true;
+  });
   const [catSelecionada, setCatSelecionada] = useState('Todos');
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);

@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { useThemeStore } from '../../src/store';
-import { useTheme } from '../../src/hooks';
+import { useTheme, useSmartBack } from '../../src/hooks';
 
 const APP_VERSION = '1.0.0';
 
@@ -48,6 +48,9 @@ function Toggle({ value, onToggle }: { value: boolean; onToggle: () => void }) {
 export default function AjustesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Voltar (físico + visual) segue a pilha; fallback para o perfil
+  const goBack = useSmartBack('/(consumer)/perfil');
+
   const [historiocoLimpo, setHistoricoLimpo] = useState(false);
   const { isDark, bg, surf, border, borderL, text, textSec, iconBg, backBtn } = useTheme();
   const toggleDark = useThemeStore((s) => s.toggleDark);
@@ -76,7 +79,7 @@ export default function AjustesScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate('/(consumer)/perfil')}
+          onPress={() => goBack()}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
         >
           <Ionicons name="chevron-back" size={20} color={text} />

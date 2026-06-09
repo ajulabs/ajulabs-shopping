@@ -10,7 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EntregadorService } from '@ajulabs/api-client';
+import { EntregadorService } from '../../src/lib/authServices';
 import { useAuthEntregadorStore } from '../../src/store';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

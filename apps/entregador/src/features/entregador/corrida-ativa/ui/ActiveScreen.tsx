@@ -14,7 +14,7 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { EntregadorService } from '@ajulabs/api-client';
+import { EntregadorService } from '../../../../lib/authServices';
 import { useLocationEmitter } from '@ajulabs/realtime';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 import { DeliveryTrackingMap } from '@ajulabs/maps';
