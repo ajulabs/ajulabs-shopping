@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useAuthStore } from '../src/store';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { useAuthStore, useThemeStore } from '../src/store';
 import { SplashConsumer } from '../src/features/consumer/splash';
 import { usePushRegistration } from '../src/hooks';
 
@@ -9,6 +10,7 @@ export default function RootLayout() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const refreshAccessToken = useAuthStore((s) => s.refreshAccessToken);
+  const isDark = useThemeStore((s) => s.isDark);
   const segments = useSegments();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -53,17 +55,12 @@ export default function RootLayout() {
     }
   }, [isLoggedIn, hasHydrated, tokenReady, segments, mounted]);
 
-  if (isLoggedIn && showSplash) {
-    return (
-      <SafeAreaProvider>
-        <SplashConsumer onDone={() => setShowSplash(false)} />
-      </SafeAreaProvider>
-    );
-  }
-
   return (
-    <SafeAreaProvider>
-      <Slot />
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      {/* Login e splash são navy (ícones claros). No app logado segue o tema:
+          modo claro → ícones escuros; modo escuro → ícones claros. */}
+      <StatusBar style={!isLoggedIn || showSplash || isDark ? 'light' : 'dark'} />
+      {isLoggedIn && showSplash ? <SplashConsumer onDone={() => setShowSplash(false)} /> : <Slot />}
     </SafeAreaProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { haversine, nearestIdx } from '../utils/geo';
+import { haversine, nearestIdx, distanceToPath } from '../utils/geo';
 import { fetchOsrmFull } from '../utils/osrm';
 import type { NavStep } from '@ajulabs/types';
 
@@ -13,7 +13,7 @@ export interface NavigationConfig {
   distanceInterval?: number;
   /** Min time (ms) between GPS samples. Default: 1000. Increase to save battery. */
   timeInterval?: number;
-  /** Distance (meters) to consider off-route. Default: 80. */
+  /** Distance (meters) to consider off-route. Default: 50. */
   offRouteThreshold?: number;
   /** Distance (meters) to advance to next step. Default: 25. */
   stepAdvanceDistance?: number;
@@ -24,6 +24,8 @@ export interface NavState {
   heading: number;
   speedKmh: number;
   routeCoords: { lat: number; lng: number }[];
+  /** Index of the route vertex the entregador has reached — used to erase the trail behind. */
+  progressIdx: number;
   steps: NavStep[];
   currentStep: NavStep | null;
   nextStep: NavStep | null;
@@ -43,13 +45,14 @@ export function useNavigation(
     accuracyMode = 'high',
     distanceInterval = 5,
     timeInterval = 1000,
-    offRouteThreshold = 80,
+    offRouteThreshold = 50,
     stepAdvanceDistance = 25,
   } = config ?? {};
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading] = useState(0);
   const [speedKmh, setSpeedKmh] = useState(0);
   const [routeCoords, setRouteCoords] = useState<{ lat: number; lng: number }[]>([]);
+  const [progressIdx, setProgressIdx] = useState(0);
   const [steps, setSteps] = useState<NavStep[]>([]);
   const [stepIdx, setStepIdx] = useState(0);
   const [distanceToStep, setDistanceToStep] = useState(0);
@@ -89,6 +92,7 @@ export function useNavigation(
       progressIdxRef.current = 0;
 
       setRouteCoords(result.coords);
+      setProgressIdx(0);
       setSteps(result.steps);
       setStepIdx(0);
       setEtaSeconds(result.totalDuration);
@@ -141,19 +145,19 @@ export function useNavigation(
               return;
             }
 
-            const { idx: nearIdx, dist: nearDist } = nearestIdx(
-              pos,
-              coords,
-              progressIdxRef.current,
-            );
-            if (nearDist > offRouteThreshold) {
+            // Off-route = perpendicular distance to the route line (robust on long
+            // straight segments). When off, recompute from the current position.
+            const offDist = distanceToPath(pos, coords, progressIdxRef.current);
+            if (offDist > offRouteThreshold) {
               setIsOffRoute(true);
               fetchKeyRef.current = '';
               fetchRoute(pos);
               return;
             }
 
+            const { idx: nearIdx } = nearestIdx(pos, coords, progressIdxRef.current);
             progressIdxRef.current = nearIdx;
+            setProgressIdx(nearIdx);
             setIsOffRoute(false);
 
             const sIdx = stepIdxRef.current;
@@ -223,6 +227,7 @@ export function useNavigation(
     heading,
     speedKmh,
     routeCoords,
+    progressIdx,
     steps,
     currentStep: steps[stepIdx] ?? null,
     nextStep: steps[stepIdx + 1] ?? null,
