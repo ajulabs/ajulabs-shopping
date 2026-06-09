@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import { EntregadorService } from '../../../../lib/authServices';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 import { useCorridasRealtime } from '@ajulabs/realtime';
+import { useRideAlert } from '../../../../hooks';
 import { startIdleTracking, stopIdleTracking } from '../../../../tasks/locationTask';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -190,6 +191,17 @@ export function HomeScreen({
   const token = useAuthEntregadorStore((s) => s.token);
   const entregadorId = useAuthEntregadorStore((s) => s.entregadorId);
   const [offer, setOffer] = useState<RideData | null>(null);
+
+  // Alerta sonoro + vibração enquanto há uma oferta na tela (app em foreground).
+  // Toca quando a oferta aparece e para assim que ela some (aceita/dispensada/timeout).
+  const rideAlert = useRideAlert();
+  useEffect(() => {
+    if (offer) {
+      void rideAlert.start();
+    } else {
+      void rideAlert.stop();
+    }
+  }, [offer]);
   const [countdown, setCountdown] = useState(15);
   const [ganhoHoje, setGanhoHoje] = useState(0);
   const [corridasHoje, setCorridasHoje] = useState(0);
