@@ -1,4 +1,4 @@
-import {
+﻿import {
   Loja,
   Produto,
   Pedido,
@@ -23,7 +23,7 @@ export { matchAju, registrarCliqueSugestao } from './consumer/aju';
 export class ApiUnauthorizedError extends Error {
   status = 401 as const;
   constructor() {
-    super('Sessão expirada. Faça login novamente.');
+    super('SessÃ£o expirada. FaÃ§a login novamente.');
     this.name = 'ApiUnauthorizedError';
   }
 }
@@ -250,7 +250,7 @@ export const AvaliacaoService = {
         criadoEm: a.criadoEm,
         usuario: {
           id: a.usuario?.id ?? '',
-          nome: a.usuario?.nome ?? 'Usuário',
+          nome: a.usuario?.nome ?? 'UsuÃ¡rio',
           avatarUrl: a.usuario?.avatarUrl ?? null,
         },
       }),
@@ -266,30 +266,30 @@ export const AvaliacaoService = {
     if (res.status === 401) throw new ApiUnauthorizedError();
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar avaliação');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar avaliaÃ§Ã£o');
     }
   },
 
   /**
-   * Dashboard agregado de avaliações da loja (média, distribuição, top tags,
-   * últimas 50 avaliações). Disponível apenas para o dono da loja.
+   * Dashboard agregado de avaliaÃ§Ãµes da loja (mÃ©dia, distribuiÃ§Ã£o, top tags,
+   * Ãºltimas 50 avaliaÃ§Ãµes). DisponÃ­vel apenas para o dono da loja.
    */
   dashboardLojista: async (lojaId: string, token: string): Promise<DashboardAvaliacoes> => {
     const res = await fetch(`${API_URL}/avaliacoes/lojista/lojas/${lojaId}/dashboard`, {
       headers: authHeader(token),
     });
     if (res.status === 401) throw new ApiUnauthorizedError();
-    if (!res.ok) throw new Error('Erro ao buscar avaliações da loja');
+    if (!res.ok) throw new Error('Erro ao buscar avaliaÃ§Ãµes da loja');
     return res.json();
   },
 
-  /** Dashboard agregado de avaliações recebidas pelo entregador. */
+  /** Dashboard agregado de avaliaÃ§Ãµes recebidas pelo entregador. */
   dashboardEntregador: async (token: string): Promise<DashboardAvaliacoes> => {
     const res = await fetch(`${API_URL}/avaliacoes/entregador/me/dashboard`, {
       headers: authHeader(token),
     });
     if (res.status === 401) throw new ApiUnauthorizedError();
-    if (!res.ok) throw new Error('Erro ao buscar avaliações');
+    if (!res.ok) throw new Error('Erro ao buscar avaliaÃ§Ãµes');
     return res.json();
   },
 };
@@ -415,8 +415,8 @@ export const LojistaService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const msg = typeof err.error === 'string' ? err.error : 'Erro ao avançar status';
-      console.error(`[LojistaService] avancarStatus ${pedidoId} → ${res.status}: ${msg}`);
+      const msg = typeof err.error === 'string' ? err.error : 'Erro ao avanÃ§ar status';
+      console.error(`[LojistaService] avancarStatus ${pedidoId} â†’ ${res.status}: ${msg}`);
       throw new Error(msg);
     }
   },
@@ -498,7 +498,7 @@ export const LojistaService = {
     imageUri: string,
   ): Promise<void> => {
     const form = new FormData();
-    // blob:/data: URIs (Expo web) precisam de fetch→blob; file:/content: (native) usam { uri, type, name }
+    // blob:/data: URIs (Expo web) precisam de fetchâ†’blob; file:/content: (native) usam { uri, type, name }
     if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
       const blob = await fetch(imageUri).then((r) => r.blob());
       form.append(tipo, blob, `${tipo}.jpg`);
@@ -636,11 +636,11 @@ export const LojistaService = {
 
   analisarImagem: async (token: string, imageUri: string): Promise<any> => {
     const formData = new FormData();
-    if (Platform.OS === 'web') {
+    if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
       const blob = await fetch(imageUri).then((r) => r.blob());
       formData.append('imagem', blob, 'produto.jpg');
     } else {
-      // Native (iOS/Android): fetch(content://) falha em APK — usar objeto RN nativo
+      // Native (iOS/Android): fetch(content://) falha em APK â€” usar objeto RN nativo
       formData.append('imagem', { uri: imageUri, name: 'produto.jpg', type: 'image/jpeg' } as any);
     }
     const res = await fetch(`${API_URL}/lojista/produtos/analisar`, {
@@ -844,9 +844,9 @@ export const EntregadorService = {
   },
 
   /**
-   * Envia um heartbeat com a última posição do entregador. Usado a cada
+   * Envia um heartbeat com a Ãºltima posiÃ§Ã£o do entregador. Usado a cada
    * ~1 min pelo modo "online idle" do app (foreground service Android).
-   * Best-effort: erros são silenciosos para não interromper o tracking.
+   * Best-effort: erros sÃ£o silenciosos para nÃ£o interromper o tracking.
    */
   heartbeat: async (token: string, lat: number, lng: number): Promise<void> => {
     await fetch(`${API_URL}/entregador/heartbeat`, {
@@ -882,8 +882,8 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const msg = typeof err.error === 'string' ? err.error : 'Corrida não disponível';
-      console.error(`[EntregadorService] aceitarCorrida ${pedidoId} → ${res.status}: ${msg}`);
+      const msg = typeof err.error === 'string' ? err.error : 'Corrida nÃ£o disponÃ­vel';
+      console.error(`[EntregadorService] aceitarCorrida ${pedidoId} â†’ ${res.status}: ${msg}`);
       throw new Error(msg);
     }
     const { pedido } = await res.json();
@@ -950,6 +950,7 @@ export const EntregadorService = {
     versoUri: string,
   ): Promise<void> => {
     const form = new FormData();
+    // blob:/data: URIs (Expo web) usam fetchâ†’blob; file:/content: (native) usam { uri, type, name }
     if (frenteUri.startsWith('blob:') || frenteUri.startsWith('data:')) {
       const frenteBlob = await fetch(frenteUri).then((r) => r.blob());
       form.append('frente', frenteBlob, 'frente.jpg');
@@ -975,6 +976,7 @@ export const EntregadorService = {
 
   atualizarFoto: async (token: string, imageUri: string): Promise<string> => {
     const form = new FormData();
+    // blob:/data: URIs (Expo web) precisam de fetchâ†’blob; file:/content: (native) usam { uri, type, name }
     if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
       const blob = await fetch(imageUri).then((r) => r.blob());
       form.append('foto', blob, 'perfil.jpg');
@@ -1005,7 +1007,7 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao salvar veículo');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao salvar veÃ­culo');
     }
   },
 
@@ -1026,7 +1028,9 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao salvar dados bancários');
+      throw new Error(
+        typeof err.error === 'string' ? err.error : 'Erro ao salvar dados bancÃ¡rios',
+      );
     }
   },
 
@@ -1065,7 +1069,7 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar endereço');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar endereÃ§o');
     }
   },
 
@@ -1128,7 +1132,7 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar solicitação');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao enviar solicitaÃ§Ã£o');
     }
     return res.json();
   },
@@ -1142,7 +1146,7 @@ export const EntregadorService = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       const msg = typeof err.error === 'string' ? err.error : 'Erro ao confirmar retirada';
-      console.error(`[EntregadorService] confirmarRetirada ${pedidoId} → ${res.status}: ${msg}`);
+      console.error(`[EntregadorService] confirmarRetirada ${pedidoId} â†’ ${res.status}: ${msg}`);
       throw new Error(msg);
     }
   },
@@ -1168,8 +1172,8 @@ export const EntregadorService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const msg = typeof err.error === 'string' ? err.error : 'Código incorreto';
-      console.error(`[EntregadorService] confirmarEntrega ${pedidoId} → ${res.status}: ${msg}`);
+      const msg = typeof err.error === 'string' ? err.error : 'CÃ³digo incorreto';
+      console.error(`[EntregadorService] confirmarEntrega ${pedidoId} â†’ ${res.status}: ${msg}`);
       throw new Error(msg);
     }
   },
@@ -1178,7 +1182,7 @@ export const EntregadorService = {
 function mapEndereco(e: any): EnderecoSalvo {
   return {
     id: e.id,
-    apelido: e.apelido ?? 'Endereço',
+    apelido: e.apelido ?? 'EndereÃ§o',
     rua: e.numero ? `${e.rua}, ${e.numero}` : e.rua,
     bairro: e.cidade ? `${e.bairro}, ${e.cidade}` : e.bairro,
     cep: e.cep,
@@ -1214,7 +1218,7 @@ async function resizeParaDataUri(uri: string): Promise<string> {
 
 export const PerfilService = {
   atualizarAvatar: async (token: string, imageUri: string): Promise<string> => {
-    // Web: redimensiona com Canvas e envia via PUT /perfil (não depende do novo endpoint)
+    // Web: redimensiona com Canvas e envia via PUT /perfil (nÃ£o depende do novo endpoint)
     if (typeof document !== 'undefined') {
       const avatarUrl = await resizeParaDataUri(imageUri);
       const res = await fetch(`${API_URL}/perfil`, {
@@ -1275,7 +1279,7 @@ export const EnderecoService = {
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
       body: JSON.stringify(dados),
     });
-    if (!res.ok) throw new Error('Erro ao criar endereço');
+    if (!res.ok) throw new Error('Erro ao criar endereÃ§o');
     const { endereco } = await res.json();
     return mapEndereco(endereco);
   },
@@ -1301,7 +1305,7 @@ export const EnderecoService = {
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
       body: JSON.stringify(dados),
     });
-    if (!res.ok) throw new Error('Erro ao atualizar endereço');
+    if (!res.ok) throw new Error('Erro ao atualizar endereÃ§o');
     const { endereco } = await res.json();
     return mapEndereco(endereco);
   },
@@ -1311,7 +1315,7 @@ export const EnderecoService = {
       method: 'DELETE',
       headers: authHeader(token),
     });
-    if (!res.ok) throw new Error('Erro ao remover endereço');
+    if (!res.ok) throw new Error('Erro ao remover endereÃ§o');
   },
 
   definirPadrao: async (token: string, id: string): Promise<void> => {
@@ -1319,7 +1323,7 @@ export const EnderecoService = {
       method: 'PATCH',
       headers: authHeader(token),
     });
-    if (!res.ok) throw new Error('Erro ao definir endereço padrão');
+    if (!res.ok) throw new Error('Erro ao definir endereÃ§o padrÃ£o');
   },
 };
 
@@ -1334,7 +1338,7 @@ export const TranscricaoService = {
       body: formData,
     });
 
-    if (!res.ok) throw new Error('Erro na transcrição');
+    if (!res.ok) throw new Error('Erro na transcriÃ§Ã£o');
     const data = await res.json();
     return data.texto;
   },
@@ -1394,7 +1398,9 @@ export const EstoqueService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao registrar movimentação');
+      throw new Error(
+        typeof err.error === 'string' ? err.error : 'Erro ao registrar movimentaÃ§Ã£o',
+      );
     }
     const { produto } = await res.json();
     return mapProduto(produto);
@@ -1412,7 +1418,9 @@ export const EstoqueService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao definir estoque mínimo');
+      throw new Error(
+        typeof err.error === 'string' ? err.error : 'Erro ao definir estoque mÃ­nimo',
+      );
     }
   },
 };
@@ -1456,7 +1464,7 @@ export const NotificationPreferencesService = {
     const res = await fetch(`${API_URL}/notification-preferences`, {
       headers: authHeader(token),
     });
-    if (!res.ok) throw new Error('Erro ao buscar preferências de notificação');
+    if (!res.ok) throw new Error('Erro ao buscar preferÃªncias de notificaÃ§Ã£o');
     const data = await res.json();
     return data.preferencias ?? [];
   },
@@ -1467,7 +1475,7 @@ export const NotificationPreferencesService = {
       headers: { ...authHeader(token), 'Content-Type': 'application/json' },
       body: JSON.stringify({ categoria, ativo }),
     });
-    if (!res.ok) throw new Error('Erro ao atualizar preferência de notificação');
+    if (!res.ok) throw new Error('Erro ao atualizar preferÃªncia de notificaÃ§Ã£o');
   },
 };
 
@@ -1547,7 +1555,7 @@ export const RBACService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Credenciais inválidas');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Credenciais invÃ¡lidas');
     }
     return res.json();
   },
@@ -1642,7 +1650,7 @@ export const RBACService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao submeter solicitação');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao submeter solicitaÃ§Ã£o');
     }
     const { solicitacao } = await res.json();
     return {
@@ -1665,7 +1673,7 @@ export const RBACService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao aprovar solicitação');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao aprovar solicitaÃ§Ã£o');
     }
   },
 
@@ -1682,7 +1690,7 @@ export const RBACService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao rejeitar solicitação');
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao rejeitar solicitaÃ§Ã£o');
     }
   },
 
