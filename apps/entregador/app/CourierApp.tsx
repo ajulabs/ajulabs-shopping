@@ -1,5 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ToastAndroid,
+  BackHandler,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from '../src/features/entregador/home';
@@ -191,6 +199,10 @@ export function CourierApp() {
   const [chatPedidoId, setChatPedidoId] = useState<string | null>(null);
   const [chatFromScreen, setChatFromScreen] = useState<'conversas' | 'active'>('conversas');
 
+  // Marca o instante do último "voltar" na tela raiz, para o padrão
+  // "aperte voltar novamente para sair" (evita fechar o app sem querer).
+  const lastBackPressRef = useRef(0);
+
   // Botão físico de voltar do Android: respeita a navegação por estado interno.
   // Ordem: chat → tela origem; sub-tela de perfil → main; tab≠home → home; senão sai.
   useHardwareBack(() => {
@@ -217,7 +229,17 @@ export function CourierApp() {
       setTab('home');
       return true;
     }
-    return false; // home raiz / active / onboarding / approval: deixa fechar/minimizar
+    // Tela raiz (home): exige dois toques de voltar em até 2s para sair,
+    // evitando fechar o app por engano.
+    const agora = Date.now();
+    if (agora - lastBackPressRef.current < 2000) {
+      return false; // segundo toque dentro da janela → deixa o app fechar
+    }
+    lastBackPressRef.current = agora;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Aperte voltar novamente para sair', ToastAndroid.SHORT);
+    }
+    return true; // primeiro toque → trata o evento (não fecha)
   });
 
   // Múltiplas entregas (máx 2)
