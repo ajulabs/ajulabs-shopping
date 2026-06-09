@@ -234,6 +234,7 @@ export function CourierApp() {
               id: raw.id,
               loja: {
                 nome: raw.loja?.nome ?? '–',
+                logoUrl: raw.loja?.logoUrl ?? undefined,
                 endereco: raw.loja?.endereco
                   ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}`
                   : '–',

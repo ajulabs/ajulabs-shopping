@@ -58,6 +58,7 @@ function mapCorridaToRide(raw: any): RideData {
     id: raw.id,
     loja: {
       nome: raw.loja?.nome ?? '–',
+      logoUrl: raw.loja?.logoUrl ?? undefined,
       endereco: raw.loja?.endereco ? `${raw.loja.endereco.rua}, ${raw.loja.endereco.numero}` : '–',
       bairro: raw.loja?.endereco?.bairro ?? '–',
       cep: raw.loja?.endereco?.cep ?? undefined,

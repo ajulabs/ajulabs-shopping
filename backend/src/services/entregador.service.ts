@@ -1,6 +1,10 @@
 import { prisma } from '../utils/prisma';
 import { getIo, setEntregadorLocalizacao, emitPedidoAtualizado } from '../utils/socket';
-import { uploadImagemEntregador, uploadDocumentoTrocaVeiculo } from '../utils/supabase';
+import {
+  uploadImagemEntregador,
+  uploadDocumentoTrocaVeiculo,
+  uploadFotoIncidente,
+} from '../utils/supabase';
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 import { assertValidImage } from '../lib/mimeValidator';
 import { notificarStatusPedido } from '../lib/pushNotifications';
@@ -293,6 +297,7 @@ const CORRIDA_INCLUDE = {
     select: {
       id: true,
       nome: true,
+      logoUrl: true,
       endereco: {
         select: {
           rua: true,
@@ -394,6 +399,7 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
         select: {
           id: true,
           nome: true,
+          logoUrl: true,
           telefone: true,
           endereco: {
             select: {
@@ -431,6 +437,63 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
   }
 
   return pedidoAtualizado;
+}
+
+const MOTIVOS_CANCELAMENTO_VALIDOS = ['area_risco', 'pneu_furou', 'acidente'] as const;
+type MotivoCancelamento = (typeof MOTIVOS_CANCELAMENTO_VALIDOS)[number];
+
+export async function cancelarCorrida(
+  entregadorId: string,
+  pedidoId: string,
+  motivo: MotivoCancelamento,
+  fotoFile?: Express.Multer.File,
+) {
+  if (!MOTIVOS_CANCELAMENTO_VALIDOS.includes(motivo)) {
+    throw Object.assign(new Error('Motivo de cancelamento inválido'), { statusCode: 400 });
+  }
+
+  if (!fotoFile) {
+    throw Object.assign(new Error('Foto do incidente obrigatória'), { statusCode: 400 });
+  }
+
+  // Upload da foto antes de liberar o pedido — se falhar o cancelamento não ocorre.
+  assertValidImage(fotoFile.buffer);
+  const fotoUrl = await uploadFotoIncidente(fotoFile.buffer, fotoFile.mimetype);
+
+  // Só permite cancelar antes da retirada (status 'pronto').
+  const released = await prisma.pedido.updateMany({
+    where: { id: pedidoId, entregadorId, status: 'pronto' },
+    data: { entregadorId: null },
+  });
+
+  if (released.count === 0) {
+    throw Object.assign(
+      new Error('Corrida não encontrada ou retirada já confirmada — não é possível cancelar'),
+      { statusCode: 409 },
+    );
+  }
+
+  // Impede que este entregador receba a mesma corrida novamente.
+  await prisma.corridaRejeitada.upsert({
+    where: { pedidoId_entregadorId: { pedidoId, entregadorId } },
+    create: { pedidoId, entregadorId },
+    update: {},
+  });
+
+  // Avisa o lojista que o pedido voltou a aguardar entregador.
+  try {
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: pedidoId },
+      select: { consumidorId: true, lojaId: true },
+    });
+    if (pedido) {
+      emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'pronto', pedido.lojaId);
+    }
+  } catch {
+    /* socket opcional */
+  }
+
+  return { fotoUrl, motivo };
 }
 
 export async function confirmarRetirada(entregadorId: string, pedidoId: string) {
@@ -500,7 +563,7 @@ export async function updateStatusCorrida(
   const atualizado = await prisma.pedido.update({
     where: { id: pedidoId },
     data: { status: novoStatus },
-    select: { id: true, status: true, consumidorId: true },
+    select: { id: true, status: true, consumidorId: true, lojaId: true },
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -514,7 +577,7 @@ export async function updateStatusCorrida(
     });
   }
 
-  emitPedidoAtualizado(atualizado.consumidorId, pedidoId, novoStatus);
+  emitPedidoAtualizado(atualizado.consumidorId, pedidoId, novoStatus, atualizado.lojaId);
   void notificarStatusPedido(atualizado.consumidorId, pedidoId, novoStatus);
 
   return atualizado.status;

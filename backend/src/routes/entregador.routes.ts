@@ -331,6 +331,18 @@ router.post('/corridas/:pedidoId/rejeitar', async (req: AuthRequest, res: Respon
   res.json({ ok: true });
 });
 
+router.post(
+  '/corridas/:pedidoId/cancelar',
+  upload.single('foto'),
+  async (req: AuthRequest, res: Response) => {
+    const { motivo } = z
+      .object({ motivo: z.enum(['area_risco', 'pneu_furou', 'acidente']) })
+      .parse(req.body);
+    const result = await svc.cancelarCorrida(req.user!.id, req.params.pedidoId, motivo, req.file);
+    res.json({ ok: true, ...result });
+  },
+);
+
 router.post('/corridas/:pedidoId/confirmar-retirada', async (req: AuthRequest, res: Response) => {
   await svc.confirmarRetirada(req.user!.id, req.params.pedidoId);
   res.json({ ok: true });

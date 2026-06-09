@@ -29,6 +29,7 @@ import { fmtDist, fmtEta, fmtSpeed, maneuverIcon, brl } from '../lib/formatters'
 import { StageCard } from './components/StageCard';
 import { NavigationChoiceModal } from './components/NavigationChoiceModal';
 import { ExternalNavBadge } from './components/NavigationChoiceModal';
+import { CancelCorridaModal, type MotivoCancelamento } from './components/CancelCorridaModal';
 import { useRideNavigation } from '../hooks/useRideNavigation';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -58,6 +59,8 @@ export function ActiveScreen({
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [loadingRetirada, setLoadingRetirada] = useState(false);
+  const [loadingCancelamento, setLoadingCancelamento] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [codigoEntrega, setCodigoEntrega] = useState('');
   const [loadingEntrega, setLoadingEntrega] = useState(false);
   const [entregaError, setEntregaError] = useState<string | null>(null);
@@ -246,6 +249,27 @@ export function ActiveScreen({
     });
     if (!result.canceled && result.assets[0]) setPhotoUri(result.assets[0].uri);
   }, []);
+
+  const handleCancelarCorrida = useCallback(() => {
+    setCancelModalVisible(true);
+  }, []);
+
+  const handleConfirmarCancelamento = useCallback(
+    async (motivo: MotivoCancelamento, fotoUri: string) => {
+      if (!token) return;
+      setLoadingCancelamento(true);
+      try {
+        await EntregadorService.cancelarCorrida(token, ride.id, motivo, fotoUri);
+        setCancelModalVisible(false);
+        onFinish();
+      } catch (err: any) {
+        Alert.alert('Erro', err?.message ?? 'Não foi possível cancelar a corrida.');
+      } finally {
+        setLoadingCancelamento(false);
+      }
+    },
+    [token, ride.id, onFinish],
+  );
 
   const handleConfirmarRetirada = useCallback(async () => {
     if (!token) return;
@@ -544,11 +568,27 @@ export function ActiveScreen({
             <StageCard
               icon="storefront"
               iconColor="#000933"
+              logoUrl={ride.loja.logoUrl}
               primary={ride.loja.nome}
               secondary={`${ride.loja.endereco} · ${ride.loja.bairro}`}
               cta="Cheguei ao estabelecimento"
               onCta={advanceStage}
             />
+            <TouchableOpacity
+              style={s.cancelCorridaBtn}
+              onPress={handleCancelarCorrida}
+              disabled={loadingCancelamento}
+              activeOpacity={0.7}
+            >
+              {loadingCancelamento ? (
+                <ActivityIndicator size="small" color="#9B2727" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={15} color="#9B2727" />
+                  <Text style={s.cancelCorridaTxt}>Cancelar corrida</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </>
         )}
 
@@ -689,6 +729,13 @@ export function ActiveScreen({
           </View>
         )}
       </View>
+
+      <CancelCorridaModal
+        visible={cancelModalVisible}
+        loading={loadingCancelamento}
+        onConfirm={handleConfirmarCancelamento}
+        onClose={() => setCancelModalVisible(false)}
+      />
 
       <NavigationChoiceModal
         visible={showNavChoiceModal}
@@ -987,6 +1034,18 @@ const s = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 17,
   },
+
+  cancelCorridaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F1F7',
+  },
+  cancelCorridaTxt: { fontSize: 12, fontWeight: '600', color: '#9B2727' },
 
   photoBtn: {
     alignItems: 'center',
