@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LojistaService, ApiUnauthorizedError } from '@ajulabs/api-client';
 import { usePedidosRealtime, usePedidoLojistaRealtime } from '@ajulabs/realtime';
 import { useAuthLojistaStore } from '../../../../store';
+import { useHardwareBack } from '../../../../hooks';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 import { ORDER_STATUS_MAP, STATUS_META, FLOW, type OrderStatus, type Order } from '../model/data';
@@ -75,6 +76,20 @@ export function PedidosScreen() {
   const [filter, setFilter] = useState<'todos' | OrderStatus>('todos');
   const [screen, setScreen] = useState<Screen>('list');
   const [selected, setSelected] = useState<Order | null>(null);
+
+  // Botão físico de voltar do Android: respeita a navegação por estado interno.
+  // Sem isso, voltar de uma sub-tela (detail/delivery/chat/tickets) fecha o app.
+  useHardwareBack(() => {
+    if (screen === 'chat') {
+      setScreen('detail');
+      return true;
+    }
+    if (screen !== 'list') {
+      setScreen('list');
+      return true;
+    }
+    return false; // em 'list': comportamento padrão (trocar de tab / minimizar)
+  });
   const [showSomModal, setShowSomModal] = useState(false);
   const [openTickets, setOpenTickets] = useState(0);
   const [cancelModal, setCancelModal] = useState<{

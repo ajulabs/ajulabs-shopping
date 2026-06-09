@@ -21,6 +21,7 @@ import { ConversasEntregadorScreen } from '../src/features/entregador/chat/ui/Co
 import { ChatPedidoEntregadorScreen } from '../src/features/entregador/chat/ui/ChatPedidoEntregadorScreen';
 import { OnboardingScreen } from '../src/features/entregador/onboarding';
 import { useAuthEntregadorStore } from '../src/store';
+import { useHardwareBack } from '../src/hooks';
 import { EntregadorService } from '@ajulabs/api-client';
 
 type Tab = 'home' | 'entregas' | 'ganhos' | 'perfil';
@@ -189,6 +190,30 @@ export function CourierApp() {
   const [isOnline, setIsOnline] = useState(false);
   const [chatPedidoId, setChatPedidoId] = useState<string | null>(null);
   const [chatFromScreen, setChatFromScreen] = useState<'conversas' | 'active'>('conversas');
+
+  // Botão físico de voltar do Android: respeita a navegação por estado interno.
+  // Sub-telas voltam para 'main'; sem isso, o voltar fecha o app.
+  useHardwareBack(() => {
+    if (screen === 'chat') {
+      setScreen(chatFromScreen === 'active' ? 'active' : 'conversas');
+      return true;
+    }
+    const subTelas: Screen[] = [
+      'documentos',
+      'veiculo',
+      'dados-bancarios',
+      'notificacoes',
+      'avaliacoes',
+      'seguranca',
+      'endereco',
+      'conversas',
+    ];
+    if (subTelas.includes(screen)) {
+      setScreen('main');
+      return true;
+    }
+    return false; // 'main'/'active'/'onboarding'/'approval': comportamento padrão
+  });
 
   // Múltiplas entregas (máx 2)
   const [activeRides, setActiveRides] = useState<ActiveRideWithStage[]>([]);
