@@ -12,6 +12,7 @@ export interface ActiveRide {
   id: string;
   loja: {
     nome: string;
+    logoUrl?: string;
     endereco: string;
     bairro: string;
     cep?: string;

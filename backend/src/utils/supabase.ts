@@ -5,14 +5,13 @@ export const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY ?? '',
 );
 
-export async function uploadImagemEntregador(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<string> {
+export async function uploadImagemEntregador(buffer: Buffer, mimeType: string): Promise<string> {
   const ext = mimeType.split('/')[1] || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  const { error: bucketError } = await supabase.storage.createBucket('entregadores', { public: true });
+  const { error: bucketError } = await supabase.storage.createBucket('entregadores', {
+    public: true,
+  });
   if (bucketError && bucketError.message.includes('already exists')) {
     await supabase.storage.updateBucket('entregadores', { public: true });
   } else if (bucketError) {
@@ -29,6 +28,29 @@ export async function uploadImagemEntregador(
   return data.publicUrl;
 }
 
+export async function uploadFotoIncidente(buffer: Buffer, mimeType: string): Promise<string> {
+  const ext = mimeType.split('/')[1] || 'jpg';
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error: bucketError } = await supabase.storage.createBucket('incidentes', {
+    public: true,
+  });
+  if (bucketError && bucketError.message.includes('already exists')) {
+    await supabase.storage.updateBucket('incidentes', { public: true });
+  } else if (bucketError) {
+    throw bucketError;
+  }
+
+  const { error } = await supabase.storage
+    .from('incidentes')
+    .upload(fileName, buffer, { contentType: mimeType });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('incidentes').getPublicUrl(fileName);
+  return data.publicUrl;
+}
+
 export async function uploadDocumentoTrocaVeiculo(
   buffer: Buffer,
   mimeType: string,
@@ -36,7 +58,9 @@ export async function uploadDocumentoTrocaVeiculo(
   const ext = mimeType.split('/')[1] || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  const { error: bucketError } = await supabase.storage.createBucket('troca-veiculo', { public: true });
+  const { error: bucketError } = await supabase.storage.createBucket('troca-veiculo', {
+    public: true,
+  });
   if (bucketError && bucketError.message.includes('already exists')) {
     await supabase.storage.updateBucket('troca-veiculo', { public: true });
   } else if (bucketError) {
@@ -53,10 +77,7 @@ export async function uploadDocumentoTrocaVeiculo(
   return data.publicUrl;
 }
 
-export async function uploadImagemLoja(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<string> {
+export async function uploadImagemLoja(buffer: Buffer, mimeType: string): Promise<string> {
   const ext = mimeType.split('/')[1] || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -77,14 +98,13 @@ export async function uploadImagemLoja(
   return data.publicUrl;
 }
 
-export async function uploadImagemConsumidor(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<string> {
+export async function uploadImagemConsumidor(buffer: Buffer, mimeType: string): Promise<string> {
   const ext = mimeType.split('/')[1] || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-  const { error: bucketError } = await supabase.storage.createBucket('consumidores', { public: true });
+  const { error: bucketError } = await supabase.storage.createBucket('consumidores', {
+    public: true,
+  });
   if (bucketError && bucketError.message.includes('already exists')) {
     await supabase.storage.updateBucket('consumidores', { public: true });
   } else if (bucketError) {
@@ -101,10 +121,7 @@ export async function uploadImagemConsumidor(
   return data.publicUrl;
 }
 
-export async function uploadImagemProduto(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<string> {
+export async function uploadImagemProduto(buffer: Buffer, mimeType: string): Promise<string> {
   const ext = mimeType.split('/')[1] || 'jpg';
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 

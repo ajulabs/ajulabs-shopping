@@ -901,6 +901,27 @@ export const EntregadorService = {
     }
   },
 
+  cancelarCorrida: async (
+    token: string,
+    pedidoId: string,
+    motivo: 'area_risco' | 'pneu_furou' | 'acidente',
+    fotoUri: string,
+  ): Promise<void> => {
+    const form = new FormData();
+    form.append('motivo', motivo);
+    // React Native FormData aceita { uri, name, type } para arquivos locais.
+    form.append('foto', { uri: fotoUri, name: 'incidente.jpg', type: 'image/jpeg' } as any);
+    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/cancelar`, {
+      method: 'POST',
+      headers: authHeader(token),
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao cancelar corrida');
+    }
+  },
+
   atualizarStatusCorrida: async (
     token: string,
     pedidoId: string,

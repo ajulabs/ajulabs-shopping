@@ -8,7 +8,10 @@ let _url = '';
 
 export function getSocket(url: string): TypedSocket {
   const baseUrl = url.replace(/\/$/, '');
-  if (_socket && _url === baseUrl && _socket.connected) return _socket;
+  // Return existing socket for same URL regardless of connected state — socket.io
+  // handles reconnection internally; recreating during a transient disconnect would
+  // cancel pending reconnect attempts and reset the backoff counter.
+  if (_socket && _url === baseUrl) return _socket;
 
   if (_socket) {
     _socket.disconnect();
@@ -21,7 +24,7 @@ export function getSocket(url: string): TypedSocket {
     autoConnect: true,
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 10,
+    reconnectionAttempts: Infinity,
   }) as TypedSocket;
 
   return _socket;
