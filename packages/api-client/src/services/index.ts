@@ -610,8 +610,16 @@ export const LojistaService = {
       formData.append('variacoes', JSON.stringify(dados.variacoes));
     }
     if (dados.imageUri) {
-      const blob = await fetch(dados.imageUri).then((r) => r.blob());
-      formData.append('imagem', blob, 'produto.jpg');
+      if (dados.imageUri.startsWith('blob:') || dados.imageUri.startsWith('data:')) {
+        const blob = await fetch(dados.imageUri).then((r) => r.blob());
+        formData.append('imagem', blob, 'produto.jpg');
+      } else {
+        formData.append('imagem', {
+          uri: dados.imageUri,
+          type: 'image/jpeg',
+          name: 'produto.jpg',
+        } as any);
+      }
     }
     const res = await fetch(`${API_URL}/lojista/produtos`, {
       method: 'POST',
@@ -941,13 +949,19 @@ export const EntregadorService = {
     frenteUri: string,
     versoUri: string,
   ): Promise<void> => {
-    const [frenteBlob, versoBlob] = await Promise.all([
-      fetch(frenteUri).then((r) => r.blob()),
-      fetch(versoUri).then((r) => r.blob()),
-    ]);
     const form = new FormData();
-    form.append('frente', frenteBlob, 'frente.jpg');
-    form.append('verso', versoBlob, 'verso.jpg');
+    if (frenteUri.startsWith('blob:') || frenteUri.startsWith('data:')) {
+      const frenteBlob = await fetch(frenteUri).then((r) => r.blob());
+      form.append('frente', frenteBlob, 'frente.jpg');
+    } else {
+      form.append('frente', { uri: frenteUri, type: 'image/jpeg', name: 'frente.jpg' } as any);
+    }
+    if (versoUri.startsWith('blob:') || versoUri.startsWith('data:')) {
+      const versoBlob = await fetch(versoUri).then((r) => r.blob());
+      form.append('verso', versoBlob, 'verso.jpg');
+    } else {
+      form.append('verso', { uri: versoUri, type: 'image/jpeg', name: 'verso.jpg' } as any);
+    }
     const res = await fetch(`${API_URL}/entregador/documentos/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -960,9 +974,13 @@ export const EntregadorService = {
   },
 
   atualizarFoto: async (token: string, imageUri: string): Promise<string> => {
-    const blob = await fetch(imageUri).then((r) => r.blob());
     const form = new FormData();
-    form.append('foto', blob, 'perfil.jpg');
+    if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
+      const blob = await fetch(imageUri).then((r) => r.blob());
+      form.append('foto', blob, 'perfil.jpg');
+    } else {
+      form.append('foto', { uri: imageUri, type: 'image/jpeg', name: 'perfil.jpg' } as any);
+    }
     const res = await fetch(`${API_URL}/entregador/foto`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
