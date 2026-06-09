@@ -14,6 +14,7 @@ FROM base AS builder
 
 # Copia manifestos primeiro (melhor cache de layer)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY scripts/ ./scripts/
 COPY packages/types/package.json ./packages/types/
 COPY backend/package.json ./backend/
 
