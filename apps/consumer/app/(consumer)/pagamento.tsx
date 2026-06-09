@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../src/hooks';
+import { useTheme, useSmartBack } from '../../src/hooks';
 
 interface Cartao {
   id: string;
@@ -49,6 +49,9 @@ function formatarValidade(v: string) {
 export default function PagamentoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Voltar (físico + visual) segue a pilha; fallback para o perfil
+  const goBack = useSmartBack('/(consumer)/perfil');
+
   const [cartoes, setCartoes] = useState<Cartao[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(FORM_VAZIO);
@@ -96,7 +99,7 @@ export default function PagamentoScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate('/(consumer)/perfil')}
+          onPress={() => goBack()}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
         >
           <Ionicons name="chevron-back" size={20} color={text} />

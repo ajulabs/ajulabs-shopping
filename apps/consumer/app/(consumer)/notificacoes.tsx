@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
-import { useTheme } from '../../src/hooks';
+import { useTheme, useSmartBack } from '../../src/hooks';
 import { useAuthStore } from '../../src/store';
 
 function Toggle({
@@ -42,6 +42,9 @@ function Toggle({
 export default function NotificacoesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Voltar (físico + visual) segue a pilha; fallback para o perfil
+  const goBack = useSmartBack('/(consumer)/perfil');
+
   const token = useAuthStore((s) => s.token);
   const { isDark, bg, surf, border, borderL, text, textSec, backBtn } = useTheme();
 
@@ -105,7 +108,7 @@ export default function NotificacoesScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate('/(consumer)/perfil')}
+          onPress={() => goBack()}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
         >
           <Ionicons name="chevron-back" size={20} color={text} />

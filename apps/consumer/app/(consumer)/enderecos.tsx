@@ -20,7 +20,7 @@ import { colors } from '@ajulabs/theme';
 import { EnderecoService } from '@ajulabs/api-client';
 import { EnderecoSalvo } from '@ajulabs/types';
 import { useAuthStore } from '../../src/store';
-import { useTheme } from '../../src/hooks';
+import { useTheme, useHardwareBack, useGoBack } from '../../src/hooks';
 import { AddressMap } from '../../src/components/AddressMap';
 
 interface EnderecoForm {
@@ -330,6 +330,19 @@ export default function EnderecosScreen() {
   };
 
   const mapAddress = form.rua && form.bairro ? `${form.rua}, ${form.bairro}` : '';
+
+  // Voltar segue a pilha; fallback para o perfil
+  const goBack = useGoBack('/(consumer)/perfil');
+
+  // Botão físico de voltar: fecha o modal se aberto, senão volta na pilha
+  useHardwareBack(() => {
+    if (showModal) {
+      fecharModal();
+      return true;
+    }
+    goBack();
+    return true;
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>

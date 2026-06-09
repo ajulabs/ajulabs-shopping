@@ -19,7 +19,7 @@ import { ProdutoService, AvaliacaoService, FavoritoService } from '@ajulabs/api-
 import { useProdutoEstoqueRealtime } from '@ajulabs/realtime';
 import { colors } from '@ajulabs/theme';
 import { useCartStore, useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme, useHardwareBack } from '../../../../hooks';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -546,6 +546,10 @@ interface ProdutoDetailProps {
 export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  useHardwareBack(() => {
+    router.back();
+    return true;
+  });
   const { isDark, bg, surf, borderL, text, textSec, backBtn } = useTheme();
   const token = useAuthStore((s) => s.token);
   const adicionar = useCartStore((s) => s.adicionar);

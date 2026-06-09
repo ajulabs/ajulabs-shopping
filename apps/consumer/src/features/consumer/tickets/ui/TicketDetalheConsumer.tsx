@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
 import { ConsumerTicketService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme, useSmartBack } from '../../../../hooks';
 import { useTicketRealtime } from '@ajulabs/realtime';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 import {
@@ -154,6 +154,7 @@ const av = StyleSheet.create({
 export function TicketDetalheConsumer() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const goBack = useSmartBack('/(consumer)/tickets');
   const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
@@ -321,11 +322,7 @@ export function TicketDetalheConsumer() {
           { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.push('/(consumer)/tickets' as any)}
-          style={s.backBtn}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity onPress={() => goBack()} style={s.backBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
 import { Produto, Loja } from '@ajulabs/types';
 import { FavoritoService, FavoritoLojaService } from '@ajulabs/api-client';
-import { useTheme } from '../../src/hooks';
+import { useTheme, useSmartBack } from '../../src/hooks';
 import { useAuthStore } from '../../src/store';
 import { useCartStore } from '../../src/store';
 
@@ -30,6 +30,7 @@ function ProdutoFavoritoCard({
   onRemove: (id: string) => void;
 }) {
   const router = useRouter();
+  const goBack = useSmartBack('/(consumer)/perfil');
   const token = useAuthStore((s) => s.token);
   const adicionar = useCartStore((s) => s.adicionar);
   const { surf, borderL, text, textSec } = useTheme();
@@ -237,7 +238,7 @@ export default function FavoritosScreen() {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.navigate('/(consumer)/perfil')}
+          onPress={() => goBack()}
           style={[styles.btnBack, { backgroundColor: backBtn }]}
         >
           <Ionicons name="chevron-back" size={20} color={text} />
