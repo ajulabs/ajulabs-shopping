@@ -1,20 +1,25 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 /**
- * Intercepta o botão físico de voltar do Android enquanto a tela está em foco
- * e executa uma ação customizada.
+ * Intercepta o botão físico de voltar do Android enquanto a tela está em foco.
  *
- * @param onBack Função executada ao pressionar voltar. Retorne `true` para indicar
- *               que o evento foi tratado (impede o comportamento padrão).
+ * Usa uma ref pro callback mais recente, de modo que o handler sempre enxergue
+ * o estado atual — evita o closure travado no valor inicial (causa de "voltar
+ * fecha o app" quando o estado já mudou).
+ *
+ * @param onBack Retorne `true` para indicar que o evento foi tratado.
  */
 export function useHardwareBack(onBack: () => boolean) {
+  const handlerRef = useRef(onBack);
+  handlerRef.current = onBack;
+
   useFocusEffect(
     useCallback(() => {
-      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => handlerRef.current());
       return () => sub.remove();
-    }, [onBack]),
+    }, []),
   );
 }
 
@@ -22,12 +27,6 @@ export function useHardwareBack(onBack: () => boolean) {
  * Retorna uma função "voltar inteligente": segue a pilha de navegação real
  * (router.back) quando há histórico, criando o caminho de volta em cascata.
  * Se a pilha estiver vazia, cai num destino de fallback.
- *
- * NÃO registra o botão físico — use `useSmartBack` para o caso comum (registra
- * o físico automaticamente) ou combine `goBackOr` com seu próprio `useHardwareBack`
- * quando precisar de lógica extra (ex: fechar um modal antes).
- *
- * @param fallback Rota de destino quando a pilha está vazia.
  */
 export function useGoBack(fallback: string) {
   const router = useRouter();
@@ -41,12 +40,9 @@ export function useGoBack(fallback: string) {
 }
 
 /**
- * "Voltar inteligente" completo: conecta tanto a função de voltar quanto o botão
- * físico do Android ao mesmo comportamento de pilha. Use no botão visual de voltar
- * e o físico fica sincronizado automaticamente.
- *
- * @param fallback Rota de destino quando a pilha está vazia.
- * @returns Função para o onPress do botão visual de voltar.
+ * "Voltar inteligente" completo: conecta a função de voltar E o botão físico do
+ * Android ao mesmo comportamento de pilha. Use no botão visual de voltar; o
+ * físico fica sincronizado automaticamente.
  */
 export function useSmartBack(fallback: string) {
   const goBack = useGoBack(fallback);

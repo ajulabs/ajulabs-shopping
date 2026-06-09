@@ -192,7 +192,7 @@ export function CourierApp() {
   const [chatFromScreen, setChatFromScreen] = useState<'conversas' | 'active'>('conversas');
 
   // Botão físico de voltar do Android: respeita a navegação por estado interno.
-  // Sub-telas voltam para 'main'; sem isso, o voltar fecha o app.
+  // Ordem: chat → tela origem; sub-tela de perfil → main; tab≠home → home; senão sai.
   useHardwareBack(() => {
     if (screen === 'chat') {
       setScreen(chatFromScreen === 'active' ? 'active' : 'conversas');
@@ -212,7 +212,12 @@ export function CourierApp() {
       setScreen('main');
       return true;
     }
-    return false; // 'main'/'active'/'onboarding'/'approval': comportamento padrão
+    // Em 'main' mas numa tab diferente de home → volta pra home antes de sair
+    if (screen === 'main' && tab !== 'home') {
+      setTab('home');
+      return true;
+    }
+    return false; // home raiz / active / onboarding / approval: deixa fechar/minimizar
   });
 
   // Múltiplas entregas (máx 2)
