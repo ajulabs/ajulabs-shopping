@@ -14,7 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHardwareBack } from '../../../../hooks';
 import * as ImagePicker from 'expo-image-picker';
-import { EntregadorService } from '@ajulabs/api-client';
+import { EntregadorService } from '../../../../lib/authServices';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 
 const TIPOS = [

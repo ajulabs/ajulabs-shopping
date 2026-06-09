@@ -19,7 +19,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useAuthEntregadorStore } from '../../../../store';
-import { EntregadorService } from '@ajulabs/api-client';
+import { EntregadorService } from '../../../../lib/authServices';
 import { formatCPF, validateCPF } from '../../auth/lib/formatCPF';
 import { PhoneInput } from './PhoneInput';
 import { LocationPickerMap } from '../../../../components/LocationPickerMap';

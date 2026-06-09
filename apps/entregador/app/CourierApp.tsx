@@ -22,7 +22,7 @@ import { ChatPedidoEntregadorScreen } from '../src/features/entregador/chat/ui/C
 import { OnboardingScreen } from '../src/features/entregador/onboarding';
 import { useAuthEntregadorStore } from '../src/store';
 import { useHardwareBack } from '../src/hooks';
-import { EntregadorService } from '@ajulabs/api-client';
+import { EntregadorService } from '../src/lib/authServices';
 
 type Tab = 'home' | 'entregas' | 'ganhos' | 'perfil';
 
