@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from '../src/features/entregador/home';
 import { ActiveScreen, type Stage } from '../src/features/entregador/corrida-ativa';
 import {
@@ -35,6 +35,7 @@ function CourierNav({
   onChange: (t: Tab) => void;
   activeCount: number;
 }) {
+  const insets = useSafeAreaInsets();
   const items = [
     { id: 'home' as Tab, icon: 'map', label: 'Corridas' },
     { id: 'entregas' as Tab, icon: 'bicycle', label: 'Entregas' },
@@ -43,7 +44,7 @@ function CourierNav({
   ] as const;
 
   return (
-    <View style={nav.bar}>
+    <View style={[nav.bar, { paddingBottom: insets.bottom + 10 }]}>
       {items.map((it) => {
         const active = tab === it.id;
         const showBadge = it.id === 'entregas' && activeCount > 0;
@@ -82,8 +83,7 @@ const nav = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E4E7F1',
-    paddingVertical: 8,
-    paddingBottom: 10,
+    paddingTop: 8,
   },
   item: { flex: 1, alignItems: 'center', gap: 3 },
   iconWrap: {
