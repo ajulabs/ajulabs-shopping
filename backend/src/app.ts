@@ -1,6 +1,7 @@
 import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { ZodError } from 'zod';
 import { corsOptions } from './utils/cors';
@@ -26,6 +27,7 @@ import rbacRoutes from './routes/rbac.routes';
 
 const app = express();
 
+app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
 

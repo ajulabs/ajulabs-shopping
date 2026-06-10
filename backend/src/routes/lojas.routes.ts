@@ -118,6 +118,24 @@ const criarLojaSchema = z.object({
   }),
 });
 
+// Campos que o lojista pode editar. Exclui de propósito lojistaId, flags de
+// verificação, saldo e qualquer campo controlado pelo servidor (evita mass assignment).
+const atualizarLojaSchema = z
+  .object({
+    nome: z.string().min(2),
+    descricao: z.string(),
+    categoria: z.string(),
+    telefone: z.string(),
+    whatsapp: z.string().nullable(),
+    tempoEntregaMin: z.number().positive(),
+    tempoEntregaMax: z.number().positive(),
+    taxaEntrega: z.number().nonnegative(),
+    logoUrl: z.string().url().nullable(),
+    bannerUrl: z.string().url().nullable(),
+    aberta: z.boolean(),
+  })
+  .partial();
+
 router.post(
   '/',
   authMiddleware,
@@ -159,9 +177,10 @@ router.put('/:id', authMiddleware, authLojista, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
+    const dados = atualizarLojaSchema.parse(req.body);
     const atualizada = await prisma.loja.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: dados,
     });
 
     res.json({ loja: atualizada });
