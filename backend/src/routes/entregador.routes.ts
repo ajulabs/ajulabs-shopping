@@ -1,14 +1,20 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
+import { imageFileFilter } from '../utils/fileFilters';
 import { authMiddleware, authEntregador, AuthRequest } from '../middleware/auth';
 import * as svc from '../services/entregador.service';
 import { specValidatorMiddleware } from '../lib/spec-validator';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
 const uploadDocs = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
 }).fields([
   { name: 'frente', maxCount: 1 },
   { name: 'verso', maxCount: 1 },
@@ -16,6 +22,7 @@ const uploadDocs = multer({
 const uploadTroca = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
 }).fields([
   { name: 'cnh', maxCount: 1 },
   { name: 'docVeiculo', maxCount: 1 },

@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import OpenAI, { toFile } from 'openai';
 import multer from 'multer';
+import { audioFileFilter } from '../utils/fileFilters';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { ProdutoRAG } from '../utils/ragSearch';
 import { TOOL_DEFINITIONS, executarTool } from '../tools';
@@ -330,7 +331,11 @@ router.post(
   },
 );
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: audioFileFilter,
+});
 
 // POST /chat/transcricao  (multipart/form-data, campo: "audio")
 router.post(
