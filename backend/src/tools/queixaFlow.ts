@@ -5,6 +5,7 @@ import {
   PedidoCardData,
   EstadoConfirmando,
   EstadoSelecionandoPedido,
+  STATUS_RECLAMAVEL,
 } from '../utils/conversa';
 import { executarCriarTicket } from './executors';
 import { emitTicketNovo } from '../utils/socket';
@@ -36,8 +37,10 @@ export async function iniciarFluxoQueixa(
   usuarioId: string,
   motivoQueixa: string,
 ): Promise<RespostaSelecionarPedido> {
+  // Só pedidos que já saíram para entrega ou foram entregues podem ser reclamados —
+  // reclamação cobre atraso, "não chegou" e produto errado/quebrado.
   const pedidosRaw = await prisma.pedido.findMany({
-    where: { consumidorId: usuarioId, status: 'entregue' },
+    where: { consumidorId: usuarioId, status: { in: [...STATUS_RECLAMAVEL] } },
     orderBy: { criadoEm: 'desc' },
     take: 5,
     include: {
@@ -52,7 +55,7 @@ export async function iniciarFluxoQueixa(
       tipo: 'selecionarPedido',
       pedidos: [],
       texto:
-        'Não encontrei pedidos entregues na sua conta. A reclamação precisa ser sobre um pedido que você já recebeu. Posso te ajudar com outra coisa?',
+        'As reclamações valem para pedidos que já saíram para entrega ou foram entregues, e não encontrei nenhum assim na sua conta. Se o pedido ainda está em preparo, é só aguardar ou acompanhar o rastreamento. Posso te ajudar com outra coisa?',
     };
   }
 
@@ -115,6 +118,17 @@ export async function iniciarFluxoQueixaComPedido(
   });
 
   if (!pedidoRaw) return iniciarFluxoQueixa(conversaId, usuarioId, motivo);
+
+  // Pedido ainda em preparo não é reclamável — orienta em vez de abrir queixa.
+  if (!STATUS_RECLAMAVEL.includes(pedidoRaw.status)) {
+    await atualizarEstado(conversaId, null);
+    return {
+      tipo: 'resposta',
+      texto:
+        'Esse pedido ainda não saiu para entrega, então não dá pra abrir uma reclamação por aqui ainda. Assim que ele sair pra entrega ou for entregue, é só me chamar. 🙂',
+      sugestoes: ['Rastrear pedido', 'Buscar produtos'],
+    };
+  }
 
   const pedido: PedidoCardData = {
     numero: 1,

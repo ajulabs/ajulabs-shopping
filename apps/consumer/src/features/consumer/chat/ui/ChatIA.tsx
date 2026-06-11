@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { MensagemChat } from '@ajulabs/types';
 import { ChatMsg } from './ChatMsg';
 import { ChatInput } from './ChatInput';
-import { matchAju } from '@ajulabs/api-client';
+import { matchAju, obterHistoricoAju, limparHistoricoAju } from '@ajulabs/api-client';
 import {
   View,
   Text,
@@ -22,10 +22,7 @@ import { useTheme } from '../../../../hooks';
 import { useAuthStore } from '../../../../store';
 import { takePendingChatContext, takePendingChatAction } from '../model/pendingChatContext';
 import { useTranscricao } from '../model/useTranscricao';
-import { useTicketRealtime } from '@ajulabs/realtime';
 import * as SecureStore from 'expo-secure-store';
-
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 const ONBOARDING_KEY = 'aju_onboarding_v1';
 const chatKey = (userId: string) => `aju_chat_${userId}`;
@@ -128,58 +125,69 @@ export function ChatIA() {
   const userId = useAuthStore((s) => s.userId);
   const { gravando, transcrevendo, toggleGravacao } = useTranscricao();
 
-  useTicketRealtime({
-    apiUrl: API_URL,
-    ticketId: null,
-    roomId: userId ?? null,
-    roomType: 'usuario',
-    enabled: !!userId,
-    onNovo: () => {
-      const balao: MensagemChat = {
-        id: `ticket-criado-${Date.now()}`,
-        remetente: 'aju',
-        conteudo:
-          'Ticket aberto com sucesso! Vou acompanhar sua solicitação e te aviso sobre qualquer atualização.',
-        resposta: { tipo: 'ticketCriado', texto: '' },
-        criadaEm: new Date().toISOString(),
-      };
-      setMensagens((prev) => [...prev, balao]);
-    },
-  });
+  // Token via ref: usado dentro de efeitos sem que sua rotação re-dispare a carga.
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
 
-  // Carrega histórico persistido ao montar (quando userId disponível)
+  // Carrega histórico ao montar: primeiro o local (rico, com cards); se não houver,
+  // reidrata do servidor (ex: outro aparelho, web, dados do app limpos).
   useEffect(() => {
     if (!userId) return;
-    storage.getItem(chatKey(userId)).then((raw) => {
-      if (!raw) return;
-      try {
-        const { conversaId: cid, mensagens: msgs } = JSON.parse(raw);
-        if (cid) setConversaId(cid);
-        if (Array.isArray(msgs) && msgs.length > 0) {
-          setMensagens(msgs);
-          // As sugestões iniciais não fazem sentido se já há conversa salva —
-          // a última mensagem da Aju já carrega as sugestões dentro de resposta.sugestoes
-          setSugestoes([]);
-        }
-      } catch {}
+    let cancelado = false;
+
+    storage.getItem(chatKey(userId)).then(async (raw) => {
+      if (cancelado) return;
+
+      if (raw) {
+        try {
+          const { conversaId: cid, mensagens: msgs } = JSON.parse(raw);
+          if (cid) setConversaId(cid);
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            setMensagens(msgs);
+            // As sugestões iniciais não fazem sentido se já há conversa salva —
+            // a última mensagem da Aju já carrega as sugestões dentro de resposta.sugestoes
+            setSugestoes([]);
+          }
+          return;
+        } catch {}
+      }
+
+      // Sem histórico local → tenta o servidor
+      const tk = tokenRef.current;
+      if (!tk) return;
+      const { conversaId: cid, mensagens: msgs } = await obterHistoricoAju(tk);
+      if (cancelado || msgs.length === 0) return;
+      if (cid) setConversaId(cid);
+      // Só reidrata se o usuário ainda não interagiu (evita sobrescrever)
+      setMensagens((prev) => (prev.length <= 1 ? [MENSAGEM_INICIAL, ...msgs] : prev));
+      setSugestoes([]);
     });
+
+    return () => {
+      cancelado = true;
+    };
   }, [userId]);
 
-  // Auto-send when chat gains focus after navigating from another screen
-  useFocusEffect(() => {
-    if (!token) return;
+  // Auto-send when chat gains focus after navigating from another screen.
+  // Ref mantém a versão mais recente de enviarMensagem sem re-disparar o efeito.
+  const enviarMensagemRef = useRef<(texto: string, pedidoId?: string) => void>(() => {});
 
-    const ctx = takePendingChatContext();
-    if (ctx) {
-      enviarMensagem(`Quero ver produtos da loja ${ctx.nome} [lojaId:${ctx.id}]`);
-      return;
-    }
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
 
-    const action = takePendingChatAction();
-    if (action === 'reclamar') {
-      enviarMensagem('Tive um problema com meu pedido');
-    }
-  });
+      const ctx = takePendingChatContext();
+      if (ctx) {
+        enviarMensagemRef.current(`Quero ver produtos da loja ${ctx.nome} [lojaId:${ctx.id}]`);
+        return;
+      }
+
+      const action = takePendingChatAction();
+      if (action === 'reclamar') {
+        enviarMensagemRef.current('Tive um problema com meu pedido');
+      }
+    }, [token]),
+  );
 
   useEffect(() => {
     storage.getItem(ONBOARDING_KEY).then((done) => {
@@ -197,6 +205,8 @@ export function ChatIA() {
   function limparConversa() {
     const executar = () => {
       if (userId) storage.removeItem(chatKey(userId)).catch(() => {});
+      // Apaga também no servidor — senão o F5/outro aparelho reidrata a conversa de volta.
+      if (token) limparHistoricoAju(token).catch(() => {});
       setMensagens([MENSAGEM_INICIAL]);
       setConversaId(undefined);
       setSugestoes(SUGESTOES_INICIAIS);
@@ -280,18 +290,26 @@ export function ChatIA() {
         }
         return atualizadas;
       });
-    } catch {
+    } catch (err) {
+      const conteudo =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Ops, tive um problema de conexão. Tente novamente em instantes.';
       const msgErro: MensagemChat = {
         id: (Date.now() + 1).toString(),
         remetente: 'aju',
-        conteudo: 'Ops, tive um problema de conexão. Tente novamente em instantes.',
+        conteudo,
         criadaEm: new Date().toISOString(),
       };
+      // Não persiste erros no histórico — são transitórios.
       setMensagens((prev) => [...prev, msgErro]);
     } finally {
       setCarregando(false);
     }
   }
+
+  // Mantém o ref sincronizado com a versão atual (usado pelo useFocusEffect)
+  enviarMensagemRef.current = enviarMensagem;
 
   function handleEnviar() {
     const texto = inputValue.trim();
@@ -305,13 +323,12 @@ export function ChatIA() {
     if (!trimmed || carregando) return [];
 
     if (/^\d+$/.test(trimmed) && trimmed.length <= 6) {
-      const chips: { label: string; msg: string }[] = [
+      // O backend não busca pedido por número (são UUIDs) — oferece o rastreio padrão
+      // (lista + seleção) em vez de prometer um lookup que não existe.
+      return [
         { label: `🔍 Produtos até R$ ${trimmed}`, msg: `Quero produtos até R$ ${trimmed}` },
+        { label: `📦 Rastrear um pedido`, msg: `Quero rastrear meu pedido` },
       ];
-      if (trimmed.length <= 10) {
-        chips.push({ label: `📦 Pedido #${trimmed}`, msg: `Quero rastrear o pedido #${trimmed}` });
-      }
-      return chips;
     }
 
     if (/^r\$?\s*\d+/i.test(trimmed)) {

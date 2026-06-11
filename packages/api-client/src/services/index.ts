@@ -18,7 +18,12 @@
   AuditLogEntry,
 } from '@ajulabs/types';
 import { Platform } from 'react-native';
-export { matchAju, registrarCliqueSugestao } from './consumer/aju';
+export {
+  matchAju,
+  obterHistoricoAju,
+  limparHistoricoAju,
+  registrarCliqueSugestao,
+} from './consumer/aju';
 
 export class ApiUnauthorizedError extends Error {
   status = 401 as const;

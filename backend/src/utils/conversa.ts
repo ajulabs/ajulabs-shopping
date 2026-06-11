@@ -1,6 +1,15 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, StatusPedido } from '@prisma/client';
 import { prisma } from './prisma';
 import { ProdutoRAG } from './ragSearch';
+
+// ─── Regras de negócio ────────────────────────────────────────────────────────
+
+/**
+ * Status em que um pedido pode receber reclamação: só faz sentido reclamar de algo
+ * que já saiu para entrega ou foi entregue (atraso, não chegou, veio errado/quebrado).
+ * Pedidos ainda em preparo (aguardando/confirmado/preparando/pronto) não são reclamáveis.
+ */
+export const STATUS_RECLAMAVEL: StatusPedido[] = ['saiu_entrega', 'entregue'];
 
 // ─── Estado da conversa (queixa flow) ────────────────────────────────────────
 
@@ -55,6 +64,44 @@ export async function obterOuCriarConversa(usuarioId: string, conversaId?: strin
     if (existente) return existente;
   }
   return prisma.conversaChat.create({ data: { usuarioId } });
+}
+
+/**
+ * Retorna a conversa mais recente do usuário com até 50 mensagens (ordem cronológica),
+ * para reidratar o chat em um novo aparelho / web / após limpeza de dados.
+ */
+export async function obterHistorico(
+  usuarioId: string,
+): Promise<{
+  conversaId?: string;
+  mensagens: { id: string; remetente: string; conteudo: string; criadaEm: string }[];
+}> {
+  const conversa = await prisma.conversaChat.findFirst({
+    where: { usuarioId },
+    orderBy: { atualizadoEm: 'desc' },
+    include: {
+      mensagens: { orderBy: { criadaEm: 'desc' }, take: 50 },
+    },
+  });
+
+  if (!conversa) return { mensagens: [] };
+
+  const mensagens = conversa.mensagens
+    .slice()
+    .reverse()
+    .map((m) => ({
+      id: m.id,
+      remetente: m.remetente,
+      conteudo: m.conteudo,
+      criadaEm: m.criadaEm.toISOString(),
+    }));
+
+  return { conversaId: conversa.id, mensagens };
+}
+
+/** Apaga todas as conversas do usuário (mensagens e estado caem em cascata). */
+export async function limparHistorico(usuarioId: string): Promise<void> {
+  await prisma.conversaChat.deleteMany({ where: { usuarioId } });
 }
 
 // ─── Mensagens ────────────────────────────────────────────────────────────────
