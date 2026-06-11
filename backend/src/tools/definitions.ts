@@ -17,7 +17,12 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
           lojaId: {
             type: 'string',
             description:
-              'UUID da loja específica para filtrar produtos. Use quando o usuário pedir produtos de uma loja específica.',
+              'UUID da loja específica para filtrar produtos. Use quando o usuário pedir produtos de uma loja específica e você tiver o UUID.',
+          },
+          lojaNome: {
+            type: 'string',
+            description:
+              'Nome da loja mencionada pelo usuário. Use quando o usuário citar o nome da loja mas você não tiver o UUID (ex: "produtos da Loja X", "o que tem na Sapataria Y").',
           },
         },
         required: ['query'],
@@ -32,7 +37,13 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
         'Lista os pedidos recentes do usuário com status atual. Use quando o usuário perguntar sobre seus pedidos, entrega, rastreamento ou status de compra.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          lojaNome: {
+            type: 'string',
+            description:
+              'Filtra pedidos de uma loja específica pelo nome, quando o usuário mencionar uma loja (ex: "meus pedidos da Loja X").',
+          },
+        },
         required: [],
       },
     },

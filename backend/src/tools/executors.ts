@@ -26,21 +26,54 @@ export type ToolResult =
 
 // ─── Executors ────────────────────────────────────────────────────────────────
 
-export async function executarBuscarProdutos(query: string, lojaId?: string): Promise<ToolResult> {
-  if (lojaId) {
-    const produtos = await buscarProdutosPorLoja(lojaId);
-    return { tipo: 'produtos', dados: produtos };
-  }
-  const produtos = await buscarProdutosRAG(query);
-  if (produtos.length === 0) {
-    return { tipo: 'produtos', dados: await buscarProdutosFallback(query) };
-  }
-  return { tipo: 'produtos', dados: produtos };
+/** Resolve o UUID de uma loja a partir do nome fornecido pelo usuário (busca parcial/case-insensitive). */
+async function resolverLojaId(lojaNome?: string, lojaId?: string): Promise<string | undefined> {
+  if (lojaId) return lojaId;
+  if (!lojaNome?.trim()) return undefined;
+  const loja = await prisma.loja.findFirst({
+    where: { nome: { contains: lojaNome.trim(), mode: 'insensitive' } },
+    select: { id: true },
+  });
+  return loja?.id;
 }
 
-export async function executarListarPedidos(usuarioId: string): Promise<ToolResult> {
+export async function executarBuscarProdutos(
+  query: string,
+  opts: { lojaId?: string; lojaNome?: string } = {},
+): Promise<ToolResult> {
+  const { lojaNome } = opts;
+  const lojaId = await resolverLojaId(lojaNome, opts.lojaId);
+
+  // Remove palavras de navegação para decidir se há um termo de produto real.
+  const queryUtil = query
+    .replace(/\b(produtos?|da|de|do|na?|loja|ver|quero|mostrar?|me|todos?|tudo)\b/gi, '')
+    .trim();
+
+  // Loja específica sem termo de produto → lista o catálogo da loja.
+  if (lojaId && queryUtil.length < 3) {
+    return { tipo: 'produtos', dados: await buscarProdutosPorLoja(lojaId) };
+  }
+
+  const produtos = await buscarProdutosRAG(query);
+  if (produtos.length === 0) {
+    if (lojaId) return { tipo: 'produtos', dados: await buscarProdutosPorLoja(lojaId) };
+    return { tipo: 'produtos', dados: await buscarProdutosFallback(query) };
+  }
+  // Se há lojaId, filtra os resultados da busca semântica para só mostrar dessa loja.
+  return {
+    tipo: 'produtos',
+    dados: lojaId ? produtos.filter((p) => p.lojaId === lojaId) : produtos,
+  };
+}
+
+export async function executarListarPedidos(
+  usuarioId: string,
+  lojaNome?: string,
+): Promise<ToolResult> {
+  const lojaId = lojaNome ? await resolverLojaId(lojaNome) : undefined;
+
   const pedidos = await prisma.pedido.findMany({
-    where: { consumidorId: usuarioId },
+    where: { consumidorId: usuarioId, ...(lojaId ? { lojaId } : {}) },
     orderBy: { criadoEm: 'desc' },
     take: 5,
     include: {
@@ -114,9 +147,12 @@ export async function executarTool(
 ): Promise<ToolResult> {
   switch (nome) {
     case 'buscar_produtos':
-      return executarBuscarProdutos(args.query ?? '', args.lojaId);
+      return executarBuscarProdutos(args.query ?? '', {
+        lojaId: args.lojaId,
+        lojaNome: args.lojaNome,
+      });
     case 'listar_pedidos':
-      return executarListarPedidos(usuarioId);
+      return executarListarPedidos(usuarioId, args.lojaNome);
     case 'criar_ticket':
       return executarCriarTicket(args.motivo ?? '', usuarioId, args.pedidoId);
     default:
