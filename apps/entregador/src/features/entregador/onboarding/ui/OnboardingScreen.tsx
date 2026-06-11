@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Modal,
   FlatList,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -958,6 +959,7 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   const [erros, setErros] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [frenteUri, setFrenteUri] = useState<string | null>(null);
   const [versoUri, setVersoUri] = useState<string | null>(null);
@@ -1370,18 +1372,71 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
       if (field) {
         setErros((prev) => ({ ...prev, [field === 'telefone' ? 'celular' : field]: msg }));
         setStep(0);
+        // Garante que o campo com erro (no step 0) fique visível
+        setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 100);
       } else {
         setSubmitError(msg);
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // Confirma antes de sair se o usuário já começou a preencher (evita perder tudo)
+  const temDadosPreenchidos = useCallback(
+    () =>
+      !!(
+        (data.nome || '').trim() ||
+        (data.cpf || '').trim() ||
+        (data.celular || '').trim() ||
+        (data.email || '').trim() ||
+        data.senha ||
+        data.transporte ||
+        photoUri ||
+        frenteUri ||
+        versoUri
+      ),
+    [data, photoUri, frenteUri, versoUri],
+  );
+
+  const confirmarSaida = useCallback(() => {
+    if (!temDadosPreenchidos()) {
+      onDone('cancel');
+      return;
+    }
+    Alert.alert(
+      'Descartar cadastro?',
+      'Você preencheu alguns dados. Se sair agora, eles serão perdidos.',
+      [
+        { text: 'Continuar cadastro', style: 'cancel' },
+        { text: 'Descartar', style: 'destructive', onPress: () => onDone('cancel') },
+      ],
+    );
+  }, [temDadosPreenchidos, onDone]);
+
   const prev = () => {
-    if (step === 0) onDone('cancel');
+    if (step === 0) confirmarSaida();
     else setStep((s) => s - 1);
   };
+
+  // Botão físico de voltar do Android: usa ref para sempre ver o step/data atuais
+  const backRef = useRef<() => boolean>(() => false);
+  backRef.current = () => {
+    if (step > 0) {
+      setStep((s) => s - 1);
+      return true;
+    }
+    if (temDadosPreenchidos()) {
+      confirmarSaida();
+      return true;
+    }
+    return false;
+  };
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => backRef.current());
+    return () => sub.remove();
+  }, []);
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -1410,6 +1465,7 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 
       {/* Conteúdo */}
       <ScrollView
+        ref={scrollRef}
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}

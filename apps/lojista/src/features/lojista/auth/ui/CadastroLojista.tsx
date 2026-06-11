@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   Platform,
   findNodeHandle,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
 import { colors, AjuLogo } from '../../../../theme';
 import { useAuthLojistaStore } from '../model/store';
@@ -341,11 +343,56 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         scrollToField(field);
       } else {
         setErrors({ geral: enrichRateLimit(msg) });
+        setTimeout(() => scrollToField('geral'), 50);
       }
     } finally {
       setLoading(false);
     }
   }, [form, validate, registrar, onCadastroSuccess, router, scrollToField, pinCoords, endereco]);
+
+  // Confirma antes de sair se já começou a preencher (evita perder tudo por engano)
+  const temDadosPreenchidos = useCallback(
+    () =>
+      !!(
+        form.cnpj.trim() ||
+        form.nomeLoja.trim() ||
+        form.telefone.trim() ||
+        form.email.trim() ||
+        form.senha ||
+        form.confirmarSenha ||
+        endereco.rua.trim() ||
+        endereco.cep.trim()
+      ),
+    [form, endereco.rua, endereco.cep],
+  );
+
+  const confirmarSaida = useCallback(() => {
+    if (!temDadosPreenchidos()) {
+      router.back();
+      return;
+    }
+    Alert.alert(
+      'Descartar cadastro?',
+      'Você preencheu alguns dados. Se sair agora, eles serão perdidos.',
+      [
+        { text: 'Continuar cadastro', style: 'cancel' },
+        { text: 'Descartar', style: 'destructive', onPress: () => router.back() },
+      ],
+    );
+  }, [temDadosPreenchidos, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (temDadosPreenchidos()) {
+          confirmarSaida();
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }, [temDadosPreenchidos, confirmarSaida]),
+  );
 
   return (
     <View style={styles.container}>
@@ -642,7 +689,15 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           </Text>
         ) : null}
 
-        {errors.geral ? <Text style={styles.errorGeral}>{errors.geral}</Text> : null}
+        {errors.geral ? (
+          <View
+            ref={(r) => {
+              fieldRefs.current.geral = r;
+            }}
+          >
+            <Text style={styles.errorGeral}>{errors.geral}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.submitBtn, loading && { opacity: 0.7 }]}
@@ -659,7 +714,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
         <View style={styles.loginRow}>
           <Text style={styles.loginText}>Já tem conta? </Text>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity onPress={confirmarSaida} activeOpacity={0.8}>
             <Text style={styles.loginLink}>Entrar no painel</Text>
           </TouchableOpacity>
         </View>
