@@ -17,7 +17,22 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
           lojaId: {
             type: 'string',
             description:
-              'UUID da loja específica para filtrar produtos. Use quando o usuário pedir produtos de uma loja específica.',
+              'UUID da loja específica para filtrar produtos. Use quando o usuário pedir produtos de uma loja específica e você tiver o UUID.',
+          },
+          lojaNome: {
+            type: 'string',
+            description:
+              'Nome da loja mencionada pelo usuário. Use quando o usuário citar o nome da loja mas você não tiver o UUID (ex: "produtos da Loja X", "o que tem na Sapataria Y").',
+          },
+          precoMax: {
+            type: 'number',
+            description:
+              'Preço máximo em reais. Preencha quando o usuário citar um orçamento ou limite (ex: "até R$200", "no máximo 150 reais", "algo barato até 50").',
+          },
+          precoMin: {
+            type: 'number',
+            description:
+              'Preço mínimo em reais. Preencha quando o usuário citar um piso de preço (ex: "acima de R$100", "a partir de 200").',
           },
         },
         required: ['query'],
@@ -32,7 +47,13 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
         'Lista os pedidos recentes do usuário com status atual. Use quando o usuário perguntar sobre seus pedidos, entrega, rastreamento ou status de compra.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          lojaNome: {
+            type: 'string',
+            description:
+              'Filtra pedidos de uma loja específica pelo nome, quando o usuário mencionar uma loja (ex: "meus pedidos da Loja X").',
+          },
+        },
         required: [],
       },
     },
@@ -46,6 +67,28 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
       parameters: {
         type: 'object',
         properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'buscar_info_loja',
+      description:
+        'Retorna informações de uma loja: horários de funcionamento, endereço, telefone, WhatsApp, taxa de entrega e tempo estimado. Use quando o usuário perguntar sobre horário, endereço, telefone, se a loja está aberta, tempo de entrega ou qualquer dado da loja em si.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lojaId: {
+            type: 'string',
+            description: 'UUID da loja. Use quando disponível na conversa (ex: [lojaId:UUID]).',
+          },
+          lojaNome: {
+            type: 'string',
+            description: 'Nome da loja quando não há UUID disponível.',
+          },
+        },
         required: [],
       },
     },

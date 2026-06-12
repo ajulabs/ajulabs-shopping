@@ -24,6 +24,43 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
   const [modalProduto, setModalProduto] = useState<ProdutoCard | null>(null);
 
   const { isDark, bg, surf } = useTheme();
+
+  const CORES_CHAT = [
+    'preto',
+    'branco',
+    'azul',
+    'vermelho',
+    'verde',
+    'amarelo',
+    'rosa',
+    'cinza',
+    'marrom',
+    'bege',
+    'laranja',
+    'roxo',
+    'vinho',
+    'dourado',
+    'prata',
+    'nude',
+    'off-white',
+    'creme',
+  ];
+
+  function corDoProduto(produto: ProdutoCard): string | null {
+    const variacoes = produto.variacoes ?? [];
+    // 1 variação → mostra o nome dela (ex: "Preto", "Cor: Rosa" → "Rosa")
+    if (variacoes.length === 1) {
+      return variacoes[0].nome.replace(/^(cor|color)[:\s]+/i, '').trim();
+    }
+    // Sem variações → tenta extrair cor do nome do produto (word boundary)
+    if (variacoes.length === 0) {
+      const nome = produto.nome.toLowerCase();
+      const cor = CORES_CHAT.find((c) => new RegExp(`\\b${c}\\b`).test(nome));
+      if (cor) return cor.charAt(0).toUpperCase() + cor.slice(1);
+    }
+    // Múltiplas variações → o botão "Ver opções" já cobre
+    return null;
+  }
   const bubbleAju = surf;
   const textAju = isDark ? colors.n0 : '#1f2937';
   const cardBg = surf;
@@ -79,66 +116,76 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
     cancelado: 'Cancelado',
   };
 
-  const renderPedidoCard = (pedido: PedidoCard, onPress: () => void, destaque?: boolean) => (
-    <TouchableOpacity
-      key={pedido.id}
-      onPress={onPress}
-      activeOpacity={0.75}
-      style={{
-        backgroundColor: destaque ? (isDark ? 'rgba(249,115,22,0.15)' : '#fff7ed') : cardBg,
-        borderRadius: 14,
-        borderWidth: 1.5,
-        borderColor: destaque ? '#f97316' : cardBorder,
-        padding: 14,
-        marginBottom: 10,
-      }}
-    >
-      <View
-        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
+  const renderPedidoCard = (
+    pedido: PedidoCard,
+    onPress: () => void,
+    opts: { destaque?: boolean; cta?: string | null } = {},
+  ) => {
+    const { destaque = false, cta } = opts;
+    const ctaLabel = cta ?? `Este pedido #${pedido.numero}`;
+    return (
+      <TouchableOpacity
+        key={pedido.id}
+        onPress={onPress}
+        activeOpacity={0.75}
+        style={{
+          backgroundColor: destaque ? (isDark ? 'rgba(249,115,22,0.15)' : '#fff7ed') : cardBg,
+          borderRadius: 14,
+          borderWidth: 1.5,
+          borderColor: destaque ? '#f97316' : cardBorder,
+          padding: 14,
+          marginBottom: 10,
+        }}
       >
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={{ fontWeight: '700', fontSize: 14, color: cardText }} numberOfLines={1}>
-            {pedido.loja}
-          </Text>
-          <Text style={{ fontSize: 12, color: cardSub, marginTop: 2 }}>
-            {pedido.data} · {statusLabel[pedido.status] ?? pedido.status}
-          </Text>
-        </View>
-        <Text style={{ fontWeight: '700', fontSize: 14, color: '#f97316' }}>
-          R$ {pedido.total.toFixed(2).replace('.', ',')}
-        </Text>
-      </View>
-
-      <View style={{ marginTop: 8 }}>
-        {pedido.itens.slice(0, 3).map((item, i) => (
-          <Text key={i} style={{ fontSize: 12, color: cardSub, lineHeight: 18 }}>
-            • {item}
-          </Text>
-        ))}
-        {pedido.itens.length > 3 && (
-          <Text style={{ fontSize: 12, color: cardSub }}>
-            +{pedido.itens.length - 3} iten{pedido.itens.length - 3 > 1 ? 's' : ''}
-          </Text>
-        )}
-      </View>
-
-      {!destaque && (
         <View
           style={{
-            marginTop: 10,
-            backgroundColor: '#f97316',
-            borderRadius: 8,
-            paddingVertical: 7,
-            alignItems: 'center',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-            Este pedido #{pedido.numero}
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={{ fontWeight: '700', fontSize: 14, color: cardText }} numberOfLines={1}>
+              {pedido.loja}
+            </Text>
+            <Text style={{ fontSize: 12, color: cardSub, marginTop: 2 }}>
+              {pedido.data} · {statusLabel[pedido.status] ?? pedido.status}
+            </Text>
+          </View>
+          <Text style={{ fontWeight: '700', fontSize: 14, color: '#f97316' }}>
+            R$ {pedido.total.toFixed(2).replace('.', ',')}
           </Text>
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        <View style={{ marginTop: 8 }}>
+          {pedido.itens.slice(0, 3).map((item, i) => (
+            <Text key={i} style={{ fontSize: 12, color: cardSub, lineHeight: 18 }}>
+              • {item}
+            </Text>
+          ))}
+          {pedido.itens.length > 3 && (
+            <Text style={{ fontSize: 12, color: cardSub }}>
+              +{pedido.itens.length - 3} iten{pedido.itens.length - 3 > 1 ? 's' : ''}
+            </Text>
+          )}
+        </View>
+
+        {!destaque && cta !== null && (
+          <View
+            style={{
+              marginTop: 10,
+              backgroundColor: '#f97316',
+              borderRadius: 8,
+              paddingVertical: 7,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{ctaLabel}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderItem = ({ item: msg }: { item: MensagemChat }) => {
     const isAju = msg.remetente === 'aju';
@@ -151,6 +198,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           width:
             tipo === 'selecionarPedido' ||
             tipo === 'confirmarPedido' ||
+            tipo === 'listarPedidos' ||
             msg.resposta?.produtos ||
             msg.resposta?.rastreio
               ? '100%'
@@ -158,6 +206,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           maxWidth:
             tipo === 'selecionarPedido' ||
             tipo === 'confirmarPedido' ||
+            tipo === 'listarPedidos' ||
             msg.resposta?.produtos ||
             msg.resposta?.rastreio
               ? '100%'
@@ -198,10 +247,23 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
           </View>
         )}
 
+        {/* Lista de pedidos (informativa) — toque abre o rastreamento */}
+        {tipo === 'listarPedidos' && msg.resposta?.pedidos && (
+          <View style={{ marginTop: 10, paddingHorizontal: 4 }}>
+            {msg.resposta.pedidos.map((pedido) =>
+              renderPedidoCard(
+                pedido,
+                () => router.push(`/(consumer)/tracking/${pedido.id}` as any),
+                { cta: 'Acompanhar' },
+              ),
+            )}
+          </View>
+        )}
+
         {/* Card de pedido selecionado para confirmação */}
         {tipo === 'confirmarPedido' && msg.resposta?.pedido && (
           <View style={{ marginTop: 10, paddingHorizontal: 4 }}>
-            {renderPedidoCard(msg.resposta.pedido, () => {}, true)}
+            {renderPedidoCard(msg.resposta.pedido, () => {}, { destaque: true })}
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
               <TouchableOpacity
@@ -316,9 +378,18 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                     >
                       {produto.nome}
                     </Text>
-                    <Text style={{ fontSize: 11, color: cardSub, marginTop: 2 }} numberOfLines={1}>
-                      {produto.loja}
-                    </Text>
+                    {(() => {
+                      const cor = corDoProduto(produto);
+                      return (
+                        <Text
+                          style={{ fontSize: 11, color: cardSub, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {produto.loja}
+                          {cor ? ` · ${cor}` : ''}
+                        </Text>
+                      );
+                    })()}
                   </View>
 
                   <View>

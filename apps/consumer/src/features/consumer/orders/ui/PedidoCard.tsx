@@ -79,10 +79,15 @@ export function PedidoCard({ pedido, onPress }: Props) {
       </View>
 
       <View style={styles.itensRow}>
-        <Text style={[styles.itensQtd, { color: textSec as string }]}>
-          {pedido.itens.reduce((a, i) => a + i.quantidade, 0)}{' '}
-          {pedido.itens.length === 1 ? 'item' : 'itens'}
-        </Text>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={[styles.itensNomes, { color: textSec as string }]} numberOfLines={2}>
+            {pedido.itens
+              .map((i) =>
+                i.quantidade > 1 ? `${i.quantidade}× ${i.produto.nome}` : i.produto.nome,
+              )
+              .join(', ')}
+          </Text>
+        </View>
         <Text style={[styles.totalTxt, { color: text }]}>{fmt(pedido.total)}</Text>
       </View>
 
@@ -129,8 +134,13 @@ const styles = StyleSheet.create({
   },
   badgeTxt: { fontSize: 11, fontWeight: '600' },
 
-  itensRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  itensQtd: { fontSize: 13 },
+  itensRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 10,
+  },
+  itensNomes: { fontSize: 12.5, lineHeight: 17 },
   totalTxt: { fontSize: 14, fontWeight: '700' },
 
   etaRow: {

@@ -44,12 +44,16 @@ export const AGENT_SPEC_CONTEXT = `
 - POST /v1/enderecos [usuario] — apelido(min 1 caractere), rua(min 1 caractere), numero(min 1 caractere), bairro(min 1 caractere), cep(exatamente 8 dígitos numéricos), cidade(min 1 caractere), complemento?, lat?, lng?, geoSource?
 
 ### avaliacoes
-- POST /v1/avaliacoes [usuario] — pedidoId(uuid), nota(int), comentario?
+- POST /v1/avaliacoes [usuario] — pedidoId(uuid), notaLoja(int), notaEntregador(int), avaliacoesProdutos(min 1 item), comentarioLoja?, tagsLoja?, comentarioEntregador?, tagsEntregador?
 
 ### entregador
 - POST /v1/entregador/corridas/:pedidoId/aceitar [entregador] — —
 - POST /v1/entregador/corridas/:pedidoId/confirmar-entrega [entregador] — codigo(min 1 caractere)
 - POST /v1/entregador/heartbeat [entregador] — lat(float), lng(float)
+
+### chat
+- GET /v1/chat/historico [usuario] — —
+- DELETE /v1/chat/historico [usuario] — —
 
 ### Validações importantes
 - CPF: 11 dígitos com validação de dígitos verificadores
