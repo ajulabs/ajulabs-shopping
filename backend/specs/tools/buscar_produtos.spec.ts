@@ -19,6 +19,30 @@ export const buscarProdutosSpec = {
       constraints: ['min 1 caractere', 'termos de busca refinados baseados na intenção real do usuário'],
       description: 'Ex: "camiseta azul masculina", "tênis corrida", "bolo de chocolate Aracaju"',
     },
+    lojaId: {
+      type: 'string',
+      required: false,
+      constraints: ['uuid', 'filtro de loja quando UUID disponível na conversa'],
+      description: 'Filtrar produtos de uma loja específica quando o UUID já é conhecido',
+    },
+    lojaNome: {
+      type: 'string',
+      required: false,
+      constraints: ['min 1 caractere', 'nome parcial ou completo da loja'],
+      description: 'Nome da loja quando UUID não está disponível — resolvido via busca parcial case-insensitive',
+    },
+    precoMax: {
+      type: 'number',
+      required: false,
+      constraints: ['> 0', 'valor em reais'],
+      description: 'Orçamento máximo do usuário. Ex: "até R$200" → precoMax: 200',
+    },
+    precoMin: {
+      type: 'number',
+      required: false,
+      constraints: ['> 0', 'valor em reais'],
+      description: 'Piso de preço. Ex: "acima de R$100" → precoMin: 100',
+    },
   },
 
   output: {
@@ -30,18 +54,28 @@ export const buscarProdutosSpec = {
     dados: {
       type: 'ProdutoRAG[]',
       required: true,
-      description: 'Lista de produtos relevantes com score de similaridade',
+      description: 'Lista de produtos relevantes (máx 8 do RAG, 3 exibidos ao usuário)',
       items: {
         id: 'uuid',
         nome: 'string',
         preco: 'number (R$)',
         imagemUrl: 'string (URL)',
         lojaId: 'uuid',
-        lojaNome: 'string',
-        descricao: 'string',
-        disponivel: 'boolean',
-        score: 'number (0-1, similaridade semântica)',
+        loja: 'string — nome + categoria da loja',
+        tempoEntrega: 'string — ex: "20-30 min"',
+        tags: 'string[]',
+        variacoes: '{ id, nome, preco }[]',
       },
+    },
+    aproximado: {
+      type: 'boolean',
+      required: false,
+      description: 'true quando o filtro de preço foi relaxado por falta de resultados dentro do orçamento',
+    },
+    foraContextoLoja: {
+      type: 'boolean',
+      required: false,
+      description: 'true quando o produto não foi encontrado na loja do contexto e a busca caiu em outras lojas',
     },
   },
 
