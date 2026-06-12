@@ -2,10 +2,11 @@
   "name": "@ajulabs/types",
   "version": "0.0.1",
   "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "src"
+    "src",
+    "dist"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json"
