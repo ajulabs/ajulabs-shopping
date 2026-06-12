@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Image,
@@ -65,6 +66,7 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
     return true;
   });
   const [catSelecionada, setCatSelecionada] = useState('Todos');
+  const [busca, setBusca] = useState('');
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,8 +204,17 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
   );
 
   const cats = ['Todos', ...Array.from(new Set(produtos.map((p) => p.categoria)))];
-  const produtosFiltrados =
-    catSelecionada === 'Todos' ? produtos : produtos.filter((p) => p.categoria === catSelecionada);
+  const buscaLower = busca.trim().toLowerCase();
+  const produtosFiltrados = produtos.filter((p) => {
+    const catOk = catSelecionada === 'Todos' || p.categoria === catSelecionada;
+    const buscaOk =
+      buscaLower === '' ||
+      p.nome.toLowerCase().includes(buscaLower) ||
+      p.categoria.toLowerCase().includes(buscaLower) ||
+      (p.descricao?.toLowerCase().includes(buscaLower) ?? false) ||
+      (p.tags?.some((t) => t.toLowerCase().includes(buscaLower)) ?? false);
+    return catOk && buscaOk;
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
@@ -407,6 +418,23 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
           );
         })()}
 
+        <View style={[styles.buscaWrapper, { backgroundColor: surface, borderColor: border }]}>
+          <Ionicons name="search-outline" size={16} color={subColor as string} />
+          <TextInput
+            style={[styles.buscaInput, { color: textColor }]}
+            placeholder="Buscar nesta loja…"
+            placeholderTextColor={subColor as string}
+            value={busca}
+            onChangeText={setBusca}
+            returnKeyType="search"
+          />
+          {busca.length > 0 && (
+            <TouchableOpacity onPress={() => setBusca('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color={subColor as string} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -445,7 +473,9 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
             </View>
           ))}
           {produtosFiltrados.length === 0 && (
-            <Text style={[styles.vazio, { color: subColor }]}>Nenhum produto nessa categoria.</Text>
+            <Text style={[styles.vazio, { color: subColor }]}>
+              {buscaLower ? 'Nenhum produto encontrado.' : 'Nenhum produto nessa categoria.'}
+            </Text>
           )}
         </View>
 
@@ -582,7 +612,19 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnAjuText: { color: colors.n0, fontSize: 13.5, fontWeight: '600' },
-  chips: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, gap: 8 },
+  buscaWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  buscaInput: { flex: 1, fontSize: 14, padding: 0 },
+  chips: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 99, borderWidth: 1 },
   chipText: { fontSize: 13, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12 },

@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -29,6 +29,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm --filter @ajulabs/backend run prisma:generate
+
+      - name: Build shared types
+        run: pnpm --filter @ajulabs/types run build
 
       - name: Lint
         run: pnpm --filter @ajulabs/backend run lint

@@ -1,6 +1,15 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, StatusPedido } from '@prisma/client';
 import { prisma } from './prisma';
 import { ProdutoRAG } from './ragSearch';
+
+// ─── Regras de negócio ────────────────────────────────────────────────────────
+
+/**
+ * Status em que um pedido pode receber reclamação: só faz sentido reclamar de algo
+ * que já saiu para entrega ou foi entregue (atraso, não chegou, veio errado/quebrado).
+ * Pedidos ainda em preparo (aguardando/confirmado/preparando/pronto) não são reclamáveis.
+ */
+export const STATUS_RECLAMAVEL: StatusPedido[] = ['saiu_entrega', 'entregue'];
 
 // ─── Estado da conversa (queixa flow) ────────────────────────────────────────
 
@@ -57,6 +66,61 @@ export async function obterOuCriarConversa(usuarioId: string, conversaId?: strin
   return prisma.conversaChat.create({ data: { usuarioId } });
 }
 
+/**
+ * Retorna a conversa mais recente do usuário com até 50 mensagens (ordem cronológica),
+ * para reidratar o chat em um novo aparelho / web / após limpeza de dados.
+ */
+export async function obterHistorico(usuarioId: string): Promise<{
+  conversaId?: string;
+  mensagens: { id: string; remetente: string; conteudo: string; criadaEm: string }[];
+}> {
+  const conversa = await prisma.conversaChat.findFirst({
+    where: { usuarioId },
+    orderBy: { atualizadoEm: 'desc' },
+    include: {
+      mensagens: { orderBy: { criadaEm: 'desc' }, take: 50 },
+    },
+  });
+
+  if (!conversa) return { mensagens: [] };
+
+  const mensagens = conversa.mensagens
+    .slice()
+    .reverse()
+    .map((m) => ({
+      id: m.id,
+      remetente: m.remetente,
+      conteudo: m.conteudo,
+      criadaEm: m.criadaEm.toISOString(),
+    }));
+
+  return { conversaId: conversa.id, mensagens };
+}
+
+/**
+ * Retorna o lojaId mais recente encontrado nas mensagens do usuário nesta conversa.
+ * O [lojaId:UUID] é embutido pelo app quando o usuário clica em "Conversar com a Aju
+ * sobre essa loja" e fica salvo no conteúdo raw da mensagem no banco.
+ */
+export async function obterLojaContexto(conversaId: string): Promise<string | null> {
+  const mensagens = await prisma.mensagemChat.findMany({
+    where: { conversaId, remetente: 'usuario' },
+    orderBy: { criadaEm: 'desc' },
+    take: 30,
+    select: { conteudo: true },
+  });
+  for (const m of mensagens) {
+    const match = m.conteudo.match(/\[lojaId:([0-9a-f-]{36})\]/i);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+/** Apaga todas as conversas do usuário (mensagens e estado caem em cascata). */
+export async function limparHistorico(usuarioId: string): Promise<void> {
+  await prisma.conversaChat.deleteMany({ where: { usuarioId } });
+}
+
 // ─── Mensagens ────────────────────────────────────────────────────────────────
 
 export async function salvarMensagens(
@@ -95,11 +159,30 @@ export async function registrarClique(sugestaoId: string) {
 // ─── Estado do queixa flow ────────────────────────────────────────────────────
 
 export async function atualizarEstado(conversaId: string, novoEstado: EstadoConversa) {
+  // Preserva o lojaContexto que pode estar no estado atual — ele é armazenado junto
+  // ao estado do fluxo e não deve ser apagado quando o passo muda ou é zerado.
+  const atual = await prisma.conversaChat.findUnique({
+    where: { id: conversaId },
+    select: { estado: true },
+  });
+  const lojaContexto =
+    typeof (atual?.estado as Record<string, unknown> | null)?.lojaContexto === 'string'
+      ? (atual!.estado as Record<string, unknown>).lojaContexto
+      : undefined;
+
+  const estadoFinal =
+    novoEstado === null
+      ? lojaContexto
+        ? ({ lojaContexto } as Prisma.JsonObject)
+        : Prisma.DbNull
+      : ({
+          ...(novoEstado as Prisma.JsonObject),
+          ...(lojaContexto ? { lojaContexto } : {}),
+        } as Prisma.JsonObject);
+
   await prisma.conversaChat.update({
     where: { id: conversaId },
-    data: {
-      estado: novoEstado === null ? Prisma.DbNull : (novoEstado as Prisma.JsonObject),
-    },
+    data: { estado: estadoFinal },
   });
 }
 

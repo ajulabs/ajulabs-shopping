@@ -13,6 +13,7 @@ vi.mock('../utils/prisma', () => ({
       findUnique: vi.fn(),
       count: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     entregador: { findUnique: vi.fn(), update: vi.fn() },
     historicoStatusPedido: { create: vi.fn() },
@@ -113,7 +114,8 @@ describe('POST /v1/entregador/corridas/:id/aceitar', () => {
 
   it('retorna 409 quando corrida não está mais disponível', async () => {
     (prisma.pedido.count as any).mockResolvedValue(0);
-    (prisma.pedido.findFirst as any).mockResolvedValue(null);
+    // Claim atômico falha (outro entregador já pegou): updateMany afeta 0 linhas
+    (prisma.pedido.updateMany as any).mockResolvedValue({ count: 0 });
 
     const res = await request(app).post(`/v1/entregador/corridas/${PEDIDO_ID}/aceitar`).set(AUTH);
 
@@ -122,12 +124,9 @@ describe('POST /v1/entregador/corridas/:id/aceitar', () => {
 
   it('aceita corrida com sucesso', async () => {
     (prisma.pedido.count as any).mockResolvedValue(0);
-    (prisma.pedido.findFirst as any).mockResolvedValue({
-      id: PEDIDO_ID,
-      status: 'pronto',
-      entregadorId: null,
-    });
-    (prisma.pedido.update as any).mockResolvedValue({
+    // Claim atômico sucede: updateMany afeta 1 linha
+    (prisma.pedido.updateMany as any).mockResolvedValue({ count: 1 });
+    (prisma.pedido.findUnique as any).mockResolvedValue({
       id: PEDIDO_ID,
       loja: { id: 'loja-id', nome: 'Loja', telefone: '' },
       enderecoEntrega: {},

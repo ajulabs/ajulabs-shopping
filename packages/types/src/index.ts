@@ -236,7 +236,13 @@ export interface RastreioChat {
 }
 
 export interface RespostaAju {
-  tipo?: 'resposta' | 'selecionarPedido' | 'confirmarPedido' | 'ticketCriado' | 'ticketDuplicado';
+  tipo?:
+    | 'resposta'
+    | 'selecionarPedido'
+    | 'confirmarPedido'
+    | 'ticketCriado'
+    | 'ticketDuplicado'
+    | 'listarPedidos';
   texto: string;
   produtos?: ProdutoCard[];
   sugestoes?: string[];

@@ -10,7 +10,14 @@ export const listarPedidosSpec = {
     'Usuário autenticado (consumidorId disponível no contexto do chat)',
   ],
 
-  input: {},
+  input: {
+    lojaNome: {
+      type: 'string',
+      required: false,
+      constraints: ['min 1 caractere', 'nome parcial ou completo da loja'],
+      description: 'Filtra pedidos de uma loja específica. Ex: "meus pedidos da Centauro" → lojaNome: "Centauro"',
+    },
+  },
 
   output: {
     tipo: {

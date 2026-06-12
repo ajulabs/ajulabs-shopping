@@ -42,6 +42,10 @@ export { postEntregadorCorridaAceitarSpec } from './POST_entregador_corridas_ace
 export { postEntregadorConfirmarEntregaSpec } from './POST_entregador_corridas_confirmar_entrega.spec';
 export { postEntregadorHeartbeatSpec } from './POST_entregador_heartbeat.spec';
 
+// Chat Aju
+export { getChatHistoricoSpec } from './GET_chat_historico.spec';
+export { deleteChatHistoricoSpec } from './DELETE_chat_historico.spec';
+
 // ── Coleção centralizada ──────────────────────────────────────────────────────
 
 import { postAuthUsuarioRegistrarSpec } from './POST_auth_usuario_registrar.spec';
@@ -70,6 +74,8 @@ import { postAvaliacoesSpec } from './POST_avaliacoes.spec';
 import { postEntregadorCorridaAceitarSpec } from './POST_entregador_corridas_aceitar.spec';
 import { postEntregadorConfirmarEntregaSpec } from './POST_entregador_corridas_confirmar_entrega.spec';
 import { postEntregadorHeartbeatSpec } from './POST_entregador_heartbeat.spec';
+import { getChatHistoricoSpec } from './GET_chat_historico.spec';
+import { deleteChatHistoricoSpec } from './DELETE_chat_historico.spec';
 
 export const ENDPOINT_SPECS = [
   postAuthUsuarioRegistrarSpec,
@@ -98,4 +104,6 @@ export const ENDPOINT_SPECS = [
   postEntregadorCorridaAceitarSpec,
   postEntregadorConfirmarEntregaSpec,
   postEntregadorHeartbeatSpec,
+  getChatHistoricoSpec,
+  deleteChatHistoricoSpec,
 ] as const;

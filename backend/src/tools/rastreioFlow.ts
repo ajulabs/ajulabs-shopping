@@ -5,6 +5,7 @@ import {
   PedidoCardData,
   EstadoSelecionandoPedidoRastreio,
   EstadoRastreioConcluido,
+  STATUS_RECLAMAVEL,
 } from '../utils/conversa';
 
 export type RespostaSelecionarPedidoRastreio = {
@@ -138,11 +139,10 @@ export async function processarSelecaoRastreio(
     return { tipo: 'resposta', texto: 'Não encontrei informações desse pedido.', sugestoes: [] };
   }
 
-  // Salva contexto do pedido rastreado para que "Tive um problema" pule a seleção
-  const podeReclamar = ['saiu_entrega', 'entregue', 'pronto', 'preparando', 'confirmado'].includes(
-    pedidoCompleto.status,
-  );
-  if (podeReclamar) {
+  // Só salva o contexto p/ "Tive um problema" pular a seleção se o pedido for reclamável
+  // (já saiu para entrega ou foi entregue). Em preparo, não há o que reclamar ainda.
+  const reclamavel = STATUS_RECLAMAVEL.includes(pedidoCompleto.status);
+  if (reclamavel) {
     await atualizarEstado(conversaId, {
       passo: 'rastreio_concluido',
       pedidoId: pedidoCompleto.id,
@@ -156,12 +156,12 @@ export async function processarSelecaoRastreio(
 
   const texto = `Seu pedido da ${pedidoCompleto.loja.nome} está *${statusTexto}*${entregadorInfo}! 🚀`;
 
-  const sugestoes =
-    pedidoCompleto.status === 'cancelado'
+  // "Tive um problema" só é oferecido quando o pedido é reclamável.
+  const sugestoes = reclamavel
+    ? ['Tive um problema com esse pedido', 'Rastrear outro pedido']
+    : pedidoCompleto.status === 'cancelado'
       ? ['Buscar produtos']
-      : pedidoCompleto.status === 'entregue'
-        ? ['Tive um problema com esse pedido', 'Rastrear outro pedido']
-        : ['Tive um problema com esse pedido', 'Rastrear outro pedido'];
+      : ['Rastrear outro pedido'];
 
   const rastreio =
     pedidoCompleto.status === 'saiu_entrega'

@@ -18,6 +18,24 @@ const criarProdutoSchema = z.object({
   destaque: z.boolean().default(false),
 });
 
+// Campos editáveis de um produto. Exclui de propósito lojaId (não troca de loja),
+// avaliacao/totalAvaliacoes/embedding (controlados pelo servidor) — evita mass assignment.
+const atualizarProdutoSchema = z
+  .object({
+    nome: z.string().min(2),
+    descricao: z.string(),
+    preco: z.number().positive(),
+    estoque: z.number().int().nonnegative(),
+    estoqueMinimo: z.number().int().nonnegative(),
+    imagemUrl: z.string().url(),
+    imagens: z.array(z.string().url()),
+    categoria: z.string(),
+    tags: z.array(z.string()),
+    disponivel: z.boolean(),
+    destaque: z.boolean(),
+  })
+  .partial();
+
 const criarProdutoSpec = {
   name: 'POST_produtos',
   input: {
@@ -87,9 +105,10 @@ router.put('/:id', authMiddleware, authLojista, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
+    const dados = atualizarProdutoSchema.parse(req.body);
     const atualizado = await prisma.produto.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: dados,
     });
 
     res.json({ produto: atualizado });
