@@ -28,7 +28,9 @@ export type RespostaConfirmarPedido = {
 export type RespostaFluxo =
   | RespostaSelecionarPedido
   | RespostaConfirmarPedido
-  | { tipo: 'resposta'; texto: string; sugestoes: string[] };
+  | { tipo: 'resposta'; texto: string; sugestoes: string[] }
+  | { tipo: 'ticketCriado'; texto: string; sugestoes: string[] }
+  | { tipo: 'ticketDuplicado'; texto: string; sugestoes: string[] };
 
 // ─── Passo 1: inicia o fluxo de queixa ───────────────────────────────────────
 
@@ -103,7 +105,7 @@ export async function iniciarFluxoQueixaComPedido(
 
   if (ticketExistente) {
     return {
-      tipo: 'resposta',
+      tipo: 'ticketDuplicado',
       texto: `Você já tem uma reclamação aberta para este pedido com o protocolo *${ticketExistente.protocolo}*. Acompanhe o andamento na tela de tickets — a loja já está ciente do problema.`,
       sugestoes: ['Ver meus tickets', 'Buscar produtos'],
     };
@@ -261,7 +263,7 @@ export async function processarConfirmacao(
     if (ticketExistente) {
       await atualizarEstado(conversaId, null);
       return {
-        tipo: 'resposta',
+        tipo: 'ticketDuplicado',
         texto: `Você já tem uma reclamação aberta para este pedido com o protocolo *${ticketExistente.protocolo}*. Acompanhe o andamento na tela de tickets — a loja já está ciente do problema.`,
         sugestoes: ['Ver meus tickets', 'Buscar produtos'],
       };
@@ -299,7 +301,7 @@ export async function processarConfirmacao(
   await atualizarEstado(conversaId, null);
 
   return {
-    tipo: 'resposta',
+    tipo: 'ticketCriado',
     texto: `Pronto! Ticket registrado com o protocolo *${protocolo}*. Nossa equipe vai entrar em contato em breve. 🙏`,
     sugestoes: ['Ver meus pedidos', 'Buscar produtos'],
   };

@@ -24,6 +24,43 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
   const [modalProduto, setModalProduto] = useState<ProdutoCard | null>(null);
 
   const { isDark, bg, surf } = useTheme();
+
+  const CORES_CHAT = [
+    'preto',
+    'branco',
+    'azul',
+    'vermelho',
+    'verde',
+    'amarelo',
+    'rosa',
+    'cinza',
+    'marrom',
+    'bege',
+    'laranja',
+    'roxo',
+    'vinho',
+    'dourado',
+    'prata',
+    'nude',
+    'off-white',
+    'creme',
+  ];
+
+  function corDoProduto(produto: ProdutoCard): string | null {
+    const variacoes = produto.variacoes ?? [];
+    // 1 variação → mostra o nome dela (ex: "Preto", "Cor: Rosa" → "Rosa")
+    if (variacoes.length === 1) {
+      return variacoes[0].nome.replace(/^(cor|color)[:\s]+/i, '').trim();
+    }
+    // Sem variações → tenta extrair cor do nome do produto (word boundary)
+    if (variacoes.length === 0) {
+      const nome = produto.nome.toLowerCase();
+      const cor = CORES_CHAT.find((c) => new RegExp(`\\b${c}\\b`).test(nome));
+      if (cor) return cor.charAt(0).toUpperCase() + cor.slice(1);
+    }
+    // Múltiplas variações → o botão "Ver opções" já cobre
+    return null;
+  }
   const bubbleAju = surf;
   const textAju = isDark ? colors.n0 : '#1f2937';
   const cardBg = surf;
@@ -341,9 +378,18 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                     >
                       {produto.nome}
                     </Text>
-                    <Text style={{ fontSize: 11, color: cardSub, marginTop: 2 }} numberOfLines={1}>
-                      {produto.loja}
-                    </Text>
+                    {(() => {
+                      const cor = corDoProduto(produto);
+                      return (
+                        <Text
+                          style={{ fontSize: 11, color: cardSub, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {produto.loja}
+                          {cor ? ` · ${cor}` : ''}
+                        </Text>
+                      );
+                    })()}
                   </View>
 
                   <View>

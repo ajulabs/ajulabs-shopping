@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Animated,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import { Mic, MicOff, Send } from 'lucide-react-native';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../hooks';
@@ -114,8 +122,8 @@ export function ChatInput({
       />
 
       <TouchableOpacity
-        onPress={canSend ? onSend : onMicPress}
-        disabled={disabled || transcrevendo}
+        onPress={canSend || Platform.OS === 'web' ? onSend : onMicPress}
+        disabled={disabled || transcrevendo || (!canSend && Platform.OS === 'web')}
         style={{
           marginLeft: 8,
           backgroundColor: canSend
@@ -137,11 +145,11 @@ export function ChatInput({
           <ActivityIndicator size="small" color="#f97316" />
         ) : canSend ? (
           <Send size={20} color="#fff" />
-        ) : gravando ? (
+        ) : Platform.OS !== 'web' && gravando ? (
           <MicOff size={22} color="#f97316" />
-        ) : (
+        ) : Platform.OS !== 'web' ? (
           <Mic size={22} color="#f97316" />
-        )}
+        ) : null}
       </TouchableOpacity>
     </View>
   );

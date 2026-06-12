@@ -1,2 +1,2 @@
 export { TOOL_DEFINITIONS } from './definitions';
-export { executarTool, type ToolResult, type PedidoResumo } from './executors';
+export { executarTool, type ToolResult, type PedidoResumo, type InfoLoja } from './executors';

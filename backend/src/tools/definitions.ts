@@ -24,6 +24,16 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
             description:
               'Nome da loja mencionada pelo usuário. Use quando o usuário citar o nome da loja mas você não tiver o UUID (ex: "produtos da Loja X", "o que tem na Sapataria Y").',
           },
+          precoMax: {
+            type: 'number',
+            description:
+              'Preço máximo em reais. Preencha quando o usuário citar um orçamento ou limite (ex: "até R$200", "no máximo 150 reais", "algo barato até 50").',
+          },
+          precoMin: {
+            type: 'number',
+            description:
+              'Preço mínimo em reais. Preencha quando o usuário citar um piso de preço (ex: "acima de R$100", "a partir de 200").',
+          },
         },
         required: ['query'],
       },
@@ -57,6 +67,28 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
       parameters: {
         type: 'object',
         properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'buscar_info_loja',
+      description:
+        'Retorna informações de uma loja: horários de funcionamento, endereço, telefone, WhatsApp, taxa de entrega e tempo estimado. Use quando o usuário perguntar sobre horário, endereço, telefone, se a loja está aberta, tempo de entrega ou qualquer dado da loja em si.',
+      parameters: {
+        type: 'object',
+        properties: {
+          lojaId: {
+            type: 'string',
+            description: 'UUID da loja. Use quando disponível na conversa (ex: [lojaId:UUID]).',
+          },
+          lojaNome: {
+            type: 'string',
+            description: 'Nome da loja quando não há UUID disponível.',
+          },
+        },
         required: [],
       },
     },

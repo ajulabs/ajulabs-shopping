@@ -129,6 +129,10 @@ export function ChatIA() {
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
+  // Preserva o lojaId da conversa atual para que follow-ups funcionem mesmo após
+  // limpar a conversa (o histórico do banco é apagado mas o contexto em memória fica).
+  const lojaContextoRef = useRef<string | null>(null);
+
   // Carrega histórico ao montar: primeiro o local (rico, com cards); se não houver,
   // reidrata do servidor (ex: outro aparelho, web, dados do app limpos).
   useEffect(() => {
@@ -207,6 +211,7 @@ export function ChatIA() {
       if (userId) storage.removeItem(chatKey(userId)).catch(() => {});
       // Apaga também no servidor — senão o F5/outro aparelho reidrata a conversa de volta.
       if (token) limparHistoricoAju(token).catch(() => {});
+      lojaContextoRef.current = null;
       setMensagens([MENSAGEM_INICIAL]);
       setConversaId(undefined);
       setSugestoes(SUGESTOES_INICIAIS);
@@ -239,7 +244,18 @@ export function ChatIA() {
   async function enviarMensagem(texto: string, pedidoSelecionadoId?: string) {
     if (!texto.trim() || carregando) return;
 
-    const textoExibido = texto.replace(/\s*\[lojaId:[^\]]+\]/g, '');
+    // Captura o lojaId quando presente na mensagem (ex: vindo do botão "Conversar com Aju")
+    const lojaMatch = texto.match(/\[lojaId:([0-9a-f-]{36})\]/i);
+    if (lojaMatch) lojaContextoRef.current = lojaMatch[1];
+
+    // Se há contexto de loja em memória mas a mensagem não inclui o lojaId (follow-up
+    // após limpar conversa), injeta no texto enviado ao backend para o contexto persistir.
+    const textoBackend =
+      lojaContextoRef.current && !texto.includes('[lojaId:')
+        ? `${texto} [lojaId:${lojaContextoRef.current}]`
+        : texto;
+
+    const textoExibido = textoBackend.replace(/\s*\[lojaId:[^\]]+\]/g, '');
     const msgUsuario: MensagemChat = {
       id: Date.now().toString(),
       remetente: 'usuario',
@@ -252,28 +268,23 @@ export function ChatIA() {
     setCarregando(true);
 
     try {
-      const resposta = await matchAju(mensagens, texto, token, conversaId, pedidoSelecionadoId);
+      const resposta = await matchAju(
+        mensagens,
+        textoBackend,
+        token,
+        conversaId,
+        pedidoSelecionadoId,
+      );
 
       if (resposta.conversaId && !conversaId) {
         setConversaId(resposta.conversaId);
       }
 
-      const isTicketDuplicado = resposta.texto.toLowerCase().includes('já tem uma reclamação');
-      const isTicketCriado =
-        !isTicketDuplicado &&
-        (/TKT-\d+/i.test(resposta.texto) ||
-          resposta.texto.toLowerCase().includes('ticket registrado') ||
-          resposta.texto.toLowerCase().includes('ticket aberto'));
-
       const msgAju: MensagemChat = {
         id: (Date.now() + 1).toString(),
         remetente: 'aju',
         conteudo: resposta.texto,
-        resposta: isTicketCriado
-          ? { ...resposta, tipo: 'ticketCriado' }
-          : isTicketDuplicado
-            ? { ...resposta, tipo: 'ticketDuplicado' }
-            : resposta,
+        resposta,
         criadaEm: new Date().toISOString(),
       };
 
