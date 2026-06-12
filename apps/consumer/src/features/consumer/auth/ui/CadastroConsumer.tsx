@@ -9,11 +9,9 @@ import {
   ScrollView,
   Platform,
   findNodeHandle,
-  Alert,
-  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
@@ -247,15 +245,24 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
     if (!ref) return;
     if (Platform.OS === 'web') {
       (ref as any).scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-    } else {
+      return;
+    }
+    // RN: measureLayout pode falhar se o nó ainda não está pronto (Fabric).
+    // Protege com try/catch e callback de erro silencioso.
+    try {
       const node = findNodeHandle(scrollRef.current);
-      if (node) {
+      if (node && typeof ref.measureLayout === 'function') {
         ref.measureLayout(
           node,
-          (_, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true }),
-          () => {},
+          (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true }),
+          () => {
+            // Falha ao medir (nó não pronto): rola pro topo como fallback seguro
+            scrollRef.current?.scrollTo({ y: 0, animated: true });
+          },
         );
       }
+    } catch {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   }, []);
 
@@ -321,63 +328,16 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         scrollToField(field);
       } else {
         setErrors({ geral: enrichRateLimit(msg) });
-        // Espera o banner renderizar antes de rolar até ele
-        setTimeout(() => scrollToField('geral'), 50);
       }
     } finally {
       setLoading(false);
     }
   }, [validate, registrar, nome, cpf, telefoneCompleto, email, senha, onCadastroSuccess, router]);
 
-  // Confirma antes de sair se o usuário já começou a preencher (evita perder tudo por engano)
-  const temDadosPreenchidos = useCallback(
-    () =>
-      !!(
-        nome.trim() ||
-        cpf.trim() ||
-        telefone.trim() ||
-        email.trim() ||
-        senha ||
-        confirmar ||
-        endereco.rua.trim() ||
-        endereco.cep.trim()
-      ),
-    [nome, cpf, telefone, email, senha, confirmar, endereco.rua, endereco.cep],
-  );
-
-  const confirmarSaida = useCallback(() => {
-    if (!temDadosPreenchidos()) {
-      router.back();
-      return;
-    }
-    Alert.alert(
-      'Descartar cadastro?',
-      'Você preencheu alguns dados. Se sair agora, eles serão perdidos.',
-      [
-        { text: 'Continuar cadastro', style: 'cancel' },
-        { text: 'Descartar', style: 'destructive', onPress: () => router.back() },
-      ],
-    );
-  }, [temDadosPreenchidos, router]);
-
-  // Botão físico de voltar do Android: intercepta para confirmar a saída
-  useFocusEffect(
-    useCallback(() => {
-      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (temDadosPreenchidos()) {
-          confirmarSaida();
-          return true; // tratado — não sai direto
-        }
-        return false; // sem dados → comportamento padrão
-      });
-      return () => sub.remove();
-    }, [temDadosPreenchidos, confirmarSaida]),
-  );
-
   return (
     <View style={styles.container}>
       <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={confirmarSaida} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ marginBottom: 16 }}>
@@ -660,15 +620,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           </View>
         </View>
 
-        {errors.geral ? (
-          <View
-            ref={(r) => {
-              fieldRefs.current.geral = r;
-            }}
-          >
-            <Text style={styles.errorGeral}>{errors.geral}</Text>
-          </View>
-        ) : null}
+        {errors.geral ? <Text style={styles.errorGeral}>{errors.geral}</Text> : null}
 
         <TouchableOpacity
           style={[styles.submitBtn, loading && { opacity: 0.7 }]}
