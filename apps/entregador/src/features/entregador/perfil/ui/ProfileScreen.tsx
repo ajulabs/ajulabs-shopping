@@ -60,7 +60,39 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const handleTrocarFoto = useCallback(async () => {
+  // Envia o uri escolhido (câmera ou galeria). A foto entra em análise (moderação).
+  const enviarFoto = useCallback(
+    async (uri: string) => {
+      if (!token) return;
+      try {
+        await EntregadorService.atualizarFoto(token, uri);
+        Alert.alert(
+          'Foto enviada para análise',
+          'Sua nova foto será revisada pela nossa equipe antes de aparecer no perfil. Enquanto isso, a foto atual continua visível.',
+        );
+      } catch {
+        Alert.alert('Erro', 'Não foi possível enviar a foto. Tente novamente.');
+      }
+    },
+    [token],
+  );
+
+  const tirarFoto = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão necessária', 'Permita o acesso à câmera para tirar a foto.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    await enviarFoto(result.assets[0].uri);
+  }, [enviarFoto]);
+
+  const escolherDaGaleria = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permissão necessária', 'Permita o acesso à galeria para trocar a foto.');
@@ -73,14 +105,16 @@ export function ProfileScreen({ onLogout, onNavigate }: ProfileScreenProps) {
       quality: 0.7,
     });
     if (result.canceled || !result.assets[0]) return;
-    if (!token) return;
-    try {
-      const url = await EntregadorService.atualizarFoto(token, result.assets[0].uri);
-      await setFotoUrl(url);
-    } catch {
-      Alert.alert('Erro', 'Não foi possível atualizar a foto. Tente novamente.');
-    }
-  }, [token, setFotoUrl]);
+    await enviarFoto(result.assets[0].uri);
+  }, [enviarFoto]);
+
+  const handleTrocarFoto = useCallback(() => {
+    Alert.alert('Foto de perfil', 'Como você quer atualizar sua foto?', [
+      { text: 'Tirar foto', onPress: () => void tirarFoto() },
+      { text: 'Escolher da galeria', onPress: () => void escolherDaGaleria() },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, [tirarFoto, escolherDaGaleria]);
 
   const handleMenuPress = useCallback(
     (label: string) => {
