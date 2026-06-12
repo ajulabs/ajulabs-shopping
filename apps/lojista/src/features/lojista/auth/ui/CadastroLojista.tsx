@@ -8,10 +8,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
-  findNodeHandle,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
 import { colors, AjuLogo } from '../../../../theme';
 import { useAuthLojistaStore } from '../model/store';
@@ -80,7 +81,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
-  const fieldRefs = useRef<Record<string, View | null>>({});
+  const fieldPositions = useRef<Record<string, number>>({});
 
   const setEnderecoField = useCallback((key: keyof EnderecoLoja, value: string) => {
     setEndereco((prev) => ({ ...prev, [key]: value }));
@@ -98,26 +99,9 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   );
 
   const scrollToField = useCallback((key: string) => {
-    const ref = fieldRefs.current[key];
-    if (!ref) return;
-    if (Platform.OS === 'web') {
-      (ref as any).scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    try {
-      const node = findNodeHandle(scrollRef.current);
-      if (node && typeof ref.measureLayout === 'function') {
-        ref.measureLayout(
-          node,
-          (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true }),
-          () => {
-            scrollRef.current?.scrollTo({ y: 0, animated: true });
-          },
-        );
-      }
-    } catch {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-    }
+    const y = fieldPositions.current[key];
+    if (typeof y !== 'number') return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
   }, []);
 
   const usarLocalizacao = useCallback(async () => {
@@ -342,7 +326,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           ? e.message
           : 'Erro ao criar conta.';
       const field = (e as any)?.field as string | undefined;
-      if (field && fieldRefs.current[field]) {
+      if (field && fieldPositions.current[field] !== undefined) {
         setErrors({ [field]: enrichRateLimit(msg) });
         scrollToField(field);
       } else {
@@ -352,6 +336,50 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
       setLoading(false);
     }
   }, [form, validate, registrar, onCadastroSuccess, router, scrollToField, pinCoords, endereco]);
+
+  // Confirma antes de sair se já começou a preencher (evita perder tudo por engano)
+  const temDadosPreenchidos = useCallback(
+    () =>
+      !!(
+        form.cnpj.trim() ||
+        form.nomeLoja.trim() ||
+        form.telefone.trim() ||
+        form.email.trim() ||
+        form.senha ||
+        form.confirmarSenha ||
+        endereco.rua.trim() ||
+        endereco.cep.trim()
+      ),
+    [form, endereco.rua, endereco.cep],
+  );
+
+  const confirmarSaida = useCallback(() => {
+    if (!temDadosPreenchidos()) {
+      router.back();
+      return;
+    }
+    Alert.alert(
+      'Descartar cadastro?',
+      'Você preencheu alguns dados. Se sair agora, eles serão perdidos.',
+      [
+        { text: 'Continuar cadastro', style: 'cancel' },
+        { text: 'Descartar', style: 'destructive', onPress: () => router.back() },
+      ],
+    );
+  }, [temDadosPreenchidos, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (temDadosPreenchidos()) {
+          confirmarSaida();
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }, [temDadosPreenchidos, confirmarSaida]),
+  );
 
   return (
     <View style={styles.container}>
@@ -374,8 +402,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         <Text style={styles.cardSub}>Preencha os dados da sua loja para começar</Text>
 
         <View
-          ref={(r) => {
-            fieldRefs.current.cnpj = r;
+          onLayout={(e) => {
+            fieldPositions.current.cnpj = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -392,8 +420,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.nomeLoja = r;
+          onLayout={(e) => {
+            fieldPositions.current.nomeLoja = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -410,8 +438,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         </View>
 
         <View
-          ref={(r) => {
-            fieldRefs.current.telefone = r;
+          onLayout={(e) => {
+            fieldPositions.current.telefone = e.nativeEvent.layout.y;
           }}
         >
           <Text style={styles.fieldLabel}>TELEFONE / WHATSAPP</Text>
@@ -427,8 +455,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         </View>
 
         <View
-          ref={(r) => {
-            fieldRefs.current.email = r;
+          onLayout={(e) => {
+            fieldPositions.current.email = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -446,8 +474,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.senha = r;
+          onLayout={(e) => {
+            fieldPositions.current.senha = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -468,8 +496,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.confirmarSenha = r;
+          onLayout={(e) => {
+            fieldPositions.current.confirmarSenha = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -548,8 +576,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View
-              ref={(r) => {
-                fieldRefs.current.cep = r;
+              onLayout={(e) => {
+                fieldPositions.current.cep = e.nativeEvent.layout.y;
               }}
               style={{ flex: 1 }}
             >
@@ -570,8 +598,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
               />
             </View>
             <View
-              ref={(r) => {
-                fieldRefs.current.bairro = r;
+              onLayout={(e) => {
+                fieldPositions.current.bairro = e.nativeEvent.layout.y;
               }}
               style={{ flex: 2 }}
             >
@@ -591,8 +619,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View
-              ref={(r) => {
-                fieldRefs.current.rua = r;
+              onLayout={(e) => {
+                fieldPositions.current.rua = e.nativeEvent.layout.y;
               }}
               style={{ flex: 1 }}
             >
@@ -622,8 +650,8 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         </View>
 
         <TouchableOpacity
-          ref={(r) => {
-            fieldRefs.current.termos = r as any;
+          onLayout={(e) => {
+            fieldPositions.current.termos = e.nativeEvent.layout.y;
           }}
           style={styles.termosRow}
           onPress={() => {
@@ -665,7 +693,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
         <View style={styles.loginRow}>
           <Text style={styles.loginText}>Já tem conta? </Text>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity onPress={confirmarSaida} activeOpacity={0.8}>
             <Text style={styles.loginLink}>Entrar no painel</Text>
           </TouchableOpacity>
         </View>

@@ -8,10 +8,11 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
-  findNodeHandle,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
@@ -59,7 +60,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
-  const fieldRefs = useRef<Record<string, View | null>>({});
+  const fieldPositions = useRef<Record<string, number>>({});
 
   const setEnderecoField = useCallback((key: keyof EnderecoConsumer, value: string) => {
     setEndereco((prev) => ({ ...prev, [key]: value }));
@@ -241,29 +242,9 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
   ]);
 
   const scrollToField = useCallback((key: string) => {
-    const ref = fieldRefs.current[key];
-    if (!ref) return;
-    if (Platform.OS === 'web') {
-      (ref as any).scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    // RN: measureLayout pode falhar se o nó ainda não está pronto (Fabric).
-    // Protege com try/catch e callback de erro silencioso.
-    try {
-      const node = findNodeHandle(scrollRef.current);
-      if (node && typeof ref.measureLayout === 'function') {
-        ref.measureLayout(
-          node,
-          (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true }),
-          () => {
-            // Falha ao medir (nó não pronto): rola pro topo como fallback seguro
-            scrollRef.current?.scrollTo({ y: 0, animated: true });
-          },
-        );
-      }
-    } catch {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-    }
+    const y = fieldPositions.current[key];
+    if (typeof y !== 'number') return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
   }, []);
 
   const handleCadastro = useCallback(async () => {
@@ -323,7 +304,7 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           ? err.message
           : 'Erro ao criar conta. Tente novamente.';
       const field = (err as any)?.field as string | undefined;
-      if (field && fieldRefs.current[field]) {
+      if (field && fieldPositions.current[field] !== undefined) {
         setErrors({ [field]: enrichRateLimit(msg) });
         scrollToField(field);
       } else {
@@ -334,10 +315,54 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
     }
   }, [validate, registrar, nome, cpf, telefoneCompleto, email, senha, onCadastroSuccess, router]);
 
+  // Confirma antes de sair se o usuário já começou a preencher (evita perder tudo por engano)
+  const temDadosPreenchidos = useCallback(
+    () =>
+      !!(
+        nome.trim() ||
+        cpf.trim() ||
+        telefone.trim() ||
+        email.trim() ||
+        senha ||
+        confirmar ||
+        endereco.rua.trim() ||
+        endereco.cep.trim()
+      ),
+    [nome, cpf, telefone, email, senha, confirmar, endereco.rua, endereco.cep],
+  );
+
+  const confirmarSaida = useCallback(() => {
+    if (!temDadosPreenchidos()) {
+      router.back();
+      return;
+    }
+    Alert.alert(
+      'Descartar cadastro?',
+      'Você preencheu alguns dados. Se sair agora, eles serão perdidos.',
+      [
+        { text: 'Continuar cadastro', style: 'cancel' },
+        { text: 'Descartar', style: 'destructive', onPress: () => router.back() },
+      ],
+    );
+  }, [temDadosPreenchidos, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (temDadosPreenchidos()) {
+          confirmarSaida();
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }, [temDadosPreenchidos, confirmarSaida]),
+  );
+
   return (
     <View style={styles.container}>
       <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.backBtn} onPress={confirmarSaida} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ marginBottom: 16 }}>
@@ -358,8 +383,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         <Text style={styles.cardSub}>Preencha para criar sua conta</Text>
 
         <View
-          ref={(r) => {
-            fieldRefs.current.nome = r;
+          onLayout={(e) => {
+            fieldPositions.current.nome = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -386,8 +411,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.cpf = r;
+          onLayout={(e) => {
+            fieldPositions.current.cpf = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -407,8 +432,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.telefone = r;
+          onLayout={(e) => {
+            fieldPositions.current.telefone = e.nativeEvent.layout.y;
           }}
         >
           <Text style={styles.phoneLabel}>TELEFONE</Text>
@@ -424,8 +449,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.email = r;
+          onLayout={(e) => {
+            fieldPositions.current.email = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -446,8 +471,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.senha = r;
+          onLayout={(e) => {
+            fieldPositions.current.senha = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -468,8 +493,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
           />
         </View>
         <View
-          ref={(r) => {
-            fieldRefs.current.confirmar = r;
+          onLayout={(e) => {
+            fieldPositions.current.confirmar = e.nativeEvent.layout.y;
           }}
         >
           <Field
@@ -547,8 +572,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View
-              ref={(r) => {
-                fieldRefs.current.cep = r;
+              onLayout={(e) => {
+                fieldPositions.current.cep = e.nativeEvent.layout.y;
               }}
               style={{ flex: 1 }}
             >
@@ -569,8 +594,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
               />
             </View>
             <View
-              ref={(r) => {
-                fieldRefs.current.bairro = r;
+              onLayout={(e) => {
+                fieldPositions.current.bairro = e.nativeEvent.layout.y;
               }}
               style={{ flex: 2 }}
             >
@@ -590,8 +615,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View
-              ref={(r) => {
-                fieldRefs.current.rua = r;
+              onLayout={(e) => {
+                fieldPositions.current.rua = e.nativeEvent.layout.y;
               }}
               style={{ flex: 1 }}
             >
@@ -643,8 +668,8 @@ export function CadastroConsumer({ onCadastroSuccess }: CadastroConsumerProps) {
         </View>
 
         <TouchableOpacity
-          ref={(r) => {
-            fieldRefs.current.termos = r as any;
+          onLayout={(e) => {
+            fieldPositions.current.termos = e.nativeEvent.layout.y;
           }}
           style={styles.termosRow}
           onPress={() => {
