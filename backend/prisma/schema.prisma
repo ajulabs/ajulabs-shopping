@@ -93,6 +93,14 @@ model Entregador {
   email          String         @unique
   senhaHash      String         @map("senha_hash")
   fotoUrl        String?        @map("foto_url")
+  /**
+   * Moderação da foto de perfil: a foto enviada fica em fotoPendenteUrl com
+   * status pendente até um admin aprovar (passa para fotoUrl) ou rejeitar
+   * (descartada). Reusa o enum StatusDocumento (pendente/aprovado/rejeitado).
+   */
+  fotoPendenteUrl String?       @map("foto_pendente_url")
+  fotoStatus     StatusDocumento? @map("foto_status")
+  fotoEnviadaEm  DateTime?      @map("foto_enviada_em")
   tipoTransporte TipoTransporte @map("tipo_transporte")
   statusConta    StatusConta    @default(pendente) @map("status_conta")
   online         Boolean        @default(false)
@@ -964,4 +972,28 @@ model AuditLog {
   @@index([lojaId, timestamp(sort: Desc)])
   @@index([actorId])
   @@map("audit_logs")
+}
+
+/**
+ * Administrador da plataforma AjuLabs (equipe interna). Diferente de
+ * Colaborador, que pertence a uma loja — o admin de plataforma é global e
+ * acessa o painel administrativo (moderação de fotos, logs, denúncias, gestão).
+ */
+model AdminPlataforma {
+  id           String          @id @default(uuid())
+  nome         String
+  email        String          @unique
+  senhaHash    String          @map("senha_hash")
+  papel        PapelAdmin      @default(moderador)
+  ativo        Boolean         @default(true)
+  ultimoLogin  DateTime?       @map("ultimo_login")
+  criadoEm     DateTime        @default(now()) @map("criado_em")
+  atualizadoEm DateTime        @updatedAt @map("atualizado_em")
+
+  @@map("admins_plataforma")
+}
+
+enum PapelAdmin {
+  superadmin
+  moderador
 }

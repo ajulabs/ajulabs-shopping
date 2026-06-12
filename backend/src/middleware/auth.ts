@@ -40,6 +40,14 @@ export function authLojista(req: AuthRequest, res: Response, next: NextFunction)
   next();
 }
 
+// Admin de plataforma (equipe interna AjuLabs) — acesso ao painel administrativo.
+export function authAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.user?.tipo !== 'admin') {
+    return res.status(403).json({ error: 'Acesso restrito à administração' });
+  }
+  next();
+}
+
 export function authColaborador(req: AuthRequest, res: Response, next: NextFunction) {
   if (req.user?.tipo !== 'colaborador') {
     return res.status(403).json({ error: 'Acesso negado: apenas colaboradores' });
