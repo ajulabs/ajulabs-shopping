@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
+import { imageFileFilter } from '../utils/fileFilters';
 import {
   authMiddleware,
   authLojista,
@@ -10,7 +11,11 @@ import {
 import * as svc from '../services/lojista.service';
 import { specValidatorMiddleware } from '../lib/spec-validator';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
 
 const router = Router();
 

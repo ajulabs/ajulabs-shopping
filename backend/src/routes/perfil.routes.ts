@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
+import { imageFileFilter } from '../utils/fileFilters';
 import { prisma } from '../utils/prisma';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { uploadImagemConsumidor } from '../utils/supabase';
@@ -10,6 +11,7 @@ const router = Router();
 const uploadImagem = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
 });
 
 const atualizarPerfilSchema = z.object({

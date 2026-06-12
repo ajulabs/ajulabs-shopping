@@ -63,6 +63,12 @@ export interface EstoqueAlertaPayload {
   nivel: 'atencao' | 'critico' | 'zerado';
 }
 
+export interface VitrineAtualizadaPayload {
+  lojaId: string;
+  produtoId?: string;
+  acao?: 'novo' | 'atualizado' | 'removido';
+}
+
 export interface ServerEvents {
   'localizacao:entregador': (payload: LocationPayload) => void;
   'pedido:status': (payload: StatusPayload) => void;
@@ -78,6 +84,7 @@ export interface ServerEvents {
   'produto:variacoes': (payload: ProdutoVariacaoPayload) => void;
   'estoque:atualizado': (payload: EstoqueAtualizadoPayload) => void;
   'estoque:alerta': (payload: EstoqueAlertaPayload) => void;
+  'vitrine:atualizada': (payload: VitrineAtualizadaPayload) => void;
 }
 
 export interface ClientEvents {
@@ -86,5 +93,7 @@ export interface ClientEvents {
   'lojista:join': (lojaId: string) => void;
   'produto:join': (produtoId: string) => void;
   'produto:leave': (produtoId: string) => void;
+  'vitrine:join': (lojaId: string) => void;
+  'vitrine:leave': (lojaId: string) => void;
   'localizacao:update': (payload: Omit<LocationPayload, 'pedidoId'> & { pedidoId: string }) => void;
 }

@@ -22,11 +22,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '../../../../hooks';
 import { LojaService, ProdutoService, FavoritoLojaService } from '@ajulabs/api-client';
+import { useVitrineRealtime } from '@ajulabs/realtime';
 import { setPendingChatContext } from '../../chat/model/pendingChatContext';
 import { Loja, Produto, HorarioFuncionamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
 import { ProdutoCard } from './ProdutoCard';
 import { useCartStore, useAuthStore } from '../../../../store';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 interface VitrineDetailProps {
   lojaId: string;
@@ -115,6 +118,21 @@ export function VitrineDetail({ lojaId, dark = false }: VitrineDetailProps) {
       })
       .finally(() => setLoading(false));
   }, [lojaId]);
+
+  // Recarrega o catálogo quando o lojista cria/edita/remove um produto desta loja,
+  // sem o consumidor precisar sair e voltar na vitrine.
+  const recarregarProdutos = useCallback(() => {
+    ProdutoService.listarPorLoja(lojaId)
+      .then((p) => setProdutos(p))
+      .catch(() => {});
+  }, [lojaId]);
+
+  useVitrineRealtime({
+    apiUrl: API_URL,
+    lojaId,
+    enabled: !!lojaId,
+    onAtualizada: recarregarProdutos,
+  });
 
   const handleFavorito = useCallback(async () => {
     if (!token) {

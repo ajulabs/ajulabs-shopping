@@ -11,6 +11,7 @@ import {
   emitTicketMensagem,
   emitTicketStatus,
   emitProdutoVariacoes,
+  emitVitrineAtualizada,
 } from '../utils/socket';
 import { assertValidImage } from '../lib/mimeValidator';
 import { geocodeByCep, geocodeByQuery } from '../lib/geocoder';
@@ -435,6 +436,10 @@ export async function criarProduto(
     include: { variacoes: true },
   });
 
+  // Avisa os consumidores na vitrine ANTES do embedding (que é assíncrono e só
+  // serve à busca da Aju) — o produto deve aparecer na loja imediatamente.
+  emitVitrineAtualizada(produto.lojaId, { produtoId: produto.id, acao: 'novo' });
+
   await embedirProduto(produto.id).catch((err) =>
     logger.error({ err, produtoId: produto.id }, '[embedding] falhou ao criar produto'),
   );
@@ -522,6 +527,8 @@ export async function updateProduto(
     });
   }
 
+  emitVitrineAtualizada(produto.lojaId, { produtoId, acao: 'atualizado' });
+
   await embedirProduto(atualizado.id).catch((err) =>
     logger.error({ err, produtoId: atualizado.id }, '[embedding] falhou ao atualizar produto'),
   );
@@ -540,6 +547,8 @@ export async function deleteProduto(produtoId: string, lojistaId: string) {
   }
 
   await prisma.produto.delete({ where: { id: produtoId } });
+
+  emitVitrineAtualizada(produto.lojaId, { produtoId, acao: 'removido' });
 }
 
 // ── Tickets ───────────────────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ describe('POST /v1/auth/usuario/registrar', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/já cadastrado/);
+    expect(res.body.error).toMatch(/já está cadastrado/);
   });
 
   it('cria usuário e retorna tokens', async () => {
