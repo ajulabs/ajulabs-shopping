@@ -60,6 +60,7 @@ vi.mock('../middleware/auth', () => ({
   authEntregador: (_r: unknown, _s: unknown, n: () => void) => n(),
   authColaborador: (_r: unknown, _s: unknown, n: () => void) => n(),
   authLojistaOrColaborador: (_r: unknown, _s: unknown, n: () => void) => n(),
+  authAdmin: (_r: unknown, _s: unknown, n: () => void) => n(),
   requirePapel: () => (_r: unknown, _s: unknown, n: () => void) => n(),
 }));
 
