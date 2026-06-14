@@ -1000,12 +1000,9 @@ export const EntregadorService = {
     }
   },
 
-  atualizarFoto: async (
-    token: string,
-    imageUri: string,
-  ): Promise<{ status: 'pendente'; fotoPendenteUrl: string }> => {
+  atualizarFoto: async (token: string, imageUri: string): Promise<string> => {
     const form = new FormData();
-    // blob:/data: URIs (Expo web) precisam de fetch→blob; file:/content: (native) usam { uri, type, name }
+    // blob:/data: URIs (Expo web) precisam de fetchâ†’blob; file:/content: (native) usam { uri, type, name }
     if (imageUri.startsWith('blob:') || imageUri.startsWith('data:')) {
       const blob = await fetch(imageUri).then((r) => r.blob());
       form.append('foto', blob, 'perfil.jpg');
@@ -1021,8 +1018,8 @@ export const EntregadorService = {
       const err = await res.json().catch(() => ({}));
       throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao atualizar foto');
     }
-    // A foto entra em análise (moderação). Retorna o status para o app avisar o usuário.
-    return res.json();
+    const { fotoUrl } = await res.json();
+    return fotoUrl;
   },
 
   cadastrarVeiculo: async (

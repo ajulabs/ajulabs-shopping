@@ -38,8 +38,6 @@
         "VIBRATE",
         "WAKE_LOCK",
         "POST_NOTIFICATIONS",
-        "CAMERA",
-        "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
@@ -67,13 +65,6 @@
           "sounds": [
             "./assets/corrida_alert.mp3"
           ]
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "cameraPermission": "Permitir que o AjuLabs Entregador use a câmera para tirar a foto de perfil e dos documentos.",
-          "photosPermission": "Permitir que o AjuLabs Entregador acesse suas fotos para escolher a foto de perfil e os documentos."
         }
       ]
     ],
