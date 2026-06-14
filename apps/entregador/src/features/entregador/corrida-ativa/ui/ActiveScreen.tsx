@@ -11,6 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,6 +37,9 @@ const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').rep
 
 // Raio (m) para considerar o entregador "chegou" ao destino da etapa.
 const ARRIVAL_RADIUS = 50;
+
+// Tag do lock de keep-awake: mantém a tela ligada durante a navegação interna.
+const KEEP_AWAKE_TAG = 'corrida-navegacao';
 
 interface ActiveScreenProps {
   ride: ActiveRide;
@@ -200,6 +204,17 @@ export function ActiveScreen({
   });
 
   const isNavigating = isMoving && navigationStarted;
+
+  // Mantém a tela ligada enquanto o entregador navega pelo mapa interno. Sem
+  // isso o celular entra em modo ocioso e apaga a tela durante a rota (a loja
+  // ou o cliente), atrapalhando o acompanhamento das instruções.
+  useEffect(() => {
+    if (!(isMoving && navMode === 'internal')) return;
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return () => {
+      deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+    };
+  }, [isMoving, navMode]);
 
   useEffect(() => {
     if (stage === 'delivered') {

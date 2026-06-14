@@ -182,6 +182,13 @@ export function OrdersScreen() {
     router.push(`/(consumer)/tracking/${id}`);
   };
 
+  // "Pedidos" é uma aba sem header nativo. Volta para a tela anterior (normalmente
+  // o Perfil, de onde se navega para cá); se não houver histórico, vai ao Perfil.
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(consumer)/perfil');
+  };
+
   if (loading) {
     return (
       <View
@@ -205,7 +212,17 @@ export function OrdersScreen() {
             { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
           ]}
         >
-          <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              onPress={handleBack}
+              style={styles.backBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="chevron-back" size={24} color={text} />
+            </TouchableOpacity>
+            <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
+          </View>
         </View>
         <View style={styles.vazio}>
           <Text style={{ fontSize: 56 }}>📦</Text>
@@ -234,10 +251,22 @@ export function OrdersScreen() {
           { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
         ]}
       >
-        <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
-        <Text style={[styles.subtitulo, { color: textSec as string }]}>
-          {pedidos.length} pedidos
-        </Text>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={24} color={text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.titulo, { color: text }]}>Pedidos</Text>
+            <Text style={[styles.subtitulo, { color: textSec as string }]}>
+              {pedidos.length} pedidos
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -308,6 +337,8 @@ export function OrdersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { marginLeft: -4, padding: 4 },
   titulo: { fontSize: 20, fontWeight: '700' },
   subtitulo: { fontSize: 12, marginTop: 2 },
 
