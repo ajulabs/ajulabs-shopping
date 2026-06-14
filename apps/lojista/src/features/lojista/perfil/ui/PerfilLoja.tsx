@@ -17,6 +17,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService, RBACService } from '@ajulabs/api-client';
 import type { Colaborador, PapelColaborador } from '@ajulabs/types';
@@ -451,6 +452,7 @@ const SECTION_TITLES: Record<Exclude<Section, null>, string> = {
 
 export function PerfilLoja({ dark = false }: PerfilLojaProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const token = useAuthLojistaStore((s) => s.token);
   const lojaId = useAuthLojistaStore((s) => s.lojaId);
   const logout = useAuthLojistaStore((s) => s.logout);
@@ -844,7 +846,12 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
       style={[styles.container, { backgroundColor: bgMain }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surface, borderBottomColor: border, paddingTop: insets.top + 12 },
+        ]}
+      >
         {section !== null ? (
           <View style={styles.headerRow}>
             <TouchableOpacity

@@ -158,7 +158,7 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
     <KeyboardAvoidingView
       style={s.safe}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={80}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
       <SafeAreaView style={{ flex: 1 }}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -185,6 +185,8 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
           ref={scrollRef}
           style={s.scroll}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
           {/* Status + ação */}
           <View style={s.section}>
@@ -299,6 +301,9 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
                   style={s.notaInput}
                   value={msg}
                   onChangeText={setMsg}
+                  onFocus={() =>
+                    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250)
+                  }
                   placeholder="Responder ao consumidor..."
                   placeholderTextColor="#C8CDE0"
                   multiline
@@ -335,6 +340,9 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
                 style={s.notaInput}
                 value={nota}
                 onChangeText={setNota}
+                onFocus={() =>
+                  setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250)
+                }
                 placeholder="Adicionar nota interna..."
                 placeholderTextColor="#C8CDE0"
                 multiline
