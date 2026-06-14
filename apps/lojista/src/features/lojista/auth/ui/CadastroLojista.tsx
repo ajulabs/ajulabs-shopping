@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   BackHandler,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -383,323 +384,328 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
-        <View style={{ marginBottom: 16 }}>
-          <AjuLogo size={52} />
-        </View>
-        <Text style={styles.topTitle}>Portal do Lojista</Text>
-        <Text style={styles.topSub}>Venda no Shopping Digital em minutos.</Text>
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        style={styles.card}
-        contentContainerStyle={styles.cardContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.cardTitle}>Criar conta</Text>
-        <Text style={styles.cardSub}>Preencha os dados da sua loja para começar</Text>
-
-        <View
-          onLayout={(e) => {
-            fieldPositions.current.cnpj = e.nativeEvent.layout.y;
-          }}
-        >
-          <Field
-            label="CNPJ"
-            value={form.cnpj}
-            onChange={(v) => setField('cnpj', formatCNPJ(v))}
-            placeholder="00.000.000/0001-00"
-            keyboardType="numeric"
-            autoComplete="off"
-            textContentType="none"
-            error={errors.cnpj}
-            onBlur={blurCnpj}
-            isValid={!errors.cnpj && validateCNPJ(form.cnpj)}
-          />
-        </View>
-        <View
-          onLayout={(e) => {
-            fieldPositions.current.nomeLoja = e.nativeEvent.layout.y;
-          }}
-        >
-          <Field
-            label="NOME DA LOJA"
-            value={form.nomeLoja}
-            onChange={(v) => setField('nomeLoja', v)}
-            placeholder="Ex: Loja do Chico — Calçados"
-            autoCapitalize="words"
-            autoComplete="organization"
-            textContentType="organizationName"
-            error={errors.nomeLoja}
-            isValid={!errors.nomeLoja && form.nomeLoja.trim().length > 0}
-          />
+        <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
+          <View style={{ marginBottom: 16 }}>
+            <AjuLogo size={52} />
+          </View>
+          <Text style={styles.topTitle}>Portal do Lojista</Text>
+          <Text style={styles.topSub}>Venda no Shopping Digital em minutos.</Text>
         </View>
 
-        <View
-          onLayout={(e) => {
-            fieldPositions.current.telefone = e.nativeEvent.layout.y;
-          }}
+        <ScrollView
+          ref={scrollRef}
+          style={styles.card}
+          contentContainerStyle={styles.cardContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.fieldLabel}>TELEFONE / WHATSAPP</Text>
-          <PhoneInput
-            value={form.telefone}
-            onChange={(local, full) => {
-              setForm((f) => ({ ...f, telefone: local, telefoneCompleto: full }));
-              clearError('telefone');
+          <Text style={styles.cardTitle}>Criar conta</Text>
+          <Text style={styles.cardSub}>Preencha os dados da sua loja para começar</Text>
+
+          <View
+            onLayout={(e) => {
+              fieldPositions.current.cnpj = e.nativeEvent.layout.y;
             }}
-            onBlur={blurTelefone}
-            error={errors.telefone}
-          />
-        </View>
-
-        <View
-          onLayout={(e) => {
-            fieldPositions.current.email = e.nativeEvent.layout.y;
-          }}
-        >
-          <Field
-            label="EMAIL"
-            value={form.email}
-            onChange={(v) => setField('email', v)}
-            placeholder="loja@email.com"
-            keyboardType="email-address"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="emailAddress"
-            error={errors.email}
-            onBlur={blurEmail}
-            isValid={!errors.email && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())}
-          />
-        </View>
-        <View
-          onLayout={(e) => {
-            fieldPositions.current.senha = e.nativeEvent.layout.y;
-          }}
-        >
-          <Field
-            label="SENHA"
-            value={form.senha}
-            onChange={(v) => setField('senha', v)}
-            placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
-            secureTextEntry
-            autoComplete="new-password"
-            textContentType="newPassword"
-            error={errors.senha}
-            isValid={
-              !errors.senha &&
-              form.senha.length >= 8 &&
-              /[A-Z]/.test(form.senha) &&
-              /[0-9]/.test(form.senha)
-            }
-          />
-        </View>
-        <View
-          onLayout={(e) => {
-            fieldPositions.current.confirmarSenha = e.nativeEvent.layout.y;
-          }}
-        >
-          <Field
-            label="CONFIRMAR SENHA"
-            value={form.confirmarSenha}
-            onChange={(v) => setField('confirmarSenha', v)}
-            placeholder="Repita a senha"
-            secureTextEntry
-            autoComplete="new-password"
-            textContentType="newPassword"
-            error={errors.confirmarSenha}
-            isValid={
-              !errors.confirmarSenha &&
-              form.confirmarSenha.length > 0 &&
-              form.confirmarSenha === form.senha
-            }
-          />
-        </View>
-
-        {/* ── Endereço da loja ─────────────────────────────── */}
-        <View style={styles.enderecoSection}>
-          <View style={styles.enderecoTitleRow}>
-            <Text style={styles.enderecoTitle}>ENDEREÇO DA LOJA</Text>
-            <Text style={styles.enderecoOpcional}>obrigatório</Text>
+          >
+            <Field
+              label="CNPJ"
+              value={form.cnpj}
+              onChange={(v) => setField('cnpj', formatCNPJ(v))}
+              placeholder="00.000.000/0001-00"
+              keyboardType="numeric"
+              autoComplete="off"
+              textContentType="none"
+              error={errors.cnpj}
+              onBlur={blurCnpj}
+              isValid={!errors.cnpj && validateCNPJ(form.cnpj)}
+            />
+          </View>
+          <View
+            onLayout={(e) => {
+              fieldPositions.current.nomeLoja = e.nativeEvent.layout.y;
+            }}
+          >
+            <Field
+              label="NOME DA LOJA"
+              value={form.nomeLoja}
+              onChange={(v) => setField('nomeLoja', v)}
+              placeholder="Ex: Loja do Chico — Calçados"
+              autoCapitalize="words"
+              autoComplete="organization"
+              textContentType="organizationName"
+              error={errors.nomeLoja}
+              isValid={!errors.nomeLoja && form.nomeLoja.trim().length > 0}
+            />
           </View>
 
-          <View style={styles.gpsBtnRow}>
-            <TouchableOpacity
-              style={styles.gpsBtn}
-              onPress={usarLocalizacao}
-              disabled={locLoading}
-              activeOpacity={0.8}
-            >
-              {locLoading ? (
-                <ActivityIndicator size="small" color={colors.orange} />
-              ) : (
-                <Ionicons name="location" size={15} color={colors.orange} />
-              )}
-              <Text style={styles.gpsBtnText}>
-                {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
-              </Text>
-            </TouchableOpacity>
+          <View
+            onLayout={(e) => {
+              fieldPositions.current.telefone = e.nativeEvent.layout.y;
+            }}
+          >
+            <Text style={styles.fieldLabel}>TELEFONE / WHATSAPP</Text>
+            <PhoneInput
+              value={form.telefone}
+              onChange={(local, full) => {
+                setForm((f) => ({ ...f, telefone: local, telefoneCompleto: full }));
+                clearError('telefone');
+              }}
+              onBlur={blurTelefone}
+              error={errors.telefone}
+            />
+          </View>
 
-            {!!pinCoords && !locLoading && (
+          <View
+            onLayout={(e) => {
+              fieldPositions.current.email = e.nativeEvent.layout.y;
+            }}
+          >
+            <Field
+              label="EMAIL"
+              value={form.email}
+              onChange={(v) => setField('email', v)}
+              placeholder="loja@email.com"
+              keyboardType="email-address"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              error={errors.email}
+              onBlur={blurEmail}
+              isValid={!errors.email && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())}
+            />
+          </View>
+          <View
+            onLayout={(e) => {
+              fieldPositions.current.senha = e.nativeEvent.layout.y;
+            }}
+          >
+            <Field
+              label="SENHA"
+              value={form.senha}
+              onChange={(v) => setField('senha', v)}
+              placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              error={errors.senha}
+              isValid={
+                !errors.senha &&
+                form.senha.length >= 8 &&
+                /[A-Z]/.test(form.senha) &&
+                /[0-9]/.test(form.senha)
+              }
+            />
+          </View>
+          <View
+            onLayout={(e) => {
+              fieldPositions.current.confirmarSenha = e.nativeEvent.layout.y;
+            }}
+          >
+            <Field
+              label="CONFIRMAR SENHA"
+              value={form.confirmarSenha}
+              onChange={(v) => setField('confirmarSenha', v)}
+              placeholder="Repita a senha"
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              error={errors.confirmarSenha}
+              isValid={
+                !errors.confirmarSenha &&
+                form.confirmarSenha.length > 0 &&
+                form.confirmarSenha === form.senha
+              }
+            />
+          </View>
+
+          {/* ── Endereço da loja ─────────────────────────────── */}
+          <View style={styles.enderecoSection}>
+            <View style={styles.enderecoTitleRow}>
+              <Text style={styles.enderecoTitle}>ENDEREÇO DA LOJA</Text>
+              <Text style={styles.enderecoOpcional}>obrigatório</Text>
+            </View>
+
+            <View style={styles.gpsBtnRow}>
               <TouchableOpacity
-                style={styles.clearBtn}
-                onPress={() => {
-                  setPinCoords(null);
-                  setEndereco({ cep: '', rua: '', numero: '', bairro: '' });
-                  clearError('cep', 'rua', 'bairro', 'localizacao');
-                }}
+                style={styles.gpsBtn}
+                onPress={usarLocalizacao}
+                disabled={locLoading}
                 activeOpacity={0.8}
               >
-                <Ionicons name="close-circle-outline" size={15} color={colors.n600} />
-                <Text style={styles.clearBtnText}>Limpar</Text>
+                {locLoading ? (
+                  <ActivityIndicator size="small" color={colors.orange} />
+                ) : (
+                  <Ionicons name="location" size={15} color={colors.orange} />
+                )}
+                <Text style={styles.gpsBtnText}>
+                  {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
+                </Text>
               </TouchableOpacity>
+
+              {!!pinCoords && !locLoading && (
+                <TouchableOpacity
+                  style={styles.clearBtn}
+                  onPress={() => {
+                    setPinCoords(null);
+                    setEndereco({ cep: '', rua: '', numero: '', bairro: '' });
+                    clearError('cep', 'rua', 'bairro', 'localizacao');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="close-circle-outline" size={15} color={colors.n600} />
+                  <Text style={styles.clearBtnText}>Limpar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {!!errors.localizacao && (
+              <Text style={[styles.errorGeral, { textAlign: 'left', marginBottom: 8 }]}>
+                {errors.localizacao}
+              </Text>
             )}
-          </View>
 
-          {!!errors.localizacao && (
-            <Text style={[styles.errorGeral, { textAlign: 'left', marginBottom: 8 }]}>
-              {errors.localizacao}
-            </Text>
-          )}
+            {pinCoords && (
+              <View style={styles.mapContainer}>
+                <LocationPickerMap
+                  lat={pinCoords.lat}
+                  lng={pinCoords.lng}
+                  onLocationChange={handlePinMoved}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            )}
 
-          {pinCoords && (
-            <View style={styles.mapContainer}>
-              <LocationPickerMap
-                lat={pinCoords.lat}
-                lng={pinCoords.lng}
-                onLocationChange={handlePinMoved}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View
+                onLayout={(e) => {
+                  fieldPositions.current.cep = e.nativeEvent.layout.y;
+                }}
                 style={{ flex: 1 }}
-              />
+              >
+                <Field
+                  label="CEP"
+                  value={endereco.cep}
+                  onChange={(v) => {
+                    setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8));
+                    clearError('cep');
+                  }}
+                  placeholder="49000000"
+                  keyboardType="numeric"
+                  autoComplete="off"
+                  textContentType="none"
+                  maxLength={8}
+                  error={errors.cep}
+                  isValid={!errors.cep && endereco.cep.length === 8}
+                />
+              </View>
+              <View
+                onLayout={(e) => {
+                  fieldPositions.current.bairro = e.nativeEvent.layout.y;
+                }}
+                style={{ flex: 2 }}
+              >
+                <Field
+                  label="BAIRRO"
+                  value={endereco.bairro}
+                  onChange={(v) => {
+                    setEnderecoField('bairro', v);
+                    clearError('bairro');
+                  }}
+                  placeholder="Atalaia"
+                  error={errors.bairro}
+                  isValid={!errors.bairro && endereco.bairro.trim().length > 0}
+                />
+              </View>
             </View>
-          )}
 
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View
-              onLayout={(e) => {
-                fieldPositions.current.cep = e.nativeEvent.layout.y;
-              }}
-              style={{ flex: 1 }}
-            >
-              <Field
-                label="CEP"
-                value={endereco.cep}
-                onChange={(v) => {
-                  setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8));
-                  clearError('cep');
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View
+                onLayout={(e) => {
+                  fieldPositions.current.rua = e.nativeEvent.layout.y;
                 }}
-                placeholder="49000000"
-                keyboardType="numeric"
-                autoComplete="off"
-                textContentType="none"
-                maxLength={8}
-                error={errors.cep}
-                isValid={!errors.cep && endereco.cep.length === 8}
-              />
-            </View>
-            <View
-              onLayout={(e) => {
-                fieldPositions.current.bairro = e.nativeEvent.layout.y;
-              }}
-              style={{ flex: 2 }}
-            >
-              <Field
-                label="BAIRRO"
-                value={endereco.bairro}
-                onChange={(v) => {
-                  setEnderecoField('bairro', v);
-                  clearError('bairro');
-                }}
-                placeholder="Atalaia"
-                error={errors.bairro}
-                isValid={!errors.bairro && endereco.bairro.trim().length > 0}
-              />
+                style={{ flex: 1 }}
+              >
+                <Field
+                  label="RUA / AV."
+                  value={endereco.rua}
+                  onChange={(v) => {
+                    setEnderecoField('rua', v);
+                    clearError('rua');
+                  }}
+                  placeholder="Av. Beira Mar"
+                  error={errors.rua}
+                  isValid={!errors.rua && endereco.rua.trim().length > 0}
+                />
+              </View>
+              <View style={{ width: 76, flexShrink: 0, overflow: 'hidden' }}>
+                <Field
+                  label="Nº"
+                  value={endereco.numero}
+                  onChange={(v) => setEnderecoField('numero', v.replace(/\D/g, '').slice(0, 7))}
+                  placeholder="100"
+                  keyboardType="numeric"
+                  maxLength={7}
+                />
+              </View>
             </View>
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View
-              onLayout={(e) => {
-                fieldPositions.current.rua = e.nativeEvent.layout.y;
-              }}
-              style={{ flex: 1 }}
-            >
-              <Field
-                label="RUA / AV."
-                value={endereco.rua}
-                onChange={(v) => {
-                  setEnderecoField('rua', v);
-                  clearError('rua');
-                }}
-                placeholder="Av. Beira Mar"
-                error={errors.rua}
-                isValid={!errors.rua && endereco.rua.trim().length > 0}
-              />
-            </View>
-            <View style={{ width: 76, flexShrink: 0, overflow: 'hidden' }}>
-              <Field
-                label="Nº"
-                value={endereco.numero}
-                onChange={(v) => setEnderecoField('numero', v.replace(/\D/g, '').slice(0, 7))}
-                placeholder="100"
-                keyboardType="numeric"
-                maxLength={7}
-              />
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          onLayout={(e) => {
-            fieldPositions.current.termos = e.nativeEvent.layout.y;
-          }}
-          style={styles.termosRow}
-          onPress={() => {
-            setAceitouTermos((v) => !v);
-            clearError('termos');
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={aceitouTermos ? 'checkbox' : 'square-outline'}
-            size={20}
-            color={errors.termos ? '#E24B4A' : aceitouTermos ? colors.orange : colors.n300}
-          />
-          <Text style={styles.terms}>
-            Li e aceito os <Text style={styles.termsLink}>Termos de Uso</Text> e a{' '}
-            <Text style={styles.termsLink}>Política de Privacidade</Text> da AjuLabs.
-          </Text>
-        </TouchableOpacity>
-        {errors.termos ? (
-          <Text style={[styles.errorGeral, { textAlign: 'left', marginTop: 4 }]}>
-            {errors.termos}
-          </Text>
-        ) : null}
-
-        {errors.geral ? <Text style={styles.errorGeral}>{errors.geral}</Text> : null}
-
-        <TouchableOpacity
-          style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-          onPress={handleCadastro}
-          activeOpacity={0.85}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitBtnText}>Criar minha conta</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.loginRow}>
-          <Text style={styles.loginText}>Já tem conta? </Text>
-          <TouchableOpacity onPress={confirmarSaida} activeOpacity={0.8}>
-            <Text style={styles.loginLink}>Entrar no painel</Text>
+          <TouchableOpacity
+            onLayout={(e) => {
+              fieldPositions.current.termos = e.nativeEvent.layout.y;
+            }}
+            style={styles.termosRow}
+            onPress={() => {
+              setAceitouTermos((v) => !v);
+              clearError('termos');
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={aceitouTermos ? 'checkbox' : 'square-outline'}
+              size={20}
+              color={errors.termos ? '#E24B4A' : aceitouTermos ? colors.orange : colors.n300}
+            />
+            <Text style={styles.terms}>
+              Li e aceito os <Text style={styles.termsLink}>Termos de Uso</Text> e a{' '}
+              <Text style={styles.termsLink}>Política de Privacidade</Text> da AjuLabs.
+            </Text>
           </TouchableOpacity>
-        </View>
+          {errors.termos ? (
+            <Text style={[styles.errorGeral, { textAlign: 'left', marginTop: 4 }]}>
+              {errors.termos}
+            </Text>
+          ) : null}
 
-        <View style={{ height: 32 }} />
-      </ScrollView>
+          {errors.geral ? <Text style={styles.errorGeral}>{errors.geral}</Text> : null}
+
+          <TouchableOpacity
+            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+            onPress={handleCadastro}
+            activeOpacity={0.85}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>Criar minha conta</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.loginRow}>
+            <Text style={styles.loginText}>Já tem conta? </Text>
+            <TouchableOpacity onPress={confirmarSaida} activeOpacity={0.8}>
+              <Text style={styles.loginLink}>Entrar no painel</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -9,6 +9,8 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -459,87 +461,92 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
 
   return (
     <View style={styles.container}>
-      {/* Topo navy */}
-      <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
-        <View style={{ marginBottom: 16 }}>
-          <AjuLogo size={52} />
-        </View>
-        <Text style={styles.topTitle}>Portal do Lojista</Text>
-        <Text style={styles.topSub}>Venda no Shopping Digital em minutos.</Text>
-      </View>
-
-      {/* Card branco */}
-      <ScrollView
-        style={styles.card}
-        contentContainerStyle={styles.cardContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.cardTitle}>Entrar</Text>
-        <Text style={styles.cardSub}>Use seu CNPJ cadastrado</Text>
-
-        <Field
-          label="CNPJ"
-          value={cnpj}
-          onChange={(v) => {
-            setCnpj(formatCNPJ(v));
-            setError('');
-          }}
-          placeholder="00.000.000/0001-00"
-          keyboardType="numeric"
-        />
-        <Field
-          label="SENHA"
-          value={senha}
-          onChange={(v) => {
-            setSenha(v);
-            setError('');
-          }}
-          placeholder="••••••••"
-          secureTextEntry
-        />
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <TouchableOpacity
-          style={styles.forgotRow}
-          onPress={() => setShowRecovery(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.forgotText}>Esqueci minha senha</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitBtnText}>Entrar no painel</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Primeira vez? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')} activeOpacity={0.8}>
-            <Text style={styles.registerLink}>Cadastre sua loja</Text>
-          </TouchableOpacity>
+        {/* Topo navy */}
+        <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
+          <View style={{ marginBottom: 16 }}>
+            <AjuLogo size={52} />
+          </View>
+          <Text style={styles.topTitle}>Portal do Lojista</Text>
+          <Text style={styles.topSub}>Venda no Shopping Digital em minutos.</Text>
         </View>
 
-        <View style={styles.colaboradorRow}>
+        {/* Card branco */}
+        <ScrollView
+          style={styles.card}
+          contentContainerStyle={styles.cardContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.cardTitle}>Entrar</Text>
+          <Text style={styles.cardSub}>Use seu CNPJ cadastrado</Text>
+
+          <Field
+            label="CNPJ"
+            value={cnpj}
+            onChange={(v) => {
+              setCnpj(formatCNPJ(v));
+              setError('');
+            }}
+            placeholder="00.000.000/0001-00"
+            keyboardType="numeric"
+          />
+          <Field
+            label="SENHA"
+            value={senha}
+            onChange={(v) => {
+              setSenha(v);
+              setError('');
+            }}
+            placeholder="••••••••"
+            secureTextEntry
+          />
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/colaborador-login')}
-            activeOpacity={0.8}
+            style={styles.forgotRow}
+            onPress={() => setShowRecovery(true)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.colaboradorLink}>Entrar como colaborador</Text>
+            <Text style={styles.forgotText}>Esqueci minha senha</Text>
           </TouchableOpacity>
-        </View>
 
-        <View style={{ height: 32 }} />
-      </ScrollView>
+          <TouchableOpacity
+            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>Entrar no painel</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.registerRow}>
+            <Text style={styles.registerText}>Primeira vez? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/register')} activeOpacity={0.8}>
+              <Text style={styles.registerLink}>Cadastre sua loja</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.colaboradorRow}>
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/colaborador-login')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.colaboradorLink}>Entrar como colaborador</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
