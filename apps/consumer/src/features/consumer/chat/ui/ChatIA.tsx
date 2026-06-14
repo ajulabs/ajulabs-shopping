@@ -535,7 +535,8 @@ export function ChatIA() {
             textAlign: 'center',
             fontSize: 11,
             color: textSec,
-            paddingBottom: 16 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: 12,
             backgroundColor: bg,
           }}
         >
