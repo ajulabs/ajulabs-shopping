@@ -142,9 +142,8 @@ router.get('/perfil', async (req: AuthRequest, res: Response) => {
 
 router.patch('/foto', upload.single('foto'), async (req: AuthRequest, res: Response) => {
   if (!req.file) return res.status(400).json({ error: 'Arquivo de imagem ausente' });
-  const result = await svc.updateFoto(req.user!.id, req.file);
-  // Foto entra em análise; o app deve exibir a foto anterior + aviso "em análise".
-  res.json(result);
+  const fotoUrl = await svc.updateFoto(req.user!.id, req.file);
+  res.json({ fotoUrl });
 });
 
 router.patch(
