@@ -10,9 +10,10 @@ interface Props {
   grupo: GrupoLoja;
   onAumentar: (produtoId: string, variacaoId?: string) => void;
   onDiminuir: (produtoId: string, variacaoId?: string) => void;
+  onRemover: (produtoId: string, variacaoId?: string) => void;
 }
 
-export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir }: Props) {
+export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir, onRemover }: Props) {
   const fmtMoney = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
   const fretetxt =
     grupo.taxaEntrega === 0 ? 'Frete grátis' : `Frete ${fmtMoney(grupo.taxaEntrega)}`;
@@ -44,6 +45,7 @@ export function CartLojaGrupo({ numero, grupo, onAumentar, onDiminuir }: Props) 
             item={item}
             onAumentar={onAumentar}
             onDiminuir={onDiminuir}
+            onRemover={onRemover}
           />
         ))}
       </View>

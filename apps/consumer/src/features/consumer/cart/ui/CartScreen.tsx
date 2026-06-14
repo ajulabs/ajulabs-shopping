@@ -62,6 +62,7 @@ export function CartScreen() {
   const cachearLoja = useCartStore((s) => s.cachearLoja);
   const aumentar = useCartStore((s) => s.aumentar);
   const diminuir = useCartStore((s) => s.diminuir);
+  const remover = useCartStore((s) => s.remover);
   const token = useAuthStore((s) => s.token);
 
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
@@ -413,6 +414,7 @@ export function CartScreen() {
             grupo={grupo}
             onAumentar={aumentar}
             onDiminuir={diminuir}
+            onRemover={remover}
           />
         ))}
 

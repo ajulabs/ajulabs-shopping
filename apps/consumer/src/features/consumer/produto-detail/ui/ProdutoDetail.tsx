@@ -541,9 +541,10 @@ function ProdutoSimilarCard({ produto }: { produto: Produto }) {
 
 interface ProdutoDetailProps {
   produtoId: string;
+  quantidadeInicial?: number;
 }
 
-export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
+export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   useHardwareBack(() => {
@@ -564,6 +565,13 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
   const [mostrarTodasAv, setMostrarTodasAv] = useState(false);
   const [variacaoSelecionada, setVariacaoSelecionada] = useState<VariacaoProduto | null>(null);
   const [tamanhoFallbackSelecionado, setTamanhoFallbackSelecionado] = useState<string | null>(null);
+  const [quantidade, setQuantidade] = useState(quantidadeInicial ?? 1);
+
+  // Sincroniza quantidade quando a tela já está na pilha e o usuário navega
+  // novamente com um quantidadeInicial diferente (useState não reinicializa).
+  useEffect(() => {
+    setQuantidade(quantidadeInicial ?? 1);
+  }, [quantidadeInicial]);
 
   const precoExibido =
     variacaoSelecionada?.preco != null ? variacaoSelecionada.preco : (produto?.preco ?? 0);
@@ -641,7 +649,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
       const hasVariacoes = (p.variacoes?.length ?? 0) > 0;
       if (hasVariacoes && p.id === produtoId && !variacaoSelecionada) {
         Alert.alert(
-          'Selecione uma variação',
+          'Selecione uma opção',
           'Escolha as opções do produto antes de adicionar ao carrinho.',
         );
         return;
@@ -655,6 +663,27 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         Alert.alert('Sem estoque', 'Esta combinação está esgotada.');
         return;
       }
+      if (!hasVariacoes && p.id === produtoId && !tamanhoFallbackSelecionado) {
+        const tamanhosDoProduto = categoriaTamanho(p.categoria) ?? [];
+        if (tamanhosDoProduto.length > 0) {
+          Alert.alert('Selecione um tamanho', 'Escolha o tamanho antes de adicionar ao carrinho.');
+          return;
+        }
+      }
+      if (!produto.disponivel) {
+        Alert.alert('Produto indisponível', 'Este produto não está disponível para compra.');
+        return;
+      }
+      const estoqueEfetivo = hasVariacoes
+        ? (variacaoEfetiva?.estoque ?? Infinity)
+        : (p.estoque ?? Infinity);
+      if (isFinite(estoqueEfetivo) && quantidade > estoqueEfetivo) {
+        Alert.alert(
+          'Estoque insuficiente',
+          `Só ${estoqueEfetivo === 1 ? 'há 1 unidade disponível' : `temos ${estoqueEfetivo} unidades disponíveis`} deste produto.`,
+        );
+        return;
+      }
       const variacaoEfetiva = p.id === produtoId ? variacaoSelecionada : undefined;
       // Bug 1: fallback-size products have no real variacoes — pass the selected size as nome
       const variacaoNomeFinal =
@@ -662,12 +691,15 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         (p.id === produtoId && !hasVariacoes
           ? (tamanhoFallbackSelecionado ?? undefined)
           : undefined);
-      adicionar(
-        p,
-        variacaoEfetiva?.id,
-        variacaoNomeFinal,
-        variacaoEfetiva?.preco != null ? variacaoEfetiva.preco : undefined,
-      );
+      const qtd = p.id === produtoId ? quantidade : 1;
+      for (let i = 0; i < qtd; i++) {
+        adicionar(
+          p,
+          variacaoEfetiva?.id,
+          variacaoNomeFinal,
+          variacaoEfetiva?.preco != null ? variacaoEfetiva.preco : undefined,
+        );
+      }
       if (p.id === produtoId) {
         setAdded(true);
         Animated.sequence([
@@ -681,7 +713,7 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         ]).start();
       }
     },
-    [produto, adicionar, produtoId, variacaoSelecionada, tamanhoFallbackSelecionado],
+    [produto, adicionar, produtoId, variacaoSelecionada, tamanhoFallbackSelecionado, quantidade],
   );
 
   if (loading) {
@@ -731,6 +763,12 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
     : 0;
   const avsVisiveis = mostrarTodasAv ? avaliacoes : avaliacoes.slice(0, 3);
 
+  // Estoque efetivo: usa a variação selecionada se houver, senão o estoque do produto.
+  // Infinity quando indefinido para não bloquear produtos sem controle de estoque.
+  const estoqueDisponivel = hasVariacoes
+    ? (variacaoSelecionada?.estoque ?? Infinity)
+    : (produto.estoque ?? Infinity);
+
   // Botão de add: desabilitado se há variações ou tamanhos de fallback sem seleção
   const podeContinuar =
     produto.disponivel &&
@@ -751,7 +789,13 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
         ]}
       >
         <TouchableOpacity
-          onPress={() => router.push(`/(consumer)/vitrine/${produto.lojaId}` as any)}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.push(`/(consumer)/vitrine/${produto.lojaId}` as any);
+            }
+          }}
           style={[styles.headerBtn, { backgroundColor: backBtn }]}
         >
           <Ionicons name="chevron-back" size={20} color={text} />
@@ -975,15 +1019,51 @@ export function ProdutoDetail({ produtoId }: ProdutoDetailProps) {
           (tamanhosFallback.length > 0 && !tamanhoFallbackSelecionado)) && (
           <Text style={styles.variacaoHint}>Selecione o tamanho para adicionar ao carrinho</Text>
         )}
+
+        {/* Seletor de quantidade */}
+        {!added && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
+              marginBottom: 8,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setQuantidade((q) => Math.max(1, q - 1))}
+              style={[styles.qtyBtn, { borderColor: borderL as string }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.qtyTxt, { color: text }]}>−</Text>
+            </TouchableOpacity>
+            <Text style={[styles.qtyNum, { color: text }]}>{quantidade}</Text>
+            <TouchableOpacity
+              onPress={() =>
+                setQuantidade((q) =>
+                  Math.min(isFinite(estoqueDisponivel) ? estoqueDisponivel : 99, q + 1),
+                )
+              }
+              style={[
+                styles.qtyBtn,
+                {
+                  borderColor: borderL as string,
+                  opacity: quantidade >= estoqueDisponivel ? 0.35 : 1,
+                },
+              ]}
+              activeOpacity={0.7}
+              disabled={quantidade >= estoqueDisponivel}
+            >
+              <Text style={[styles.qtyTxt, { color: text }]}>+</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <Animated.View style={[{ flex: 1 }, { transform: [{ scale: addScale }] }]}>
           <TouchableOpacity
-            style={[
-              styles.btnAdd,
-              added && styles.btnAdded,
-              (!produto.disponivel || (hasVariacoes && !variacaoSelecionada)) && { opacity: 0.5 },
-            ]}
+            style={[styles.btnAdd, added && styles.btnAdded, !podeContinuar && { opacity: 0.55 }]}
             onPress={() => (added ? router.push('/(consumer)/carrinho') : handleAdd())}
-            disabled={!podeContinuar}
             activeOpacity={0.85}
           >
             {added ? (
@@ -1231,4 +1311,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   btnVoltarTxt: { color: colors.n0, fontWeight: '600', fontSize: 14 },
+
+  qtyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyTxt: { fontSize: 20, fontWeight: '600', lineHeight: 24 },
+  qtyNum: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' },
 });
