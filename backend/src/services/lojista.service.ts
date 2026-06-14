@@ -142,6 +142,7 @@ export async function avancarStatusPedido(
       id: atualizado.id,
       lojaId: pedido.lojaId,
       lojaNome: pedido.loja?.nome ?? '',
+      lojaLogoUrl: pedido.loja?.logoUrl ?? undefined,
       lojaEndereco: lojaEnd ? `${lojaEnd.rua}, ${lojaEnd.numero}` : undefined,
       lojaBairro: lojaEnd?.bairro ?? undefined,
       entregaEndereco: entregaEnd ? `${entregaEnd.rua}, ${entregaEnd.numero}` : undefined,
