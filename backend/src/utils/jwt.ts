@@ -13,7 +13,7 @@ export type PapelColaborador = 'admin' | 'gerente' | 'funcionario';
 
 export interface TokenPayload {
   id: string;
-  tipo: 'usuario' | 'entregador' | 'lojista' | 'colaborador';
+  tipo: 'usuario' | 'entregador' | 'lojista' | 'colaborador' | 'admin';
   papel?: PapelColaborador;
   lojaId?: string;
 }
