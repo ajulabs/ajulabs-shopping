@@ -3,7 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { MensagemChat } from '@ajulabs/types';
 import { ChatMsg } from './ChatMsg';
 import { ChatInput } from './ChatInput';
-import { matchAju, obterHistoricoAju, limparHistoricoAju } from '@ajulabs/api-client';
+import {
+  matchAju,
+  obterHistoricoAju,
+  limparHistoricoAju,
+  buscarSugestoesAju,
+} from '@ajulabs/api-client';
 import {
   View,
   Text,
@@ -49,7 +54,9 @@ const storage = {
   },
 };
 
-const SUGESTOES_INICIAIS = ['Tênis preto até R$200', 'Presente pra mamãe', 'Fone bluetooth'];
+const SUGESTOES_FALLBACK = ['Tênis preto até R$200', 'Presente pra mamãe', 'Fone bluetooth'];
+const SUGESTOES_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 horas
+const sugestoesKey = (userId: string) => `aju_sugestoes_v1_${userId}`;
 
 const MENSAGEM_INICIAL: MensagemChat = {
   id: '0',
@@ -110,12 +117,13 @@ const QUICK_ACTIONS: {
 
 export function ChatIA() {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([MENSAGEM_INICIAL]);
-  const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_INICIAIS);
+  const [sugestoes, setSugestoes] = useState<string[]>(SUGESTOES_FALLBACK);
   const [carregando, setCarregando] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [conversaId, setConversaId] = useState<string | undefined>(undefined);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [textoTranscrito, setTextoTranscrito] = useState<string | null>(null);
   const welcomeOpacity = useRef(new Animated.Value(0)).current;
 
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
@@ -172,6 +180,30 @@ export function ChatIA() {
     };
   }, [userId]);
 
+  // Busca sugestões personalizadas em background com cache de 6h.
+  // Só atualiza as sugestões iniciais — não interfere em conversas já iniciadas.
+  useEffect(() => {
+    if (!userId || !token) return;
+    const key = sugestoesKey(userId);
+
+    storage.getItem(key).then(async (raw) => {
+      if (raw) {
+        try {
+          const { sugestoes: cached, ts } = JSON.parse(raw);
+          if (Date.now() - ts < SUGESTOES_CACHE_TTL && Array.isArray(cached)) {
+            setSugestoes((prev) => (prev.length === 0 ? cached : prev));
+            return;
+          }
+        } catch {}
+      }
+      const novas = await buscarSugestoesAju(token);
+      if (novas.length > 0) {
+        setSugestoes((prev) => (prev.length === 0 ? novas : prev));
+        storage.setItem(key, JSON.stringify({ sugestoes: novas, ts: Date.now() })).catch(() => {});
+      }
+    });
+  }, [userId, token]);
+
   // Auto-send when chat gains focus after navigating from another screen.
   // Ref mantém a versão mais recente de enviarMensagem sem re-disparar o efeito.
   const enviarMensagemRef = useRef<(texto: string, pedidoId?: string) => void>(() => {});
@@ -208,7 +240,10 @@ export function ChatIA() {
 
   function limparConversa() {
     const executar = () => {
-      if (userId) storage.removeItem(chatKey(userId)).catch(() => {});
+      if (userId) {
+        storage.removeItem(chatKey(userId)).catch(() => {});
+        storage.removeItem(sugestoesKey(userId)).catch(() => {});
+      }
       // Apaga também no servidor — senão o F5/outro aparelho reidrata a conversa de volta.
       if (token) limparHistoricoAju(token).catch(() => {});
       lojaContextoRef.current = null;
@@ -520,11 +555,79 @@ export function ChatIA() {
           </View>
         )}
 
+        {/* Preview de confirmação do texto transcrito por voz */}
+        {textoTranscrito && (
+          <View
+            style={{
+              marginHorizontal: 12,
+              marginBottom: 8,
+              backgroundColor: isDark ? 'rgba(249,115,22,0.12)' : '#fff7ed',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(249,115,22,0.35)' : '#fed7aa',
+              borderRadius: 14,
+              padding: 12,
+              gap: 8,
+            }}
+          >
+            <Text style={{ fontSize: 12, color: textSec as string }}>🎤 Entendi:</Text>
+            <Text style={{ fontSize: 14, color: text, fontWeight: '500' }}>
+              "{textoTranscrito}"
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  enviarMensagem(textoTranscrito);
+                  setTextoTranscrito(null);
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f97316',
+                  borderRadius: 10,
+                  paddingVertical: 9,
+                  alignItems: 'center',
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Enviar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setInputValue(textoTranscrito);
+                  setTextoTranscrito(null);
+                }}
+                style={{
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#d1d5db',
+                  borderRadius: 10,
+                  paddingVertical: 9,
+                  alignItems: 'center',
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: text, fontSize: 13, fontWeight: '600' }}>Editar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setTextoTranscrito(null)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close" size={18} color={textSec as string} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         <ChatInput
           value={inputValue}
           onChangeValue={setInputValue}
           onSend={handleEnviar}
-          onMicPress={() => toggleGravacao((texto) => setInputValue(texto))}
+          onMicPress={() => toggleGravacao((texto) => setTextoTranscrito(texto))}
           gravando={gravando}
           transcrevendo={transcrevendo}
           disabled={carregando}
