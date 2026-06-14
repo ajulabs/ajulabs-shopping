@@ -452,14 +452,21 @@ export default function EnderecosScreen() {
         </ScrollView>
       )}
 
-      <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={showModal} animationType="slide" onRequestClose={fecharModal}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={[styles.modal, { backgroundColor: bg }]}>
             <View
-              style={[styles.modalHeader, { borderBottomColor: borderL, backgroundColor: surf }]}
+              style={[
+                styles.modalHeader,
+                {
+                  borderBottomColor: borderL,
+                  backgroundColor: surf,
+                  paddingTop: insets.top + 12,
+                },
+              ]}
             >
               <Text style={[styles.modalTitulo, { color: text }]}>
                 {enderecoEditandoId ? 'Editar Endereço' : 'Novo Endereço'}

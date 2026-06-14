@@ -180,6 +180,7 @@ function LojaFavoritoCard({ loja, onRemove }: { loja: Loja; onRemove: (id: strin
 export default function FavoritosScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useSmartBack('/(consumer)/perfil');
   const token = useAuthStore((s) => s.token);
   const [aba, setAba] = useState<Aba>('produtos');
   const [produtos, setProdutos] = useState<Produto[]>([]);

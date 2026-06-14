@@ -310,176 +310,187 @@ export function TicketDetalheConsumer() {
   const podeAvaliar = ticket.status === 'resolvido' && ticket.avaliacaoConsumidor === null;
 
   return (
-    <KeyboardAvoidingView
-      style={[s.container, { backgroundColor: bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={80}
-    >
-      {/* Header */}
-      <View
-        style={[
-          s.header,
-          { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
-        ]}
+    <View style={{ flex: 1, backgroundColor: bg }}>
+      <KeyboardAvoidingView
+        style={[s.container, { backgroundColor: bg }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={80}
       >
-        <TouchableOpacity onPress={() => goBack()} style={s.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.protocolo, { color: text }]}>{ticket.protocolo}</Text>
-          <Text style={[s.lojaHeader, { color: textSec as string }]}>
-            {ticket.loja?.nome ?? '—'}
-          </Text>
-        </View>
-        <View style={[s.badge, { backgroundColor: meta.bg }]}>
-          <Ionicons name={meta.icon as any} size={11} color={meta.color} />
-          <Text style={[s.badgeTxt, { color: meta.color }]}>{meta.label}</Text>
-        </View>
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        style={s.scroll}
-        contentContainerStyle={s.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Motivo */}
-        <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
-          <Text style={[s.sectionTitle, { color: textMut as string }]}>Motivo da reclamação</Text>
-          <Text style={[s.motivoTxt, { color: text }]}>{ticket.motivo}</Text>
-          <Text style={[s.dataAgo, { color: textMut as string }]}>
-            Aberto {tempoRelativo(ticket.criadoEm)} atrás · {dataHora(ticket.criadoEm)}
-          </Text>
-        </View>
-
-        {/* Pedido vinculado */}
-        {ticket.pedido && (
-          <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
-            <Text style={[s.sectionTitle, { color: textMut as string }]}>Pedido vinculado</Text>
-            <View style={s.pedidoRow}>
-              <Text style={[s.pedidoId, { color: text }]}>
-                #{ticket.pedido.id.slice(-8).toUpperCase()}
-              </Text>
-              <Text style={[s.pedidoTotal, { color: colors.orange }]}>
-                {brl(ticket.pedido.total)}
-              </Text>
-            </View>
-            {ticket.pedido.itens.slice(0, 3).map((it, i) => (
-              <Text key={i} style={[s.pedidoItem, { color: textSec as string }]}>
-                {it.quantidade}× {it.nomeSnapshot}
-              </Text>
-            ))}
-          </View>
-        )}
-
-        {/* Timeline */}
-        <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
-          <Text style={[s.sectionTitle, { color: textMut as string }]}>Andamento</Text>
-          {ticket.status === 'cancelado' ? (
-            <View style={s.canceladoBox}>
-              <Ionicons name="close-circle" size={20} color={colors.n500} />
-              <Text style={[s.canceladoTxt, { color: textSec as string }]}>Ticket cancelado</Text>
-            </View>
-          ) : (
-            <Timeline status={ticket.status} />
-          )}
-          {ticket.status === 'aberto' && (
-            <Text style={[s.prazoTxt, { color: textMut as string }]}>
-              Tempo médio de resposta: 24-48h
+        {/* Header */}
+        <View
+          style={[
+            s.header,
+            { backgroundColor: surf, borderBottomColor: borderL, paddingTop: insets.top + 12 },
+          ]}
+        >
+          <TouchableOpacity onPress={() => goBack()} style={s.backBtn} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={20} color={text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.protocolo, { color: text }]}>{ticket.protocolo}</Text>
+            <Text style={[s.lojaHeader, { color: textSec as string }]}>
+              {ticket.loja?.nome ?? '—'}
             </Text>
-          )}
+          </View>
+          <View style={[s.badge, { backgroundColor: meta.bg }]}>
+            <Ionicons name={meta.icon as any} size={11} color={meta.color} />
+            <Text style={[s.badgeTxt, { color: meta.color }]}>{meta.label}</Text>
+          </View>
         </View>
 
-        {/* Mensagens */}
-        <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
-          <Text style={[s.sectionTitle, { color: textMut as string }]}>Mensagens</Text>
-          {ticket.mensagens.length === 0 ? (
-            <Text style={[s.semMsg, { color: textMut as string }]}>Nenhuma mensagem ainda.</Text>
-          ) : (
-            ticket.mensagens.map((m: TicketMensagem) => (
-              <View
-                key={m.id}
-                style={[
-                  s.msgBubble,
-                  m.remetente === 'consumidor'
-                    ? [s.msgConsumidor, { backgroundColor: colors.orange100 }]
-                    : [s.msgLojista, { backgroundColor: colors.n100 }],
-                ]}
-              >
-                <Text
-                  style={[
-                    s.msgRem,
-                    { color: m.remetente === 'consumidor' ? colors.orange600 : colors.navy },
-                  ]}
-                >
-                  {m.remetente === 'consumidor' ? 'Você' : (ticket.loja?.nome ?? 'Loja')}
+        <ScrollView
+          ref={scrollRef}
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Motivo */}
+          <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
+            <Text style={[s.sectionTitle, { color: textMut as string }]}>Motivo da reclamação</Text>
+            <Text style={[s.motivoTxt, { color: text }]}>{ticket.motivo}</Text>
+            <Text style={[s.dataAgo, { color: textMut as string }]}>
+              Aberto {tempoRelativo(ticket.criadoEm)} atrás · {dataHora(ticket.criadoEm)}
+            </Text>
+          </View>
+
+          {/* Pedido vinculado */}
+          {ticket.pedido && (
+            <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
+              <Text style={[s.sectionTitle, { color: textMut as string }]}>Pedido vinculado</Text>
+              <View style={s.pedidoRow}>
+                <Text style={[s.pedidoId, { color: text }]}>
+                  #{ticket.pedido.id.slice(-8).toUpperCase()}
                 </Text>
-                <Text style={[s.msgTxt, { color: text }]}>{m.texto}</Text>
-                <Text style={[s.msgData, { color: textMut as string }]}>
-                  {dataHora(m.criadoEm)}
+                <Text style={[s.pedidoTotal, { color: colors.orange }]}>
+                  {brl(ticket.pedido.total)}
                 </Text>
               </View>
-            ))
+              {ticket.pedido.itens.slice(0, 3).map((it, i) => (
+                <Text key={i} style={[s.pedidoItem, { color: textSec as string }]}>
+                  {it.quantidade}× {it.nomeSnapshot}
+                </Text>
+              ))}
+            </View>
           )}
-        </View>
 
-        {/* Avaliação */}
-        {(podeAvaliar || ticket.avaliacaoConsumidor !== null) && (
+          {/* Timeline */}
           <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
-            <Text style={[s.sectionTitle, { color: textMut as string }]}>Avaliação</Text>
-            {avaliando ? (
-              <ActivityIndicator size="small" color={colors.orange} />
+            <Text style={[s.sectionTitle, { color: textMut as string }]}>Andamento</Text>
+            {ticket.status === 'cancelado' ? (
+              <View style={s.canceladoBox}>
+                <Ionicons name="close-circle" size={20} color={colors.n500} />
+                <Text style={[s.canceladoTxt, { color: textSec as string }]}>Ticket cancelado</Text>
+              </View>
             ) : (
-              <AvaliacaoStars nota={ticket.avaliacaoConsumidor} onAvaliar={avaliarTicket} />
+              <Timeline status={ticket.status} />
+            )}
+            {ticket.status === 'aberto' && (
+              <Text style={[s.prazoTxt, { color: textMut as string }]}>
+                Tempo médio de resposta: 24-48h
+              </Text>
             )}
           </View>
-        )}
 
-        {/* Cancelar */}
-        {podeCancelar && (
-          <TouchableOpacity
-            style={[s.cancelarBtn, cancelando && { opacity: 0.6 }]}
-            onPress={cancelarTicket}
-            disabled={cancelando}
-            activeOpacity={0.8}
-          >
-            {cancelando ? (
-              <ActivityIndicator size="small" color="#DC2626" />
+          {/* Mensagens */}
+          <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
+            <Text style={[s.sectionTitle, { color: textMut as string }]}>Mensagens</Text>
+            {ticket.mensagens.length === 0 ? (
+              <Text style={[s.semMsg, { color: textMut as string }]}>Nenhuma mensagem ainda.</Text>
             ) : (
-              <Text style={s.cancelarBtnTxt}>Cancelar reclamação</Text>
+              ticket.mensagens.map((m: TicketMensagem) => (
+                <View
+                  key={m.id}
+                  style={[
+                    s.msgBubble,
+                    m.remetente === 'consumidor'
+                      ? [s.msgConsumidor, { backgroundColor: colors.orange100 }]
+                      : [s.msgLojista, { backgroundColor: colors.n100 }],
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.msgRem,
+                      { color: m.remetente === 'consumidor' ? colors.orange600 : colors.navy },
+                    ]}
+                  >
+                    {m.remetente === 'consumidor' ? 'Você' : (ticket.loja?.nome ?? 'Loja')}
+                  </Text>
+                  <Text style={[s.msgTxt, { color: text }]}>{m.texto}</Text>
+                  <Text style={[s.msgData, { color: textMut as string }]}>
+                    {dataHora(m.criadoEm)}
+                  </Text>
+                </View>
+              ))
             )}
-          </TouchableOpacity>
-        )}
+          </View>
 
-        <View style={{ height: 16 }} />
-      </ScrollView>
+          {/* Avaliação */}
+          {(podeAvaliar || ticket.avaliacaoConsumidor !== null) && (
+            <View style={[s.section, { backgroundColor: surf, borderColor: borderL }]}>
+              <Text style={[s.sectionTitle, { color: textMut as string }]}>Avaliação</Text>
+              {avaliando ? (
+                <ActivityIndicator size="small" color={colors.orange} />
+              ) : (
+                <AvaliacaoStars nota={ticket.avaliacaoConsumidor} onAvaliar={avaliarTicket} />
+              )}
+            </View>
+          )}
 
-      {/* Input de follow-up */}
-      {podaEnviar && (
-        <View style={[s.inputWrap, { backgroundColor: surf, borderTopColor: borderL }]}>
-          <TextInput
-            style={[s.input, { backgroundColor: inputBg, color: text, borderColor: borderL }]}
-            value={msg}
-            onChangeText={setMsg}
-            placeholder="Enviar mensagem..."
-            placeholderTextColor={textMut as string}
-            multiline
-          />
-          <TouchableOpacity
-            style={[s.sendBtn, (!msg.trim() || sending) && { opacity: 0.4 }]}
-            onPress={enviarMensagem}
-            disabled={!msg.trim() || sending}
-            activeOpacity={0.8}
+          {/* Cancelar */}
+          {podeCancelar && (
+            <TouchableOpacity
+              style={[s.cancelarBtn, cancelando && { opacity: 0.6 }]}
+              onPress={cancelarTicket}
+              disabled={cancelando}
+              activeOpacity={0.8}
+            >
+              {cancelando ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <Text style={s.cancelarBtnTxt}>Cancelar reclamação</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          <View style={{ height: 16 }} />
+        </ScrollView>
+
+        {/* Input de follow-up */}
+        {podaEnviar && (
+          <View
+            style={[
+              s.inputWrap,
+              {
+                backgroundColor: surf,
+                borderTopColor: borderL,
+                paddingBottom: 12 + insets.bottom,
+              },
+            ]}
           >
-            {sending ? (
-              <ActivityIndicator size="small" color={colors.n0} />
-            ) : (
-              <Ionicons name="send" size={16} color={colors.n0} />
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-    </KeyboardAvoidingView>
+            <TextInput
+              style={[s.input, { backgroundColor: inputBg, color: text, borderColor: borderL }]}
+              value={msg}
+              onChangeText={setMsg}
+              placeholder="Enviar mensagem..."
+              placeholderTextColor={textMut as string}
+              multiline
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!msg.trim() || sending) && { opacity: 0.4 }]}
+              onPress={enviarMensagem}
+              disabled={!msg.trim() || sending}
+              activeOpacity={0.8}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color={colors.n0} />
+              ) : (
+                <Ionicons name="send" size={16} color={colors.n0} />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
