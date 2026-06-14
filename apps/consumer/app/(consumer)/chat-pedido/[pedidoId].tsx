@@ -173,7 +173,7 @@ export default function ChatPedidoScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
       {/* Header */}

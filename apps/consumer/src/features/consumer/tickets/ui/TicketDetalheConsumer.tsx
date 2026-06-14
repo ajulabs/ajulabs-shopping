@@ -312,7 +312,7 @@ export function TicketDetalheConsumer() {
   return (
     <KeyboardAvoidingView
       style={[s.container, { backgroundColor: bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={80}
     >
       {/* Header */}
