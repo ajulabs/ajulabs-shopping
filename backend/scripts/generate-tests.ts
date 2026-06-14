@@ -148,7 +148,7 @@ vi.mock('../../lib/logger', () => ({ logger: { info: vi.fn(), debug: vi.fn(), er
 vi.mock('../../utils/cors', () => ({ corsOptions: {} }));
 vi.mock('../../utils/socket', () => ({ getIo: vi.fn(() => ({ to: vi.fn(() => ({ emit: vi.fn() })) })), emitPedidoNovo: vi.fn(), emitPedidoAtualizado: vi.fn(), getEntregadorLocalizacao: vi.fn(), emitTicketMensagem: vi.fn(), emitChatMensagem: vi.fn() }));
 vi.mock('../../lib/pushNotifications', () => ({ notificarPedidoNovo: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../../middleware/auth', () => { const pass = (_r: unknown, _s: unknown, n: () => void) => n(); return { authMiddleware: pass, authUsuario: pass, authLojista: pass, authEntregador: pass, authColaborador: pass, authLojistaOrColaborador: pass, authAdmin: pass, requirePapel: () => pass }; });
+vi.mock('../../middleware/auth', () => { const pass = (_r: unknown, _s: unknown, n: () => void) => n(); return { authMiddleware: pass, authUsuario: pass, authLojista: pass, authEntregador: pass, authColaborador: pass, authLojistaOrColaborador: pass, requirePapel: () => pass }; });
 
 const { app } = await import('../../app');
 

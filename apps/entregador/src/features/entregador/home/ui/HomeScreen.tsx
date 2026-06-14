@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +15,8 @@ import * as Location from 'expo-location';
 import { EntregadorService } from '../../../../lib/authServices';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 import { useCorridasRealtime } from '@ajulabs/realtime';
+import { haversine } from '@ajulabs/maps';
+import { geocode } from '../../corrida-ativa/lib/geocode';
 import { useRideAlert } from '../../../../hooks';
 import { startIdleTracking, stopIdleTracking } from '../../../../tasks/locationTask';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -26,11 +29,13 @@ const _dismissedOfferRideIds = new Set<string>();
 import { LeafletMap } from '../../../../components/LeafletMap';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtKm = (km: number) => `${km.toFixed(1).replace('.', ',')} km`;
 
 interface RideData {
   id: string;
   loja: {
     nome: string;
+    logoUrl?: string;
     endereco: string;
     bairro: string;
     cep?: string;
@@ -87,16 +92,33 @@ function mapCorridaToRide(raw: any): RideData {
 function OfferSheet({
   ride,
   countdown,
+  userLocation,
+  lojaCoords,
+  clienteCoords,
   onAccept,
   onReject,
 }: {
   ride: RideData;
   countdown: number;
+  userLocation: { lat: number; lng: number } | null;
+  lojaCoords: { lat: number; lng: number } | null;
+  clienteCoords: { lat: number; lng: number } | null;
   onAccept: () => void;
   onReject: () => void;
 }) {
   const expirado = countdown <= 0;
   const pct = expirado ? 100 : (countdown / 15) * 100;
+  // Distância do entregador até a loja (coleta) e da loja até o cliente (entrega).
+  // Em km; null enquanto as coordenadas ainda estão sendo resolvidas/geocodificadas.
+  const pickupKm = userLocation && lojaCoords ? haversine(userLocation, lojaCoords) / 1000 : null;
+  const deliveryKm =
+    lojaCoords && clienteCoords ? haversine(lojaCoords, clienteCoords) / 1000 : null;
+  // Total exibido: soma dos dois trechos quando ambos conhecidos; senão usa o que
+  // houver (entrega calculada ou a distância vinda do backend).
+  const totalKm =
+    pickupKm != null && deliveryKm != null
+      ? pickupKm + deliveryKm
+      : (deliveryKm ?? (ride.distancia > 0 ? ride.distancia : null));
   return (
     <View style={s.offerSheet}>
       <View style={s.timerTrack}>
@@ -113,60 +135,92 @@ function OfferSheet({
 
       <View style={s.offerContent}>
         <View style={s.offerHeader}>
-          <View style={s.offerTitleRow}>
-            <View style={s.zapCircle}>
-              <Ionicons name="flash" size={16} color="#FFFFFF" />
+          <View style={s.offerTag}>
+            <Ionicons name="flash" size={13} color="#F2760F" />
+            <Text style={s.offerTagText}>Nova corrida</Text>
+          </View>
+          <View style={[s.countPill, expirado && s.countPillExpired]}>
+            {expirado ? (
+              <Text style={s.countPillTextExpired}>Disponível</Text>
+            ) : (
+              <>
+                <View style={s.countDot} />
+                <Text style={s.countPillText}>{countdown}s</Text>
+              </>
+            )}
+          </View>
+        </View>
+
+        <Text style={s.valueLabel}>Você recebe</Text>
+        <Text style={s.valueAmount}>{brl(ride.ganho)}</Text>
+        <View style={s.statRow}>
+          <View style={s.statPill}>
+            <Ionicons name="time-outline" size={14} color="#5A6079" />
+            <Text style={s.statPillText}>~{ride.duracao} min</Text>
+          </View>
+          {totalKm != null && (
+            <View style={s.statPill}>
+              <Ionicons name="navigate-outline" size={14} color="#5A6079" />
+              <Text style={s.statPillText}>{fmtKm(totalKm)} total</Text>
             </View>
-            <Text style={s.offerTitle}>Nova corrida</Text>
-          </View>
-          <View style={[s.countdownBadge, expirado && { backgroundColor: '#E6F7ED' }]}>
-            <Text style={[s.countdownText, expirado && { color: '#046C2E' }]}>
-              {expirado ? 'Disponível' : `${countdown}s`}
-            </Text>
-          </View>
+          )}
         </View>
 
-        <View style={s.valueBanner}>
-          <View>
-            <Text style={s.valueLabel}>Você ganha</Text>
-            <Text style={s.valueAmount}>{brl(ride.ganho)}</Text>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={s.valueLabel}>Duração estimada</Text>
-            <Text style={s.valueSub}>~{ride.duracao} min</Text>
-          </View>
-        </View>
-
-        <View style={s.routeBox}>
+        <View style={s.routeCard}>
           <View style={s.routeRow}>
-            <View style={[s.routeDot, { backgroundColor: '#000933' }]} />
+            {ride.loja.logoUrl ? (
+              <Image source={{ uri: ride.loja.logoUrl }} style={s.routeLogo} resizeMode="cover" />
+            ) : (
+              <View style={[s.routeLogo, s.routeLogoFallback]}>
+                <Ionicons name="storefront" size={20} color="#000933" />
+              </View>
+            )}
             <View style={{ flex: 1 }}>
-              <Text style={s.routeLabel}>Retirar em</Text>
-              <Text style={s.routeMain}>{ride.loja.nome}</Text>
-              <Text style={s.routeSub}>
+              <Text style={s.routeLabel}>Coletar em</Text>
+              <Text style={s.routeMain} numberOfLines={1}>
+                {ride.loja.nome}
+              </Text>
+              <Text style={s.routeSub} numberOfLines={1}>
                 {ride.loja.endereco} · {ride.loja.bairro}
               </Text>
             </View>
+            {pickupKm != null && (
+              <View style={s.legDist}>
+                <Text style={s.legDistVal}>{fmtKm(pickupKm)}</Text>
+                <Text style={s.legDistLabel}>de você</Text>
+              </View>
+            )}
           </View>
-          <View style={s.routeDash} />
+          <View style={s.routeConnector} />
           <View style={s.routeRow}>
-            <View style={[s.routeDot, { backgroundColor: '#209CEF' }]} />
+            <View style={s.dropPin}>
+              <Ionicons name="location" size={20} color="#FFFFFF" />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.routeLabel}>Entregar em</Text>
-              <Text style={s.routeMain}>{ride.cliente.bairro}</Text>
-              <Text style={s.routeSub}>{ride.cliente.endereco}</Text>
+              <Text style={s.routeMain} numberOfLines={1}>
+                {ride.cliente.bairro}
+              </Text>
+              <Text style={s.routeSub} numberOfLines={1}>
+                {ride.cliente.endereco}
+              </Text>
             </View>
+            {deliveryKm != null && (
+              <View style={s.legDist}>
+                <Text style={s.legDistVal}>{fmtKm(deliveryKm)}</Text>
+                <Text style={s.legDistLabel}>da loja</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <View style={s.offerBtns}>
-          <TouchableOpacity style={s.btnReject} onPress={onReject} activeOpacity={0.8}>
-            <Text style={s.btnRejectText}>Recusar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.btnAccept} onPress={onAccept} activeOpacity={0.85}>
-            <Text style={s.btnAcceptText}>Aceitar</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={s.btnAccept} onPress={onAccept} activeOpacity={0.9}>
+          <Text style={s.btnAcceptText}>Aceitar corrida</Text>
+          <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.btnReject} onPress={onReject} activeOpacity={0.7}>
+          <Text style={s.btnRejectText}>Recusar</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -192,6 +246,13 @@ export function HomeScreen({
   const token = useAuthEntregadorStore((s) => s.token);
   const entregadorId = useAuthEntregadorStore((s) => s.entregadorId);
   const [offer, setOffer] = useState<RideData | null>(null);
+  // Coordenadas resolvidas da oferta atual (loja/cliente). Usa lat/lng do banco
+  // quando há; senão geocodifica o endereço — muitos endereços ainda não têm
+  // coordenadas salvas, então sem isso as distâncias não apareceriam.
+  const [offerCoords, setOfferCoords] = useState<{
+    loja: { lat: number; lng: number } | null;
+    cliente: { lat: number; lng: number } | null;
+  }>({ loja: null, cliente: null });
 
   // Alerta sonoro + vibração enquanto há uma oferta na tela (app em foreground).
   // Toca quando a oferta aparece e para assim que ela some (aceita/dispensada/timeout).
@@ -203,6 +264,38 @@ export function HomeScreen({
       void rideAlert.stop();
     }
   }, [offer]);
+
+  // Resolve as coordenadas da oferta para calcular as distâncias de coleta/entrega.
+  useEffect(() => {
+    if (!offer) {
+      setOfferCoords({ loja: null, cliente: null });
+      return;
+    }
+    const lojaStored =
+      offer.loja.lat != null && offer.loja.lng != null
+        ? { lat: offer.loja.lat, lng: offer.loja.lng }
+        : null;
+    const clienteStored =
+      offer.cliente.lat != null && offer.cliente.lng != null
+        ? { lat: offer.cliente.lat, lng: offer.cliente.lng }
+        : null;
+    // Mostra de imediato o que já temos; geocodifica o que faltar em segundo plano.
+    setOfferCoords({ loja: lojaStored, cliente: clienteStored });
+    if (lojaStored && clienteStored) return;
+    let cancelled = false;
+    (async () => {
+      const [loja, cliente] = await Promise.all([
+        lojaStored ?? geocode(`${offer.loja.endereco}, ${offer.loja.bairro}`, offer.loja.cep),
+        clienteStored ??
+          geocode(`${offer.cliente.endereco}, ${offer.cliente.bairro}`, offer.cliente.cep),
+      ]);
+      if (!cancelled) setOfferCoords({ loja, cliente });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offer?.id]);
   const [countdown, setCountdown] = useState(15);
   const [ganhoHoje, setGanhoHoje] = useState(0);
   const [corridasHoje, setCorridasHoje] = useState(0);
@@ -339,6 +432,7 @@ export function HomeScreen({
         id: corrida.id,
         loja: {
           nome: corrida.lojaNome,
+          logoUrl: corrida.lojaLogoUrl ?? undefined,
           endereco: corrida.lojaEndereco ?? '',
           bairro: corrida.lojaBairro ?? '',
         },
@@ -588,6 +682,9 @@ export function HomeScreen({
         <OfferSheet
           ride={offer}
           countdown={countdown}
+          userLocation={userLocation}
+          lojaCoords={offerCoords.loja}
+          clienteCoords={offerCoords.cliente}
           onAccept={handleAccept}
           onReject={() => {
             // Apenas dispensa o popup desta corrida: ela continua em "Entregas em
@@ -795,44 +892,109 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   timerBar: { height: '100%' },
-  offerContent: { padding: 18 },
+  offerContent: { padding: 20, paddingTop: 16 },
   offerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  offerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  zapCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F2760F',
+  offerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF0E3',
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 99,
+  },
+  offerTagText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F2760F',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  countPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#000933',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 99,
+    minWidth: 58,
+    justifyContent: 'center',
+  },
+  countPillExpired: { backgroundColor: '#E6F7ED' },
+  countDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#39FF89' },
+  countPillText: { fontSize: 12.5, fontWeight: '800', color: '#FFFFFF' },
+  countPillTextExpired: { fontSize: 12.5, fontWeight: '800', color: '#046C2E' },
+
+  valueLabel: { fontSize: 12.5, fontWeight: '600', color: '#9099B3', textAlign: 'center' },
+  valueAmount: {
+    fontSize: 46,
+    fontWeight: '900',
+    color: '#000933',
+    textAlign: 'center',
+    letterSpacing: -1.2,
+    marginTop: 2,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    marginBottom: 20,
+  },
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F6F7FB',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 99,
+  },
+  statPillText: { fontSize: 13, fontWeight: '700', color: '#5A6079' },
+
+  routeCard: { backgroundColor: '#F8F9FC', borderRadius: 16, padding: 16, marginBottom: 18 },
+  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  routeLogo: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFFFFF' },
+  routeLogoFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E4E7F1',
+  },
+  dropPin: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#209CEF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  offerTitle: { fontSize: 16, fontWeight: '700', color: '#000933' },
-  countdownBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#000933',
-    borderRadius: 99,
+  routeConnector: {
+    width: 2,
+    height: 18,
+    backgroundColor: '#D7DBEA',
+    marginLeft: 21,
+    marginVertical: 5,
+    borderRadius: 1,
   },
-  countdownText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  valueBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-    backgroundColor: '#F2760F',
-    borderRadius: 14,
-    marginBottom: 12,
+  routeLabel: {
+    fontSize: 10.5,
+    color: '#9099B3',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  valueLabel: { fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
-  valueAmount: { fontSize: 30, fontWeight: '800', color: '#FFFFFF' },
-  valueSub: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
-  routeBox: { marginBottom: 16 },
-  routeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  routeMain: { fontSize: 14.5, fontWeight: '700', color: '#000933', marginTop: 1 },
+  routeSub: { fontSize: 12, color: '#9099B3', marginTop: 1 },
+  legDist: { alignItems: 'flex-end', marginLeft: 8 },
+  legDistVal: { fontSize: 13, fontWeight: '800', color: '#000933' },
+  legDistLabel: { fontSize: 10, color: '#9099B3', marginTop: 1 },
   routeDot: {
     width: 34,
     height: 34,
@@ -840,15 +1002,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  routeLabel: {
-    fontSize: 10,
-    color: '#9099B3',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  routeMain: { fontSize: 14, fontWeight: '600', color: '#000933', lineHeight: 18 },
-  routeSub: { fontSize: 11.5, color: '#9099B3', marginTop: 1 },
   routeDash: {
     borderLeftWidth: 2,
     borderLeftColor: '#E4E7F1',
@@ -857,22 +1010,21 @@ const s = StyleSheet.create({
     marginLeft: 16,
     marginVertical: 4,
   },
-  offerBtns: { flexDirection: 'row', gap: 10 },
-  btnReject: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    alignItems: 'center',
-  },
-  btnRejectText: { fontSize: 14, fontWeight: '600', color: '#9099B3' },
   btnAccept: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#F2760F',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F2760F',
+    borderRadius: 14,
+    paddingVertical: 17,
+    shadowColor: '#F2760F',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 4,
   },
-  btnAcceptText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  btnAcceptText: { fontSize: 15.5, fontWeight: '800', color: '#FFFFFF' },
+  btnReject: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, marginTop: 6 },
+  btnRejectText: { fontSize: 14, fontWeight: '700', color: '#9099B3' },
 });

@@ -94,17 +94,9 @@ export async function updateEndereco(
 
 export async function updateFoto(entregadorId: string, file: Express.Multer.File) {
   assertValidImage(file.buffer);
-  const url = await uploadImagemEntregador(file.buffer, file.mimetype);
-  // A foto entra como pendente; só vira pública (fotoUrl) após um admin aprovar.
-  await prisma.entregador.update({
-    where: { id: entregadorId },
-    data: {
-      fotoPendenteUrl: url,
-      fotoStatus: 'pendente',
-      fotoEnviadaEm: new Date(),
-    },
-  });
-  return { status: 'pendente' as const, fotoPendenteUrl: url };
+  const fotoUrl = await uploadImagemEntregador(file.buffer, file.mimetype);
+  await prisma.entregador.update({ where: { id: entregadorId }, data: { fotoUrl } });
+  return fotoUrl;
 }
 
 export async function updateDadosPessoais(

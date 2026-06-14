@@ -42,11 +42,22 @@ const COUNTRIES: Country[] = [
 ];
 
 function Flag({ code }: { code: string }) {
+  // Bandeira via CDN remoto. Se a imagem falhar (rede/CDN indisponível no
+  // celular), cai para um selo com a sigla do país em vez de ficar em branco.
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <View style={styles.flagFallback}>
+        <Text style={styles.flagFallbackText}>{code.toUpperCase()}</Text>
+      </View>
+    );
+  }
   return (
     <Image
-      source={{ uri: `https://flagcdn.com/w40/${code}.png` }}
+      source={{ uri: `https://flagcdn.com/w80/${code}.png` }}
       style={styles.flagImg}
       resizeMode="cover"
+      onError={() => setFailed(true)}
     />
   );
 }
@@ -161,6 +172,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   flagImg: { width: 26, height: 18, borderRadius: 2 },
+  flagFallback: {
+    width: 26,
+    height: 18,
+    borderRadius: 2,
+    backgroundColor: colors.n100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flagFallbackText: { fontSize: 9, fontWeight: '800', color: colors.n600 },
   dial: { fontSize: 13, fontWeight: '600', color: colors.navy },
   divider: { width: 1, height: 24, backgroundColor: colors.n200 },
   input: { flex: 1, paddingHorizontal: 12, fontSize: 14, color: colors.navy },
