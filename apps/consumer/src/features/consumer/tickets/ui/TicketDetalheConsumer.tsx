@@ -456,7 +456,16 @@ export function TicketDetalheConsumer() {
 
       {/* Input de follow-up */}
       {podaEnviar && (
-        <View style={[s.inputWrap, { backgroundColor: surf, borderTopColor: borderL }]}>
+        <View
+          style={[
+            s.inputWrap,
+            {
+              backgroundColor: surf,
+              borderTopColor: borderL,
+              paddingBottom: 12 + insets.bottom,
+            },
+          ]}
+        >
           <TextInput
             style={[s.input, { backgroundColor: inputBg, color: text, borderColor: borderL }]}
             value={msg}
