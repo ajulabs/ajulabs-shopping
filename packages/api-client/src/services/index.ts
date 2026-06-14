@@ -23,6 +23,7 @@ export {
   obterHistoricoAju,
   limparHistoricoAju,
   registrarCliqueSugestao,
+  buscarSugestoesAju,
 } from './consumer/aju';
 
 export class ApiUnauthorizedError extends Error {

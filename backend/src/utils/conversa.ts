@@ -5,11 +5,18 @@ import { ProdutoRAG } from './ragSearch';
 // ─── Regras de negócio ────────────────────────────────────────────────────────
 
 /**
- * Status em que um pedido pode receber reclamação: só faz sentido reclamar de algo
- * que já saiu para entrega ou foi entregue (atraso, não chegou, veio errado/quebrado).
- * Pedidos ainda em preparo (aguardando/confirmado/preparando/pronto) não são reclamáveis.
+ * Status em que um pedido pode receber reclamação.
+ * Inclui todos os status ativos (não cancelados) — o usuário pode ter problemas
+ * em qualquer fase: atraso na confirmação, preparo demorado, entrega errada, etc.
  */
-export const STATUS_RECLAMAVEL: StatusPedido[] = ['saiu_entrega', 'entregue'];
+export const STATUS_RECLAMAVEL: StatusPedido[] = [
+  'aguardando',
+  'confirmado',
+  'preparando',
+  'pronto',
+  'saiu_entrega',
+  'entregue',
+];
 
 // ─── Estado da conversa (queixa flow) ────────────────────────────────────────
 
@@ -17,6 +24,7 @@ export type PedidoCardData = {
   numero: number;
   id: string;
   loja: string;
+  lojaImagem?: string | null;
   total: number;
   data: string;
   itens: string[];
@@ -66,19 +74,53 @@ export async function obterOuCriarConversa(usuarioId: string, conversaId?: strin
   return prisma.conversaChat.create({ data: { usuarioId } });
 }
 
+export type ProdutoHistorico = {
+  id: string;
+  nome: string;
+  preco: number;
+  imagemUrl: string;
+  lojaId: string;
+  loja: string;
+};
+
 /**
- * Retorna a conversa mais recente do usuário com até 50 mensagens (ordem cronológica),
- * para reidratar o chat em um novo aparelho / web / após limpeza de dados.
+ * Retorna a conversa mais recente do usuário com até 100 mensagens (ordem cronológica),
+ * incluindo produtos sugeridos em cada mensagem para reidratar os cards no app.
  */
 export async function obterHistorico(usuarioId: string): Promise<{
   conversaId?: string;
-  mensagens: { id: string; remetente: string; conteudo: string; criadaEm: string }[];
+  mensagens: {
+    id: string;
+    remetente: string;
+    conteudo: string;
+    criadaEm: string;
+    produtos?: ProdutoHistorico[];
+  }[];
 }> {
   const conversa = await prisma.conversaChat.findFirst({
     where: { usuarioId },
     orderBy: { atualizadoEm: 'desc' },
     include: {
-      mensagens: { orderBy: { criadaEm: 'desc' }, take: 50 },
+      mensagens: {
+        orderBy: { criadaEm: 'desc' },
+        take: 100,
+        include: {
+          sugestoes: {
+            include: {
+              produto: {
+                select: {
+                  id: true,
+                  nome: true,
+                  preco: true,
+                  imagemUrl: true,
+                  lojaId: true,
+                  loja: { select: { nome: true } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -92,6 +134,16 @@ export async function obterHistorico(usuarioId: string): Promise<{
       remetente: m.remetente,
       conteudo: m.conteudo,
       criadaEm: m.criadaEm.toISOString(),
+      ...(m.sugestoes.length > 0 && {
+        produtos: m.sugestoes.map((s) => ({
+          id: s.produto.id,
+          nome: s.produto.nome,
+          preco: Number(s.produto.preco),
+          imagemUrl: s.produto.imagemUrl,
+          lojaId: s.produto.lojaId,
+          loja: s.produto.loja.nome,
+        })),
+      }),
     }));
 
   return { conversaId: conversa.id, mensagens };
@@ -114,6 +166,24 @@ export async function obterLojaContexto(conversaId: string): Promise<string | nu
     if (match) return match[1];
   }
   return null;
+}
+
+/**
+ * Retorna as últimas N mensagens da conversa para compor o contexto do AI.
+ * Usa o conteúdo salvo no banco (que inclui detalhes de produtos) em vez do
+ * histórico enviado pelo frontend, que só tem o texto de display.
+ */
+export async function obterHistoricoParaIA(
+  conversaId: string,
+  limite = 20,
+): Promise<{ remetente: string; conteudo: string }[]> {
+  const msgs = await prisma.mensagemChat.findMany({
+    where: { conversaId },
+    orderBy: { criadaEm: 'desc' },
+    take: limite,
+    select: { remetente: true, conteudo: true },
+  });
+  return msgs.reverse();
 }
 
 /** Apaga todas as conversas do usuário (mensagens e estado caem em cascata). */
