@@ -670,10 +670,11 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
           return;
         }
       }
-      if (!produto.disponivel) {
+      if (!p.disponivel) {
         Alert.alert('Produto indisponível', 'Este produto não está disponível para compra.');
         return;
       }
+      const variacaoEfetiva = p.id === produtoId ? variacaoSelecionada : undefined;
       const estoqueEfetivo = hasVariacoes
         ? (variacaoEfetiva?.estoque ?? Infinity)
         : (p.estoque ?? Infinity);
@@ -684,7 +685,6 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
         );
         return;
       }
-      const variacaoEfetiva = p.id === produtoId ? variacaoSelecionada : undefined;
       // Bug 1: fallback-size products have no real variacoes — pass the selected size as nome
       const variacaoNomeFinal =
         variacaoEfetiva?.nome ??

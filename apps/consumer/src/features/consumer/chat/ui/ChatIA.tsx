@@ -249,7 +249,7 @@ export function ChatIA() {
       lojaContextoRef.current = null;
       setMensagens([MENSAGEM_INICIAL]);
       setConversaId(undefined);
-      setSugestoes(SUGESTOES_INICIAIS);
+      setSugestoes(SUGESTOES_FALLBACK);
     };
 
     if (Platform.OS === 'web') {
