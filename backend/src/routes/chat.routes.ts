@@ -358,6 +358,97 @@ function produtoTemCor(p: ProdutoRAG, cores: string[]): boolean {
   return cores.some((c) => new RegExp(`\\b${semAcento(c).replace('-', '\\-')}\\b`).test(txt));
 }
 
+// ── Afunilamento de buscas genéricas ──────────────────────────────────────────
+// Quando a busca é ampla demais (ex: "quero ver calçados"), em vez de despejar o
+// catálogo, mostramos poucos produtos E devolvemos uma pergunta de qualificação
+// + chips de refinamento que afunilam a próxima busca. Tudo determinístico: não
+// gasta tokens e protege o banco de queries pesadas conforme o catálogo cresce.
+type Funil = { gatilhos: string[]; pergunta: string; opcoes: string[] };
+
+const FUNIS: Funil[] = [
+  {
+    gatilhos: ['calcado', 'sapato'],
+    pergunta: 'Pra eu te ajudar a escolher, qual estilo você procura?',
+    opcoes: ['Calçados esportivos', 'Calçados casuais', 'Sapatos sociais', 'Calçados infantis'],
+  },
+  {
+    gatilhos: ['roupa', 'vestuario', 'moda'],
+    pergunta: 'Pra afunilar certinho, pra quem é?',
+    opcoes: ['Roupas masculinas', 'Roupas femininas', 'Roupas infantis'],
+  },
+  {
+    gatilhos: ['eletronico'],
+    pergunta: 'Tenho bastante coisa por aqui! O que você procura?',
+    opcoes: ['Celulares', 'Notebooks', 'Fones de ouvido', 'Acessórios'],
+  },
+  {
+    gatilhos: ['movel', 'moveis', 'decoracao'],
+    pergunta: 'Pra qual ambiente você procura?',
+    opcoes: ['Móveis de sala', 'Móveis de quarto', 'Móveis de cozinha', 'Móveis de escritório'],
+  },
+  {
+    gatilhos: ['cosmetico', 'beleza'],
+    pergunta: 'O que você está buscando?',
+    opcoes: ['Maquiagem', 'Skincare', 'Perfumes', 'Cabelo'],
+  },
+  {
+    gatilhos: ['brinquedo'],
+    pergunta: 'Pra qual idade você procura?',
+    opcoes: ['Brinquedos para bebês', 'Brinquedos infantis', 'Jogos e puzzles'],
+  },
+];
+
+// Sinais de que a busca JÁ foi afunilada (gênero, ocasião, ambiente, tipo
+// específico). Nesses casos não perguntamos de novo — evita loop e respeita
+// o usuário que já foi específico. Cor e preço são tratados à parte.
+// Stems propositalmente curtos para casar singular E plural ("infant" cobre
+// infantil/infantis, "casua" cobre casual/casuais, "socia" cobre social/sociais)
+// — senão um chip no plural re-dispararia o funil.
+const TERMOS_REFINAMENTO = [
+  'masculin',
+  'feminin',
+  'infant',
+  'crianca',
+  'menino',
+  'menina',
+  'homem',
+  'mulher',
+  'bebe',
+  'unissex',
+  'esportiv',
+  'casua',
+  'socia',
+  'corrida',
+  'academia',
+  'festa',
+  'trabalho',
+  'praia',
+  'sala',
+  'quarto',
+  'cozinha',
+  'escritorio',
+  'maquiagem',
+  'skincare',
+  'perfume',
+  'cabelo',
+  'celular',
+  'notebook',
+  'fone',
+  'tablet',
+];
+
+// Retorna o funil aplicável quando a busca é ampla e ainda não foi qualificada.
+function detectarFunil(texto: string, temPreco: boolean): Funil | null {
+  if (temPreco) return null;
+  if (coresNoTexto(texto).length > 0) return null;
+  const q = semAcento(texto);
+  if (TERMOS_REFINAMENTO.some((t) => q.includes(t))) return null;
+  for (const f of FUNIS) {
+    if (f.gatilhos.some((g) => new RegExp(`\\b${g}`).test(q))) return f;
+  }
+  return null;
+}
+
 type ProdutoChat = {
   id: string;
   lojaId: string;
@@ -904,6 +995,9 @@ router.post(
       // inclui nomes e lojas para o AI poder responder sobre eles — mas resposta.texto
       // fica limpo para não mostrar a lista crua ao consumidor.
       let conteudoParaSalvar: string | undefined;
+      // Marca quando os produtos exibidos vieram do fallback (categoria/similares/
+      // populares) — nesse caso não afunilamos, pois a busca original não casou.
+      let usouFallbackSimilares = false;
 
       // ── Produtos similares quando busca retorna vazio ──────────────────────────
       // 1. Categoria inferida: mapeia query → categoria ampla e busca produtos dela
@@ -931,6 +1025,7 @@ router.post(
           }
 
           if (similares.length > 0) {
+            usouFallbackSimilares = true;
             produtosExibidos = similares;
             resposta.produtos = ragParaChat(similares);
 
@@ -1001,6 +1096,51 @@ router.post(
       if (toolResult.tipo === 'produtos' && produtosExibidos.length > 0) {
         const quantidade = extrairQuantidade(texto);
         if (quantidade) resposta.quantidade = quantidade;
+      }
+
+      // ── Afunilamento agêntico de busca genérica ────────────────────────────────
+      // Busca ampla (ex: "quero ver calçados"): mostra os poucos produtos já
+      // selecionados E injeta pergunta de qualificação + chips de refinamento, em
+      // vez de deixar a resposta genérica. Determinístico, sem custo de tokens.
+      if (
+        toolResult.tipo === 'produtos' &&
+        produtosExibidos.length > 0 &&
+        !usouFallbackSimilares &&
+        !toolResult.foraContextoLoja
+      ) {
+        const temPreco = !!(toolArgs.precoMax || toolArgs.precoMin);
+        const funil = detectarFunil(texto, temPreco);
+        if (funil) {
+          resposta.texto = `Separei algumas opções pra começar! ${funil.pergunta}`;
+          resposta.sugestoes = funil.opcoes;
+        }
+      }
+
+      // ── Coerência entre texto e cards ──────────────────────────────────────────
+      // A IA às vezes seleciona produtos parecidos para exibir MAS escreve um texto
+      // de "não encontrei" (ex: pediu "sapatos sociais", mostra tênis e diz só
+      // "Ainda não temos sapatos sociais"). Sem uma ponte, texto e carrossel ficam
+      // contraditórios. Quando há cards e o texto é negativo, costura a transição —
+      // mesmo padrão do fallback de similares, mas para o caso em que a própria IA
+      // escolheu os produtos (e por isso o fallback determinístico não rodou).
+      if (
+        toolResult.tipo === 'produtos' &&
+        produtosExibidos.length > 0 &&
+        !usouFallbackSimilares &&
+        !toolResult.foraContextoLoja
+      ) {
+        const txt = typeof resposta.texto === 'string' ? resposta.texto : '';
+        const negativo = /n[ãa]o\s+(temos|tem|achei|encontr|h[áa])|ainda n[ãa]o|infelizmente/i.test(
+          txt,
+        );
+        const jaTemPonte = /separei|d[áa] uma olhada|que podem te|:\s*$/i.test(txt);
+        if (negativo && !jaTemPonte) {
+          const cat = inferirCategoria(texto);
+          const ponte = cat
+            ? `mas separei outros produtos de ${cat} que podem te interessar:`
+            : 'mas separei algumas opções parecidas que podem te interessar:';
+          resposta.texto = `${txt.replace(/[.!\s]+$/, '')} — ${ponte}`;
+        }
       }
 
       // Pedidos listados viram cards interativos (em vez de só texto da IA).
