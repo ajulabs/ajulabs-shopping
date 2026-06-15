@@ -337,6 +337,55 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
               snapToAlignment="start"
               style={{ marginTop: 10 }}
               contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+              // "Ver mais" como último item do carrossel (não como pílula abaixo) —
+              // mantém a ação dentro da faixa horizontal, longe dos chips de sugestão.
+              ListFooterComponent={
+                isAtiva && msg.resposta.produtos.length > 3 && !expandidas.has(msg.id) ? (
+                  <TouchableOpacity
+                    onPress={() => setExpandidas((prev) => new Set(prev).add(msg.id))}
+                    activeOpacity={0.75}
+                    style={{
+                      width: 120,
+                      height: 230,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                      backgroundColor: cardBg,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      paddingHorizontal: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: imgBg,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons name="arrow-forward" size={20} color={cardText} />
+                    </View>
+                    <Text
+                      style={{
+                        color: cardText,
+                        fontSize: 13,
+                        fontWeight: '700',
+                        textAlign: 'center',
+                      }}
+                    >
+                      Ver mais
+                    </Text>
+                    <Text style={{ color: cardSub, fontSize: 11, textAlign: 'center' }}>
+                      +{msg.resposta.produtos.length - 3} produto
+                      {msg.resposta.produtos.length - 3 > 1 ? 's' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null
+              }
               renderItem={({ item: produto, index }) => (
                 <View
                   style={{
@@ -482,32 +531,6 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
                 </View>
               )}
             />
-            {isAtiva && msg.resposta.produtos.length > 3 && !expandidas.has(msg.id) && (
-              <TouchableOpacity
-                onPress={() => setExpandidas((prev) => new Set(prev).add(msg.id))}
-                activeOpacity={0.75}
-                style={{
-                  alignSelf: 'flex-start',
-                  marginTop: 8,
-                  marginLeft: 16,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: chipBg,
-                  borderWidth: 1,
-                  borderColor: chipBorder,
-                  borderRadius: 20,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                }}
-              >
-                <Text style={{ color: chipText, fontSize: 13, fontWeight: '600' }}>
-                  Ver mais {msg.resposta.produtos.length - 3} produto
-                  {msg.resposta.produtos.length - 3 > 1 ? 's' : ''}
-                </Text>
-                <Ionicons name="chevron-down" size={13} color={chipText} />
-              </TouchableOpacity>
-            )}
           </>
         )}
 
