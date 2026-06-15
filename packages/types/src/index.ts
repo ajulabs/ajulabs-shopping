@@ -223,6 +223,7 @@ export interface PedidoCard {
   numero: number;
   id: string;
   loja: string;
+  lojaImagem?: string | null;
   total: number;
   data: string;
   itens: string[];
@@ -233,6 +234,17 @@ export interface RastreioChat {
   pedidoId: string;
   destinoLat?: number | null;
   destinoLng?: number | null;
+  entregadorLat?: number | null;
+  entregadorLng?: number | null;
+}
+
+export interface TicketCard {
+  protocolo: string;
+  status: string;
+  motivo: string;
+  criadoEm: string;
+  pedidoId: string | null;
+  respostas?: { texto: string; criadoEm: string }[];
 }
 
 export interface RespostaAju {
@@ -242,14 +254,19 @@ export interface RespostaAju {
     | 'confirmarPedido'
     | 'ticketCriado'
     | 'ticketDuplicado'
-    | 'listarPedidos';
+    | 'listarPedidos'
+    | 'verTickets';
   texto: string;
   produtos?: ProdutoCard[];
   sugestoes?: string[];
   pedidos?: PedidoCard[];
   pedido?: PedidoCard;
+  tickets?: TicketCard[];
   conversaId?: string;
   rastreio?: RastreioChat;
+  strikesCount?: number;
+  strikesMax?: number;
+  quantidade?: number;
 }
 
 export interface MensagemChat {

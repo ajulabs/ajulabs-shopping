@@ -115,4 +115,17 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'consultar_tickets',
+      description:
+        'Lista as reclamações (tickets) abertas ou recentes do usuário com status atual. Use quando o usuário perguntar sobre suas reclamações, protocolo de atendimento, status de um ticket ou quiser saber se alguém respondeu.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];

@@ -202,6 +202,34 @@ interface ChatMensagemPayload {
  *
  * Best-effort: nunca lança.
  */
+/**
+ * Notifica o consumidor quando o lojista atualiza o status ou envia mensagem no ticket.
+ * Best-effort: nunca lança.
+ */
+export async function notificarAtualizacaoTicket(
+  consumidorId: string,
+  protocolo: string,
+  tipo: 'mensagem' | 'status',
+  detalhe: string,
+): Promise<void> {
+  try {
+    const title =
+      tipo === 'mensagem' ? `Resposta no ticket ${protocolo}` : `Ticket ${protocolo} atualizado`;
+    const body =
+      tipo === 'mensagem'
+        ? 'A loja respondeu sua reclamação. Toque para ver.'
+        : `Status atualizado para: ${detalhe}`;
+    await enviarPushParaConsumidor(consumidorId, {
+      title,
+      body,
+      data: { type: 'ticket:update', protocolo },
+      categoria: 'ticket_update',
+    });
+  } catch (err) {
+    logger.error({ err, consumidorId, protocolo }, 'falha ao notificar atualização de ticket');
+  }
+}
+
 export async function notificarChatMensagem(payload: ChatMensagemPayload): Promise<void> {
   try {
     const title = `Mensagem de ${payload.remetenteNome}`;

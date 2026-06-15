@@ -13,6 +13,7 @@ import {
   emitProdutoVariacoes,
   emitVitrineAtualizada,
 } from '../utils/socket';
+import { notificarAtualizacaoTicket } from '../lib/pushNotifications';
 import { assertValidImage } from '../lib/mimeValidator';
 import { geocodeByCep, geocodeByQuery } from '../lib/geocoder';
 import { logger } from '../lib/logger';
@@ -633,6 +634,7 @@ export async function updateTicketStatus(ticketId: string, lojistaId: string, st
   });
 
   emitTicketStatus(ticket.consumidorId, ticketId, status);
+  void notificarAtualizacaoTicket(ticket.consumidorId, ticket.protocolo, 'status', status);
   return atualizado;
 }
 
@@ -677,6 +679,7 @@ export async function addTicketMensagem(ticketId: string, lojistaId: string, tex
   });
 
   emitTicketMensagem(ticket.consumidorId, ticket.lojaId, { ...mensagem, ticketId }, 'lojista');
+  void notificarAtualizacaoTicket(ticket.consumidorId, ticket.protocolo, 'mensagem', texto.trim());
   return mensagem;
 }
 

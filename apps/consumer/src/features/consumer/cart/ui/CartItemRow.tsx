@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemCarrinho } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
@@ -9,6 +9,7 @@ interface Props {
   item: ItemCarrinho;
   onAumentar: (produtoId: string, variacaoId?: string) => void;
   onDiminuir: (produtoId: string, variacaoId?: string) => void;
+  onRemover: (produtoId: string, variacaoId?: string) => void;
 }
 
 function Thumb({ uri, alt, isDark }: { uri: string; alt: string; isDark: boolean }) {
@@ -34,7 +35,7 @@ function Thumb({ uri, alt, isDark }: { uri: string; alt: string; isDark: boolean
   return <Image source={{ uri }} style={styles.thumb} onError={() => setError(true)} />;
 }
 
-export function CartItemRow({ item, onAumentar, onDiminuir }: Props) {
+export function CartItemRow({ item, onAumentar, onDiminuir, onRemover }: Props) {
   const { isDark, text, textSec, surf } = useTheme();
   const border = isDark ? 'rgba(255,255,255,0.12)' : colors.n200;
   const qtdBg = surf;
@@ -54,21 +55,39 @@ export function CartItemRow({ item, onAumentar, onDiminuir }: Props) {
         </Text>
       </View>
 
-      <View style={[styles.qtdBox, { borderColor: border, backgroundColor: qtdBg }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={[styles.qtdBox, { borderColor: border, backgroundColor: qtdBg }]}>
+          <TouchableOpacity
+            onPress={() => onDiminuir(item.produto.id, item.variacaoId)}
+            style={styles.btnMenos}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="remove-outline" size={14} color={textSec as string} />
+          </TouchableOpacity>
+          <Text style={[styles.qtd, { color: text }]}>{item.quantidade}</Text>
+          <TouchableOpacity
+            onPress={() => onAumentar(item.produto.id, item.variacaoId)}
+            style={styles.btnMais}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.btnMaisTxt}>+</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
-          onPress={() => onDiminuir(item.produto.id, item.variacaoId)}
-          style={styles.btnMenos}
+          onPress={() =>
+            Alert.alert('Remover item', `Remover "${item.produto.nome}" do carrinho?`, [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Remover',
+                style: 'destructive',
+                onPress: () => onRemover(item.produto.id, item.variacaoId),
+              },
+            ])
+          }
           activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="remove-outline" size={14} color={textSec as string} />
-        </TouchableOpacity>
-        <Text style={[styles.qtd, { color: text }]}>{item.quantidade}</Text>
-        <TouchableOpacity
-          onPress={() => onAumentar(item.produto.id, item.variacaoId)}
-          style={styles.btnMais}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.btnMaisTxt}>+</Text>
+          <Ionicons name="trash-outline" size={18} color="#ef4444" />
         </TouchableOpacity>
       </View>
     </View>

@@ -46,7 +46,7 @@ export async function iniciarFluxoQueixa(
     orderBy: { criadoEm: 'desc' },
     take: 5,
     include: {
-      loja: { select: { nome: true } },
+      loja: { select: { nome: true, logoUrl: true } },
       itens: { select: { nomeSnapshot: true, quantidade: true } },
     },
   });
@@ -57,7 +57,7 @@ export async function iniciarFluxoQueixa(
       tipo: 'selecionarPedido',
       pedidos: [],
       texto:
-        'As reclamações valem para pedidos que já saíram para entrega ou foram entregues, e não encontrei nenhum assim na sua conta. Se o pedido ainda está em preparo, é só aguardar ou acompanhar o rastreamento. Posso te ajudar com outra coisa?',
+        'Não encontrei nenhum pedido ativo na sua conta para abrir uma reclamação. Posso te ajudar com outra coisa?',
     };
   }
 
@@ -65,6 +65,7 @@ export async function iniciarFluxoQueixa(
     numero: idx + 1,
     id: p.id,
     loja: p.loja.nome,
+    lojaImagem: p.loja.logoUrl ?? null,
     total: Number(p.total),
     data: p.criadoEm.toISOString().split('T')[0],
     itens: p.itens.map((i) =>
@@ -114,21 +115,21 @@ export async function iniciarFluxoQueixaComPedido(
   const pedidoRaw = await prisma.pedido.findFirst({
     where: { id: pedidoId, consumidorId: usuarioId },
     include: {
-      loja: { select: { nome: true } },
+      loja: { select: { nome: true, logoUrl: true } },
       itens: { select: { nomeSnapshot: true, quantidade: true } },
     },
   });
 
   if (!pedidoRaw) return iniciarFluxoQueixa(conversaId, usuarioId, motivo);
 
-  // Pedido ainda em preparo não é reclamável — orienta em vez de abrir queixa.
+  // Pedido cancelado não pode receber reclamação.
   if (!STATUS_RECLAMAVEL.includes(pedidoRaw.status)) {
     await atualizarEstado(conversaId, null);
     return {
       tipo: 'resposta',
       texto:
-        'Esse pedido ainda não saiu para entrega, então não dá pra abrir uma reclamação por aqui ainda. Assim que ele sair pra entrega ou for entregue, é só me chamar. 🙂',
-      sugestoes: ['Rastrear pedido', 'Buscar produtos'],
+        'Esse pedido foi cancelado, então não é possível abrir uma reclamação. Posso te ajudar com outra coisa?',
+      sugestoes: ['Ver meus pedidos', 'Buscar produtos'],
     };
   }
 
@@ -136,6 +137,7 @@ export async function iniciarFluxoQueixaComPedido(
     numero: 1,
     id: pedidoRaw.id,
     loja: pedidoRaw.loja.nome,
+    lojaImagem: pedidoRaw.loja.logoUrl ?? null,
     total: Number(pedidoRaw.total),
     data: pedidoRaw.criadoEm.toISOString().split('T')[0],
     itens: pedidoRaw.itens.map((i) =>
