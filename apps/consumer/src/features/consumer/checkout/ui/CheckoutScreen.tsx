@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useHardwareBack } from '../../../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetodoPagamento } from '@ajulabs/types';
@@ -47,6 +47,19 @@ export function CheckoutScreen() {
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento>('pix');
   const [placing, setPlacing] = useState(false);
   const [pedidoIds, setPedidoIds] = useState<string[]>([]);
+
+  // Esta é uma tela de tab — fica montada após o primeiro pedido, então o
+  // `step` persistiria e o próximo checkout reabriria já na confirmação.
+  // Reseta o fluxo ao SAIR da tela (cleanup do blur), assim um novo checkout
+  // sempre começa no passo 0 sem "piscar" o passo anterior ao reentrar.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setStep(0);
+        setPedidoIds([]);
+      };
+    }, []),
+  );
 
   const desconto = metodoPagamento === 'pix' ? (subtotal + frete) * 0.05 : 0;
   const total = subtotal + frete - desconto;
