@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -50,9 +51,37 @@ export default function ConversasScreen() {
     }
   }, [token]);
 
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+    }, [carregar]),
+  );
+
+  // Agrupa as conversas por loja: um card por loja, representado pelo chat mais
+  // recente. Sem isso, cada pedido vira um card e a lista fica poluída (várias
+  // entradas idênticas da mesma loja).
+  const conversasAgrupadas = React.useMemo(() => {
+    const porLoja = new Map<string, any>();
+    for (const chat of chats) {
+      const chave = chat.lojaNome ?? chat.lojaId ?? chat.pedidoId;
+      const existente = porLoja.get(chave);
+      if (!existente) {
+        porLoja.set(chave, { ...chat, naoLidas: chat.naoLidas ?? 0 });
+        continue;
+      }
+      // Soma não-lidas de todos os pedidos da loja.
+      existente.naoLidas = (existente.naoLidas ?? 0) + (chat.naoLidas ?? 0);
+      // Mantém como representante o chat com a mensagem mais recente.
+      const tEx = existente.ultimaMensagem?.criadoEm ?? '';
+      const tCh = chat.ultimaMensagem?.criadoEm ?? '';
+      if (tCh > tEx) {
+        existente.pedidoId = chat.pedidoId;
+        existente.ultimaMensagem = chat.ultimaMensagem;
+        existente.id = chat.id;
+      }
+    }
+    return Array.from(porLoja.values());
+  }, [chats]);
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
@@ -75,7 +104,7 @@ export default function ConversasScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.orange} />
         </View>
-      ) : chats.length === 0 ? (
+      ) : conversasAgrupadas.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="chatbubbles-outline" size={48} color={textSec as string} />
           <Text style={[styles.emptyTxt, { color: textSec as string }]}>
@@ -87,7 +116,7 @@ export default function ConversasScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {chats.map((chat) => (
+          {conversasAgrupadas.map((chat) => (
             <TouchableOpacity
               key={chat.id}
               style={[styles.chatItem, { backgroundColor: surf, borderColor: border }]}
