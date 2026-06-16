@@ -87,6 +87,12 @@ export function PedidosScreen() {
       setScreen('detail');
       return true;
     }
+    // Em 'tickets', o próprio TicketsScreen trata o voltar (fechar detalhe do
+    // ticket antes de voltar pra cá). Só voltamos pra 'list' a partir da lista
+    // de tickets — o que o TicketsScreen sinaliza via onBack.
+    if (screen === 'tickets') {
+      return false;
+    }
     if (screen !== 'list') {
       setScreen('list');
       return true;
