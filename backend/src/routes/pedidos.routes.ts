@@ -379,20 +379,35 @@ router.post('/:id/cancelar', authMiddleware, authUsuario, async (req: AuthReques
 
     const motivo: string | undefined = req.body?.motivo;
 
+    // Cancelamento condicional: o UPDATE só aplica se o status AINDA for
+    // 'aguardando'. Evita o TOCTOU em que a loja aceita o pedido entre a leitura
+    // acima e a escrita — o que cancelaria um pedido já em preparo e restauraria
+    // estoque indevidamente.
+    let cancelado = true;
     await prisma.$transaction(async (tx) => {
-      await tx.pedido.update({
-        where: { id: req.params.id },
+      const upd = await tx.pedido.updateMany({
+        where: { id: req.params.id, status: 'aguardando' },
         data: {
           status: 'cancelado',
           canceladoPor: 'consumidor',
           motivoCancelamento: motivo ?? null,
         },
       });
+      if (upd.count === 0) {
+        cancelado = false;
+        return;
+      }
       await tx.historicoStatusPedido.create({
         data: { pedidoId: req.params.id, status: 'cancelado' },
       });
       await restaurarEstoqueNoCancelamento(req.params.id, pedido.lojaId, tx);
     });
+
+    if (!cancelado) {
+      return res.status(409).json({
+        error: 'O pedido já foi aceito pela loja e não pode mais ser cancelado.',
+      });
+    }
 
     // Notifica o lojista (e ecoa para outros dispositivos do consumidor) em tempo real
     emitPedidoAtualizado(pedido.consumidorId, req.params.id, 'cancelado', pedido.lojaId);
