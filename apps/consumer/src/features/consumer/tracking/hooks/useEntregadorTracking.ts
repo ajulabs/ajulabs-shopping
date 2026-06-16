@@ -11,6 +11,7 @@ interface Params {
   userId: string | null;
   isActive: boolean;
   enderecoEntrega?: { rua?: string; numero?: string | null; bairro?: string } | null;
+  initialEntregadorLocation?: { lat: number; lng: number } | null;
 }
 
 interface Result {
@@ -18,8 +19,17 @@ interface Result {
   destinoLocation: { lat: number; lng: number } | null;
 }
 
-export function useEntregadorTracking({ pedidoId, token, userId, isActive, enderecoEntrega }: Params): Result {
-  const [lastKnownLocation, setLastKnownLocation] = useState<{ lat: number; lng: number } | null>(null);
+export function useEntregadorTracking({
+  pedidoId,
+  token,
+  userId,
+  isActive,
+  enderecoEntrega,
+  initialEntregadorLocation,
+}: Params): Result {
+  const [lastKnownLocation, setLastKnownLocation] = useState<{ lat: number; lng: number } | null>(
+    initialEntregadorLocation ?? null,
+  );
   const [destinoLocation, setDestinoLocation] = useState<{ lat: number; lng: number } | null>(null);
   const geocodedRef = useRef(false);
 
@@ -38,7 +48,9 @@ export function useEntregadorTracking({ pedidoId, token, userId, isActive, ender
     if (!token || !isActive) return;
     const poll = () =>
       PedidoService.buscarLocalizacaoEntregador(pedidoId, token)
-        .then(loc => { if (loc) setLastKnownLocation(loc); })
+        .then((loc) => {
+          if (loc) setLastKnownLocation(loc);
+        })
         .catch(() => {});
     poll();
     const interval = setInterval(poll, 10000);
@@ -49,8 +61,11 @@ export function useEntregadorTracking({ pedidoId, token, userId, isActive, ender
   useEffect(() => {
     if (!enderecoEntrega?.rua || geocodedRef.current) return;
     geocodedRef.current = true;
-    geocodeDestino(`${enderecoEntrega.rua}, ${enderecoEntrega.numero ?? ''}, ${enderecoEntrega.bairro}`)
-      .then(loc => { if (loc) setDestinoLocation(loc); });
+    geocodeDestino(
+      `${enderecoEntrega.rua}, ${enderecoEntrega.numero ?? ''}, ${enderecoEntrega.bairro}`,
+    ).then((loc) => {
+      if (loc) setDestinoLocation(loc);
+    });
   }, [enderecoEntrega?.rua]);
 
   return { entregadorLocation, destinoLocation };

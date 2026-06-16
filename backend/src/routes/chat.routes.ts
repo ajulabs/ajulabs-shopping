@@ -6,7 +6,12 @@ import { audioFileFilter } from '../utils/fileFilters';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
-import { ProdutoRAG } from '../utils/ragSearch';
+import {
+  ProdutoRAG,
+  buscarProdutosRAG,
+  buscarProdutosFallback,
+  buscarProdutosPopulares,
+} from '../utils/ragSearch';
 import { TOOL_DEFINITIONS, executarTool } from '../tools';
 import {
   obterOuCriarConversa,
@@ -15,6 +20,7 @@ import {
   registrarClique,
   obterEstado,
   obterHistorico,
+  obterHistoricoParaIA,
   obterLojaContexto,
   limparHistorico,
   atualizarEstado,
@@ -47,8 +53,16 @@ Use as ferramentas disponíveis quando necessário:
 - rastrear_pedido: usuário quer rastrear um pedido específico, acompanhar onde está a entrega ou ver o status de um pedido
 - listar_pedidos: usuário quer ver a lista geral de pedidos (sem intenção específica de rastrear). Se mencionar uma loja, passe o nome em lojaNome.
 - criar_ticket: usuário menciona QUALQUER problema com pedido já feito (produto danificado, quebrado, errado, não chegou, entrega atrasada). Use IMEDIATAMENTE sem pedir confirmação ou número de pedido — o sistema buscará os pedidos automaticamente.
+- consultar_tickets: usuário pergunta sobre suas reclamações, protocolo de atendimento, status de um ticket ou se alguém já respondeu.
 
-Se não precisar de ferramentas (saudação, dúvida geral), responda diretamente com JSON:
+NÃO use ferramentas quando:
+- O usuário pede mais detalhes, descrição, estoque ou disponibilidade de um produto que JÁ aparece no histórico da conversa (ex: "me fale sobre o produto 1", "tem estoque?", "quantas unidades?", "está disponível?", "qual a descrição"). O histórico contém o campo [estoque: N] — use-o para responder diretamente SEM chamar buscar_produtos de novo.
+- O usuário faz saudação ou pergunta geral que não exige busca.
+
+Sempre responda em português brasileiro, mesmo que o usuário escreva em inglês, espanhol ou outro idioma latino. Para outros idiomas (árabe, japonês, etc.) o sistema já trata antes de chegar até você.
+Se o usuário enviar conteúdo ofensivo, sexual ou inadequado que passar pela moderação automática, responda educadamente que não pode ajudar com isso e redirecione para o marketplace.
+
+Se não precisar de ferramentas, responda diretamente com JSON:
 {
   "texto": "mensagem curta e animada em português, com sotaque sergipano",
   "sugestoes": ["sugestão 1", "sugestão 2"]
@@ -83,7 +97,7 @@ Regras gerais:
 Para produtos (a ferramenta retorna objeto com "busca", "corPedida", "corDisponivel" e "produtos"):
 - O app já exibe cards com imagem, preço, loja e variações — NÃO repita essas informações no "texto".
 - Use "texto" só para contextualizar e convidar ao próximo passo. NÃO liste nomes, preços ou tamanhos.
-- "produtosRelevantes" (CAMPO OBRIGATÓRIO): lista com as posições (número inteiro 1-based) dos itens em "produtos" a exibir.
+- "produtosRelevantes" (CAMPO OBRIGATÓRIO): lista com as posições (número inteiro 1-based, máximo 6) dos itens em "produtos" a exibir.
   - Se o usuário pediu um TIPO específico (ex: "tênis", "camisa"): inclua apenas os desse tipo. Outros tipos ficam de fora mesmo que tenham a cor ou preço certo. Retorne [] se nenhum for do tipo pedido.
   - Se o usuário NÃO pediu tipo específico (ex: "ver produtos da loja", "o que tem aqui"): inclua TODOS os itens retornados — o usuário quer navegar o catálogo.
   - NÃO omita este campo. Retorne [] explicitamente se nada for relevante.
@@ -95,6 +109,15 @@ Para produtos (a ferramenta retorna objeto com "busca", "corPedida", "corDisponi
   4. Tudo certo: vá direto ao ponto.
 - "sugestoes": até 3 refinamentos que o sistema consegue executar — filtros de cor/preço/categoria, buscar em outra categoria, ver informações da loja, rastrear pedido. NUNCA sugira promoções, descontos, cupons, frete grátis, novidades, lançamentos, comparações ou qualquer funcionalidade inexistente no chat. Se não houver sugestão executável, retorne [].
 
+Quando o usuário perguntar sobre estoque ou disponibilidade (ex: "tem estoque?", "quantas unidades?", "está disponível?"):
+- Use o campo "estoque" do produto para responder. Se estoque > 0: informe a quantidade disponível. Se estoque = 0 ou produto indisponível: avise que está esgotado.
+- Para produtos com variações, o estoque está por variação — mencione qual combinação está disponível.
+
+Quando o usuário pedir mais detalhes sobre um produto específico (ex: "me fale mais", "quais as especificações", "é de que material", "qual a qualidade"):
+- Use o campo "descricao" do produto para responder de forma concisa, destacando os pontos mais relevantes para a pergunta. Não copie a descrição na íntegra.
+- Se a descrição estiver vazia, diga o que você sabe pelo nome e categoria.
+- IMPORTANTE: quando o histórico listar produtos como "item 1 —", "item 2 —" etc., esses números são 1-based e correspondem exatamente aos badges visíveis nos cards. "item 1" = primeiro card da esquerda. NUNCA use indexação 0-based.
+
 Para info de loja (horário, endereço, telefone etc.):
 - Os dias da semana no campo "horarios" seguem a convenção 0=Segunda, 1=Terça, 2=Quarta, 3=Quinta, 4=Sexta, 5=Sábado, 6=Domingo.
 - Responda de forma clara e direta. Se o usuário perguntou sobre horário, liste os dias ativos e seus horários. Se perguntou endereço ou telefone, informe diretamente.
@@ -105,8 +128,14 @@ Para pedidos:
 - Descreva o status de forma clara e amigável, sem repetir IDs técnicos.
 - "sugestoes": retorne [].
 
-Para tickets:
+Para ticket criado:
 - Confirme o registro pelo protocolo e informe que a equipe entrará em contato em breve.
+- "sugestoes": retorne [].
+
+Para lista de tickets (consultar_tickets):
+- Liste cada ticket com protocolo, status traduzido (aberto→"Aberto", em_andamento→"Em andamento", resolvido→"Resolvido", cancelado→"Cancelado") e um resumo do motivo.
+- Se o ticket tiver "respostas" com mensagens da loja, mencione a resposta mais recente no texto: ex "A loja respondeu: [trecho da resposta]".
+- Se não houver tickets, diga que o usuário não tem reclamações registradas.
 - "sugestoes": retorne [].`;
 
 const chatMensagemSpec = {
@@ -132,6 +161,164 @@ const mensagemSchema = z.object({
   conversaId: z.string().uuid().optional(),
   pedidoSelecionadoId: z.string().uuid().optional(),
 });
+
+// ── Extração de quantidade da mensagem ───────────────────────────────────────
+
+function extrairQuantidade(texto: string): number | null {
+  // Detecta padrões como "quero 3 tênis", "preciso de 2", "comprar 5 pares"
+  const match = texto.match(
+    /(?:quero|preciso\s+de?|comprar|pedir|pedindo)\s+(\d+)\b|(\d+)\s*(?:unidades?|pares?|peças?|itens?|kits?|caixas?|exemplares?)/i,
+  );
+  if (!match) return null;
+  const n = parseInt(match[1] ?? match[2]);
+  return n >= 2 && n <= 99 ? n : null;
+}
+
+// ── Inferência de categoria ampla ────────────────────────────────────────────
+
+const MAPA_CATEGORIAS: { keywords: string[]; categoria: string }[] = [
+  {
+    keywords: [
+      'sandalia',
+      'tenis',
+      'sapato',
+      'chinelo',
+      'bota',
+      'calcado',
+      'sapatilha',
+      'salto',
+      'mocassim',
+      'oxford',
+      'scarpin',
+    ],
+    categoria: 'calçados',
+  },
+  {
+    keywords: [
+      'computador',
+      'notebook',
+      'laptop',
+      'celular',
+      'smartphone',
+      'fone',
+      'headphone',
+      'tablet',
+      'camera',
+      'televisor',
+      'monitor',
+      'teclado',
+      'mouse',
+      'games',
+      'videogame',
+      'console',
+      'eletronico',
+    ],
+    categoria: 'eletrônicos',
+  },
+  {
+    keywords: [
+      'pizza',
+      'hamburguer',
+      'lanche',
+      'comida',
+      'refeicao',
+      'prato',
+      'marmita',
+      'sushi',
+      'acai',
+      'sorvete',
+      'bolo',
+      'doce',
+      'snack',
+      'salgado',
+      'tapioca',
+      'pastel',
+    ],
+    categoria: 'alimentação',
+  },
+  {
+    keywords: [
+      'camiseta',
+      'camisa',
+      'blusa',
+      'vestido',
+      'calca',
+      'shorts',
+      'roupa',
+      'jaqueta',
+      'moletom',
+      'moda',
+      'bermuda',
+      'saia',
+      'blazer',
+      'casaco',
+    ],
+    categoria: 'roupas',
+  },
+  {
+    keywords: [
+      'shampoo',
+      'creme',
+      'perfume',
+      'maquiagem',
+      'cosmetico',
+      'hidratante',
+      'beleza',
+      'skincare',
+      'batom',
+      'esmalte',
+      'protetor',
+    ],
+    categoria: 'beleza',
+  },
+  {
+    keywords: ['remedio', 'medicamento', 'farmacia', 'vitamina', 'suplemento', 'proteina', 'whey'],
+    categoria: 'farmácia',
+  },
+  {
+    keywords: [
+      'cerveja',
+      'vinho',
+      'bebida',
+      'refrigerante',
+      'suco',
+      'agua',
+      'energetico',
+      'whisky',
+      'cachaça',
+    ],
+    categoria: 'bebidas',
+  },
+  {
+    keywords: [
+      'sofa',
+      'mesa',
+      'cadeira',
+      'cama',
+      'guarda-roupa',
+      'estante',
+      'movel',
+      'decoracao',
+      'tapete',
+      'luminaria',
+    ],
+    categoria: 'móveis e decoração',
+  },
+  {
+    keywords: ['brinquedo', 'boneca', 'carrinho', 'lego', 'jogo', 'puzzle', 'infantil'],
+    categoria: 'brinquedos',
+  },
+];
+
+const semAcentoCat = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+function inferirCategoria(query: string): string | null {
+  const q = semAcentoCat(query);
+  for (const { keywords, categoria } of MAPA_CATEGORIAS) {
+    if (keywords.some((kw) => q.includes(kw))) return categoria;
+  }
+  return null;
+}
 
 // ── Detecção de cor ───────────────────────────────────────────────────────────
 
@@ -184,7 +371,7 @@ type ProdutoChat = {
 };
 
 function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
-  return produtos.slice(0, 3).map((p) => ({
+  return produtos.slice(0, 6).map((p) => ({
     id: p.id,
     lojaId: p.lojaId,
     nome: p.nome,
@@ -195,6 +382,74 @@ function ragParaChat(produtos: ProdutoRAG[]): ProdutoChat[] {
     imagemUrl: p.imagemUrl,
     variacoes: p.variacoes ?? [],
   }));
+}
+
+/**
+ * Gera um resumo da conversa e o salva no banco.
+ * Chamado assincronamente a cada 20 mensagens para manter o AI
+ * informado sobre o histórico sem crescer o custo de tokens indefinidamente.
+ */
+async function gerarResumoConversa(conversaId: string): Promise<void> {
+  try {
+    const msgs = await prisma.mensagemChat.findMany({
+      where: { conversaId },
+      orderBy: { criadaEm: 'asc' },
+      select: { remetente: true, conteudo: true },
+    });
+
+    const historicoTexto = msgs
+      .map((m) => {
+        // Remove blocos de contexto interno antes de resumir
+        const conteudo = m.conteudo.split('<<PROD_CTX>>')[0].trim().slice(0, 300);
+        return `${m.remetente === 'usuario' ? 'Usuário' : 'Aju'}: ${conteudo}`;
+      })
+      .join('\n');
+
+    const resultado = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Gere um resumo objetivo em até 3 frases desta conversa de chat de marketplace. Foque em: o que o usuário buscou, preferências mencionadas (cor, preço, categoria, loja), ações realizadas (tickets abertos, pedidos rastreados). Seja conciso e direto.',
+        },
+        { role: 'user', content: historicoTexto },
+      ],
+    });
+
+    const resumo = resultado.choices[0].message.content?.trim() ?? '';
+    if (resumo) {
+      await prisma.conversaChat.update({
+        where: { id: conversaId },
+        data: { resumoContexto: resumo },
+      });
+    }
+  } catch (err) {
+    logger.warn({ err }, '[chat] falha ao gerar resumo de conversa');
+  }
+}
+
+async function notificarSlackModeracao(dados: {
+  usuarioId: string;
+  strikes: number;
+  trecho: string;
+}): Promise<void> {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  const acoes: Record<number, string> = { 3: 'Ban 1h', 4: 'Ban 24h' };
+  const acao = acoes[dados.strikes] ?? 'Ban 7 dias';
+  const linhas = [
+    `🚨 *Moderação de Chat* — Strike ${dados.strikes}`,
+    `*Usuário:* \`${dados.usuarioId}\``,
+    `*Mensagem:* "${dados.trecho}${dados.trecho.length === 100 ? '…' : ''}"`,
+    `*Ação aplicada:* ${acao}`,
+  ].join('\n');
+  await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: linhas }),
+  });
 }
 
 // POST /chat/mensagem
@@ -215,6 +470,73 @@ router.post(
 
       const conversa = await obterOuCriarConversa(usuarioId, conversaIdReq);
       const conversaId = conversa.id;
+
+      // ── Verificação de ban ────────────────────────────────────────────────────
+      const usuarioDB = await prisma.usuario.findUnique({
+        where: { id: usuarioId },
+        select: { chatBloqueadoAte: true, chatStrikesCount: true },
+      });
+
+      if (usuarioDB?.chatBloqueadoAte && usuarioDB.chatBloqueadoAte > new Date()) {
+        const msRestante = usuarioDB.chatBloqueadoAte.getTime() - Date.now();
+        const horas = Math.floor(msRestante / 3600000);
+        const minutos = Math.ceil((msRestante % 3600000) / 60000);
+        const tempoRestante =
+          horas > 0
+            ? `${horas}h${minutos > 0 ? ` ${minutos}min` : ''}`
+            : `${minutos} minuto${minutos !== 1 ? 's' : ''}`;
+        return res.json({
+          tipo: 'resposta',
+          texto: `Seu acesso ao chat está suspenso por envio de conteúdo inadequado. Tente novamente em ${tempoRestante}.`,
+          sugestoes: [],
+          conversaId,
+        });
+      }
+
+      // ── Moderação de conteúdo + sistema de strikes ────────────────────────────
+      // Usa a Moderation API gratuita da OpenAI. Strikes acumulam com escalada:
+      // strike 1-2 → aviso | 3 → 1h ban | 4 → 24h ban | 5+ → 7 dias ban + Slack.
+      try {
+        const moderation = await openai.moderations.create({ input: texto });
+        if (moderation.results[0].flagged) {
+          const strikes = (usuarioDB?.chatStrikesCount ?? 0) + 1;
+
+          const BAN_DURACOES: Record<number, number> = { 3: 60, 4: 1440, 5: 10080 }; // minutos
+          const banMinutos = BAN_DURACOES[strikes] ?? (strikes > 5 ? 10080 : 0);
+          const banAte = banMinutos > 0 ? new Date(Date.now() + banMinutos * 60_000) : null;
+
+          await prisma.usuario.update({
+            where: { id: usuarioId },
+            data: { chatStrikesCount: strikes, ...(banAte ? { chatBloqueadoAte: banAte } : {}) },
+          });
+
+          if (strikes >= 3) {
+            void notificarSlackModeracao({ usuarioId, strikes, trecho: texto.slice(0, 100) });
+          }
+
+          const textoResposta =
+            strikes === 1
+              ? 'Ei, esse tipo de mensagem não é adequado por aqui! Posso te ajudar a encontrar produtos ou resolver problemas com pedidos. 😊'
+              : strikes === 2
+                ? 'Atenção: mais uma mensagem inadequada e seu acesso ao chat será suspenso. Posso te ajudar com compras ou pedidos?'
+                : banMinutos === 60
+                  ? 'Seu acesso ao chat foi suspenso por 1 hora devido ao envio de conteúdo inadequado.'
+                  : banMinutos === 1440
+                    ? 'Seu acesso ao chat foi suspenso por 24 horas por reincidência.'
+                    : 'Seu acesso ao chat foi suspenso por 7 dias por múltiplas reincidências.';
+
+          await salvarMensagens(conversaId, texto, textoResposta);
+          return res.json({
+            tipo: 'resposta',
+            texto: textoResposta,
+            sugestoes: strikes < 3 ? ['Buscar produtos', 'Rastrear pedido'] : [],
+            ...(strikes < 3 ? { strikesCount: strikes, strikesMax: 3 } : {}),
+            conversaId,
+          });
+        }
+      } catch {
+        // Moderação falhou — continua normalmente para não bloquear o usuário
+      }
 
       let estado = await obterEstado(conversaId);
 
@@ -252,9 +574,16 @@ router.post(
           /\bme\s+(recomend|indic|suger|mostr)\w*/i.test(texto) ||
           /\btem\s+(algum|produtos?|algo)\b/i.test(texto) ||
           /\bquero\s+(comprar|ver\s+produtos?|encontrar|achar)\b/i.test(texto) ||
-          /\b(outra\s+(coisa|pergunta)|esquece?(\s+isso)?|muda\s+(de\s+)?assunto|não\s+quero\s+mais|cancela?\s+isso)\b/i.test(
+          /\b(outra\s+(coisa|pergunta)|esquece?(\s+isso)?|muda\s+(de\s+)?assunto|n[aã]o\s+quero\s+mais|cancela?\s+isso)\b/i.test(
             texto,
-          );
+          ) ||
+          /deixa\s+(pra\s+l[aá]|isso|de\s+lado)/i.test(texto) ||
+          /sa[ií]\s+(disso|daqui|fora)/i.test(texto) ||
+          /para\s+(isso|com\s+isso)/i.test(texto) ||
+          /chega\s+disso/i.test(texto) ||
+          /n[aã]o\s+(preciso|quero)\s+mais/i.test(texto) ||
+          /tudo\s+bem\s+obrigad/i.test(texto) ||
+          /(^|\s)(tchau|flw|valeu|obrigad\w*)(\s|$)/i.test(texto);
 
         if (escapando) {
           await atualizarEstado(conversaId, null);
@@ -305,6 +634,25 @@ router.post(
         return res.json({ ...resultado, conversaId });
       }
 
+      // ── Detecção de idioma não-latino ────────────────────────────────────────
+      // Scripts não-latinos (árabe, CJK, japonês, coreano, cirílico, hindi, tailandês)
+      // recebem resposta bilíngue redirecionando para português, sem passar pelo AI.
+      // Idiomas latinos (inglês, espanhol, francês) são tratados pelo AI normalmente
+      // graças à instrução "sempre responda em português" no SYSTEM_AGENTE.
+      const contemNaoLatino =
+        /[؀-ۿݐ-ݿ]/.test(texto) || // árabe
+        /[一-鿿぀-ヿ가-힯]/.test(texto) || // CJK, japonês, coreano
+        /[Ѐ-ӿ]/.test(texto) || // cirílico (russo, etc.)
+        /[ऀ-ॿ]/.test(texto) || // devanagari (hindi)
+        /[฀-๿]/.test(texto); // tailandês
+
+      if (contemNaoLatino) {
+        const textoResposta =
+          'Nosso serviço funciona apenas em português 🇧🇷\nOur service is currently available in Portuguese only.\nEl servicio está disponible solo en portugués.\n\nMe conta o que você procura em português!';
+        await salvarMensagens(conversaId, texto, textoResposta);
+        return res.json({ tipo: 'resposta', texto: textoResposta, sugestoes: [], conversaId });
+      }
+
       // ── Sugestão "Rastrear outro pedido" → reinicia o fluxo diretamente ────────
       if (/rastrear.*(outro|um|meu)?\s*pedido/i.test(texto.trim()) && !estado) {
         const resultado = await iniciarFluxoRastreio(conversaId, usuarioId);
@@ -313,10 +661,55 @@ router.post(
       }
 
       // ── Fluxo normal com OpenAI ───────────────────────────────────────────────
-      const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = historico.map((m) => ({
-        role: m.remetente === 'usuario' ? 'user' : 'assistant',
-        content: m.conteudo,
-      }));
+      // Usa o histórico do banco (tem conteúdo enriquecido) em vez do frontend.
+      // Mensagens com <<PROD_CTX>> são divididas: display text → role:assistant,
+      // contexto de produto → role:system no final (o AI lê mas não ecoa ao usuário).
+      const [dbHistorico, conversaParaResumo] = await Promise.all([
+        obterHistoricoParaIA(conversaId),
+        prisma.conversaChat.findUnique({
+          where: { id: conversaId },
+          select: { resumoContexto: true },
+        }),
+      ]);
+
+      const PROD_CTX_MARKER = '<<PROD_CTX>>';
+      let ultimoContextoProdutos = '';
+
+      const historicoParsed: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+
+      // Injeta o resumo da conversa anterior como contexto fixo, se existir.
+      if (conversaParaResumo?.resumoContexto) {
+        historicoParsed.push({
+          role: 'system',
+          content: `Resumo da conversa anterior com este usuário: ${conversaParaResumo.resumoContexto}`,
+        });
+      }
+
+      for (const m of dbHistorico.length > 0 ? dbHistorico : historico) {
+        if (m.remetente === 'aju') {
+          const sepIdx = m.conteudo.indexOf(PROD_CTX_MARKER);
+          if (sepIdx !== -1) {
+            ultimoContextoProdutos = m.conteudo.slice(sepIdx + PROD_CTX_MARKER.length);
+            historicoParsed.push({
+              role: 'assistant',
+              content: m.conteudo.slice(0, sepIdx).trim(),
+            });
+          } else {
+            historicoParsed.push({ role: 'assistant', content: m.conteudo });
+          }
+        } else {
+          historicoParsed.push({ role: 'user', content: m.conteudo });
+        }
+      }
+
+      // Injeta o contexto de produtos como system message — visível ao AI mas nunca
+      // incluído no output, evitando que ele repita o bloco de contexto ao usuário.
+      if (ultimoContextoProdutos) {
+        historicoParsed.push({
+          role: 'system',
+          content: `Contexto dos produtos mostrados ao usuário na última busca (use para responder follow-ups — NUNCA repita este bloco ao usuário): ${ultimoContextoProdutos}`,
+        });
+      }
 
       // Contexto de loja: extrai do texto atual, do estado já carregado (cache), ou do banco.
       // O estado já carregado evita a query extra na maioria das mensagens.
@@ -426,13 +819,17 @@ router.post(
           ? JSON.stringify({
               busca: toolResult.aproximado ? 'aproximada' : 'exata',
               corPedida: coresPedidas.length > 0 ? coresPedidas : null,
-              // corDisponivel calculado sobre candidatos brutos como sinal inicial para a IA.
-              // O sistema refina após filtrar por tipo (ver abaixo).
               corDisponivel:
                 coresPedidas.length > 0 && toolResult.dados.length > 0
                   ? toolResult.dados.some((p) => produtoTemCor(p, coresPedidas))
                   : null,
-              produtos: toolResult.dados,
+              // Descrição truncada a 200 chars para o AI ter contexto sem inflar o prompt.
+              produtos: toolResult.dados.map((p) => ({
+                ...p,
+                descricao: p.descricao
+                  ? p.descricao.slice(0, 200) + (p.descricao.length > 200 ? '…' : '')
+                  : '',
+              })),
             })
           : JSON.stringify(toolResult.dados);
 
@@ -502,6 +899,61 @@ router.post(
 
       resposta.produtos = toolResult.tipo === 'produtos' ? ragParaChat(produtosExibidos) : [];
 
+      // conteudoParaSalvar: o que vai para o banco (e vira contexto do AI no próximo turno).
+      // Por padrão é igual ao texto exibido. Quando o fallback injeta produtos,
+      // inclui nomes e lojas para o AI poder responder sobre eles — mas resposta.texto
+      // fica limpo para não mostrar a lista crua ao consumidor.
+      let conteudoParaSalvar: string | undefined;
+
+      // ── Produtos similares quando busca retorna vazio ──────────────────────────
+      // 1. Categoria inferida: mapeia query → categoria ampla e busca produtos dela
+      // 2. RAG 0.65: semântico, fallback quando categoria não é reconhecida
+      // 3. Produtos em destaque: último recurso quando nada da categoria existe ainda
+      if (toolResult.tipo === 'produtos' && produtosExibidos.length === 0) {
+        try {
+          const categoriaInferida = inferirCategoria(texto);
+          let similares: ProdutoRAG[] = [];
+          let sufixoTexto = '';
+
+          if (categoriaInferida) {
+            similares = await buscarProdutosFallback(categoriaInferida, { limit: 3 });
+            sufixoTexto = `— mas separei outros produtos de ${categoriaInferida} que podem te interessar:`;
+          }
+
+          if (similares.length === 0) {
+            similares = await buscarProdutosRAG(texto, { threshold: 0.65, limit: 3 });
+            sufixoTexto = '— mas separei algumas opções parecidas que podem te interessar:';
+          }
+
+          if (similares.length === 0) {
+            similares = await buscarProdutosPopulares(3);
+            sufixoTexto = '— mas dá uma olhada no que está em destaque nas lojas daqui:';
+          }
+
+          if (similares.length > 0) {
+            produtosExibidos = similares;
+            resposta.produtos = ragParaChat(similares);
+
+            const textoAtual = typeof resposta.texto === 'string' ? resposta.texto : '';
+            const textoDisplay = `${textoAtual.replace(/[.!]+$/, '')} ${sufixoTexto}`;
+            resposta.texto = textoDisplay;
+
+            // Salva com numeração explícita 1-based para o AI referenciar corretamente
+            // quando o usuário disser "item 1", "item 2" etc. — alinhado com os badges dos cards.
+            const listaProdutos = similares
+              .map((p, i) => {
+                const desc = p.descricao ? `: ${p.descricao.slice(0, 120)}` : '';
+                const estoque = typeof p.estoque === 'number' ? ` [estoque: ${p.estoque}]` : '';
+                return `item ${i + 1} — ${p.nome} (${p.loja})${desc}${estoque}`;
+              })
+              .join(' | ');
+            conteudoParaSalvar = `${textoDisplay}<<PROD_CTX>>${listaProdutos}`;
+          }
+        } catch {
+          // Silencia erro para não derrubar o fluxo principal
+        }
+      }
+
       // ── Aviso de busca fora do contexto da loja ────────────────────────────────
       // Quando o produto não existe na loja do contexto e o sistema buscou globalmente,
       // injeta mensagem clara + chips para o usuário escolher o que fazer.
@@ -518,6 +970,39 @@ router.post(
         resposta.sugestoes = [`Ver o que tem na ${nomeLoja}`, 'Buscar em todas as lojas'];
       }
 
+      // ── Loja fechada → sugere alternativas abertas na mesma categoria ──────────
+      if (toolResult.tipo === 'infoLoja' && toolResult.dados !== null && !toolResult.dados.aberta) {
+        try {
+          const alternativas = await prisma.loja.findMany({
+            where: {
+              aberta: true,
+              categoria: toolResult.dados.categoria,
+              ...(lojaContexto ? { id: { not: lojaContexto } } : {}),
+            },
+            select: { nome: true },
+            take: 2,
+          });
+          if (alternativas.length > 0) {
+            const sugestoesAtivas = Array.isArray(resposta.sugestoes)
+              ? (resposta.sugestoes as string[])
+              : [];
+            resposta.sugestoes = [
+              ...alternativas.map((l) => `Ver produtos da ${l.nome}`),
+              ...sugestoesAtivas,
+            ].slice(0, 3);
+          }
+        } catch {
+          // silencia — não crítico
+        }
+      }
+
+      // Injeta quantidade APÓS o fallback de similares para cobrir ambos os casos
+      // (busca normal E busca que caiu no fallback de categoria/RAG ampliado).
+      if (toolResult.tipo === 'produtos' && produtosExibidos.length > 0) {
+        const quantidade = extrairQuantidade(texto);
+        if (quantidade) resposta.quantidade = quantidade;
+      }
+
       // Pedidos listados viram cards interativos (em vez de só texto da IA).
       if (toolResult.tipo === 'pedidos' && toolResult.dados.length > 0) {
         resposta.tipo = 'listarPedidos';
@@ -525,6 +1010,7 @@ router.post(
           numero: idx + 1,
           id: p.id,
           loja: p.loja,
+          lojaImagem: p.lojaImagem ?? null,
           total: p.total,
           data: p.criadoEm.split('T')[0],
           itens: p.itens,
@@ -532,11 +1018,43 @@ router.post(
         }));
       }
 
-      const { msgAju } = await salvarMensagens(conversaId, texto, (resposta.texto as string) || '');
+      // Tickets consultados → tipo especial para o frontend redirecionar à tela de tickets.
+      if (toolResult.tipo === 'tickets') {
+        resposta.tipo = 'verTickets';
+        resposta.tickets = toolResult.dados;
+      }
+
+      // Para buscas normais (não fallback), enriquece o conteúdo salvo com
+      // produto+descrição para o AI ter contexto em follow-ups.
+      if (toolResult.tipo === 'produtos' && produtosExibidos.length > 0 && !conteudoParaSalvar) {
+        const listaProdutos = produtosExibidos
+          .map((p, i) => {
+            const desc = p.descricao ? ': ' + p.descricao.slice(0, 120) : '';
+            const estoque = typeof p.estoque === 'number' ? ` [estoque: ${p.estoque}]` : '';
+            return `item ${i + 1} — ${p.nome} (${p.loja})${desc}${estoque}`;
+          })
+          .join(' | ');
+        conteudoParaSalvar = `${(resposta.texto as string) ?? ''}<<PROD_CTX>>${listaProdutos}`;
+      }
+
+      const { msgAju } = await salvarMensagens(
+        conversaId,
+        texto,
+        conteudoParaSalvar ?? (resposta.texto as string) ?? '',
+      );
 
       if (toolResult.tipo === 'produtos' && produtosExibidos.length > 0) {
         await salvarSugestoesChat(msgAju.id, produtosExibidos);
       }
+
+      // Dispara sumarização assíncrona a cada 20 mensagens (10 turnos de conversa).
+      // Não bloqueia a resposta — roda em background.
+      prisma.mensagemChat
+        .count({ where: { conversaId } })
+        .then((total) => {
+          if (total % 20 === 0) void gerarResumoConversa(conversaId);
+        })
+        .catch(() => {});
 
       res.json({ ...resposta, conversaId });
     } catch (error) {
@@ -562,6 +1080,84 @@ router.get('/historico', authMiddleware, authUsuario, async (req: AuthRequest, r
     res.status(500).json({ error: 'Erro ao carregar histórico' });
   }
 });
+
+// GET /chat/sugestoes — retorna 3 sugestões personalizadas pelo histórico ou sazonais
+router.get('/sugestoes', authMiddleware, authUsuario, async (req: AuthRequest, res: Response) => {
+  try {
+    const usuarioId = req.user!.id;
+
+    const conversa = await prisma.conversaChat.findFirst({
+      where: { usuarioId },
+      orderBy: { atualizadoEm: 'desc' },
+    });
+
+    const fallback = getSugestoesEstacionais();
+
+    if (!conversa) return res.json({ sugestoes: fallback });
+
+    const mensagens = await prisma.mensagemChat.findMany({
+      where: { conversaId: conversa.id, remetente: 'usuario' },
+      orderBy: { criadaEm: 'desc' },
+      take: 8,
+      select: { conteudo: true },
+    });
+
+    if (mensagens.length === 0) return res.json({ sugestoes: fallback });
+
+    const historico = mensagens
+      .map((m) =>
+        m.conteudo
+          .replace(/\[lojaId:[^\]]+\]/g, '')
+          .trim()
+          .slice(0, 80),
+      )
+      .filter(Boolean)
+      .join(' | ');
+
+    const resultado = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 80,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Gere exatamente 3 sugestões de busca curtas e específicas para um chat de marketplace em Aracaju (SE), baseadas no histórico de buscas do usuário. Retorne JSON: {"sugestoes":["s1","s2","s3"]}. Cada sugestão: máximo 30 caracteres, tom informal, variadas entre si.',
+        },
+        { role: 'user', content: `Buscas recentes: ${historico}` },
+      ],
+    });
+
+    const parsed = JSON.parse(resultado.choices[0].message.content ?? '{}');
+    const sugestoes =
+      Array.isArray(parsed.sugestoes) && parsed.sugestoes.length === 3
+        ? (parsed.sugestoes as string[])
+        : fallback;
+
+    res.json({ sugestoes });
+  } catch {
+    res.json({ sugestoes: getSugestoesEstacionais() });
+  }
+});
+
+function getSugestoesEstacionais(): string[] {
+  const mes = new Date().getMonth() + 1;
+  const SAZONAIS: Record<number, string[]> = {
+    1: ['Liquidação de verão', 'Óculos de sol', 'Protetor solar'],
+    2: ['Presente pra namorada', 'Perfume feminino', 'Chocolates finos'],
+    3: ['Roupa de academia', 'Tênis esportivo', 'Whey protein'],
+    4: ['Presente de Páscoa', 'Chocolate artesanal', 'Cesta de café'],
+    5: ['Presente Dia das Mães', 'Bolsa feminina', 'Perfume especial'],
+    6: ['Roupa junina', 'Comida nordestina', 'Chapéu de palha'],
+    7: ['Moletom e casaco', 'Cobertor grosso', 'Bota de cano'],
+    8: ['Presente Dia dos Pais', 'Eletrônico masculino', 'Perfume masculino'],
+    9: ['Tênis colorido', 'Vestido floral', 'Sandália nova'],
+    10: ['Fantasia criativa', 'Decoração de festa', 'Acessório divertido'],
+    11: ['Eletrônico em oferta', 'Tênis barato', 'Celular novo'],
+    12: ['Presente de Natal', 'Panetone especial', 'Decoração natalina'],
+  };
+  return SAZONAIS[mes] ?? ['Tênis preto até R$200', 'Presente pra mamãe', 'Fone bluetooth'];
+}
 
 // DELETE /chat/historico — apaga toda a conversa do usuário (local + servidor)
 router.delete(

@@ -73,6 +73,20 @@ export async function obterHistoricoAju(
   }
 }
 
+/** Retorna sugestões iniciais personalizadas (histórico) ou sazonais (sem histórico). */
+export async function buscarSugestoesAju(token: string): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_URL}/chat/sugestoes`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => ({}));
+    return Array.isArray(data.sugestoes) ? data.sugestoes : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Apaga toda a conversa do usuário no servidor (para a exclusão "colar" no F5/web). */
 export async function limparHistoricoAju(token: string): Promise<void> {
   try {

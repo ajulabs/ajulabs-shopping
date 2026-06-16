@@ -12,6 +12,7 @@ import { logger } from '../lib/logger';
 export type PedidoResumo = {
   id: string;
   loja: string;
+  lojaImagem?: string | null;
   status: string;
   total: number;
   itens: string[];
@@ -32,10 +33,20 @@ export type InfoLoja = {
   horarios: { diaSemana: number; ativo: boolean; abertura: string; fechamento: string }[];
 };
 
+export type TicketResumo = {
+  protocolo: string;
+  status: string;
+  motivo: string;
+  criadoEm: string;
+  pedidoId: string | null;
+  respostas: { texto: string; criadoEm: string }[];
+};
+
 export type ToolResult =
   | { tipo: 'produtos'; dados: ProdutoRAG[]; aproximado?: boolean; foraContextoLoja?: boolean }
   | { tipo: 'pedidos'; dados: PedidoResumo[] }
   | { tipo: 'ticket'; dados: { criado: boolean; protocolo: string } }
+  | { tipo: 'tickets'; dados: TicketResumo[] }
   | { tipo: 'infoLoja'; dados: InfoLoja | null }
   | { tipo: 'vazio'; dados: null };
 
@@ -50,6 +61,22 @@ async function resolverLojaId(lojaNome?: string, lojaId?: string): Promise<strin
     select: { id: true },
   });
   return loja?.id;
+}
+
+/**
+ * Calcula se a loja está aberta agora com base nos horários cadastrados.
+ * Usa o fuso de Brasília (America/Sao_Paulo) independentemente do servidor.
+ * Convenção dos dias: 0=Seg, 1=Ter, 2=Qua, 3=Qui, 4=Sex, 5=Sáb, 6=Dom.
+ */
+function calcularAberta(
+  horarios: { diaSemana: number; ativo: boolean; abertura: string; fechamento: string }[],
+): boolean {
+  const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const diaSemana = (agora.getDay() + 6) % 7;
+  const horaAtual = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+  const horarioHoje = horarios.find((h) => h.diaSemana === diaSemana && h.ativo);
+  if (!horarioHoje) return false;
+  return horaAtual >= horarioHoje.abertura && horaAtual <= horarioHoje.fechamento;
 }
 
 /** Converte argumento de preço (string vinda da tool) em número válido, ou undefined. */
@@ -119,7 +146,7 @@ export async function executarListarPedidos(
     orderBy: { criadoEm: 'desc' },
     take: 5,
     include: {
-      loja: { select: { nome: true } },
+      loja: { select: { nome: true, logoUrl: true } },
       itens: { select: { nomeSnapshot: true, quantidade: true } },
     },
   });
@@ -127,6 +154,7 @@ export async function executarListarPedidos(
   const dados: PedidoResumo[] = pedidos.map((p) => ({
     id: p.id,
     loja: p.loja.nome,
+    lojaImagem: p.loja.logoUrl ?? null,
     status: p.status,
     total: Number(p.total),
     itens: p.itens.map((i) => `${i.nomeSnapshot} x${i.quantidade}`),
@@ -170,7 +198,7 @@ export async function executarBuscarInfoLoja(opts: {
       categoria: loja.categoria,
       telefone: loja.telefone,
       whatsapp: loja.whatsapp,
-      aberta: loja.aberta,
+      aberta: calcularAberta(loja.horarios),
       tempoEntregaMin: loja.tempoEntregaMin,
       tempoEntregaMax: loja.tempoEntregaMax,
       taxaEntrega: Number(loja.taxaEntrega),
@@ -236,6 +264,42 @@ async function notificarSlack(dados: {
   });
 }
 
+export async function executarConsultarTickets(usuarioId: string): Promise<ToolResult> {
+  const tickets = await prisma.supportTicket.findMany({
+    where: { consumidorId: usuarioId },
+    orderBy: { criadoEm: 'desc' },
+    take: 5,
+    select: {
+      protocolo: true,
+      status: true,
+      motivo: true,
+      criadoEm: true,
+      pedidoId: true,
+      mensagens: {
+        where: { remetente: 'lojista' },
+        orderBy: { criadoEm: 'desc' },
+        take: 2,
+        select: { texto: true, criadoEm: true },
+      },
+    },
+  });
+
+  return {
+    tipo: 'tickets',
+    dados: tickets.map((t) => ({
+      protocolo: t.protocolo,
+      status: t.status,
+      motivo: t.motivo,
+      criadoEm: t.criadoEm.toISOString(),
+      pedidoId: t.pedidoId,
+      respostas: t.mensagens.map((m) => ({
+        texto: m.texto,
+        criadoEm: m.criadoEm.toISOString(),
+      })),
+    })),
+  };
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 export async function executarTool(
@@ -260,6 +324,8 @@ export async function executarTool(
       return executarBuscarInfoLoja({ lojaId: args.lojaId, lojaNome: args.lojaNome });
     case 'criar_ticket':
       return executarCriarTicket(args.motivo ?? '', usuarioId, args.pedidoId);
+    case 'consultar_tickets':
+      return executarConsultarTickets(usuarioId);
     default:
       return { tipo: 'vazio', dados: null };
   }

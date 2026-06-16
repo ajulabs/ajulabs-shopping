@@ -49,7 +49,7 @@ export async function iniciarFluxoRastreio(
     orderBy: { criadoEm: 'desc' },
     take: 5,
     include: {
-      loja: { select: { nome: true } },
+      loja: { select: { nome: true, logoUrl: true } },
       itens: { select: { nomeSnapshot: true, quantidade: true } },
     },
   });
@@ -67,6 +67,7 @@ export async function iniciarFluxoRastreio(
     numero: idx + 1,
     id: p.id,
     loja: p.loja.nome,
+    lojaImagem: p.loja.logoUrl ?? null,
     total: Number(p.total),
     data: p.criadoEm.toISOString().split('T')[0],
     itens: p.itens.map((i) =>
@@ -128,8 +129,8 @@ export async function processarSelecaoRastreio(
   const pedidoCompleto = await prisma.pedido.findUnique({
     where: { id: pedido.id },
     include: {
-      loja: { select: { nome: true } },
-      entregador: { select: { nome: true } },
+      loja: { select: { nome: true, logoUrl: true, tempoEntregaMin: true, tempoEntregaMax: true } },
+      entregador: { select: { nome: true, ultimaLat: true, ultimaLng: true } },
       enderecoEntrega: { select: { lat: true, lng: true } },
     },
   });
@@ -153,8 +154,14 @@ export async function processarSelecaoRastreio(
 
   const statusTexto = STATUS_LABEL[pedidoCompleto.status] ?? pedidoCompleto.status;
   const entregadorInfo = pedidoCompleto.entregador ? ` com ${pedidoCompleto.entregador.nome}` : '';
+  const etaInfo =
+    pedidoCompleto.status === 'saiu_entrega' &&
+    pedidoCompleto.loja.tempoEntregaMin &&
+    pedidoCompleto.loja.tempoEntregaMax
+      ? ` Previsão: ${pedidoCompleto.loja.tempoEntregaMin}–${pedidoCompleto.loja.tempoEntregaMax} min.`
+      : '';
 
-  const texto = `Seu pedido da ${pedidoCompleto.loja.nome} está *${statusTexto}*${entregadorInfo}! 🚀`;
+  const texto = `Seu pedido da ${pedidoCompleto.loja.nome} está *${statusTexto}*${entregadorInfo}! 🚀${etaInfo}`;
 
   // "Tive um problema" só é oferecido quando o pedido é reclamável.
   const sugestoes = reclamavel
@@ -169,6 +176,8 @@ export async function processarSelecaoRastreio(
           pedidoId: pedidoCompleto.id,
           destinoLat: pedidoCompleto.enderecoEntrega.lat,
           destinoLng: pedidoCompleto.enderecoEntrega.lng,
+          entregadorLat: pedidoCompleto.entregador?.ultimaLat ?? null,
+          entregadorLng: pedidoCompleto.entregador?.ultimaLng ?? null,
         }
       : undefined;
 

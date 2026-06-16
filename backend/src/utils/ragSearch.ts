@@ -7,13 +7,16 @@ export type VariacaoRAG = {
   id: string;
   nome: string;
   preco: number | null;
+  estoque: number;
 };
 
 export type ProdutoRAG = {
   id: string;
   lojaId: string;
   nome: string;
+  descricao: string;
   preco: number;
+  estoque: number;
   categoria: string;
   imagemUrl: string;
   tags: string[];
@@ -28,7 +31,9 @@ type RawRow = {
   id: string;
   loja_id: string;
   nome: string;
+  descricao: string;
   preco: unknown;
+  estoque: number;
   categoria: string;
   imagem_url: string;
   tags: string[];
@@ -38,7 +43,7 @@ type RawRow = {
   tempo_entrega_max: number;
   taxa_entrega: unknown;
   avaliacao: unknown;
-  variacoes: { id: string; nome: string; preco: string | null }[];
+  variacoes: { id: string; nome: string; preco: string | null; estoque: number }[];
 };
 
 function mapRow(r: RawRow): ProdutoRAG {
@@ -46,7 +51,9 @@ function mapRow(r: RawRow): ProdutoRAG {
     id: r.id,
     lojaId: r.loja_id,
     nome: r.nome,
+    descricao: r.descricao ?? '',
     preco: Number(r.preco),
+    estoque: r.estoque ?? 0,
     categoria: r.categoria,
     imagemUrl: r.imagem_url ?? '',
     tags: r.tags ?? [],
@@ -59,6 +66,7 @@ function mapRow(r: RawRow): ProdutoRAG {
           id: v.id,
           nome: v.nome,
           preco: v.preco != null ? Number(v.preco) : null,
+          estoque: Number(v.estoque ?? 0),
         }))
       : [],
   };
@@ -69,6 +77,7 @@ export type BuscaOpts = {
   lojaId?: string;
   precoMax?: number;
   precoMin?: number;
+  threshold?: number;
 };
 
 /**
@@ -98,7 +107,7 @@ export async function buscarProdutosRAG(
   mensagem: string,
   opts: BuscaOpts = {},
 ): Promise<ProdutoRAG[]> {
-  const { limit = 8, lojaId, precoMax, precoMin } = opts;
+  const { limit = 8, lojaId, precoMax, precoMin, threshold = 0.75 } = opts;
 
   const response = await openai.embeddings.create({
     model: 'text-embedding-3-small',
@@ -113,7 +122,7 @@ export async function buscarProdutosRAG(
     'p.disponivel = true',
     'l.aberta = true',
     'p.embedding IS NOT NULL',
-    '(p.embedding <=> $1::vector) < 0.75',
+    `(p.embedding <=> $1::vector) < ${threshold}`,
   ];
 
   if (lojaId) {
@@ -137,7 +146,9 @@ export async function buscarProdutosRAG(
        p.id,
        p.loja_id,
        p.nome,
+       p.descricao,
        p.preco,
+       p.estoque,
        p.categoria,
        p.imagem_url,
        p.tags,
@@ -148,7 +159,7 @@ export async function buscarProdutosRAG(
        l.taxa_entrega,
        l.avaliacao,
        COALESCE(
-         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco))
+         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco, 'estoque', v.estoque))
          FILTER (WHERE v.id IS NOT NULL),
          '[]'::json
        ) AS variacoes
@@ -204,7 +215,9 @@ export async function buscarProdutosFallback(
        p.id,
        p.loja_id,
        p.nome,
+       p.descricao,
        p.preco,
+       p.estoque,
        p.categoria,
        p.imagem_url,
        p.tags,
@@ -215,7 +228,7 @@ export async function buscarProdutosFallback(
        l.taxa_entrega,
        l.avaliacao,
        COALESCE(
-         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco))
+         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco, 'estoque', v.estoque))
          FILTER (WHERE v.id IS NOT NULL),
          '[]'::json
        ) AS variacoes
@@ -234,14 +247,20 @@ export async function buscarProdutosFallback(
   return rows.map(mapRow);
 }
 
-/** Direct store product listing — bypasses RAG for precise store-filtered results. */
-export async function buscarProdutosPorLoja(lojaId: string, limit = 8): Promise<ProdutoRAG[]> {
+/**
+ * Retorna produtos em destaque ou mais bem avaliados.
+ * Último recurso quando nenhuma busca encontra resultado — garante que o usuário
+ * sempre veja algo útil em vez de uma tela vazia.
+ */
+export async function buscarProdutosPopulares(limit = 3): Promise<ProdutoRAG[]> {
   const rows = await prisma.$queryRawUnsafe<RawRow[]>(
     `SELECT
        p.id,
        p.loja_id,
        p.nome,
+       p.descricao,
        p.preco,
+       p.estoque,
        p.categoria,
        p.imagem_url,
        p.tags,
@@ -252,7 +271,43 @@ export async function buscarProdutosPorLoja(lojaId: string, limit = 8): Promise<
        l.taxa_entrega,
        l.avaliacao,
        COALESCE(
-         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco))
+         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco, 'estoque', v.estoque))
+         FILTER (WHERE v.id IS NOT NULL),
+         '[]'::json
+       ) AS variacoes
+     FROM "produtos" p
+     JOIN "lojas" l ON l.id = p.loja_id
+     LEFT JOIN "variacoes_produto" v ON v.produto_id = p.id
+     WHERE p.disponivel = true AND l.aberta = true
+     GROUP BY p.id, l.id
+     ORDER BY p.destaque DESC, p.avaliacao DESC
+     LIMIT $1`,
+    limit,
+  );
+  return rows.map(mapRow);
+}
+
+/** Direct store product listing — bypasses RAG for precise store-filtered results. */
+export async function buscarProdutosPorLoja(lojaId: string, limit = 8): Promise<ProdutoRAG[]> {
+  const rows = await prisma.$queryRawUnsafe<RawRow[]>(
+    `SELECT
+       p.id,
+       p.loja_id,
+       p.nome,
+       p.descricao,
+       p.preco,
+       p.estoque,
+       p.categoria,
+       p.imagem_url,
+       p.tags,
+       l.nome          AS loja_nome,
+       l.categoria     AS loja_categoria,
+       l.tempo_entrega_min,
+       l.tempo_entrega_max,
+       l.taxa_entrega,
+       l.avaliacao,
+       COALESCE(
+         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco, 'estoque', v.estoque))
          FILTER (WHERE v.id IS NOT NULL),
          '[]'::json
        ) AS variacoes

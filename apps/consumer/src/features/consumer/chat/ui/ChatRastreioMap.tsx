@@ -20,11 +20,17 @@ export function ChatRastreioMap({ rastreio }: Props) {
       ? { lat: rastreio.destinoLat, lng: rastreio.destinoLng }
       : null;
 
+  const initialEntregadorLocation =
+    rastreio.entregadorLat != null && rastreio.entregadorLng != null
+      ? { lat: rastreio.entregadorLat, lng: rastreio.entregadorLng }
+      : null;
+
   const { entregadorLocation } = useEntregadorTracking({
     pedidoId: rastreio.pedidoId,
     token,
     userId,
     isActive: true,
+    initialEntregadorLocation,
   });
 
   return (
