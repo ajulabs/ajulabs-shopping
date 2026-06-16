@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getSocket } from '../client';
-import type { LocationPayload, StatusPayload } from '../events';
+import type { LocationPayload } from '../events';
 import type { StatusPedido } from '@ajulabs/types';
 
 interface TrackingState {
@@ -24,7 +24,8 @@ export function useDeliveryTracking({
   roomType,
   enabled = true,
 }: UseDeliveryTrackingOptions): TrackingState {
-  const [entregadorLocation, setEntregadorLocation] = useState<TrackingState['entregadorLocation']>(null);
+  const [entregadorLocation, setEntregadorLocation] =
+    useState<TrackingState['entregadorLocation']>(null);
   const [status, setStatus] = useState<StatusPedido | null>(null);
   const [connected, setConnected] = useState(false);
   const pedidoIdRef = useRef(pedidoId);
@@ -53,15 +54,17 @@ export function useDeliveryTracking({
       });
     };
 
-    const onStatus = (payload: StatusPayload) => {
+    // O backend emite 'pedido:atualizado' (não 'pedido:status'). Antes este
+    // listener nunca disparava, deixando o status sem atualização em tempo real.
+    const onStatus = (payload: { pedidoId: string; status: string }) => {
       if (payload.pedidoId !== pedidoIdRef.current) return;
-      setStatus(payload.status);
+      setStatus(payload.status as StatusPedido);
     };
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('localizacao:entregador', onLocation);
-    socket.on('pedido:status', onStatus);
+    socket.on('pedido:atualizado', onStatus);
 
     if (socket.connected) onConnect();
 
@@ -69,7 +72,7 @@ export function useDeliveryTracking({
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('localizacao:entregador', onLocation);
-      socket.off('pedido:status', onStatus);
+      socket.off('pedido:atualizado', onStatus);
     };
   }, [apiUrl, roomId, roomType, enabled]);
 
