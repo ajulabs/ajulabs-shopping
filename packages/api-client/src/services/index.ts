@@ -928,24 +928,6 @@ export const EntregadorService = {
     }
   },
 
-  atualizarStatusCorrida: async (
-    token: string,
-    pedidoId: string,
-    status: 'saiu_entrega' | 'entregue',
-  ): Promise<void> => {
-    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        typeof err.error === 'string' ? err.error : 'Erro ao atualizar status da corrida',
-      );
-    }
-  },
-
   buscarPerfil: async (token: string): Promise<any | null> => {
     const res = await fetch(`${API_URL}/entregador/perfil`, {
       headers: authHeader(token),

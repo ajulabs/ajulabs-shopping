@@ -342,26 +342,68 @@ export async function restaurarEstoqueNoCancelamento(
   const db = (tx ?? prisma) as typeof prisma;
   const itens = await db.itemPedido.findMany({
     where: { pedidoId },
-    include: { produto: { select: { estoque: true, estoqueMinimo: true, nome: true } } },
+    select: {
+      produtoId: true,
+      quantidade: true,
+      variacaoId: true,
+      variacaoNome: true,
+      produto: { select: { estoque: true } },
+    },
   });
 
   for (const item of itens) {
-    const novoEstoque = item.produto.estoque + item.quantidade;
-    await db.produto.update({
-      where: { id: item.produtoId },
-      data: { estoque: novoEstoque, disponivel: true },
-    });
-    await db.movimentacaoEstoque.create({
-      data: {
-        produtoId: item.produtoId,
-        lojaId,
-        tipo: 'cancelamento',
-        quantidade: item.quantidade,
-        estoqueAntes: item.produto.estoque,
-        estoqueDepois: novoEstoque,
-        motivo: `Cancelamento do pedido ${pedidoId.slice(0, 8)}`,
-        pedidoId,
-      },
-    });
+    if (item.variacaoId) {
+      // Produto com variação: devolve à variação e recomputa o total do produto
+      // como soma das variações — espelha o decremento de venda em pedidos.routes.ts.
+      // Sem isso, a numeração/tamanho específico ficava perdida e o total do
+      // produto ficava inconsistente (era sobrescrito em qualquer ajuste futuro).
+      await db.variacaoProduto.update({
+        where: { id: item.variacaoId },
+        data: { estoque: { increment: item.quantidade } },
+      });
+      const todasVars = await db.variacaoProduto.findMany({
+        where: { produtoId: item.produtoId },
+        select: { estoque: true },
+      });
+      const estoqueDepois = todasVars.reduce((s, v) => s + v.estoque, 0);
+      const estoqueAntes = estoqueDepois - item.quantidade;
+      await db.produto.update({
+        where: { id: item.produtoId },
+        data: { estoque: estoqueDepois, disponivel: true },
+      });
+      await db.movimentacaoEstoque.create({
+        data: {
+          produtoId: item.produtoId,
+          lojaId,
+          tipo: 'cancelamento',
+          quantidade: item.quantidade,
+          estoqueAntes,
+          estoqueDepois,
+          motivo: `Cancelamento do pedido ${pedidoId.slice(0, 8)}`,
+          pedidoId,
+          variacaoId: item.variacaoId,
+          variacaoNome: item.variacaoNome ?? null,
+        },
+      });
+    } else {
+      const estoqueAntes = item.produto.estoque;
+      const estoqueDepois = estoqueAntes + item.quantidade;
+      await db.produto.update({
+        where: { id: item.produtoId },
+        data: { estoque: estoqueDepois, disponivel: true },
+      });
+      await db.movimentacaoEstoque.create({
+        data: {
+          produtoId: item.produtoId,
+          lojaId,
+          tipo: 'cancelamento',
+          quantidade: item.quantidade,
+          estoqueAntes,
+          estoqueDepois,
+          motivo: `Cancelamento do pedido ${pedidoId.slice(0, 8)}`,
+          pedidoId,
+        },
+      });
+    }
   }
 }
