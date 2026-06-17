@@ -20,7 +20,10 @@ export function getSocket(url: string): TypedSocket {
 
   _url = baseUrl;
   _socket = io(baseUrl, {
-    transports: ['websocket'],
+    // Prefere websocket, mas permite cair para long-polling quando o websocket
+    // puro é bloqueado (algumas redes/proxies e builds APK) — sem isso o socket
+    // nunca conecta e o rastreamento fica "localizando" para sempre.
+    transports: ['websocket', 'polling'],
     autoConnect: true,
     reconnection: true,
     reconnectionDelay: 1000,
