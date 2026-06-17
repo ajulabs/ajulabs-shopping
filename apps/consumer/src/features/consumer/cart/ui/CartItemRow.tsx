@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemCarrinho } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
@@ -40,6 +40,14 @@ export function CartItemRow({ item, onAumentar, onDiminuir, onRemover }: Props) 
   const border = isDark ? 'rgba(255,255,255,0.12)' : colors.n200;
   const qtdBg = surf;
 
+  const variacaoEfetiva = item.variacaoId
+    ? item.produto.variacoes?.find((v) => v.id === item.variacaoId)
+    : undefined;
+  const estoqueEfetivo = item.variacaoId
+    ? (variacaoEfetiva?.estoque ?? Infinity)
+    : (item.produto.estoque ?? Infinity);
+  const noLimiteEstoque = isFinite(estoqueEfetivo) && item.quantidade >= estoqueEfetivo;
+
   return (
     <View style={styles.row}>
       <Thumb uri={item.produto.imagem} alt={item.produto.nome} isDark={isDark} />
@@ -67,23 +75,30 @@ export function CartItemRow({ item, onAumentar, onDiminuir, onRemover }: Props) 
           <Text style={[styles.qtd, { color: text }]}>{item.quantidade}</Text>
           <TouchableOpacity
             onPress={() => onAumentar(item.produto.id, item.variacaoId)}
-            style={styles.btnMais}
+            style={[styles.btnMais, noLimiteEstoque && styles.btnMaisDisabled]}
             activeOpacity={0.85}
+            disabled={noLimiteEstoque}
           >
             <Text style={styles.btnMaisTxt}>+</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
-          onPress={() =>
-            Alert.alert('Remover item', `Remover "${item.produto.nome}" do carrinho?`, [
-              { text: 'Cancelar', style: 'cancel' },
-              {
-                text: 'Remover',
-                style: 'destructive',
-                onPress: () => onRemover(item.produto.id, item.variacaoId),
-              },
-            ])
-          }
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              if (window.confirm(`Remover "${item.produto.nome}" do carrinho?`)) {
+                onRemover(item.produto.id, item.variacaoId);
+              }
+            } else {
+              Alert.alert('Remover item', `Remover "${item.produto.nome}" do carrinho?`, [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Remover',
+                  style: 'destructive',
+                  onPress: () => onRemover(item.produto.id, item.variacaoId),
+                },
+              ]);
+            }
+          }}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -119,6 +134,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnMaisDisabled: {
+    backgroundColor: colors.n300,
   },
   btnMaisTxt: { color: colors.n0, fontSize: 14, fontWeight: '700', lineHeight: 16 },
 });

@@ -108,7 +108,7 @@ export async function iniciarFluxoQueixaComPedido(
     return {
       tipo: 'ticketDuplicado',
       texto: `Você já tem uma reclamação aberta para este pedido com o protocolo *${ticketExistente.protocolo}*. Acompanhe o andamento na tela de tickets — a loja já está ciente do problema.`,
-      sugestoes: ['Ver meus tickets', 'Buscar produtos'],
+      sugestoes: ['Criar outro ticket', 'Ver meus tickets', 'Buscar produtos'],
     };
   }
 
@@ -267,7 +267,7 @@ export async function processarConfirmacao(
       return {
         tipo: 'ticketDuplicado',
         texto: `Você já tem uma reclamação aberta para este pedido com o protocolo *${ticketExistente.protocolo}*. Acompanhe o andamento na tela de tickets — a loja já está ciente do problema.`,
-        sugestoes: ['Ver meus tickets', 'Buscar produtos'],
+        sugestoes: ['Criar outro ticket', 'Ver meus tickets', 'Buscar produtos'],
       };
     }
   }
@@ -305,6 +305,6 @@ export async function processarConfirmacao(
   return {
     tipo: 'ticketCriado',
     texto: `Pronto! Ticket registrado com o protocolo *${protocolo}*. Nossa equipe vai entrar em contato em breve. 🙏`,
-    sugestoes: ['Ver meus pedidos', 'Buscar produtos'],
+    sugestoes: ['Criar outro ticket', 'Buscar produtos'],
   };
 }

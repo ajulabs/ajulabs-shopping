@@ -812,6 +812,24 @@ export const ConsumerTicketService = {
     return mensagem;
   },
 
+  criar: async (
+    token: string,
+    motivo: string,
+    pedidoId?: string,
+  ): Promise<{ id: string; protocolo: string }> => {
+    const res = await fetch(`${API_URL}/tickets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ motivo, ...(pedidoId ? { pedidoId } : {}) }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao criar ticket');
+    }
+    const data = await res.json();
+    return data.ticket ?? data;
+  },
+
   cancelar: async (id: string, token: string): Promise<void> => {
     const res = await fetch(`${API_URL}/tickets/${id}`, {
       method: 'DELETE',
