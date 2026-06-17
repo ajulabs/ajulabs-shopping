@@ -98,7 +98,7 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
     function: {
       name: 'criar_ticket',
       description:
-        'Registra uma reclamação para atendimento humano. Use IMEDIATAMENTE quando o usuário mencionar qualquer problema pós-compra: produto danificado, quebrado, defeituoso, errado, não chegou, entrega atrasada, cobrança errada ou qualquer insatisfação com pedido já realizado. NÃO peça mais informações antes de chamar esta função.',
+        'Registra uma reclamação para atendimento humano. Use IMEDIATAMENTE quando o usuário DESCREVER qualquer problema pós-compra: produto danificado, quebrado, defeituoso, errado, não chegou, entrega atrasada, cobrança errada ou qualquer insatisfação com pedido já realizado. Use mesmo que já exista um ticket criado nessa conversa — cada relato novo gera um ticket novo. NÃO peça mais informações antes de chamar esta função.',
       parameters: {
         type: 'object',
         properties: {
@@ -120,7 +120,7 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
     function: {
       name: 'consultar_tickets',
       description:
-        'Lista as reclamações (tickets) abertas ou recentes do usuário com status atual. Use quando o usuário perguntar sobre suas reclamações, protocolo de atendimento, status de um ticket ou quiser saber se alguém respondeu.',
+        'Lista as reclamações (tickets) abertas ou recentes do usuário. Use SOMENTE quando o usuário perguntar explicitamente sobre o status de tickets existentes, protocolo de atendimento ou se alguém respondeu. NÃO use quando o usuário estiver descrevendo um problema novo — nesses casos use criar_ticket.',
       parameters: {
         type: 'object',
         properties: {},
