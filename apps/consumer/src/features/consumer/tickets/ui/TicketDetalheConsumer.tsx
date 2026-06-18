@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,18 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
-import { ConsumerTicketService } from '@ajulabs/api-client';
-import { useAuthStore } from '../../../../store';
-import { useTheme, useSmartBack } from '../../../../hooks';
-import { useTicketRealtime } from '@ajulabs/realtime';
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-import {
-  TicketConsumidor,
-  TicketMensagem,
-  STATUS_META,
-  tempoRelativo,
-  mapTicketConsumidor,
-} from '../model/data';
+import { useTheme, useSmartBack } from '../../../../shared/hooks';
+import { STATUS_META, tempoRelativo, TicketMensagem } from '../model/data';
+import { useTicketDetalhe } from '../model/useTicketDetalhe';
+import { TicketTimeline } from './components/TicketTimeline';
+import { AvaliacaoStars } from './components/AvaliacaoStars';
 
 const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
@@ -39,244 +31,27 @@ function dataHora(iso: string) {
   });
 }
 
-const STEPS = [
-  { status: 'aberto', label: 'Ticket aberto', icon: 'alert-circle-outline' as const },
-  { status: 'em_andamento', label: 'Em análise', icon: 'construct-outline' as const },
-  { status: 'resolvido', label: 'Resolvido', icon: 'checkmark-circle' as const },
-];
-
-function Timeline({ status }: { status: string }) {
-  const stepIdx = STEPS.findIndex((s) => s.status === status);
-  if (status === 'cancelado') return null;
-  return (
-    <View style={tl.wrap}>
-      {STEPS.map((step, i) => {
-        const done = i <= stepIdx;
-        const current = i === stepIdx;
-        return (
-          <View key={step.status} style={tl.row}>
-            <View style={tl.iconCol}>
-              <View style={[tl.dot, done && tl.dotDone, current && tl.dotCurrent]}>
-                <Ionicons name={step.icon} size={14} color={done ? colors.n0 : colors.n300} />
-              </View>
-              {i < STEPS.length - 1 && (
-                <View style={[tl.line, done && i < stepIdx && tl.lineDone]} />
-              )}
-            </View>
-            <Text style={[tl.label, done && tl.labelDone]}>{step.label}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-const tl = StyleSheet.create({
-  wrap: { paddingVertical: 4 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 40 },
-  iconCol: { alignItems: 'center', marginRight: 12, width: 28 },
-  dot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.n200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dotDone: { backgroundColor: colors.navy },
-  dotCurrent: { backgroundColor: colors.orange },
-  line: { width: 2, flex: 1, backgroundColor: colors.n200, marginVertical: 2 },
-  lineDone: { backgroundColor: colors.navy },
-  label: { fontSize: 13, color: colors.n500, paddingTop: 6 },
-  labelDone: { color: colors.navy, fontWeight: '600' },
-});
-
-function AvaliacaoStars({
-  nota,
-  onAvaliar,
-}: {
-  nota: number | null;
-  onAvaliar: (n: number) => void;
-}) {
-  const [hover, setHover] = useState(0);
-  if (nota !== null) {
-    return (
-      <View style={av.wrap}>
-        <Text style={av.label}>Sua avaliação:</Text>
-        <View style={av.stars}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <Ionicons key={n} name="star" size={22} color={n <= nota ? '#F59E0B' : colors.n200} />
-          ))}
-        </View>
-      </View>
-    );
-  }
-  return (
-    <View style={av.wrap}>
-      <Text style={av.label}>Como foi o atendimento?</Text>
-      <View style={av.stars}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <TouchableOpacity key={n} onPress={() => onAvaliar(n)} activeOpacity={0.8}>
-            <Ionicons
-              name={n <= hover ? 'star' : 'star-outline'}
-              size={28}
-              color="#F59E0B"
-              onLayout={() => {}}
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={av.stars}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <TouchableOpacity
-            key={n}
-            onPress={() => {
-              setHover(n);
-              onAvaliar(n);
-            }}
-            activeOpacity={0.8}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="star" size={28} color={n <= hover ? '#F59E0B' : colors.n200} />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-const av = StyleSheet.create({
-  wrap: { gap: 8 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.navy },
-  stars: { flexDirection: 'row', gap: 4 },
-});
-
 export function TicketDetalheConsumer() {
-  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const goBack = useSmartBack('/(consumer)/tickets');
   const insets = useSafeAreaInsets();
-  const token = useAuthStore((s) => s.token);
-  const userId = useAuthStore((s) => s.userId);
   const { bg, surf, borderL, text, textSec, textMut, inputBg } = useTheme();
-
-  const [ticket, setTicket] = useState<TicketConsumidor | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
-  const [sending, setSending] = useState(false);
-  const [avaliando, setAvaliando] = useState(false);
-  const [cancelando, setCancelando] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    setTicket(null);
-    setLoading(true);
-  }, [id]);
-
-  const carregar = useCallback(async () => {
-    if (!token || !id) return;
-    const raw = await ConsumerTicketService.buscar(id, token);
-    if (raw) setTicket(mapTicketConsumidor(raw));
-    setLoading(false);
-  }, [token, id]);
-
-  useEffect(() => {
-    carregar();
-    const interval = setInterval(carregar, 60_000);
-    return () => clearInterval(interval);
-  }, [carregar]);
-
-  useTicketRealtime({
-    apiUrl: API_URL,
-    ticketId: id ?? null,
-    roomId: userId,
-    roomType: 'usuario',
-    enabled: !!userId && !!id,
-    onMensagem: (msg) => {
-      if (msg.remetente === 'consumidor') return;
-      setTicket((t) =>
-        t
-          ? {
-              ...t,
-              mensagens: [
-                ...t.mensagens,
-                {
-                  id: msg.id,
-                  remetente: msg.remetente as 'consumidor' | 'lojista',
-                  texto: msg.texto,
-                  criadoEm: msg.criadoEm,
-                },
-              ],
-            }
-          : t,
-      );
-    },
-    onStatus: (payload) => {
-      setTicket((t) => (t ? { ...t, status: payload.status as any } : t));
-    },
-  });
-
-  async function enviarMensagem() {
-    if (!msg.trim() || !token || !ticket) return;
-    setSending(true);
-    try {
-      const nova = await ConsumerTicketService.enviarMensagem(ticket.id, msg.trim(), token);
-      setTicket((t) =>
-        t
-          ? {
-              ...t,
-              mensagens: [
-                ...t.mensagens,
-                {
-                  id: nova.id,
-                  remetente: 'consumidor',
-                  texto: nova.texto,
-                  criadoEm: nova.criadoEm ?? nova.criado_em,
-                },
-              ],
-            }
-          : t,
-      );
-      setMsg('');
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
-    } catch (e: any) {
-      Alert.alert('Erro', e.message ?? 'Não foi possível enviar.');
-    }
-    setSending(false);
-  }
-
-  async function cancelarTicket() {
-    if (!token || !ticket) return;
-    Alert.alert('Cancelar ticket', 'Tem certeza que deseja cancelar esta reclamação?', [
-      { text: 'Não', style: 'cancel' },
-      {
-        text: 'Cancelar ticket',
-        style: 'destructive',
-        onPress: async () => {
-          setCancelando(true);
-          try {
-            await ConsumerTicketService.cancelar(ticket.id, token);
-            setTicket((t) => (t ? { ...t, status: 'cancelado' } : t));
-          } catch (e: any) {
-            Alert.alert('Erro', e.message ?? 'Não foi possível cancelar.');
-          }
-          setCancelando(false);
-        },
-      },
-    ]);
-  }
-
-  async function avaliarTicket(nota: number) {
-    if (!token || !ticket) return;
-    setAvaliando(true);
-    try {
-      await ConsumerTicketService.avaliar(ticket.id, nota, token);
-      setTicket((t) => (t ? { ...t, avaliacaoConsumidor: nota } : t));
-    } catch (e: any) {
-      Alert.alert('Erro', e.message ?? 'Não foi possível avaliar.');
-    }
-    setAvaliando(false);
-  }
+  const {
+    ticket,
+    loading,
+    msg,
+    setMsg,
+    sending,
+    avaliando,
+    cancelando,
+    enviarMensagem,
+    cancelarTicket,
+    avaliarTicket,
+  } = useTicketDetalhe(() =>
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200),
+  );
 
   if (loading) {
     return (
@@ -382,7 +157,7 @@ export function TicketDetalheConsumer() {
                 <Text style={[s.canceladoTxt, { color: textSec as string }]}>Ticket cancelado</Text>
               </View>
             ) : (
-              <Timeline status={ticket.status} />
+              <TicketTimeline status={ticket.status} />
             )}
             {ticket.status === 'aberto' && (
               <Text style={[s.prazoTxt, { color: textMut as string }]}>

@@ -188,36 +188,56 @@ curl.exe http://localhost:3000/perfil \
 
 ## Arquitetura dos apps
 
-Cada app segue **Feature-Sliced Design** adaptado para React Native:
+Cada app segue **Feature-Sliced Design** adaptado para React Native, em camadas com direção de dependência única (cada camada só importa das de baixo):
+
+```
+app → features → entities → shared
+```
 
 ```
 apps/consumer/
-├── app/                       Rotas (Expo Router) — só importam e renderizam features
+├── app/                          Rotas (Expo Router) — wrappers finos que só renderizam a feature
 │   ├── (consumer)/
-│   │   ├── _layout.tsx        Tab navigator
-│   │   ├── chat.tsx           → importa ChatIA
-│   │   ├── vitrines.tsx       → importa VitrinesList
+│   │   ├── _layout.tsx           Tab navigator
+│   │   ├── chat.tsx              → <ChatIA />
+│   │   ├── vitrines.tsx          → <VitrinesList />
 │   │   └── ...
-│   └── _layout.tsx            Root layout
+│   └── _layout.tsx               Root layout
 │
 ├── src/
-│   ├── features/consumer/     Telas organizadas por domínio
-│   │   ├── cart/ui/
-│   │   ├── chat/ui/
-│   │   ├── vitrines/ui/
-│   │   └── ...
-│   ├── store/                 Estado global (Zustand)
-│   └── components/            Componentes genéricos (usados em 2+ features)
+│   ├── features/consumer/        Funcionalidades por domínio
+│   │   └── <feature>/            (cart, chat, produto-detail, tickets, …)
+│   │       ├── model/            Lógica e estado: hooks useX, stores Zustand
+│   │       ├── lib/              Helpers puros do domínio da feature
+│   │       ├── ui/               Componentes de apresentação (a tela)
+│   │       │   └── components/   Sub-componentes da feature
+│   │       └── index.ts          API pública da feature
+│   │
+│   ├── entities/                 Modelos de negócio reutilizados por várias features
+│   │   ├── produto/             ({model}: variações · {ui}: VariacoesSelector)
+│   │   └── endereco/            ({model}: useEnderecoForm · {ui}: EnderecoFormModal)
+│   │
+│   ├── shared/                   Base reutilizável, sem regra de negócio
+│   │   ├── ui/                   Componentes genéricos (mapas, toast)
+│   │   ├── hooks/                Hooks genéricos (useTheme, useHardwareBack)
+│   │   └── lib/                  Helpers genéricos (enrichRateLimit, …)
+│   │
+│   └── store/                    Estado global (Zustand: auth, cart, theme)
 │
-└── assets/                    Ícones, imagens, fontes
+└── assets/                       Ícones, imagens, fontes
 ```
+
+> O app **consumer** é a implementação de referência dessa estrutura. Os apps `lojista` e `entregador` ainda estão sendo migrados para o mesmo padrão.
 
 ### Regras
 
-- **`app/`** — só roteamento. Sem lógica.
-- **`features/`** — todo código de tela vive aqui. Cada feature tem `ui/` e `index.ts`.
-- **`components/`** — só componentes usados em 2+ features.
-- **`store/`** — estado global compartilhado (carrinho, usuário, preferências).
+- **Direção de dependência:** `app → features → entities → shared`. Uma camada nunca importa de outra acima dela.
+- **`app/`** — só roteamento. Cada rota é um wrapper que renderiza um componente da feature.
+- **`features/`** — separar **lógica de apresentação**: `model/` (fetch, estado, handlers em hooks `useX`), `lib/` (helpers puros) e `ui/` (JSX e estilos). O componente da tela consome o hook; não busca dados direto.
+- **Features não importam de outras features.** Código compartilhado entre duas features sobe para `entities/` (se for do negócio) ou `shared/` (se for genérico).
+- **`entities/`** — modelos de negócio reutilizáveis (ex: `produto`, `endereco`), com seus próprios `model`/`ui`/`lib`.
+- **`shared/`** — base genérica que não conhece o negócio (UI kit, hooks utilitários, helpers). Não importa de `features` nem `entities`.
+- **`store/`** — estado global em Zustand.
 
 ### Packages compartilhados
 

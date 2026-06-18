@@ -1,31 +1,23 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { setPendingChatAction } from '../../chat/model/pendingChatContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { PedidoService } from '@ajulabs/api-client';
 import { ProfileHeader } from './ProfileHeader';
 import { ProfileMenu } from './ProfileMenu';
 import { useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
+import { useProfile } from '../model/useProfile';
 
 export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
-  const token = useAuthStore((s) => s.token);
   const [logoutVisible, setLogoutVisible] = useState(false);
-  const [totalPedidos, setTotalPedidos] = useState<number | undefined>(undefined);
+  const { totalPedidos } = useProfile();
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
-
-  useEffect(() => {
-    if (!token) return;
-    PedidoService.listar(token)
-      .then((data) => setTotalPedidos(data.length))
-      .catch(() => {});
-  }, [token]);
 
   const menuPrincipal = [
     {

@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GrupoLoja } from '../../../../store';
 import { colors } from '@ajulabs/theme';
 import { CartItemRow } from './CartItemRow';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   numero: number;

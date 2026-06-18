@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,16 +10,13 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { PedidoService, AvaliacaoService } from '@ajulabs/api-client';
-import { useAuthStore } from '../../../../store';
-import { useTheme, useSmartBack } from '../../../../hooks';
+import { useTheme, useSmartBack } from '../../../../shared/hooks';
 import { TrackingTimeline } from './TrackingTimeline';
-import { DeliveryMap } from '../../../../components/DeliveryMap';
-import { useEntregadorTracking } from '../hooks/useEntregadorTracking';
+import { DeliveryMap } from '../../../../shared/ui/DeliveryMap';
 import { EntregaConfirmadaModal } from '../../avaliacao/ui/EntregaConfirmadaModal';
 import { AvaliacaoModal } from '../../avaliacao/ui/AvaliacaoModal';
+import { useTracking } from '../model/useTracking';
 
 const CHAT_STATUSES = ['confirmado', 'preparando', 'pronto', 'saiu_entrega'];
 
@@ -36,114 +32,30 @@ export function TrackingScreen({ pedidoId }: Props) {
   const router = useRouter();
   const goBack = useSmartBack('/(consumer)/pedidos');
   const insets = useSafeAreaInsets();
-  const token = useAuthStore((s) => s.token);
-  const userId = useAuthStore((s) => s.userId);
   const { isDark, bg, surf, border, borderL, text, textSec, textMut, backBtn, iconBg } = useTheme();
   const avatarBg = isDark ? 'rgba(255,255,255,0.08)' : colors.n100;
 
-  const [pedido, setPedido] = useState<Pedido | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showConfirmada, setShowConfirmada] = useState(false);
-  const [showAvaliacao, setShowAvaliacao] = useState(false);
-  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
-  const [cancelando, setCancelando] = useState(false);
-  const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
-  const [erroCancelar, setErroCancelar] = useState<string | null>(null);
-  const statusAnterior = useRef<string | null>(null);
-  const modalDisparado = useRef(false);
-
-  useEffect(() => {
-    if (!pedido || modalDisparado.current) return;
-    if (pedido.status === 'entregue' && !pedido.avaliado) {
-      modalDisparado.current = true;
-      const t = setTimeout(() => setShowConfirmada(true), 400);
-      return () => clearTimeout(t);
-    }
-  }, [pedido?.id, pedido?.status, pedido?.avaliado]);
-
-  useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    PedidoService.buscarPorId(pedidoId, token)
-      .then((data) => {
-        statusAnterior.current = data?.status ?? null;
-        setPedido(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-
-    const interval = setInterval(() => {
-      PedidoService.buscarPorId(pedidoId, token)
-        .then((data) => {
-          if (!data) return;
-          if (
-            statusAnterior.current !== 'entregue' &&
-            data.status === 'entregue' &&
-            !data.avaliado
-          ) {
-            modalDisparado.current = true;
-            setShowConfirmada(true);
-          }
-          statusAnterior.current = data.status;
-          setPedido(data);
-        })
-        .catch(() => {});
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [pedidoId, token]);
-
-  async function handleEnviarAvaliacao(dados: {
-    notaLoja: number;
-    comentarioLoja?: string;
-    tagsLoja: string[];
-    notaEntregador: number;
-    comentarioEntregador?: string;
-    tagsEntregador: string[];
-    avaliacoesProdutos: { produtoId: string; nota: number; comentario?: string }[];
-  }) {
-    if (!token || !pedido) return;
-    setEnviandoAvaliacao(true);
-    try {
-      await AvaliacaoService.avaliarPedido({ pedidoId: pedido.id, ...dados }, token);
-      setPedido((prev) => (prev ? { ...prev, avaliado: true } : prev));
-      setShowAvaliacao(false);
-    } catch {
-      // silently fail — user can retry via histórico later
-    } finally {
-      setEnviandoAvaliacao(false);
-    }
-  }
-
-  async function confirmarCancelamento() {
-    if (!token || !pedido) return;
-    setCancelando(true);
-    setErroCancelar(null);
-    try {
-      await PedidoService.cancelar(pedido.id, token);
-      setConfirmandoCancelar(false);
-      setPedido((prev) => (prev ? { ...prev, status: 'cancelado' } : prev));
-    } catch (e: unknown) {
-      setErroCancelar(e instanceof Error ? e.message : 'Erro ao cancelar. Tente novamente.');
-      setCancelando(false);
-    }
-  }
-
-  // Só há entregador a caminho (mapa + rastreio) quando ele já saiu para entrega,
-  // ou quando o pedido está pronto E um entregador já aceitou a corrida. Sem isso,
-  // o pedido só "pronto" (sem entregador) mostrava mapa "Localizando..." à toa.
-  const isActive = pedido
-    ? pedido.status === 'saiu_entrega' || (pedido.status === 'pronto' && !!pedido.entregador)
-    : false;
-
-  const { entregadorLocation, destinoLocation } = useEntregadorTracking({
-    pedidoId,
-    token,
-    userId,
+  const {
+    pedido,
+    loading,
+    showConfirmada,
+    setShowConfirmada,
+    showAvaliacao,
+    setShowAvaliacao,
+    enviandoAvaliacao,
+    cancelando,
+    confirmandoCancelar,
+    setConfirmandoCancelar,
+    erroCancelar,
+    setErroCancelar,
+    handleEnviarAvaliacao,
+    confirmarCancelamento,
     isActive,
-    enderecoEntrega: pedido?.enderecoEntrega,
-  });
+    isAtivo,
+    etaMin,
+    entregadorLocation,
+    destinoLocation,
+  } = useTracking(pedidoId);
 
   if (loading || !pedido) {
     return (
@@ -158,11 +70,7 @@ export function TrackingScreen({ pedidoId }: Props) {
     );
   }
 
-  const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
   const showMap = isActive;
-  const etaMin = pedido.estimativaEntrega
-    ? Math.max(1, Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000))
-    : null;
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>

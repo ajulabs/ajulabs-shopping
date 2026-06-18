@@ -3,8 +3,8 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { VariacaoProduto } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
-import { VariacoesSelector, extrairEixos } from '../../produto-detail/ui/ProdutoDetail';
+import { useTheme } from '../../../../shared/hooks';
+import { VariacoesSelector, extrairEixos } from '../../../../entities/produto';
 
 interface Props {
   visible: boolean;

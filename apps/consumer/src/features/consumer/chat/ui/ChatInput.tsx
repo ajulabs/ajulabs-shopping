@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Mic, MicOff, Send } from 'lucide-react-native';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 const PLACEHOLDERS = [
   'Tênis preto até R$200...',

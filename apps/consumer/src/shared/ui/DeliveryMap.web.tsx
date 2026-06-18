@@ -8,7 +8,10 @@ interface DeliveryMapProps {
 }
 
 function loadLeaflet(cb: () => void) {
-  if ((window as any).L) { cb(); return; }
+  if ((window as any).L) {
+    cb();
+    return;
+  }
 
   if (!document.querySelector('link[data-leaflet-css]')) {
     const link = document.createElement('link');
@@ -45,8 +48,7 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
           ? [destinoLocation.lat, destinoLocation.lng]
           : ARACAJU;
 
-      const map = L.map(el, { zoomControl: false, attributionControl: false })
-        .setView(center, 14);
+      const map = L.map(el, { zoomControl: false, attributionControl: false }).setView(center, 14);
       setTimeout(() => map.invalidateSize(), 100);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -71,10 +73,10 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
       });
 
       if (entregadorLocation) {
-        entregadorMarkerRef.current = L.marker(
-          [entregadorLocation.lat, entregadorLocation.lng],
-          { icon: entregadorIcon, zIndexOffset: 1000 }
-        ).addTo(map);
+        entregadorMarkerRef.current = L.marker([entregadorLocation.lat, entregadorLocation.lng], {
+          icon: entregadorIcon,
+          zIndexOffset: 1000,
+        }).addTo(map);
       }
 
       if (destinoLocation) {
@@ -84,10 +86,9 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
           iconSize: [14, 14],
           iconAnchor: [7, 7],
         });
-        destinoMarkerRef.current = L.marker(
-          [destinoLocation.lat, destinoLocation.lng],
-          { icon: destinoIcon }
-        ).addTo(map);
+        destinoMarkerRef.current = L.marker([destinoLocation.lat, destinoLocation.lng], {
+          icon: destinoIcon,
+        }).addTo(map);
       }
 
       mapRef.current = map;
@@ -125,16 +126,16 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
         iconSize: [22, 22],
         iconAnchor: [11, 11],
       });
-      entregadorMarkerRef.current = L.marker(
-        [entregadorLocation.lat, entregadorLocation.lng],
-        { icon: entregadorIcon, zIndexOffset: 1000 }
-      ).addTo(mapRef.current);
+      entregadorMarkerRef.current = L.marker([entregadorLocation.lat, entregadorLocation.lng], {
+        icon: entregadorIcon,
+        zIndexOffset: 1000,
+      }).addTo(mapRef.current);
     }
 
-    mapRef.current.panTo(
-      [entregadorLocation.lat, entregadorLocation.lng],
-      { animate: true, duration: 0.5 }
-    );
+    mapRef.current.panTo([entregadorLocation.lat, entregadorLocation.lng], {
+      animate: true,
+      duration: 0.5,
+    });
   }, [entregadorLocation?.lat, entregadorLocation?.lng]);
 
   // Update / add destino marker when geocoding completes
@@ -151,10 +152,9 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
       iconSize: [14, 14],
       iconAnchor: [7, 7],
     });
-    destinoMarkerRef.current = L.marker(
-      [destinoLocation.lat, destinoLocation.lng],
-      { icon: destinoIcon }
-    ).addTo(mapRef.current);
+    destinoMarkerRef.current = L.marker([destinoLocation.lat, destinoLocation.lng], {
+      icon: destinoIcon,
+    }).addTo(mapRef.current);
 
     if (!entregadorLocation) {
       mapRef.current.setView([destinoLocation.lat, destinoLocation.lng], 14, { animate: true });

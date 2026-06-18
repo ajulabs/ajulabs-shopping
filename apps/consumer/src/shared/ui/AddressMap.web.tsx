@@ -8,7 +8,10 @@ interface AddressMapProps {
 }
 
 function loadLeaflet(cb: () => void) {
-  if ((window as any).L) { cb(); return; }
+  if ((window as any).L) {
+    cb();
+    return;
+  }
   if (!document.querySelector('link[data-leaflet-css]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -57,7 +60,10 @@ export function AddressMap({ address, style, zoom = 15 }: AddressMapProps) {
       const el = document.getElementById(mapId);
       if (!el) return;
 
-      if (!coords) { setNotFound(true); return; }
+      if (!coords) {
+        setNotFound(true);
+        return;
+      }
 
       if (mapRef.current) {
         mapRef.current.setView(coords, zoom);
@@ -66,8 +72,12 @@ export function AddressMap({ address, style, zoom = 15 }: AddressMapProps) {
       }
 
       const L = (window as any).L;
-      const map = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false })
-        .setView(coords, zoom);
+      const map = L.map(el, {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+      }).setView(coords, zoom);
       setTimeout(() => map.invalidateSize(), 100);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -109,22 +119,34 @@ export function AddressMap({ address, style, zoom = 15 }: AddressMapProps) {
         }}
       />
       {loading && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(248,249,252,0.85)',
-          borderRadius: 'inherit',
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(248,249,252,0.85)',
+            borderRadius: 'inherit',
+          }}
+        >
           <div style={{ fontSize: 12, color: '#9099B3' }}>Carregando mapa...</div>
         </div>
       )}
       {notFound && !loading && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          background: '#F6F7FB',
-          borderRadius: 'inherit', gap: 6,
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#F6F7FB',
+            borderRadius: 'inherit',
+            gap: 6,
+          }}
+        >
           <div style={{ fontSize: 20 }}>📍</div>
           <div style={{ fontSize: 12, color: '#9099B3' }}>Endereço não localizado</div>
         </div>

@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusPedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 const STEPS = [
   { key: 'recebido', label: 'Pedido recebido', desc: 'Recebemos seu pedido e repassamos pra loja' },

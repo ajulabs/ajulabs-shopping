@@ -5,8 +5,8 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { PushService } from '@ajulabs/api-client';
-import { useAuthStore } from '../store';
-import { getCurrentChatPedido } from '../utils/currentChat';
+import { useAuthStore } from '../../store';
+import { getCurrentChatPedido } from '../lib/currentChat';
 
 // Como as notificações se comportam quando o app está em foreground.
 // Setamos uma vez no módulo — chamar em todo render é desnecessário.
