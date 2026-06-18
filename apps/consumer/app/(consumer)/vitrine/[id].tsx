@@ -1,7 +1,7 @@
 // app/(consumer)/vitrine/[id].tsx
 import { useLocalSearchParams } from 'expo-router';
 import { VitrineDetail } from '../../../src/features/consumer/vitrine-detail';
-import { useTheme } from '../../../src/hooks';
+import { useTheme } from '../../../src/shared/hooks';
 
 export default function VitrineDetailRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();

@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { useAuthStore, useThemeStore } from '../src/store';
 import { SplashConsumer } from '../src/features/consumer/splash';
-import { usePushRegistration } from '../src/hooks';
+import { usePushRegistration } from '../src/shared/hooks';
 
 export default function RootLayout() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);

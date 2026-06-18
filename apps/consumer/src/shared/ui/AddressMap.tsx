@@ -13,7 +13,9 @@ export function AddressMap({ address, style }: AddressMapProps) {
   return (
     <View style={[styles.container, style]}>
       <Ionicons name="map-outline" size={24} color="#9099B3" />
-      <Text style={styles.txt} numberOfLines={2}>{address}</Text>
+      <Text style={styles.txt} numberOfLines={2}>
+        {address}
+      </Text>
     </View>
   );
 }

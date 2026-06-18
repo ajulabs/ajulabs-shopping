@@ -1,23 +1,37 @@
 import { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@ajulabs/theme';
 import { PerfilService } from '@ajulabs/api-client';
 import { useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 function getIniciais(nome: string): string {
-  return nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+  return nome
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('');
 }
 
 export function ProfileHeader() {
-  const nome       = useAuthStore(s => s.nome) ?? 'Usuário';
-  const email      = useAuthStore(s => s.email) ?? '';
-  const token      = useAuthStore(s => s.token);
-  const avatarUrl  = useAuthStore(s => s.avatarUrl);
-  const setAvatarUrl = useAuthStore(s => s.setAvatarUrl);
-  const iniciais   = getIniciais(nome);
+  const nome = useAuthStore((s) => s.nome) ?? 'Usuário';
+  const email = useAuthStore((s) => s.email) ?? '';
+  const token = useAuthStore((s) => s.token);
+  const avatarUrl = useAuthStore((s) => s.avatarUrl);
+  const setAvatarUrl = useAuthStore((s) => s.setAvatarUrl);
+  const iniciais = getIniciais(nome);
   const [uploading, setUploading] = useState(false);
 
   const { surf, border, text, textSec } = useTheme();
@@ -29,7 +43,10 @@ export function ProfileHeader() {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permissão necessária', 'Permita o acesso à galeria para alterar a foto de perfil.');
+        Alert.alert(
+          'Permissão necessária',
+          'Permita o acesso à galeria para alterar a foto de perfil.',
+        );
         return;
       }
     }
@@ -72,10 +89,11 @@ export function ProfileHeader() {
             </View>
           )}
           <View style={styles.cameraBtn}>
-            {uploading
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="camera" size={11} color="#fff" />
-            }
+            {uploading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="camera" size={11} color="#fff" />
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -95,25 +113,52 @@ export function ProfileHeader() {
 }
 
 const styles = StyleSheet.create({
-  card:       { flexDirection: 'row', alignItems: 'center', gap: 14,
-                borderRadius: 16, padding: 16, borderWidth: 1 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+  },
 
   avatarWrap: { position: 'relative', width: 64, height: 64 },
-  avatar:     { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.orange,
-                alignItems: 'center', justifyContent: 'center' },
-  avatarImg:  { width: 64, height: 64, borderRadius: 32 },
-  avatarTxt:  { color: '#fff', fontWeight: '700', fontSize: 26 },
-  cameraBtn:  { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22,
-                borderRadius: 11, backgroundColor: colors.orange600,
-                alignItems: 'center', justifyContent: 'center',
-                borderWidth: 2, borderColor: '#fff' },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImg: { width: 64, height: 64, borderRadius: 32 },
+  avatarTxt: { color: '#fff', fontWeight: '700', fontSize: 26 },
+  cameraBtn: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.orange600,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
 
-  nome:       { fontSize: 18, fontWeight: '700' },
-  email:      { fontSize: 12, marginTop: 2 },
+  nome: { fontSize: 18, fontWeight: '700' },
+  email: { fontSize: 12, marginTop: 2 },
 
-  badgeRow:   { flexDirection: 'row', gap: 6, marginTop: 6 },
-  badge:      { flexDirection: 'row', alignItems: 'center', gap: 4,
-                backgroundColor: colors.orange100, paddingHorizontal: 10, paddingVertical: 3,
-                borderRadius: 99 },
-  badgeTxt:   { fontSize: 11, fontWeight: '600', color: colors.orange600 },
+  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.orange100,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  badgeTxt: { fontSize: 11, fontWeight: '600', color: colors.orange600 },
 });

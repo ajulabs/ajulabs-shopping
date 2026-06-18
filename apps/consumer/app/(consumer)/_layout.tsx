@@ -5,10 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore, calcularQuantidadeItens } from '../../src/store';
 import { useAuthStore } from '../../src/store';
-import { useTheme } from '../../src/hooks';
+import { useTheme } from '../../src/shared/hooks';
 import { colors } from '@ajulabs/theme';
 import { useTicketRealtime } from '@ajulabs/realtime';
-import { NotificationToast, ToastData } from '../../src/components/NotificationToast';
+import { NotificationToast, ToastData } from '../../src/shared/ui/NotificationToast';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 

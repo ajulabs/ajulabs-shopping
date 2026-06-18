@@ -1,4 +1,4 @@
-import { useTheme } from '../../src/hooks';
+import { useTheme } from '../../src/shared/hooks';
 import { VitrinesList } from '../../src/features/consumer/vitrines';
 
 export default function VitrinasScreen() {

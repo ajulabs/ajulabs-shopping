@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -9,138 +9,38 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Pedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { PedidoService, ConsumerTicketService, AvaliacaoService } from '@ajulabs/api-client';
-import { useAuthStore } from '../../../../store';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 import { PedidoCard } from './PedidoCard';
-import { usePedidoConsumerRealtime, useTicketRealtime } from '@ajulabs/realtime';
 import { MeusTicketsScreen } from '../../tickets/ui/MeusTicketsScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { EntregaConfirmadaModal } from '../../avaliacao/ui/EntregaConfirmadaModal';
 import { AvaliacaoModal } from '../../avaliacao/ui/AvaliacaoModal';
-
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+import { useOrders } from '../model/useOrders';
 
 type Screen = 'list' | 'tickets';
 
 export function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const token = useAuthStore((s) => s.token);
-  const userId = useAuthStore((s) => s.userId);
   const { isDark, bg, surf, borderL, text, textSec } = useTheme();
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [loading, setLoading] = useState(true);
   const [screen, setScreen] = useState<Screen>('list');
-  const [ticketsAbertos, setTicketsAbertos] = useState(0);
-  const [pedidoParaAvaliar, setPedidoParaAvaliar] = useState<Pedido | null>(null);
-  const [showConfirmada, setShowConfirmada] = useState(false);
-  const [showAvaliacao, setShowAvaliacao] = useState(false);
-  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
-  const pedidosRef = useRef<Pedido[]>([]);
 
-  const fetchTicketCount = useCallback(async () => {
-    if (!token) return;
-    try {
-      const raw = await ConsumerTicketService.listar(token);
-      setTicketsAbertos((raw ?? []).filter((t: any) => t.status === 'aberto').length);
-    } catch {}
-  }, [token]);
-
-  useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    PedidoService.listar(token)
-      .then((data) => {
-        setPedidos(data);
-        pedidosRef.current = data;
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-
-    fetchTicketCount();
-
-    const interval = setInterval(() => {
-      PedidoService.listar(token)
-        .then((data) => {
-          setPedidos(data);
-          pedidosRef.current = data;
-        })
-        .catch(() => {});
-      fetchTicketCount();
-    }, 60_000);
-
-    return () => clearInterval(interval);
-  }, [token, fetchTicketCount]);
-
-  usePedidoConsumerRealtime({
-    apiUrl: API_URL,
-    userId: userId ?? null,
-    enabled: !!userId,
-    onAtualizado: ({ pedidoId, status }) => {
-      setPedidos((prev) => {
-        const atualizado = prev.map((p) =>
-          p.id === pedidoId ? { ...p, status: status as any } : p,
-        );
-        pedidosRef.current = atualizado;
-
-        if (status === 'entregue') {
-          const pedido = atualizado.find((p) => p.id === pedidoId);
-          if (pedido && !pedido.avaliado) {
-            setPedidoParaAvaliar(pedido);
-            setShowConfirmada(true);
-          }
-        }
-
-        return atualizado;
-      });
-    },
-  });
-
-  async function handleEnviarAvaliacaoOrders(dados: {
-    notaLoja: number;
-    comentarioLoja?: string;
-    tagsLoja: string[];
-    notaEntregador: number;
-    comentarioEntregador?: string;
-    tagsEntregador: string[];
-    avaliacoesProdutos: { produtoId: string; nota: number; comentario?: string }[];
-  }) {
-    if (!token || !pedidoParaAvaliar) return;
-    setEnviandoAvaliacao(true);
-    try {
-      await AvaliacaoService.avaliarPedido({ pedidoId: pedidoParaAvaliar.id, ...dados }, token);
-      setPedidos((prev) =>
-        prev.map((p) => (p.id === pedidoParaAvaliar.id ? { ...p, avaliado: true } : p)),
-      );
-      setShowAvaliacao(false);
-      setPedidoParaAvaliar(null);
-    } catch {
-      // user can retry later
-    } finally {
-      setEnviandoAvaliacao(false);
-    }
-  }
-
-  useTicketRealtime({
-    apiUrl: API_URL,
-    ticketId: null,
-    roomId: userId ?? null,
-    roomType: 'usuario',
-    enabled: !!userId,
-    onNovo: () => {
-      fetchTicketCount();
-    },
-    onStatus: ({ status }) => {
-      if (status === 'resolvido' || status === 'cancelado') {
-        setTicketsAbertos((prev) => Math.max(0, prev - 1));
-      }
-    },
-  });
+  const {
+    pedidos,
+    loading,
+    ticketsAbertos,
+    ativos,
+    historico,
+    pedidoParaAvaliar,
+    setPedidoParaAvaliar,
+    showConfirmada,
+    setShowConfirmada,
+    showAvaliacao,
+    setShowAvaliacao,
+    enviandoAvaliacao,
+    handleEnviarAvaliacao,
+  } = useOrders();
 
   if (screen === 'tickets') {
     return <MeusTicketsScreen onBack={() => setScreen('list')} />;
@@ -166,7 +66,7 @@ export function OrdersScreen() {
         entregadorNome={pedidoParaAvaliar.entregador?.nome ?? null}
         itens={pedidoParaAvaliar.itens}
         enviando={enviandoAvaliacao}
-        onEnviar={handleEnviarAvaliacaoOrders}
+        onEnviar={handleEnviarAvaliacao}
         onFechar={() => {
           setShowAvaliacao(false);
           setPedidoParaAvaliar(null);
@@ -174,9 +74,6 @@ export function OrdersScreen() {
       />
     </>
   ) : null;
-
-  const ativos = pedidos.filter((p) => !['entregue', 'cancelado'].includes(p.status));
-  const historico = pedidos.filter((p) => ['entregue', 'cancelado'].includes(p.status));
 
   const handlePress = (id: string) => {
     router.push(`/(consumer)/tracking/${id}`);

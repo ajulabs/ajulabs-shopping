@@ -1,4 +1,3 @@
-import { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,19 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useHardwareBack } from '../../../../hooks';
+import { useRouter } from 'expo-router';
+import { useHardwareBack } from '../../../../shared/hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MetodoPagamento } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { PedidoService } from '@ajulabs/api-client';
-import { useCartStore, useAuthStore, calcularGrupos } from '../../../../store';
 import { StepEndereco } from './StepEndereco';
 import { StepPagamento } from './StepPagamento';
 import { StepConfirmacao } from './StepConfirmacao';
+import { useCheckout } from '../model/useCheckout';
 
 const STEP_TITLES = ['Endereço', 'Pagamento', 'Confirmação'];
 
@@ -30,110 +26,27 @@ export function CheckoutScreen() {
   });
   const insets = useSafeAreaInsets();
 
-  const itensPorLoja = useCartStore((s) => s.itensPorLoja);
-  const lojasCache = useCartStore((s) => s.lojasCache);
-  const limparTudo = useCartStore((s) => s.limparTudo);
-  const token = useAuthStore((s) => s.token);
-  const grupos = useMemo(
-    () => calcularGrupos(itensPorLoja, lojasCache),
-    [itensPorLoja, lojasCache],
-  );
-
-  const subtotal = useMemo(() => grupos.reduce((a, g) => a + g.subtotal, 0), [grupos]);
-  const frete = useMemo(() => grupos.reduce((a, g) => a + g.taxaEntrega, 0), [grupos]);
-
-  const [step, setStep] = useState(0);
-  const [enderecoId, setEnderecoId] = useState('');
-  const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento>('pix');
-  const [placing, setPlacing] = useState(false);
-  const [pedidoIds, setPedidoIds] = useState<string[]>([]);
-
-  // Esta é uma tela de tab — fica montada após o primeiro pedido, então o
-  // `step` persistiria e o próximo checkout reabriria já na confirmação.
-  // Reseta o fluxo ao SAIR da tela (cleanup do blur), assim um novo checkout
-  // sempre começa no passo 0 sem "piscar" o passo anterior ao reentrar.
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        setStep(0);
-        setPedidoIds([]);
-      };
-    }, []),
-  );
-
-  const desconto = metodoPagamento === 'pix' ? (subtotal + frete) * 0.05 : 0;
-  const total = subtotal + frete - desconto;
-  const numLojas = grupos.length;
-
-  const tempoMin = useMemo(
-    () => (grupos.length > 0 ? Math.min(...grupos.map((g) => g.tempoEntregaMin)) : 0),
-    [grupos],
-  );
-  const tempoMax = useMemo(
-    () => (grupos.length > 0 ? Math.max(...grupos.map((g) => g.tempoEntregaMax)) : 0),
-    [grupos],
-  );
+  const {
+    step,
+    enderecoId,
+    setEnderecoId,
+    metodoPagamento,
+    setMetodoPagamento,
+    placing,
+    pedidoIds,
+    subtotal,
+    frete,
+    total,
+    numLojas,
+    tempoMin,
+    tempoMax,
+    handleBack,
+    handleNext,
+    handleAcompanhar,
+    handleVoltarHome,
+  } = useCheckout();
 
   const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
-
-  const handleBack = useCallback(() => {
-    if (step === 0) {
-      router.back();
-    } else {
-      setStep((s) => s - 1);
-    }
-  }, [step, router]);
-
-  const handleNext = useCallback(async () => {
-    if (step === 1) {
-      if (!token) {
-        Alert.alert('Erro', 'Faça login para continuar.');
-        return;
-      }
-      if (!enderecoId) {
-        Alert.alert('Endereço', 'Selecione um endereço de entrega.');
-        return;
-      }
-      setPlacing(true);
-      try {
-        const ids: string[] = [];
-        for (const grupo of grupos) {
-          const pedido = await PedidoService.criar(token, {
-            lojaId: grupo.lojaId,
-            enderecoEntregaId: enderecoId,
-            metodoPagamento,
-            itens: grupo.itens.map((i) => ({
-              produtoId: i.produto.id,
-              quantidade: i.quantidade,
-            })),
-          });
-          ids.push(pedido.id);
-        }
-        setPedidoIds(ids);
-        limparTudo();
-        setStep((s) => s + 1);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Erro ao criar pedido.';
-        Alert.alert('Erro', msg);
-      } finally {
-        setPlacing(false);
-      }
-    } else {
-      setStep((s) => s + 1);
-    }
-  }, [step, token, enderecoId, grupos, metodoPagamento, limparTudo]);
-
-  const handleAcompanhar = useCallback(() => {
-    if (pedidoIds[0]) {
-      router.push(`/(consumer)/tracking/${pedidoIds[0]}`);
-    } else {
-      router.push('/(consumer)/pedidos');
-    }
-  }, [router, pedidoIds]);
-
-  const handleVoltarHome = useCallback(() => {
-    router.push('/(consumer)/vitrines');
-  }, [router]);
 
   return (
     <View style={styles.container}>

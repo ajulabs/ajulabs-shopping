@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, Platform } from
 import { Ionicons } from '@expo/vector-icons';
 import { ItemCarrinho } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   item: ItemCarrinho;
