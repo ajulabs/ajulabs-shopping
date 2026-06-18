@@ -95,13 +95,6 @@ const confirmarEntregaSpec = {
   },
 } as const;
 
-const corridaStatusSpec = {
-  name: 'PATCH_entregador_corridas_status',
-  input: {
-    status: { required: true, type: 'enum', constraints: ["'saiu_entrega' | 'entregue'"] },
-  },
-} as const;
-
 const localizacaoSpec = {
   name: 'POST_entregador_corridas_localizacao',
   input: {
@@ -362,16 +355,6 @@ router.post(
     const { codigo } = z.object({ codigo: z.string().min(1) }).parse(req.body);
     await svc.confirmarEntrega(req.user!.id, req.params.pedidoId, codigo);
     res.json({ ok: true });
-  },
-);
-
-router.patch(
-  '/corridas/:pedidoId/status',
-  specValidatorMiddleware(corridaStatusSpec),
-  async (req: AuthRequest, res: Response) => {
-    const { status } = z.object({ status: z.enum(['saiu_entrega', 'entregue']) }).parse(req.body);
-    const novoStatus = await svc.updateStatusCorrida(req.user!.id, req.params.pedidoId, status);
-    res.json({ status: novoStatus });
   },
 );
 

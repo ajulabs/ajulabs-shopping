@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
-import { emitTicketMensagem } from '../utils/socket';
+import { emitTicketMensagem, emitTicketNovo } from '../utils/socket';
 import { specValidatorMiddleware } from '../lib/spec-validator';
+import { executarCriarTicket } from '../tools/executors';
+import { notificarTicketNovo } from '../lib/pushNotifications';
 
 const router = Router();
 
@@ -33,6 +35,53 @@ const TICKET_INCLUDE = {
   },
   mensagens: true,
 } as const;
+
+// POST /tickets - Consumidor cria ticket manualmente
+router.post('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
+  try {
+    const { motivo, pedidoId } = z
+      .object({
+        motivo: z.string().min(1, 'Motivo obrigatório'),
+        pedidoId: z.string().uuid().optional(),
+      })
+      .parse(req.body);
+
+    const usuarioId = req.user!.id;
+
+    const result = await executarCriarTicket(motivo.trim(), usuarioId, pedidoId);
+    const { protocolo } = result.dados as { criado: boolean; protocolo: string };
+
+    const pedido = pedidoId
+      ? await prisma.pedido.findUnique({ where: { id: pedidoId }, select: { lojaId: true } })
+      : null;
+
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        consumidorId: usuarioId,
+        pedidoId: pedidoId ?? null,
+        lojaId: pedido?.lojaId ?? null,
+        motivo: motivo.trim(),
+        protocolo,
+      },
+    });
+
+    if (pedido?.lojaId) {
+      emitTicketNovo(pedido.lojaId, {
+        id: ticket.id,
+        protocolo,
+        motivo: motivo.trim(),
+        consumidorId: usuarioId,
+      });
+      void notificarTicketNovo(pedido.lojaId, ticket.id, motivo.trim());
+    }
+
+    res.status(201).json({ ticket: { id: ticket.id, protocolo } });
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return res.status(400).json({ error: error.errors[0]?.message ?? 'Dados inválidos' });
+    res.status(500).json({ error: 'Erro ao criar ticket' });
+  }
+});
 
 // GET /tickets - Listar tickets do consumidor autenticado
 router.get('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {

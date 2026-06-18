@@ -6,13 +6,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { ConsumerTicketService } from '@ajulabs/api-client';
+import { ConsumerTicketService, PedidoService } from '@ajulabs/api-client';
+import { Pedido } from '@ajulabs/types';
 import { useAuthStore } from '../../../../store';
 import { useTheme, useHardwareBack } from '../../../../hooks';
 import {
@@ -53,6 +58,13 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'todos' | TicketStatus>('todos');
 
+  const [showCriar, setShowCriar] = useState(false);
+  const [motivoForm, setMotivoForm] = useState('');
+  const [pedidoSelecionado, setPedidoSelecionado] = useState<string | null>(null);
+  const [pedidosRecentes, setPedidosRecentes] = useState<Pedido[]>([]);
+  const [criando, setCriando] = useState(false);
+  const [erroCriar, setErroCriar] = useState('');
+
   const fetch = useCallback(async () => {
     if (!token) {
       setLoading(false);
@@ -78,6 +90,64 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
       }
     }, [onBack, fetch]),
   );
+
+  const abrirCriar = useCallback(async () => {
+    setMotivoForm('');
+    setPedidoSelecionado(null);
+    setErroCriar('');
+    setShowCriar(true);
+    if (token) {
+      const lista = await PedidoService.listar(token).catch(() => [] as Pedido[]);
+      setPedidosRecentes(lista.slice(0, 6));
+    }
+  }, [token]);
+
+  const fecharCriar = useCallback(() => {
+    setShowCriar(false);
+    setMotivoForm('');
+    setPedidoSelecionado(null);
+    setErroCriar('');
+  }, []);
+
+  const handleCriar = useCallback(async () => {
+    if (!token) return;
+    if (!motivoForm.trim()) {
+      setErroCriar('Descreva o problema para abrir o ticket.');
+      return;
+    }
+    if (!pedidoSelecionado) {
+      setErroCriar('Selecione o pedido relacionado ao problema.');
+      return;
+    }
+    if (pedidoSelecionado) {
+      const duplicado = tickets.find(
+        (t) =>
+          t.pedido?.id === pedidoSelecionado &&
+          (t.status === 'aberto' || t.status === 'em_andamento'),
+      );
+      if (duplicado) {
+        setErroCriar(
+          `Já existe um ticket ativo (${duplicado.protocolo}) para este pedido. Acesse-o para continuar o atendimento.`,
+        );
+        return;
+      }
+    }
+    setCriando(true);
+    setErroCriar('');
+    try {
+      const novo = await ConsumerTicketService.criar(
+        token,
+        motivoForm.trim(),
+        pedidoSelecionado ?? undefined,
+      );
+      fecharCriar();
+      router.push(`/(consumer)/tickets/${novo.id}` as any);
+    } catch (e: any) {
+      setErroCriar(e?.message ?? 'Erro ao criar ticket. Tente novamente.');
+    } finally {
+      setCriando(false);
+    }
+  }, [token, motivoForm, pedidoSelecionado, fecharCriar, router]);
 
   useTicketRealtime({
     apiUrl: API_URL,
@@ -202,12 +272,18 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
           style={{ marginTop: 1 }}
         />
         <Text style={[s.tooltipTxt, { color: textSec as string }]}>
-          Tickets são abertos quando você relata um problema pelo{' '}
+          Abra um ticket pelo{' '}
           <Text style={{ color: colors.orange, fontWeight: '600' }}>Chat Aju</Text>
-          {'. '}
-          Acesse o chat e descreva seu problema para criar um novo ticket.
+          {' ou toque em '}
+          <Text style={{ color: colors.orange, fontWeight: '600' }}>+</Text>
+          {' para criar manualmente.'}
         </Text>
       </View>
+
+      {/* FAB: novo ticket */}
+      <TouchableOpacity style={s.fab} onPress={abrirCriar} activeOpacity={0.85}>
+        <Ionicons name="add" size={26} color={colors.n0} />
+      </TouchableOpacity>
 
       {list.length === 0 ? (
         <View style={s.vazio}>
@@ -272,6 +348,116 @@ export function MeusTicketsScreen({ onBack }: { onBack?: () => void }) {
           })}
         </ScrollView>
       )}
+      {/* Modal: criar ticket manualmente */}
+      <Modal visible={showCriar} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[s.modal, { backgroundColor: bg }]}>
+            <View style={[s.modalHeader, { backgroundColor: surf, borderBottomColor: borderL }]}>
+              <Text style={[s.modalTitulo, { color: text }]}>Novo Ticket</Text>
+              <TouchableOpacity
+                onPress={fecharCriar}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={24} color={text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={s.modalScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[s.modalLabel, { color: textSec as string }]}>
+                Descreva o problema *
+              </Text>
+              <TextInput
+                style={[
+                  s.modalTextarea,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.n100,
+                    borderColor: erroCriar && !motivoForm.trim() ? '#DC2626' : borderL,
+                    color: text,
+                  },
+                ]}
+                value={motivoForm}
+                onChangeText={(v) => {
+                  setMotivoForm(v);
+                  if (v.trim()) setErroCriar('');
+                }}
+                placeholder="Ex: Recebi o produto errado, pedido atrasou mais de 2h..."
+                placeholderTextColor={textSec as string}
+                multiline
+                numberOfLines={5}
+                textAlignVertical="top"
+              />
+              {!!erroCriar && <Text style={s.modalErro}>{erroCriar}</Text>}
+
+              <Text style={[s.modalLabel, { color: textSec as string, marginTop: 20 }]}>
+                Pedido relacionado *
+              </Text>
+
+              {pedidosRecentes.map((p) => {
+                const selecionado = pedidoSelecionado === p.id;
+                const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+                const data = new Date(p.criadoEm).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                });
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[
+                      s.pedidoOpcao,
+                      {
+                        borderColor: selecionado ? colors.orange : borderL,
+                        backgroundColor: selecionado
+                          ? isDark
+                            ? 'rgba(242,118,15,0.12)'
+                            : '#FFF8F2'
+                          : surf,
+                      },
+                    ]}
+                    onPress={() => setPedidoSelecionado(p.id)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name={selecionado ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={colors.orange}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.pedidoOpcaoTxt, { color: text }]}>
+                        #{p.id.slice(-6).toUpperCase()}
+                        {'  '}
+                        <Text style={{ color: textSec as string, fontWeight: '400' }}>{data}</Text>
+                      </Text>
+                      <Text style={[s.pedidoOpcaoSub, { color: textSec as string }]}>
+                        {fmt(p.total)} · {p.lojaNome}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={[s.btnSubmit, criando && { opacity: 0.6 }]}
+                onPress={handleCriar}
+                disabled={criando}
+                activeOpacity={0.85}
+              >
+                {criando ? (
+                  <ActivityIndicator color={colors.n0} />
+                ) : (
+                  <Text style={s.btnSubmitTxt}>Abrir ticket</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -355,4 +541,68 @@ const s = StyleSheet.create({
   tempo: { fontSize: 11.5, flex: 1 },
   msgRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   msgCount: { fontSize: 11.5 },
+  fab: {
+    position: 'absolute',
+    bottom: 28,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.orange,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
+    zIndex: 10,
+  },
+  modal: { flex: 1 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitulo: { fontSize: 18, fontWeight: '700' },
+  modalScroll: { padding: 20, paddingBottom: 40 },
+  modalLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
+  modalTextarea: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    minHeight: 110,
+  },
+  modalErro: { fontSize: 11.5, color: '#DC2626', marginTop: 6, fontWeight: '500' },
+  pedidoOpcao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  pedidoOpcaoTxt: { fontSize: 13, fontWeight: '600' },
+  pedidoOpcaoSub: { fontSize: 12, marginTop: 2 },
+  btnSubmit: {
+    backgroundColor: colors.orange,
+    height: 52,
+    borderRadius: 14,
+    marginTop: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.orange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  btnSubmitTxt: { color: colors.n0, fontSize: 15, fontWeight: '700' },
 });

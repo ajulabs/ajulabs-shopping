@@ -336,10 +336,27 @@ export async function getCorridasAtivas(entregadorId: string) {
   });
 }
 
+// Distância aproximada (Haversine) em km entre dois pontos. Retorna Infinity se
+// algum ponto não tiver coordenadas, jogando essas corridas para o fim da lista.
+function distanciaKm(
+  origem: { lat: number; lng: number },
+  destino?: { lat: number | null; lng: number | null } | null,
+): number {
+  if (!destino || destino.lat == null || destino.lng == null) return Infinity;
+  const R = 6371;
+  const rad = (g: number) => (g * Math.PI) / 180;
+  const dLat = rad(destino.lat - origem.lat);
+  const dLng = rad(destino.lng - origem.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(origem.lat)) * Math.cos(rad(destino.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export async function getCorridasDisponiveis(entregadorId: string) {
   const entregador = await prisma.entregador.findUnique({
     where: { id: entregadorId },
-    select: { online: true },
+    select: { online: true, ultimaLat: true, ultimaLng: true },
   });
 
   if (!entregador?.online) return [];
@@ -350,7 +367,7 @@ export async function getCorridasDisponiveis(entregadorId: string) {
 
   if (ativasCount >= 2) return [];
 
-  return prisma.pedido.findMany({
+  const corridas = await prisma.pedido.findMany({
     where: {
       status: 'pronto',
       entregadorId: null,
@@ -359,6 +376,19 @@ export async function getCorridasDisponiveis(entregadorId: string) {
     include: CORRIDA_INCLUDE,
     orderBy: { criadoEm: 'asc' },
   });
+
+  // Ordena por proximidade da loja (ponto de retirada) à última posição reportada
+  // pelo entregador, quando disponível — as mais próximas primeiro, criadoEm como
+  // desempate. Não filtra por raio: ninguém deixa de ver corridas, só muda a ordem.
+  if (entregador.ultimaLat != null && entregador.ultimaLng != null) {
+    const origem = { lat: entregador.ultimaLat, lng: entregador.ultimaLng };
+    return corridas
+      .map((c, i) => ({ c, i, dist: distanciaKm(origem, c.loja?.endereco) }))
+      .sort((a, b) => a.dist - b.dist || a.i - b.i)
+      .map((x) => x.c);
+  }
+
+  return corridas;
 }
 
 export async function rejeitarCorrida(entregadorId: string, pedidoId: string) {
@@ -390,6 +420,22 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
 
   if (claim.count === 0) {
     throw Object.assign(new Error('Corrida não está mais disponível'), { statusCode: 409 });
+  }
+
+  // A checagem de limite acima e o claim não são atômicos entre si: dois aceites
+  // paralelos poderiam ultrapassar 2. Revalida APÓS o claim (a contagem já inclui
+  // este pedido) e desfaz o vínculo se estourou o limite.
+  const ativasAposClaim = await prisma.pedido.count({
+    where: { entregadorId, status: { in: ['pronto', 'saiu_entrega'] } },
+  });
+  if (ativasAposClaim > 2) {
+    await prisma.pedido.updateMany({
+      where: { id: pedidoId, entregadorId, status: 'pronto' },
+      data: { entregadorId: null },
+    });
+    throw Object.assign(new Error('Limite de 2 entregas simultâneas atingido'), {
+      statusCode: 409,
+    });
   }
 
   const pedidoAtualizado = await prisma.pedido.findUnique({
@@ -540,48 +586,10 @@ export async function confirmarEntrega(entregadorId: string, pedidoId: string, c
   void notificarStatusPedido(pedido.consumidorId, pedidoId, 'entregue');
 }
 
-const TRANSICOES_VALIDAS: Record<string, string> = { saiu_entrega: 'entregue' };
-
-export async function updateStatusCorrida(
-  entregadorId: string,
-  pedidoId: string,
-  novoStatus: 'saiu_entrega' | 'entregue',
-) {
-  const pedido = await prisma.pedido.findFirst({ where: { id: pedidoId, entregadorId } });
-  if (!pedido) throw Object.assign(new Error('Corrida não encontrada'), { statusCode: 404 });
-
-  const esperado = TRANSICOES_VALIDAS[pedido.status];
-  if (esperado !== novoStatus) {
-    throw Object.assign(
-      new Error(
-        `Transição inválida: ${pedido.status} → ${novoStatus}. Esperado: ${esperado ?? 'nenhum'}`,
-      ),
-      { statusCode: 400 },
-    );
-  }
-
-  const atualizado = await prisma.pedido.update({
-    where: { id: pedidoId },
-    data: { status: novoStatus },
-    select: { id: true, status: true, consumidorId: true, lojaId: true },
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await prisma.historicoStatusPedido.create({ data: { pedidoId, status: novoStatus as any } });
-
-  if (novoStatus === 'entregue') {
-    await prisma.entregaRealizada.upsert({
-      where: { pedidoId },
-      create: { entregadorId, pedidoId, valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
-      update: { valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
-    });
-  }
-
-  emitPedidoAtualizado(atualizado.consumidorId, pedidoId, novoStatus, atualizado.lojaId);
-  void notificarStatusPedido(atualizado.consumidorId, pedidoId, novoStatus);
-
-  return atualizado.status;
-}
+// NÃO existe um caminho genérico de status para 'entregue'. A confirmação de
+// entrega (saiu_entrega → entregue) é feita EXCLUSIVAMENTE por confirmarEntrega(),
+// que exige o código de entrega do consumidor. Um PATCH de status livre permitia
+// marcar "entregue" sem o código, furando a prova de entrega.
 
 export async function updateLocalizacao(
   entregadorId: string,

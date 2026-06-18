@@ -8,6 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +23,11 @@ import { geocode } from '../../corrida-ativa/lib/geocode';
 import { useRideAlert } from '../../../../hooks';
 import { startIdleTracking, stopIdleTracking } from '../../../../tasks/locationTask';
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+
+const SCREEN_H = Dimensions.get('window').height;
+const SHEET_COLLAPSED_H = 150;
+const SHEET_EXPANDED_H = Math.round(SCREEN_H * 0.65);
+const SHEET_MAX_TRANSLATE = SHEET_EXPANDED_H - SHEET_COLLAPSED_H;
 
 // Module-level sets: survive HomeScreen unmount caused by sub-screen navigation in CourierApp.
 // When the user navigates to a profile sub-screen and returns, HomeScreen remounts from scratch
@@ -310,6 +318,45 @@ export function HomeScreen({
   const rejectedIds = useRef(_rejectedRideIds);
   const dismissedOfferIds = useRef(_dismissedOfferRideIds);
 
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const sheetTranslateY = useRef(new Animated.Value(SHEET_MAX_TRANSLATE)).current;
+  const sheetIsExpanded = useRef(false);
+
+  const snapSheet = useCallback((expand: boolean) => {
+    sheetIsExpanded.current = expand;
+    setSheetExpanded(expand);
+    Animated.spring(sheetTranslateY, {
+      toValue: expand ? 0 : SHEET_MAX_TRANSLATE,
+      useNativeDriver: true,
+      damping: 22,
+      stiffness: 200,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dy) > 5 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderGrant: () => {
+        sheetTranslateY.stopAnimation();
+      },
+      onPanResponderMove: (_, gs) => {
+        const base = sheetIsExpanded.current ? 0 : SHEET_MAX_TRANSLATE;
+        const next = Math.max(0, Math.min(SHEET_MAX_TRANSLATE, base + gs.dy));
+        sheetTranslateY.setValue(next);
+      },
+      onPanResponderRelease: (_, gs) => {
+        const base = sheetIsExpanded.current ? 0 : SHEET_MAX_TRANSLATE;
+        const pos = base + gs.dy;
+        const shouldExpand = gs.vy < -0.5 || pos < SHEET_MAX_TRANSLATE / 2;
+        snapSheet(shouldExpand);
+      },
+    }),
+  ).current;
+
   const ARACAJU = { lat: -10.9167, lng: -37.05 };
 
   useEffect(() => {
@@ -596,26 +643,49 @@ export function HomeScreen({
       )}
 
       {online && !offer && activeRidesCount < 2 && (
-        <View style={s.bottomPanel}>
-          <View style={s.summarySection}>
-            <View style={s.summaryHeader}>
-              <Text style={s.summaryLabel}>Esta semana</Text>
-              <View style={s.liveBadge}>
-                <View style={s.liveDot} />
-                <Text style={s.liveBadgeText}>Procurando corridas</Text>
-              </View>
+        <Animated.View style={[s.bottomPanel, { transform: [{ translateY: sheetTranslateY }] }]}>
+          {/* Handle + summary: drag from here or tap to toggle */}
+          <View {...sheetPanResponder.panHandlers}>
+            <View style={s.sheetHandleRow}>
+              <View style={s.sheetHandleBar} />
             </View>
-            <View style={s.summaryRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.summaryAmount}>{brl(ganhoHoje)}</Text>
-                <Text style={s.summarySub}>Ganho da semana</Text>
+
+            <TouchableOpacity
+              style={s.summarySection}
+              onPress={() => snapSheet(!sheetIsExpanded.current)}
+              activeOpacity={0.85}
+            >
+              <View style={s.summaryHeader}>
+                <Text style={s.summaryLabel}>Esta semana</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {waitingRides.length > 0 && !sheetExpanded && (
+                    <View style={s.waitingBadge}>
+                      <Text style={s.waitingBadgeText}>{waitingRides.length}</Text>
+                    </View>
+                  )}
+                  <View style={s.liveBadge}>
+                    <View style={s.liveDot} />
+                    <Text style={s.liveBadgeText}>Procurando corridas</Text>
+                  </View>
+                  <Ionicons
+                    name={sheetExpanded ? 'chevron-down' : 'chevron-up'}
+                    size={14}
+                    color="#9099B3"
+                  />
+                </View>
               </View>
-              <View style={s.dividerV} />
-              <View style={s.summaryCol}>
-                <Text style={s.summaryColVal}>{corridasHoje}</Text>
-                <Text style={s.summaryColLabel}>Corridas</Text>
+              <View style={s.summaryRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.summaryAmount}>{brl(ganhoHoje)}</Text>
+                  <Text style={s.summarySub}>Ganho da semana</Text>
+                </View>
+                <View style={s.dividerV} />
+                <View style={s.summaryCol}>
+                  <Text style={s.summaryColVal}>{corridasHoje}</Text>
+                  <Text style={s.summaryColLabel}>Corridas</Text>
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={s.waitingSection}>
@@ -675,7 +745,7 @@ export function HomeScreen({
               ))}
             </ScrollView>
           </View>
-        </View>
+        </Animated.View>
       )}
 
       {offer && (
@@ -779,7 +849,7 @@ const s = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: '65%',
+    height: SHEET_EXPANDED_H,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -790,7 +860,24 @@ const s = StyleSheet.create({
     elevation: 16,
     zIndex: 20,
   },
-  summarySection: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#F0F1F7' },
+  sheetHandleRow: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  sheetHandleBar: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D0D4E0',
+  },
+  summarySection: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F1F7',
+  },
   summaryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

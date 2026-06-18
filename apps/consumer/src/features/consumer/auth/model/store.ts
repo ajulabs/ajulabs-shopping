@@ -77,6 +77,17 @@ interface AuthState {
   refreshAccessToken: () => Promise<boolean>;
 }
 
+// Persiste o carrinho no AsyncStorage sempre que itensPorLoja mudar,
+// garantindo que remoções e adições sobrevivam a uma reinicialização do app.
+// Precisa ficar fora de useAuthStore para evitar dependência circular.
+function iniciarPersistenciaCarrinho() {
+  useCartStore.subscribe((state, prev) => {
+    if (state.itensPorLoja === prev.itensPorLoja) return;
+    const { userId } = useAuthStore.getState();
+    if (userId) void salvarCarrinho(userId, state.itensPorLoja);
+  });
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -279,3 +290,5 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+iniciarPersistenciaCarrinho();

@@ -176,9 +176,9 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
           style={{ marginTop: 1 }}
         />
         <Text style={s.tooltipTxt}>
-          Tickets são abertos pelos seus clientes quando relatam um problema pelo{' '}
+          Tickets são abertos pelos seus clientes pelo{' '}
           <Text style={{ color: '#DE6708', fontWeight: '600' }}>Chat Aju</Text>
-          {'. '}
+          {' ou manualmente pelo app. '}
           Você recebe uma notificação assim que um novo ticket é criado.
         </Text>
       </View>

@@ -205,6 +205,17 @@ export function ActiveScreen({
 
   const isNavigating = isMoving && navigationStarted;
 
+  // Localização em foreground usada para emitir a posição quando a navegação
+  // interna ainda não está provendo (antes de o entregador escolher o mapa, ou
+  // ao usar navegação externa). Sem isso, consumidor e lojista só veriam o
+  // entregador depois que ele abrisse o mapa interno.
+  const [coarseLocation, setCoarseLocation] = useState<{
+    lat: number;
+    lng: number;
+    heading?: number;
+    speedKmh?: number;
+  } | null>(null);
+
   // Mantém a tela ligada enquanto o entregador navega pelo mapa interno. Sem
   // isso o celular entra em modo ocioso e apaga a tela durante a rota (a loja
   // ou o cliente), atrapalhando o acompanhamento das instruções.
@@ -213,6 +224,46 @@ export function ActiveScreen({
     activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
     return () => {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+    };
+  }, [isMoving, navMode]);
+
+  // Observa o GPS em foreground enquanto a corrida está em deslocamento e a
+  // navegação interna não está ativa. Roda desde o aceite (etapa "to-store"),
+  // garantindo que consumidor e lojista acompanhem o entregador de imediato,
+  // independente de ele escolher mapa interno ou externo.
+  useEffect(() => {
+    if (!isMoving || navMode === 'internal') {
+      setCoarseLocation(null);
+      return;
+    }
+    let sub: Location.LocationSubscription | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 15 },
+          (l) => {
+            if (cancelled) return;
+            setCoarseLocation({
+              lat: l.coords.latitude,
+              lng: l.coords.longitude,
+              heading: l.coords.heading ?? undefined,
+              speedKmh:
+                l.coords.speed != null && l.coords.speed >= 0 ? l.coords.speed * 3.6 : undefined,
+            });
+          },
+        );
+      } catch {
+        /* sem permissão/erro de GPS: o emissor apenas não envia */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        sub?.remove();
+      } catch {}
     };
   }, [isMoving, navMode]);
 
@@ -238,7 +289,7 @@ export function ActiveScreen({
     entregadorId,
     location: navUserLocation
       ? { lat: navUserLocation.lat, lng: navUserLocation.lng, heading, speedKmh }
-      : null,
+      : coarseLocation,
     enabled: isMoving,
     intervalMs: 5000,
   });

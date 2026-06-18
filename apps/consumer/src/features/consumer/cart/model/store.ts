@@ -67,11 +67,17 @@ export const useCartStore = create<CartState>()((set, get) => ({
     const { itensPorLoja } = get();
     const novo: Record<string, ItemCarrinho[]> = {};
     for (const [lojaId, itens] of Object.entries(itensPorLoja)) {
-      novo[lojaId] = itens.map((i) =>
-        i.produto.id === produtoId && i.variacaoId === variacaoId
-          ? { ...i, quantidade: i.quantidade + 1 }
-          : i,
-      );
+      novo[lojaId] = itens.map((i) => {
+        if (i.produto.id !== produtoId || i.variacaoId !== variacaoId) return i;
+        const variacaoEfetiva = variacaoId
+          ? i.produto.variacoes?.find((v) => v.id === variacaoId)
+          : undefined;
+        const estoqueEfetivo = variacaoId
+          ? (variacaoEfetiva?.estoque ?? Infinity)
+          : (i.produto.estoque ?? Infinity);
+        if (isFinite(estoqueEfetivo) && i.quantidade >= estoqueEfetivo) return i;
+        return { ...i, quantidade: i.quantidade + 1 };
+      });
     }
     set({ itensPorLoja: novo });
   },
