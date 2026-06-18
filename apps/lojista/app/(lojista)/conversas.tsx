@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -47,19 +47,14 @@ export default function ConversasLojistaScreen() {
   useFocusEffect(
     useCallback(() => {
       carregar();
-    }, [carregar]),
+      const onBack = () => {
+        router.replace('/(lojista)/perfil' as any);
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => sub.remove();
+    }, [carregar, router]),
   );
-
-  // Intercepta QUALQUER saída da tela (botão físico, gesto) e redireciona pro
-  // Perfil — em tabs, o back padrão volta pra primeira tab, não pra origem.
-  useEffect(() => {
-    const onBack = () => {
-      router.navigate('/(lojista)/perfil' as any);
-      return true;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
-    return () => sub.remove();
-  }, [router]);
 
   // Agrupa por consumidor: um card por cliente, representado pelo chat mais
   // recente. Evita várias entradas idênticas do mesmo cliente (um por pedido).
@@ -108,7 +103,7 @@ export default function ConversasLojistaScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity
-          onPress={() => router.navigate('/(lojista)/perfil' as any)}
+          onPress={() => router.replace('/(lojista)/perfil' as any)}
           style={s.backBtn}
         >
           <Ionicons name="chevron-back" size={20} color="#000933" />
