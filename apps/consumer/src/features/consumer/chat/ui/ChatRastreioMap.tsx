@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useAuthStore } from '../../auth/model/store';
 import { useEntregadorTracking } from '../../tracking/hooks/useEntregadorTracking';
-import { DeliveryMap } from '../../../../components/DeliveryMap';
-import { useTheme } from '../../../../hooks';
+import { DeliveryMap } from '../../../../shared/ui/DeliveryMap';
+import { useTheme } from '../../../../shared/hooks';
 import type { RastreioChat } from '@ajulabs/types';
 
 interface Props {

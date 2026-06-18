@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, AjuLogo } from '@ajulabs/theme';
 import { useAuthStore } from '../../../../store';
 import { formatCPF } from '../lib/formatCPF';
-import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
+import { enrichRateLimit } from '../../../../shared/lib/enrichRateLimit';
 import { Field } from './components/Field';
 import { RecoveryModal } from './components/RecoveryModal';
 

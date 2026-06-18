@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LojaService } from '@ajulabs/api-client';
-import { Loja } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { useCartStore, calcularQuantidadeItens } from '../../../../store';
 import { LojaCard } from './LojaCard';
 import { LojasDestaque } from './LojasDestaque';
 import { CategoriasBar, CATEGORIAS } from './CategoriasBar';
+import { useVitrines } from '../model/useVitrines';
 
 interface VitrinasListProps {
   dark?: boolean;
@@ -25,69 +23,23 @@ interface VitrinasListProps {
 
 export function VitrinesList({ dark = false }: VitrinasListProps) {
   const insets = useSafeAreaInsets();
-  const [busca, setBusca] = useState('');
-  const [categoria, setCategoria] = useState('todos');
-  const [lojas, setLojas] = useState<Loja[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const itensPorLoja = useCartStore((s) => s.itensPorLoja);
-  const quantidadeItens = useMemo(() => calcularQuantidadeItens(itensPorLoja), [itensPorLoja]);
-
-  useEffect(() => {
-    LojaService.listar()
-      .then((data) => setLojas(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const {
+    lojas,
+    loading,
+    busca,
+    setBusca,
+    categoria,
+    setCategoria,
+    quantidadeItens,
+    lojasFiltradas,
+  } = useVitrines();
 
   const textColor = dark ? colors.n0 : colors.navy;
   const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
   const bgMain = dark ? colors.bgDark : '#FAFBFE';
   const surface = dark ? colors.surfDark : colors.n0;
   const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
-
-  const normCategoria = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[àáâãä]/g, 'a')
-      .replace(/[èéêë]/g, 'e')
-      .replace(/[ìíîï]/g, 'i')
-      .replace(/[òóôõö]/g, 'o')
-      .replace(/[ùúûü]/g, 'u')
-      .replace(/[ç]/g, 'c')
-      .replace(/\s+/g, '');
-
-  // Maps consumer filter IDs to all lojista category labels (normalized) they cover.
-  // Needed because lojista uses descriptive labels ("Pet Shop", "Esportes e Lazer")
-  // while consumer filters use short IDs ("pet", "esportes").
-  const CATEGORIA_GRUPOS: Record<string, string[]> = {
-    mercado: ['alimentacao', 'padariaeconfeitaria', 'acougueepeixaria', 'hortifruti', 'bebidas'],
-    moda: [
-      'modainfantil',
-      'modapraiaeesporte',
-      'roupaseacessorios',
-      'bijuteriasejoias',
-      'cosmeticosebeleza',
-    ],
-    pet: ['petshop'],
-    esportes: ['esportoselazer'],
-    eletronicos: ['eletronicos', 'informatica', 'eletrodomesticos'],
-  };
-
-  const categoriaMatchLoja = (lojaCategoria: string, filtro: string): boolean => {
-    const norm = normCategoria(lojaCategoria);
-    if (norm === filtro) return true;
-    return CATEGORIA_GRUPOS[filtro]?.includes(norm) ?? false;
-  };
-
-  const lojasFiltradas = lojas.filter((l) => {
-    const buscaOk =
-      busca === '' ||
-      l.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      l.endereco.bairro.toLowerCase().includes(busca.toLowerCase());
-    const categoriaOk = categoria === 'todos' || categoriaMatchLoja(l.categoria, categoria);
-    return buscaOk && categoriaOk;
-  });
 
   const handleAbrirVitrine = useCallback(
     (id: string) => {

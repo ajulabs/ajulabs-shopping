@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pedido, StatusPedido } from '@ajulabs/types';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 const STATUS_CONFIG: Record<
   StatusPedido,

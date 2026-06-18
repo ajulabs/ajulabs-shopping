@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MensagemChat, ProdutoCard, PedidoCard, TicketCard } from '@ajulabs/types';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 import { ChatRastreioMap } from './ChatRastreioMap';
 
 interface Props {

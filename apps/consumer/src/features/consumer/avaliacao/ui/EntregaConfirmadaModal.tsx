@@ -1,7 +1,7 @@
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   visible: boolean;

@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
-import { useTheme } from '../../../../hooks';
+import { useTheme } from '../../../../shared/hooks';
 
 interface MenuItem {
   icon: string;
@@ -49,18 +49,33 @@ export function ProfileMenu({ items }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card:       { borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
+  card: { borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
 
-  row:        { flexDirection: 'row', alignItems: 'center', gap: 14,
-                paddingHorizontal: 16, paddingVertical: 14 },
-  rowBorder:  { borderBottomWidth: 1 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  rowBorder: { borderBottomWidth: 1 },
 
-  iconBox:    { width: 34, height: 34, borderRadius: 9,
-                alignItems: 'center', justifyContent: 'center' },
+  iconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  label:      { flex: 1, fontSize: 14, fontWeight: '500' },
+  label: { flex: 1, fontSize: 14, fontWeight: '500' },
 
-  badge:      { backgroundColor: colors.orange100, paddingHorizontal: 8, paddingVertical: 2,
-                borderRadius: 99, marginRight: 4 },
-  badgeTxt:   { fontSize: 11, fontWeight: '600', color: colors.orange600 },
+  badge: {
+    backgroundColor: colors.orange100,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 99,
+    marginRight: 4,
+  },
+  badgeTxt: { fontSize: 11, fontWeight: '600', color: colors.orange600 },
 });
