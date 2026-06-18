@@ -87,11 +87,12 @@ export function PedidosScreen() {
       setScreen('detail');
       return true;
     }
-    // Em 'tickets', o próprio TicketsScreen trata o voltar (fechar detalhe do
-    // ticket antes de voltar pra cá). Só voltamos pra 'list' a partir da lista
-    // de tickets — o que o TicketsScreen sinaliza via onBack.
+    // Em 'tickets' (lista aberta via card de Pedidos), voltar retorna pros
+    // pedidos. O TicketsScreen é renderizado por estado (não é rota), então seu
+    // próprio useFocusEffect/back não dispara aqui — quem trata é esta rota.
     if (screen === 'tickets') {
-      return false;
+      setScreen('list');
+      return true;
     }
     if (screen !== 'list') {
       setScreen('list');
