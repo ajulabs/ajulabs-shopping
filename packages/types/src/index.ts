@@ -247,6 +247,12 @@ export interface TicketCard {
   respostas?: { texto: string; criadoEm: string }[];
 }
 
+export interface GrupoProdutos {
+  titulo: string;
+  produtos: ProdutoCard[];
+  quantidade?: number;
+}
+
 export interface RespostaAju {
   tipo?:
     | 'resposta'
@@ -258,6 +264,7 @@ export interface RespostaAju {
     | 'verTickets';
   texto: string;
   produtos?: ProdutoCard[];
+  grupos?: GrupoProdutos[];
   sugestoes?: string[];
   pedidos?: PedidoCard[];
   pedido?: PedidoCard;

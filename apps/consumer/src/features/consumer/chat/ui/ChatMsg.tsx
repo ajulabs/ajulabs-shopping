@@ -175,6 +175,202 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
     const isAju = msg.remetente === 'aju';
     const tipo = msg.resposta?.tipo;
     const isAtiva = msg.id === ultimaMensagemAjuId;
+    const grupos = msg.resposta?.grupos;
+    const temGrupos = Array.isArray(grupos) && grupos.length > 0;
+
+    const renderCarrossel = (
+      produtos: ProdutoCard[],
+      carrosselKey: string,
+      startIndex = 0,
+      quantidade?: number,
+    ) => (
+      <FlatList
+        horizontal
+        data={expandidas.has(carrosselKey) ? produtos : produtos.slice(0, 3)}
+        keyExtractor={(p) => p.id}
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        snapToInterval={170}
+        getItemLayout={(_, i) => ({ length: 170, offset: 170 * i, index: i })}
+        snapToAlignment="start"
+        style={{ marginTop: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+        ListFooterComponent={
+          isAtiva && produtos.length > 3 && !expandidas.has(carrosselKey) ? (
+            <TouchableOpacity
+              onPress={() => setExpandidas((prev) => new Set(prev).add(carrosselKey))}
+              activeOpacity={0.75}
+              style={{
+                width: 120,
+                height: 230,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: cardBorder,
+                backgroundColor: cardBg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingHorizontal: 8,
+              }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: imgBg,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="arrow-forward" size={20} color={cardText} />
+              </View>
+              <Text
+                style={{ color: cardText, fontSize: 13, fontWeight: '700', textAlign: 'center' }}
+              >
+                Ver mais
+              </Text>
+              <Text style={{ color: cardSub, fontSize: 11, textAlign: 'center' }}>
+                +{produtos.length - 3} produto{produtos.length - 3 > 1 ? 's' : ''}
+              </Text>
+            </TouchableOpacity>
+          ) : null
+        }
+        renderItem={({ item: produto, index }) => (
+          <View
+            style={{
+              width: 160,
+              height: 230,
+              backgroundColor: cardBg,
+              borderRadius: 14,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: cardBorder,
+              elevation: 2,
+              shadowColor: '#000',
+              shadowOpacity: isDark ? 0.4 : 0.07,
+              shadowRadius: 4,
+            }}
+          >
+            <View
+              style={{
+                height: 100,
+                backgroundColor: imgBg,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {produto.imagemUrl ? (
+                <Image
+                  source={{ uri: produto.imagemUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons
+                  name="bag-outline"
+                  size={28}
+                  color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'}
+                />
+              )}
+              {/* Badge de posição — alinha o usuário com o AI ao referenciar "item 1, 2, 3" */}
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  left: 6,
+                  backgroundColor: '#f97316',
+                  borderRadius: 10,
+                  width: 20,
+                  height: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>
+                  {startIndex + index + 1}
+                </Text>
+              </View>
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 6,
+                  left: 6,
+                  backgroundColor: '#000000aa',
+                  borderRadius: 6,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
+                <Ionicons name="time-outline" size={10} color="#fff" />
+                <Text style={{ fontSize: 10, color: '#fff' }}>{produto.tempoEntrega}</Text>
+              </View>
+            </View>
+
+            <View style={{ flex: 1, padding: 10, justifyContent: 'space-between' }}>
+              <View>
+                <Text
+                  style={{ fontWeight: '600', fontSize: 13, color: cardText, lineHeight: 17 }}
+                  numberOfLines={2}
+                >
+                  {produto.nome}
+                </Text>
+                {(() => {
+                  const cor = corDoProduto(produto);
+                  return (
+                    <Text style={{ fontSize: 11, color: cardSub, marginTop: 2 }} numberOfLines={1}>
+                      {produto.loja}
+                      {cor ? ` · ${cor}` : ''}
+                    </Text>
+                  );
+                })()}
+              </View>
+
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>
+                    R$ {produto.preco.toFixed(2).replace('.', ',')}
+                  </Text>
+                  {produto.precoOriginal && (
+                    <Text
+                      style={{ fontSize: 11, color: cardSub, textDecorationLine: 'line-through' }}
+                    >
+                      R$ {produto.precoOriginal.toFixed(2).replace('.', ',')}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    router.push({
+                      pathname: '/(consumer)/produto/[id]' as any,
+                      params: {
+                        id: produto.id,
+                        ...(quantidade ? { quantidade: String(quantidade) } : {}),
+                      },
+                    });
+                  }}
+                  activeOpacity={0.8}
+                  style={{
+                    marginTop: 6,
+                    backgroundColor: isDark ? colors.orange : '#111827',
+                    borderRadius: 8,
+                    paddingVertical: 7,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                    {quantidade && quantidade > 1 ? `Ver na loja · ${quantidade}x` : 'Ver na loja'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      />
+    );
 
     return (
       <View
@@ -186,6 +382,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
             tipo === 'listarPedidos' ||
             tipo === 'verTickets' ||
             msg.resposta?.produtos ||
+            msg.resposta?.grupos ||
             msg.resposta?.rastreio
               ? '100%'
               : 'auto',
@@ -195,6 +392,7 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
             tipo === 'listarPedidos' ||
             tipo === 'verTickets' ||
             msg.resposta?.produtos ||
+            msg.resposta?.grupos ||
             msg.resposta?.rastreio
               ? '100%'
               : '85%',
@@ -322,217 +520,32 @@ export function ChatMsg({ mensagens, sugestoes, onSugestao, carregando }: Props)
         )}
 
         {/* Cards de produtos */}
-        {msg.resposta?.produtos && msg.resposta.produtos.length > 0 && (
-          <>
-            <FlatList
-              horizontal
-              data={
-                expandidas.has(msg.id) ? msg.resposta.produtos : msg.resposta.produtos.slice(0, 3)
-              }
-              keyExtractor={(p) => p.id}
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              snapToInterval={170}
-              getItemLayout={(_, i) => ({ length: 170, offset: 170 * i, index: i })}
-              snapToAlignment="start"
-              style={{ marginTop: 10 }}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
-              // "Ver mais" como último item do carrossel (não como pílula abaixo) —
-              // mantém a ação dentro da faixa horizontal, longe dos chips de sugestão.
-              ListFooterComponent={
-                isAtiva && msg.resposta.produtos.length > 3 && !expandidas.has(msg.id) ? (
-                  <TouchableOpacity
-                    onPress={() => setExpandidas((prev) => new Set(prev).add(msg.id))}
-                    activeOpacity={0.75}
+        {temGrupos
+          ? grupos!.map((g, gi) => {
+              const startIndex = grupos!
+                .slice(0, gi)
+                .reduce((acc, x) => acc + x.produtos.length, 0);
+              return (
+                <View key={`${msg.id}:${gi}`} style={{ marginTop: gi === 0 ? 6 : 14 }}>
+                  <Text
                     style={{
-                      width: 120,
-                      height: 230,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: cardBorder,
-                      backgroundColor: cardBg,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      paddingHorizontal: 8,
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: textAju,
+                      paddingHorizontal: 16,
+                      marginBottom: 2,
                     }}
                   >
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: imgBg,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="arrow-forward" size={20} color={cardText} />
-                    </View>
-                    <Text
-                      style={{
-                        color: cardText,
-                        fontSize: 13,
-                        fontWeight: '700',
-                        textAlign: 'center',
-                      }}
-                    >
-                      Ver mais
-                    </Text>
-                    <Text style={{ color: cardSub, fontSize: 11, textAlign: 'center' }}>
-                      +{msg.resposta.produtos.length - 3} produto
-                      {msg.resposta.produtos.length - 3 > 1 ? 's' : ''}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null
-              }
-              renderItem={({ item: produto, index }) => (
-                <View
-                  style={{
-                    width: 160,
-                    height: 230,
-                    backgroundColor: cardBg,
-                    borderRadius: 14,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: cardBorder,
-                    elevation: 2,
-                    shadowColor: '#000',
-                    shadowOpacity: isDark ? 0.4 : 0.07,
-                    shadowRadius: 4,
-                  }}
-                >
-                  <View
-                    style={{
-                      height: 100,
-                      backgroundColor: imgBg,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {produto.imagemUrl ? (
-                      <Image
-                        source={{ uri: produto.imagemUrl }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Ionicons
-                        name="bag-outline"
-                        size={28}
-                        color={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'}
-                      />
-                    )}
-                    {/* Badge de posição — alinha o usuário com o AI ao referenciar "item 1, 2, 3" */}
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: 6,
-                        left: 6,
-                        backgroundColor: '#f97316',
-                        borderRadius: 10,
-                        width: 20,
-                        height: 20,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>
-                        {index + 1}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        position: 'absolute',
-                        bottom: 6,
-                        left: 6,
-                        backgroundColor: '#000000aa',
-                        borderRadius: 6,
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 3,
-                      }}
-                    >
-                      <Ionicons name="time-outline" size={10} color="#fff" />
-                      <Text style={{ fontSize: 10, color: '#fff' }}>{produto.tempoEntrega}</Text>
-                    </View>
-                  </View>
-
-                  <View style={{ flex: 1, padding: 10, justifyContent: 'space-between' }}>
-                    <View>
-                      <Text
-                        style={{ fontWeight: '600', fontSize: 13, color: cardText, lineHeight: 17 }}
-                        numberOfLines={2}
-                      >
-                        {produto.nome}
-                      </Text>
-                      {(() => {
-                        const cor = corDoProduto(produto);
-                        return (
-                          <Text
-                            style={{ fontSize: 11, color: cardSub, marginTop: 2 }}
-                            numberOfLines={1}
-                          >
-                            {produto.loja}
-                            {cor ? ` · ${cor}` : ''}
-                          </Text>
-                        );
-                      })()}
-                    </View>
-
-                    <View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontWeight: '700', fontSize: 15, color: cardText }}>
-                          R$ {produto.preco.toFixed(2).replace('.', ',')}
-                        </Text>
-                        {produto.precoOriginal && (
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color: cardSub,
-                              textDecorationLine: 'line-through',
-                            }}
-                          >
-                            R$ {produto.precoOriginal.toFixed(2).replace('.', ',')}
-                          </Text>
-                        )}
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => {
-                          router.push({
-                            pathname: '/(consumer)/produto/[id]' as any,
-                            params: {
-                              id: produto.id,
-                              ...(msg.resposta?.quantidade
-                                ? { quantidade: String(msg.resposta.quantidade) }
-                                : {}),
-                            },
-                          });
-                        }}
-                        activeOpacity={0.8}
-                        style={{
-                          marginTop: 6,
-                          backgroundColor: isDark ? colors.orange : '#111827',
-                          borderRadius: 8,
-                          paddingVertical: 7,
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                          {msg.resposta?.quantidade && msg.resposta.quantidade > 1
-                            ? `Ver na loja · ${msg.resposta.quantidade}x`
-                            : 'Ver na loja'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                    {g.titulo}
+                  </Text>
+                  {g.produtos.length > 0 &&
+                    renderCarrossel(g.produtos, `${msg.id}:${gi}`, startIndex, g.quantidade)}
                 </View>
-              )}
-            />
-          </>
-        )}
+              );
+            })
+          : msg.resposta?.produtos &&
+            msg.resposta.produtos.length > 0 &&
+            renderCarrossel(msg.resposta.produtos, msg.id, 0, msg.resposta?.quantidade)}
 
         {tipo === 'ticketCriado' && (
           <TouchableOpacity

@@ -42,6 +42,69 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'buscar_conjunto',
+      description:
+        'Busca um CONJUNTO de produtos que combinam entre si. Use SOMENTE quando o usuário pedir 2 ou mais TIPOS de produtos diferentes na mesma mensagem com intenção de combinar/montar um look (ex: "uma camisa e um tênis pra academia", "vestido e sandália pra festa", "calça e blusa de frio"). Também use quando o usuário pedir um "look completo" ou "conjunto" sem listar as peças — nesse caso, INFIRA de 2 a 3 peças coerentes com a ocasião e o gênero (ex: "look de academia masculino" → ["camiseta", "shorts", "tênis"]). Quando o usuário pedir para TROCAR uma peça de um conjunto já mostrado (ex: "troca o tênis por uma sandália"), chame de novo com a lista de itens atualizada. Para um único tipo de produto, use buscar_produtos.',
+      parameters: {
+        type: 'object',
+        properties: {
+          itens: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                tipo: {
+                  type: 'string',
+                  description:
+                    'O tipo de produto, sem atributos compartilhados (ex: "camisa", "tênis"). Ocasião, gênero, cor e preço vão nos campos próprios.',
+                },
+                quantidade: {
+                  type: 'number',
+                  description:
+                    'Quantas unidades desse item o usuário quer, quando mencionar (ex: "2 camisas e 3 tênis" → quantidade 2 na camisa e 3 no tênis). Omita ou use 1 se não citar.',
+                },
+              },
+              required: ['tipo'],
+            },
+            description: 'As peças do conjunto (ex: [{"tipo":"camisa"},{"tipo":"tênis"}]).',
+          },
+          ocasiao: {
+            type: 'string',
+            description:
+              'Ocasião ou estilo compartilhado pelo conjunto, quando mencionado (ex: "academia", "fitness", "festa", "trabalho", "praia", "casual"). Aplica-se a todos os itens.',
+          },
+          genero: {
+            type: 'string',
+            description:
+              'Gênero do conjunto, quando mencionado: "masculino", "feminino", "infantil" ou "unissex". Aplica-se a todos os itens.',
+          },
+          cor: {
+            type: 'string',
+            description:
+              'Cor ou família de cor desejada para o conjunto combinar, quando mencionada (ex: "preto", "azul", "tons neutros", "cores frias"). Aplica-se a todos os itens.',
+          },
+          precoMax: {
+            type: 'number',
+            description:
+              'Preço máximo em reais POR PEÇA, quando o usuário citar um teto (ex: "cada peça até R$150"). Aplica-se a cada item do conjunto.',
+          },
+          precoMin: {
+            type: 'number',
+            description: 'Preço mínimo em reais por peça, quando o usuário citar um piso.',
+          },
+          lojaNome: {
+            type: 'string',
+            description:
+              'Nome da loja, quando o usuário pedir o conjunto de uma loja específica (ex: "uma camisa e um tênis da Centauro").',
+          },
+        },
+        required: ['itens'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'listar_pedidos',
       description:
         'Lista os pedidos recentes do usuário com status atual. Use quando o usuário perguntar sobre seus pedidos, entrega, rastreamento ou status de compra.',
