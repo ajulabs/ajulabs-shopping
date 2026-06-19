@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { Map, Camera, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
 import { rasterStyle, deltaToZoom, TILE_OSM } from '@ajulabs/maps';
 
@@ -45,7 +45,11 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
           lngLat={[entregadorLocation.lng, entregadorLocation.lat]}
           anchor="center"
         >
-          <View style={styles.entregadorDot} />
+          <Image
+            source={require('../../../assets/entregador-marker.png')}
+            style={styles.entregadorMarker}
+            resizeMode="contain"
+          />
         </Marker>
       )}
 
@@ -60,13 +64,9 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
-  entregadorDot: {
-    width: 18,
-    height: 18,
-    backgroundColor: '#209CEF',
-    borderRadius: 9,
-    borderWidth: 3,
-    borderColor: '#fff',
+  entregadorMarker: {
+    width: 55,
+    height: 55,
   },
   destinoDot: {
     width: 14,
