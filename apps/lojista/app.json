@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.ajulabs.lojista",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000933"

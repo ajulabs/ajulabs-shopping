@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PedidoChatService } from '@ajulabs/api-client';
@@ -43,14 +44,68 @@ export default function ConversasLojistaScreen() {
     }
   }, [token]);
 
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+      const onBack = () => {
+        router.replace('/(lojista)/perfil' as any);
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => sub.remove();
+    }, [carregar, router]),
+  );
+
+  // Agrupa por consumidor: um card por cliente, representado pelo chat mais
+  // recente. Evita várias entradas idênticas do mesmo cliente (um por pedido).
+  const conversasAgrupadas = React.useMemo(() => {
+    const porConsumidor = new Map<string, any>();
+    for (const chat of chats) {
+      const chave = chat.consumidorNome ?? chat.consumidorId ?? chat.pedidoId;
+      const existente = porConsumidor.get(chave);
+      if (!existente) {
+        // pedidoIds: todos os pedidos deste consumidor (pra marcar todos como
+        // lidos ao abrir, não só o representante).
+        porConsumidor.set(chave, {
+          ...chat,
+          naoLidas: chat.naoLidas ?? 0,
+          pedidoIds: [chat.pedidoId],
+        });
+        continue;
+      }
+      existente.naoLidas = (existente.naoLidas ?? 0) + (chat.naoLidas ?? 0);
+      existente.pedidoIds.push(chat.pedidoId);
+      const tEx = existente.ultimaMensagem?.criadoEm ?? '';
+      const tCh = chat.ultimaMensagem?.criadoEm ?? '';
+      if (tCh > tEx) {
+        existente.pedidoId = chat.pedidoId;
+        existente.ultimaMensagem = chat.ultimaMensagem;
+        existente.id = chat.id;
+      }
+    }
+    return Array.from(porConsumidor.values());
+  }, [chats]);
+
+  // Abre o chat do pedido mais recente e marca como lidas as mensagens de TODOS
+  // os pedidos do consumidor (senão o badge persiste por causa de pedidos antigos).
+  const abrirConversa = useCallback(
+    (chat: any) => {
+      const ids: string[] = chat.pedidoIds ?? [chat.pedidoId];
+      if (token) {
+        ids.forEach((pid) => PedidoChatService.marcarLido(pid, token).catch(() => {}));
+      }
+      router.push(`/(lojista)/chat-pedido/${chat.pedidoId}` as any);
+    },
+    [token, router],
+  );
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(lojista)/perfil')} style={s.backBtn}>
+        <TouchableOpacity
+          onPress={() => router.replace('/(lojista)/perfil' as any)}
+          style={s.backBtn}
+        >
           <Ionicons name="chevron-back" size={20} color="#000933" />
         </TouchableOpacity>
         <Text style={s.titulo}>Conversas</Text>
@@ -60,7 +115,7 @@ export default function ConversasLojistaScreen() {
         <View style={s.center}>
           <ActivityIndicator color="#DE6708" />
         </View>
-      ) : chats.length === 0 ? (
+      ) : conversasAgrupadas.length === 0 ? (
         <View style={s.center}>
           <Ionicons name="chatbubbles-outline" size={48} color="#9099B3" />
           <Text style={s.emptyTxt}>Nenhuma conversa</Text>
@@ -68,11 +123,11 @@ export default function ConversasLojistaScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {chats.map((chat) => (
+          {conversasAgrupadas.map((chat) => (
             <TouchableOpacity
               key={chat.id}
               style={s.chatItem}
-              onPress={() => router.push(`/(lojista)/chat-pedido/${chat.pedidoId}`)}
+              onPress={() => abrirConversa(chat)}
               activeOpacity={0.75}
             >
               <View style={s.avatar}>

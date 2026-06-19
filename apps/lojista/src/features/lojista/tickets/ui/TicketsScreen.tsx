@@ -16,6 +16,7 @@ import { useAuthLojistaStore } from '../../../../store';
 import { Ticket, TicketStatus, STATUS_META, FILTERS, mapTicket } from '../model/data';
 import { TicketDetail } from './TicketDetail';
 import { useTicketRealtime } from '@ajulabs/realtime';
+import { useHardwareBack } from '../../../../hooks';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -35,6 +36,16 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'todos' | TicketStatus>('todos');
   const [selected, setSelected] = useState<Ticket | null>(null);
+
+  // Botão físico de voltar: se um ticket está aberto, volta pra lista
+  // (em vez de cair no "aperte voltar para sair" da tab).
+  useHardwareBack(() => {
+    if (selected) {
+      setSelected(null);
+      return true;
+    }
+    return false;
+  });
 
   const fetchTickets = useCallback(async () => {
     if (!lojaId || !token) {

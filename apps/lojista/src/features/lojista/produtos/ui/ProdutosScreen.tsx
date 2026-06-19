@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Alert, Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LojistaService, RBACService } from '@ajulabs/api-client';
 import { Produto, NivelEstoque } from '@ajulabs/types';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../auth/model/store';
+import { useHardwareBack } from '../../../../hooks';
 import { usePermissions } from '../../rbac/hooks/usePermissions';
 import { GerenciarColaboradoresScreen } from '../../rbac/ui/GerenciarColaboradoresScreen';
 import { SolicitacoesPrecoScreen } from '../../rbac/ui/SolicitacoesPrecoScreen';
@@ -38,6 +40,30 @@ export function ProdutosScreen() {
   const [nivelAtivo, setNivelAtivo] = useState<NivelEstoque | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [pendentesCount, setPendentesCount] = useState(0);
+
+  // Volta para a lista principal limpando o sub-modo e o produto em edição.
+  const voltarParaMain = useCallback(() => {
+    setMode('main');
+    setEditando(null);
+    setNivelAtivo(null);
+  }, []);
+
+  // Botão físico de voltar: se está num sub-modo, volta pra lista (não sai da tab).
+  useHardwareBack(() => {
+    if (mode !== 'main') {
+      voltarParaMain();
+      return true;
+    }
+    return false;
+  });
+
+  // Ao reentrar na aba Produtos, sempre começa na lista — evita reabrir o
+  // último produto/sub-modo que ficou no estado.
+  useFocusEffect(
+    useCallback(() => {
+      return () => voltarParaMain();
+    }, [voltarParaMain]),
+  );
 
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
