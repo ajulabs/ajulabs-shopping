@@ -24,6 +24,9 @@ export function useCheckout() {
   const [metodoPagamento, setMetodoPagamento] = useState<MetodoPagamento>('pix');
   const [placing, setPlacing] = useState(false);
   const [pedidoIds, setPedidoIds] = useState<string[]>([]);
+  // Tempo estimado de entrega (min) do pedido recém-criado, vindo do backend
+  // (distância loja→cliente a ~60 km/h). 0 antes de finalizar o pedido.
+  const [etaBaseMin, setEtaBaseMin] = useState(0);
 
   // Esta é uma tela de tab — fica montada após o primeiro pedido, então o
   // `step` persistiria e o próximo checkout reabriria já na confirmação.
@@ -34,6 +37,7 @@ export function useCheckout() {
       return () => {
         setStep(0);
         setPedidoIds([]);
+        setEtaBaseMin(0);
       };
     }, []),
   );
@@ -42,14 +46,9 @@ export function useCheckout() {
   const total = subtotal + frete - desconto;
   const numLojas = grupos.length;
 
-  const tempoMin = useMemo(
-    () => (grupos.length > 0 ? Math.min(...grupos.map((g) => g.tempoEntregaMin)) : 0),
-    [grupos],
-  );
-  const tempoMax = useMemo(
-    () => (grupos.length > 0 ? Math.max(...grupos.map((g) => g.tempoEntregaMax)) : 0),
-    [grupos],
-  );
+  // Faixa exibida na confirmação: base (vinda do backend) a base+5 min.
+  const tempoMin = etaBaseMin;
+  const tempoMax = etaBaseMin + 5;
 
   const handleBack = useCallback(() => {
     if (step === 0) {
@@ -72,6 +71,7 @@ export function useCheckout() {
       setPlacing(true);
       try {
         const ids: string[] = [];
+        let maxEta = 0;
         for (const grupo of grupos) {
           const pedido = await PedidoService.criar(token, {
             lojaId: grupo.lojaId,
@@ -80,8 +80,13 @@ export function useCheckout() {
             itens: grupo.itens.map((i) => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
           });
           ids.push(pedido.id);
+          // Vários pedidos (uma por loja) → mostra a maior estimativa (entrega mais longa).
+          if (pedido.tempoEstimadoMin && pedido.tempoEstimadoMin > maxEta) {
+            maxEta = pedido.tempoEstimadoMin;
+          }
         }
         setPedidoIds(ids);
+        setEtaBaseMin(maxEta);
         limparTudo();
         setStep((s) => s + 1);
       } catch (e) {

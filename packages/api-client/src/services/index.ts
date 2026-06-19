@@ -130,6 +130,7 @@ function mapPedido(raw: any): Pedido {
     criadoEm: raw.criadoEm,
     atualizadoEm: raw.atualizadoEm,
     estimativaEntrega: raw.estimativaEntrega ?? undefined,
+    tempoEstimadoMin: raw.tempoEstimadoMin ?? undefined,
     codigoEntrega: raw.codigoEntrega ?? undefined,
     entregador: raw.entregador
       ? ({
