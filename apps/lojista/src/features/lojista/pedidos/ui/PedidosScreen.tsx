@@ -265,6 +265,7 @@ export function PedidosScreen() {
     preparando: 1,
     pronto: 2,
     despachado: 3,
+    entregue: 4,
   };
   const ordenarPorPrioridade = (lista: typeof orders) =>
     [...lista].sort((a, b) => (PRIORIDADE[a.status] ?? 9) - (PRIORIDADE[b.status] ?? 9));
@@ -279,6 +280,7 @@ export function PedidosScreen() {
     { id: 'preparando', label: 'Preparando' },
     { id: 'pronto', label: 'Prontos' },
     { id: 'despachado', label: 'Despachados' },
+    { id: 'entregue', label: 'Concluídos' },
   ];
 
   // Borda laranja fixa para destacar itens novos. (Antes era um pulse animado via
@@ -585,8 +587,18 @@ export function PedidosScreen() {
                     )}
                     {!meta.next && o.status === 'despachado' && (
                       <View style={s.dispatched}>
-                        <Ionicons name="bicycle" size={14} color="#046C2E" />
-                        <Text style={s.dispatchedText}>{(o as any).motoboy ?? 'Despachado'}</Text>
+                        <Ionicons name="bicycle" size={14} color="#0369A1" />
+                        <Text style={[s.dispatchedText, { color: '#0369A1' }]}>
+                          {(o as any).motoboy ?? 'Despachado'}
+                        </Text>
+                      </View>
+                    )}
+                    {!meta.next && o.status === 'entregue' && (
+                      <View style={s.dispatched}>
+                        <Ionicons name="checkmark-circle" size={14} color="#046C2E" />
+                        <Text style={[s.dispatchedText, { color: '#046C2E' }]}>
+                          Entrega concluída
+                        </Text>
                       </View>
                     )}
                   </View>

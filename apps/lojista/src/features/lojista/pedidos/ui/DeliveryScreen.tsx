@@ -28,6 +28,7 @@ const STEPS = [
 // - entregador alocado (status pronto)  →  0 (aguardando retirada)
 // - despachado (saiu para entrega)      →  2
 function stepIndexFromOrder(order: Order): number {
+  if (order.status === 'entregue') return STEPS.length; // todas as etapas concluídas
   if (order.status === 'despachado') return 2;
   if (order.entregadorId) return 0;
   return -1;
@@ -109,7 +110,11 @@ export function DeliveryScreen({ order, onBack }: Props) {
                 </View>
                 <View style={s.statusPill}>
                   <Text style={s.statusPillText}>
-                    {order.status === 'despachado' ? 'A caminho' : 'Aguardando'}
+                    {order.status === 'entregue'
+                      ? 'Entregue'
+                      : order.status === 'despachado'
+                        ? 'A caminho'
+                        : 'Aguardando'}
                   </Text>
                 </View>
               </View>
