@@ -7,6 +7,7 @@ import { notificarPedidoNovo } from '../lib/pushNotifications';
 import { logger } from '../lib/logger';
 import { specValidatorMiddleware } from '../lib/spec-validator';
 import { restaurarEstoqueNoCancelamento } from '../services/estoque.service';
+import { haversineKm, taxaPorDistancia, estimarMinutosEntrega } from '../lib/pricing';
 
 const router = Router();
 
@@ -93,7 +94,10 @@ router.post(
         });
       }
 
-      const loja = await prisma.loja.findUnique({ where: { id: dados.lojaId } });
+      const loja = await prisma.loja.findUnique({
+        where: { id: dados.lojaId },
+        include: { endereco: { select: { lat: true, lng: true } } },
+      });
       if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
 
       const subtotal = dados.itens.reduce((acc, item) => {
@@ -103,7 +107,16 @@ router.post(
         return acc + precoUnit * item.quantidade;
       }, 0);
 
-      const taxaEntrega = Number(loja.taxaEntrega);
+      // Taxa da corrida por distância (R$1,05/km, mín. R$5). No checkout só se
+      // conhece a perna loja→cliente — a taxa é finalizada no aceite do entregador,
+      // que soma o trecho entregador→loja (ver entregador.service.aceitarCorrida).
+      const enderecoEntrega = await prisma.enderecoUsuario.findUnique({
+        where: { id: dados.enderecoEntregaId },
+        select: { lat: true, lng: true },
+      });
+      const kmEntrega = haversineKm(loja.endereco, enderecoEntrega);
+      const taxaEntrega = taxaPorDistancia(kmEntrega);
+      const tempoEstimadoMin = estimarMinutosEntrega(kmEntrega);
       const desconto = dados.metodoPagamento === 'pix' ? subtotal * 0.05 : 0;
       const total = subtotal + taxaEntrega - desconto;
 
@@ -248,7 +261,7 @@ router.post(
           quantidade: i.quantidade,
         })),
       });
-      res.status(201).json({ pedido });
+      res.status(201).json({ pedido: { ...pedido, tempoEstimadoMin } });
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
       const appErr = error as { statusCode?: number; message?: string };
@@ -286,7 +299,7 @@ router.get('/:id', authMiddleware, authUsuario, async (req: AuthRequest, res) =>
     const pedido = await prisma.pedido.findUnique({
       where: { id: req.params.id },
       include: {
-        loja: true,
+        loja: { include: { endereco: { select: { lat: true, lng: true } } } },
         itens: { include: { produto: true } },
         historico: { orderBy: { criadoEm: 'asc' } },
         enderecoEntrega: true,
@@ -302,7 +315,12 @@ router.get('/:id', authMiddleware, authUsuario, async (req: AuthRequest, res) =>
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    res.json({ pedido });
+    // Tempo estimado de entrega (min) pela distância loja→cliente, a 60 km/h.
+    const tempoEstimadoMin = estimarMinutosEntrega(
+      haversineKm(pedido.loja?.endereco, pedido.enderecoEntrega),
+    );
+
+    res.json({ pedido: { ...pedido, tempoEstimadoMin } });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar pedido' });
   }
