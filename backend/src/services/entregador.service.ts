@@ -8,6 +8,7 @@ import {
 import { hashSenha, compararSenha } from '../utils/bcrypt';
 import { assertValidImage } from '../lib/mimeValidator';
 import { notificarStatusPedido } from '../lib/pushNotifications';
+import { haversineKm, taxaPorDistancia } from '../lib/pricing';
 
 // ── Perfil ────────────────────────────────────────────────────────────────────
 
@@ -482,6 +483,27 @@ export async function aceitarCorrida(entregadorId: string, pedidoId: string) {
     /* socket may not be initialized */
   }
 
+  // Finaliza a taxa pela distância total que o entregador vai percorrer:
+  // entregador→loja (conhecido só agora, no aceite) + loja→cliente. R$1,05/km
+  // com mínimo de R$5. O entregador recebe 100% (ver confirmarEntrega).
+  if (pedidoAtualizado) {
+    const entregador = await prisma.entregador.findUnique({
+      where: { id: entregadorId },
+      select: { ultimaLat: true, ultimaLng: true },
+    });
+    const origem = { lat: entregador?.ultimaLat, lng: entregador?.ultimaLng };
+    const kmAteLoja = haversineKm(origem, pedidoAtualizado.loja?.endereco);
+    const kmEntrega = haversineKm(
+      pedidoAtualizado.loja?.endereco,
+      pedidoAtualizado.enderecoEntrega,
+    );
+    const taxaEntrega = taxaPorDistancia(kmAteLoja + kmEntrega);
+    const total =
+      Number(pedidoAtualizado.subtotal) + taxaEntrega - Number(pedidoAtualizado.desconto);
+    await prisma.pedido.update({ where: { id: pedidoId }, data: { taxaEntrega, total } });
+    return { ...pedidoAtualizado, taxaEntrega, total };
+  }
+
   return pedidoAtualizado;
 }
 
@@ -571,8 +593,8 @@ export async function confirmarEntrega(entregadorId: string, pedidoId: string, c
   await prisma.historicoStatusPedido.create({ data: { pedidoId, status: 'entregue' } });
   await prisma.entregaRealizada.upsert({
     where: { pedidoId },
-    create: { entregadorId, pedidoId, valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
-    update: { valorRecebido: Number(pedido.taxaEntrega) * 0.8 },
+    create: { entregadorId, pedidoId, valorRecebido: Number(pedido.taxaEntrega) },
+    update: { valorRecebido: Number(pedido.taxaEntrega) },
   });
 
   await prisma.chatPedido

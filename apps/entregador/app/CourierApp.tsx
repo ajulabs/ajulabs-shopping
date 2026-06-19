@@ -282,7 +282,7 @@ export function CourierApp() {
                 lat: raw.enderecoEntrega?.lat ?? undefined,
                 lng: raw.enderecoEntrega?.lng ?? undefined,
               },
-              ganho: Number(raw.taxaEntrega ?? 0) * 0.8,
+              ganho: Number(raw.taxaEntrega ?? 0),
               distancia: Number(raw.distanciaKm ?? raw.distancia ?? 0),
               duracao: Number(raw.duracaoMin ?? raw.duracao ?? 20),
               codigo: raw.codigoEntrega ?? raw.id.slice(-4).toUpperCase(),

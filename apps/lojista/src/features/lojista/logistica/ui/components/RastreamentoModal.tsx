@@ -31,7 +31,12 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
     token,
   });
 
-  const statusLabel = entrega.statusRaw === 'pronto' ? 'Aguardando retirada' : 'Em rota de entrega';
+  const statusLabel =
+    entrega.statusRaw === 'entregue'
+      ? 'Entrega concluída'
+      : entrega.statusRaw === 'pronto'
+        ? 'Aguardando retirada'
+        : 'Em rota de entrega';
   const statusColor = entrega.statusRaw === 'pronto' ? '#DE6708' : '#22C55E';
 
   return (

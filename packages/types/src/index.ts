@@ -195,6 +195,8 @@ export interface Pedido {
   criadoEm: string;
   atualizadoEm: string;
   estimativaEntrega?: string;
+  /** Tempo estimado do percurso de entrega em minutos (loja→cliente, ~60 km/h). */
+  tempoEstimadoMin?: number;
   codigoEntrega?: string;
   entregador?: EntregadorResumo | null;
   avaliado?: boolean;

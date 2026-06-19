@@ -1,5 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  useColorScheme,
+  Image,
+} from 'react-native';
 import {
   Map,
   Camera,
@@ -117,74 +125,23 @@ const STEP_ICONS: Record<string, string> = {
 
 // ─── Sub-components (memoized) ────────────────────────────────────────────────
 
-const EntregadorMarker = memo(function EntregadorMarker({ heading }: { heading: number }) {
-  const accumRef = useRef(heading);
-  const rotateAnim = useRef(new Animated.Value(heading)).current;
-
-  useEffect(() => {
-    let delta = heading - (accumRef.current % 360);
-    if (delta > 180) delta -= 360;
-    if (delta < -180) delta += 360;
-    accumRef.current += delta;
-
-    Animated.timing(rotateAnim, {
-      toValue: accumRef.current,
-      duration: 350,
-      useNativeDriver: true,
-    }).start();
-  }, [heading]);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [-3600, 3600],
-    outputRange: ['-3600deg', '3600deg'],
-  });
-
+// Marcador do entregador: a ilustração do entregador de moto (mantida na
+// vertical) — dá a sensação de um entregador no mapa em vez de um ponto genérico.
+const EntregadorMarker = memo(function EntregadorMarker() {
   return (
-    <Animated.View style={[mk.wrap, { transform: [{ rotate: spin }] }]}>
-      <View style={mk.shadow} />
-      <View style={mk.circle}>
-        {/* white triangle arrow pointing forward (up) */}
-        <View style={mk.arrow} />
-      </View>
-    </Animated.View>
+    <View style={mk.wrap}>
+      <Image
+        source={require('../../assets/entregador-marker.png')}
+        style={mk.icon}
+        resizeMode="contain"
+      />
+    </View>
   );
 });
 
 const mk = StyleSheet.create({
-  wrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  shadow: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(32,156,239,0.18)',
-  },
-  circle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#209CEF',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  arrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderBottomWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#FFFFFF',
-    marginTop: -3,
-  },
+  wrap: { width: 55, height: 55, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 55, height: 55 },
 });
 
 const DestinationMarker = memo(function DestinationMarker() {
@@ -492,11 +449,7 @@ export function DeliveryTrackingMap({
             lngLat={[entregadorLocation.lng, entregadorLocation.lat]}
             anchor="center"
           >
-            {/* When the map itself is rotated to the heading (heading-up follow),
-                the arrow stays pointing up; otherwise it rotates to show course. */}
-            <EntregadorMarker
-              heading={headingUp && following ? 0 : (entregadorLocation.heading ?? 0)}
-            />
+            <EntregadorMarker />
           </Marker>
         )}
 

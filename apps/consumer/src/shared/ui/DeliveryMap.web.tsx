@@ -1,6 +1,9 @@
 /// <reference lib="dom" />
 import React, { useRef, useEffect, useId } from 'react';
 
+// URL do PNG do entregador servido pela pasta public/ do app (raiz no web).
+const ENTREGADOR_ICON_URL = '/entregador-marker.png';
+
 interface DeliveryMapProps {
   entregadorLocation: { lat: number; lng: number } | null;
   destinoLocation: { lat: number; lng: number } | null;
@@ -55,21 +58,9 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
 
       const entregadorIcon = L.divIcon({
         className: '',
-        html: `<div style="
-          width:18px;height:18px;
-          background:#209CEF;
-          border:3px solid #fff;
-          border-radius:50%;
-          box-shadow:0 2px 8px rgba(0,0,0,.5);
-          position:relative;
-        "><div style="
-          position:absolute;top:-6px;left:50%;transform:translateX(-50%);
-          background:#209CEF;color:#fff;
-          font-size:9px;font-weight:700;white-space:nowrap;
-          padding:2px 4px;border-radius:4px;
-        ">Entregador</div></div>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
+        html: `<img src="${ENTREGADOR_ICON_URL}" style="width:55px;height:55px;object-fit:contain;display:block;" />`,
+        iconSize: [55, 55],
+        iconAnchor: [28, 28],
       });
 
       if (entregadorLocation) {
@@ -115,16 +106,9 @@ export function DeliveryMap({ entregadorLocation, destinoLocation, style }: Deli
     } else {
       const entregadorIcon = L.divIcon({
         className: '',
-        html: `<div style="
-          width:22px;height:22px;
-          background:#209CEF;
-          border:3px solid #fff;
-          border-radius:50% 50% 50% 0;
-          box-shadow:0 2px 10px rgba(0,0,0,.5);
-          transform:rotate(-45deg);
-        "></div>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
+        html: `<img src="${ENTREGADOR_ICON_URL}" style="width:55px;height:55px;object-fit:contain;display:block;" />`,
+        iconSize: [55, 55],
+        iconAnchor: [28, 28],
       });
       entregadorMarkerRef.current = L.marker([entregadorLocation.lat, entregadorLocation.lng], {
         icon: entregadorIcon,

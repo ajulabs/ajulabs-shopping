@@ -136,7 +136,9 @@ export function TrackingScreen({ pedidoId }: Props) {
             </View>
             <View>
               <Text style={[styles.etaLabel, { color: textMut as string }]}>Chegada prevista</Text>
-              <Text style={[styles.etaValue, { color: text }]}>em ~{etaMin} min</Text>
+              <Text style={[styles.etaValue, { color: text }]}>
+                {etaMin} a {etaMin + 5} min
+              </Text>
             </View>
           </View>
         )}

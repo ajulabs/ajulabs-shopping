@@ -115,9 +115,8 @@ export function useTracking(pedidoId: string) {
   });
 
   const isAtivo = pedido ? !['entregue', 'cancelado'].includes(pedido.status) : false;
-  const etaMin = pedido?.estimativaEntrega
-    ? Math.max(1, Math.ceil((new Date(pedido.estimativaEntrega).getTime() - Date.now()) / 60000))
-    : null;
+  // Tempo estimado do percurso de entrega (min), calculado pelo backend a ~60 km/h.
+  const etaMin = pedido?.tempoEstimadoMin ?? null;
 
   return {
     pedido,
