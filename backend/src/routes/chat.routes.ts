@@ -11,6 +11,7 @@ import {
   buscarProdutosRAG,
   buscarProdutosFallback,
   buscarProdutosPopulares,
+  buscarProdutosPorIds,
 } from '../utils/ragSearch';
 import { TOOL_DEFINITIONS, executarTool } from '../tools';
 import {
@@ -48,7 +49,8 @@ const SYSTEM_AGENTE = `Você é a Aju, personal shopper do marketplace local de 
 ${AGENT_SPEC_CONTEXT}
 
 Use as ferramentas disponíveis quando necessário:
-- buscar_produtos: usuário quer COMPRAR algo novo, ver recomendações ou explorar uma loja. Se a mensagem contiver [lojaId:UUID], passe esse UUID no parâmetro lojaId. Se o usuário mencionar o nome de uma loja sem UUID, passe o nome em lojaNome.
+- buscar_produtos: usuário quer COMPRAR algo novo, ver recomendações ou explorar uma loja, de UM tipo de produto. Se a mensagem contiver [lojaId:UUID], passe esse UUID no parâmetro lojaId. Se o usuário mencionar o nome de uma loja sem UUID, passe o nome em lojaNome.
+- buscar_conjunto: usuário pede 2 ou mais TIPOS de produto diferentes na mesma mensagem querendo COMBINAR/montar um look (ex: "uma camisa e um tênis pra academia", "vestido e sandália pra festa"). Liste os tipos em "itens" e preencha "ocasiao", "genero" e "cor" quando mencionados — eles valem para todas as peças. Para um único tipo, use buscar_produtos.
 - buscar_info_loja: usuário pergunta sobre a loja em si — horário de funcionamento, endereço, telefone, WhatsApp, se está aberta agora, taxa de entrega, tempo estimado. Se a mensagem contiver [lojaId:UUID], use lojaId; senão use lojaNome.
 - rastrear_pedido: usuário quer rastrear um pedido específico, acompanhar onde está a entrega ou ver o status de um pedido
 - listar_pedidos: usuário quer ver a lista geral de pedidos (sem intenção específica de rastrear). Se mencionar uma loja, passe o nome em lojaNome.
@@ -56,7 +58,8 @@ Use as ferramentas disponíveis quando necessário:
 - consultar_tickets: usuário pergunta sobre suas reclamações, protocolo de atendimento, status de um ticket ou se alguém já respondeu.
 
 NÃO use ferramentas quando:
-- O usuário pede mais detalhes, descrição, estoque ou disponibilidade de um produto que JÁ aparece no histórico da conversa (ex: "me fale sobre o produto 1", "tem estoque?", "quantas unidades?", "está disponível?", "qual a descrição"). O histórico contém o campo [estoque: N] — use-o para responder diretamente SEM chamar buscar_produtos de novo.
+- O usuário pede mais detalhes, descrição, estoque, disponibilidade, PREÇO ou CORES/VARIAÇÕES de um produto que JÁ aparece no histórico da conversa (ex: "me fale sobre o produto 1", "tem estoque?", "qual o preço do item 2?", "qual é mais barato?", "tem em azul?", "quais cores tem?"). O histórico traz os campos [estoque: N], [preço: R$ X] e [variações: ...] — use-os para responder diretamente SEM chamar nenhuma busca de novo. Sempre que sua resposta se referir a produto(s) específico(s) do histórico, inclua "produtoRef" com o(s) número(s) do(s) item(ns) para o app re-exibir o card. REGRA DE CONSISTÊNCIA: "produtoRef" deve conter EXATAMENTE os produtos que você cita no texto — nem mais, nem menos. Se o texto menciona 2 produtos, "produtoRef" tem os 2 números; se menciona só 1, tem só 1. Nunca cite um produto no texto sem o card correspondente. Para "qual o mais barato?", o ideal é responder só sobre o mais barato (1 número); se você comparar com outro, inclua os dois.
+- O usuário quer adicionar ao carrinho, comprar ou finalizar ("adiciona ao carrinho", "quero comprar os dois", "fechar o pedido"). O chat não mexe no carrinho — oriente a tocar em "Ver na loja" em cada produto pra adicionar e concluir por lá.
 - O usuário faz saudação ou pergunta geral que não exige busca.
 
 Sempre responda em português brasileiro, mesmo que o usuário escreva em inglês, espanhol ou outro idioma latino. Para outros idiomas (árabe, japonês, etc.) o sistema já trata antes de chegar até você.
@@ -65,8 +68,10 @@ Se o usuário enviar conteúdo ofensivo, sexual ou inadequado que passar pela mo
 Se não precisar de ferramentas, responda diretamente com JSON:
 {
   "texto": "mensagem curta e animada em português, com sotaque sergipano",
-  "sugestoes": ["sugestão 1", "sugestão 2"]
+  "sugestoes": ["sugestão 1", "sugestão 2"],
+  "produtoRef": []
 }
+"produtoRef" é opcional: preencha só quando estiver falando de produto(s) específico(s) já mostrado(s) no histórico, com o(s) número(s) do(s) item(ns). Caso contrário, omita ou deixe [].
 Nunca mencione Amazon, iFood ou Shopee.
 
 Regras para "sugestoes" em qualquer resposta:
@@ -137,6 +142,24 @@ Para lista de tickets (consultar_tickets):
 - Se o ticket tiver "respostas" com mensagens da loja, mencione a resposta mais recente no texto: ex "A loja respondeu: [trecho da resposta]".
 - Se não houver tickets, diga que o usuário não tem reclamações registradas.
 - "sugestoes": retorne [].`;
+
+const SYSTEM_CONJUNTO = `Você é a Aju, personal shopper do marketplace local de Aracaju (Sergipe).
+O usuário pediu um CONJUNTO de produtos que combinam. Você recebe, por grupo, os candidatos numerados que a busca trouxe — e decide quais são DE FATO do tipo pedido no título do grupo, porque a busca por semelhança às vezes traz produtos parecidos mas de outro tipo.
+Responda SEMPRE com JSON válido, sem markdown, NESTE formato:
+{
+  "grupos": [
+    { "relevantes": [1, 2], "alternativaTitulo": "", "alternativaRelevantes": [] },
+    { "relevantes": [], "alternativaTitulo": "Camisetas", "alternativaRelevantes": [1, 3] }
+  ],
+  "texto": "mensagem curta que amarra o conjunto"
+}
+
+Regras:
+- "grupos": MESMA ordem e MESMA quantidade dos grupos recebidos. Para cada grupo:
+  - "relevantes" = posições (inteiros 1-based) dos candidatos que realmente são do tipo do título. Se NENHUM candidato for daquele tipo, retorne [] — NUNCA force produtos de outro tipo (ex: não classifique uma camiseta como "vestido", nem um tênis como "sandália").
+  - Quando "relevantes" for [] mas houver candidatos de OUTRO tipo que combinariam no mesmo estilo/ocasião, ofereça uma ALTERNATIVA: "alternativaTitulo" = o nome correto e honesto desses produtos (ex: "Camisetas", "Tênis") e "alternativaRelevantes" = as posições deles. NUNCA use o tipo pedido como título da alternativa. Se não houver alternativa boa, deixe "alternativaTitulo": "" e "alternativaRelevantes": [].
+- "texto": 1 a 2 frases, tom amigável com leve sotaque sergipano. NÃO cite nomes nem preços (os cards já mostram). Se os tipos pedidos foram encontrados, enquadre como conjunto que combina, citando os TIPOS. Se você ofereceu alternativas, deixe claro que NÃO achou o que foi pedido e que está sugerindo um look alternativo que combina (ex: "Não achei vestido nem sandália, mas montei um look casual com camiseta e tênis que combina!"). Se nada foi encontrado nem houve alternativa, diga que não achou e convide a tentar outro estilo.
+- Nunca mencione Amazon, iFood ou Shopee.`;
 
 const chatMensagemSpec = {
   name: 'POST_chat_mensagem',
@@ -358,6 +381,87 @@ function produtoTemCor(p: ProdutoRAG, cores: string[]): boolean {
   return cores.some((c) => new RegExp(`\\b${semAcento(c).replace('-', '\\-')}\\b`).test(txt));
 }
 
+const FAMILIAS_COR: Record<string, string[]> = {
+  neutros: [
+    'preto',
+    'branco',
+    'cinza',
+    'bege',
+    'marrom',
+    'creme',
+    'off-white',
+    'nude',
+    'prata',
+    'dourado',
+  ],
+  quentes: ['vermelho', 'laranja', 'amarelo', 'rosa', 'vinho'],
+  frios: ['azul', 'verde', 'roxo', 'roxa'],
+};
+
+function resolverFamiliaCor(corPedida?: string): string[] | null {
+  if (!corPedida) return null;
+  const c = semAcento(corPedida);
+  if (/neutr/.test(c)) return FAMILIAS_COR.neutros;
+  if (/quent/.test(c)) return FAMILIAS_COR.quentes;
+  if (/\bfri/.test(c)) return FAMILIAS_COR.frios;
+  const cores = coresNoTexto(corPedida);
+  if (cores.length === 0) return null;
+  const familia = Object.values(FAMILIAS_COR).find((fam) => fam.some((x) => cores.includes(x)));
+  return familia ?? cores;
+}
+
+function titulizar(item: string): string {
+  const t = item.trim();
+  return t.length > 0 ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
+function produtoEhDoTipo(p: ProdutoRAG, item: string): boolean {
+  const head = (semAcento(item).trim().split(/\s+/)[0] ?? '').replace(/s$/, '');
+  if (head.length < 3) return true;
+  const stem = head.slice(0, Math.max(4, head.length - 1));
+  const txt = semAcento(`${p.nome} ${p.categoria} ${(p.tags ?? []).join(' ')}`);
+  return txt.includes(stem);
+}
+
+function tituloPorCategoria(produtos: ProdutoRAG[], fallback: string): string {
+  const cont = new Map<string, number>();
+  for (const p of produtos) {
+    const c = (p.categoria ?? '').trim();
+    if (c) cont.set(c, (cont.get(c) ?? 0) + 1);
+  }
+  let melhor = '';
+  let max = 0;
+  for (const [c, n] of cont) {
+    if (n > max) {
+      max = n;
+      melhor = c;
+    }
+  }
+  return melhor ? titulizar(melhor) : fallback;
+}
+
+function linhaContextoProduto(p: ProdutoRAG, numero: number, prefixo = ''): string {
+  const desc = p.descricao ? `: ${p.descricao.slice(0, 120)}` : '';
+  const estoque = typeof p.estoque === 'number' ? ` [estoque: ${p.estoque}]` : '';
+  const preco = typeof p.preco === 'number' ? ` [preço: R$ ${p.preco.toFixed(2)}]` : '';
+  const variacoes =
+    p.variacoes && p.variacoes.length > 0
+      ? ` [variações: ${p.variacoes.map((v) => v.nome).join(', ')}]`
+      : '';
+  return `${prefixo}item ${numero} (id:${p.id}) — ${p.nome} (${p.loja})${desc}${estoque}${preco}${variacoes}`;
+}
+
+/** Extrai os IDs do bloco PROD_CTX na ordem dos itens (índice 0 = item 1). */
+function idsDoContextoProdutos(ctx: string): string[] {
+  const ids: string[] = [];
+  const re = /item\s+(\d+)\s+\(id:([0-9a-fA-F-]{36})\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(ctx)) !== null) {
+    ids[Number(m[1]) - 1] = m[2];
+  }
+  return ids;
+}
+
 // ── Afunilamento de buscas genéricas ──────────────────────────────────────────
 // Quando a busca é ampla demais (ex: "quero ver calçados"), em vez de despejar o
 // catálogo, mostramos poucos produtos E devolvemos uma pergunta de qualificação
@@ -541,6 +645,217 @@ async function notificarSlackModeracao(dados: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: linhas }),
   });
+}
+
+async function processarConjunto(
+  args: {
+    itens?: unknown;
+    ocasiao?: string;
+    genero?: string;
+    cor?: string;
+    precoMax?: unknown;
+    precoMin?: unknown;
+    lojaNome?: string;
+  },
+  ctx: { texto: string; lojaContexto: string | null; usuarioId: string },
+): Promise<{
+  resposta: {
+    tipo: 'resposta';
+    texto: string;
+    sugestoes: string[];
+    grupos: { titulo: string; produtos: ProdutoChat[]; quantidade?: number }[];
+  };
+  produtosFlat: ProdutoRAG[];
+  conteudoSalvar: string;
+}> {
+  const itensParsed = (Array.isArray(args.itens) ? args.itens : [])
+    .map((it): { tipo: string; quantidade: number } => {
+      if (typeof it === 'string') return { tipo: it.trim(), quantidade: 1 };
+      if (it && typeof it === 'object') {
+        const o = it as { tipo?: unknown; quantidade?: unknown };
+        const tipo = typeof o.tipo === 'string' ? o.tipo.trim() : '';
+        const q = Number(o.quantidade);
+        return { tipo, quantidade: Number.isInteger(q) && q >= 2 && q <= 99 ? q : 1 };
+      }
+      return { tipo: '', quantidade: 1 };
+    })
+    .filter((it) => it.tipo.length > 0);
+
+  const truncado = itensParsed.length > 3;
+  const itens = itensParsed.slice(0, 3);
+
+  const sufixo = [args.ocasiao, args.genero]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    .join(' ')
+    .trim();
+  const familiaCor = resolverFamiliaCor(args.cor);
+  const precoMax =
+    typeof args.precoMax === 'number' && args.precoMax > 0 ? args.precoMax : undefined;
+  const precoMin =
+    typeof args.precoMin === 'number' && args.precoMin > 0 ? args.precoMin : undefined;
+  const filtrosBusca: Record<string, string> = {};
+  if (args.lojaNome?.trim()) filtrosBusca.lojaNome = args.lojaNome.trim();
+  else if (ctx.lojaContexto) filtrosBusca.lojaId = ctx.lojaContexto;
+  if (precoMax != null) filtrosBusca.precoMax = String(precoMax);
+  if (precoMin != null) filtrosBusca.precoMin = String(precoMin);
+
+  const candidatos: { titulo: string; produtos: ProdutoRAG[]; quantidade: number }[] = [];
+  for (const item of itens) {
+    const query = `${item.tipo} ${sufixo}`.trim();
+    const resultado = await executarTool(
+      'buscar_produtos',
+      { query, ...filtrosBusca },
+      ctx.usuarioId,
+    );
+    let dados = resultado.tipo === 'produtos' ? resultado.dados : [];
+
+    if (familiaCor && dados.length > 0) {
+      const naFamilia = dados.filter((p) => produtoTemCor(p, familiaCor));
+      if (naFamilia.length > 0) dados = naFamilia;
+    }
+
+    candidatos.push({
+      titulo: titulizar(item.tipo),
+      produtos: dados.slice(0, 6),
+      quantidade: item.quantidade,
+    });
+  }
+
+  const resumoGrupos = candidatos
+    .map(
+      (g, gi) =>
+        `Grupo ${gi + 1} "${g.titulo}": ` +
+        (g.produtos.length > 0
+          ? g.produtos.map((p, i) => `[${i + 1}] ${p.nome}`).join(', ')
+          : 'nenhum candidato'),
+    )
+    .join('\n');
+
+  type SelGrupo = { relevantes: number[]; altTitulo: string; altRel: number[] };
+  const toIdx = (v: unknown): number[] =>
+    Array.isArray(v) ? v.map((n) => Number(n)).filter((n) => Number.isInteger(n) && n >= 1) : [];
+
+  let texto = '';
+  let selecaoPorGrupo: SelGrupo[] = [];
+  try {
+    const ia = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 400,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_CONJUNTO },
+        {
+          role: 'user',
+          content:
+            `Pedido do usuário: "${ctx.texto}"\n` +
+            (args.ocasiao ? `Ocasião: ${args.ocasiao}\n` : '') +
+            (args.genero ? `Gênero: ${args.genero}\n` : '') +
+            (args.cor ? `Cor desejada: ${args.cor}\n` : '') +
+            `Candidatos por grupo:\n${resumoGrupos}`,
+        },
+      ],
+    });
+    const parsed = JSON.parse(ia.choices[0].message.content ?? '{}');
+    if (typeof parsed.texto === 'string') texto = parsed.texto;
+    if (Array.isArray(parsed.grupos)) {
+      selecaoPorGrupo = parsed.grupos.map((g: unknown) => {
+        const o = (g ?? {}) as {
+          relevantes?: unknown;
+          alternativaTitulo?: unknown;
+          alternativaRelevantes?: unknown;
+        };
+        return {
+          relevantes: toIdx(o.relevantes),
+          altTitulo: typeof o.alternativaTitulo === 'string' ? o.alternativaTitulo.trim() : '',
+          altRel: toIdx(o.alternativaRelevantes),
+        };
+      });
+    }
+  } catch {
+    texto = '';
+  }
+
+  const mapProdutos = (idx: number[], pool: ProdutoRAG[]): ProdutoRAG[] => {
+    const escolhidos = idx.map((n) => pool[n - 1]).filter((p): p is ProdutoRAG => !!p);
+    return escolhidos.filter((p, i) => escolhidos.findIndex((q) => q.id === p.id) === i);
+  };
+  const correlacaoOk = selecaoPorGrupo.length === candidatos.length;
+  const grupos = candidatos.map((g, gi) => {
+    const quantidade = g.quantidade;
+    if (correlacaoOk) {
+      const sel = selecaoPorGrupo[gi];
+      const certos = mapProdutos(sel.relevantes, g.produtos);
+      if (certos.length > 0) return { titulo: g.titulo, produtos: certos.slice(0, 4), quantidade };
+      const alternativos = mapProdutos(sel.altRel, g.produtos);
+      if (alternativos.length > 0 && sel.altTitulo) {
+        return { titulo: titulizar(sel.altTitulo), produtos: alternativos.slice(0, 4), quantidade };
+      }
+      if (g.produtos.length > 0) {
+        return {
+          titulo: tituloPorCategoria(g.produtos, 'Opções que combinam'),
+          produtos: g.produtos.slice(0, 4),
+          quantidade,
+        };
+      }
+      return { titulo: g.titulo, produtos: [] as ProdutoRAG[], quantidade };
+    }
+    const certos = g.produtos.filter((p) => produtoEhDoTipo(p, itens[gi]?.tipo ?? ''));
+    return { titulo: g.titulo, produtos: certos.slice(0, 4), quantidade };
+  });
+
+  const gruposComProdutos = grupos.filter((g) => g.produtos.length > 0);
+  const produtosFlat = gruposComProdutos.flatMap((g) => g.produtos);
+
+  if (!texto) {
+    texto =
+      gruposComProdutos.length > 0
+        ? 'Separei um conjunto que combina pra você:'
+        : 'Não achei esses produtos nas lojas daqui. Quer tentar outro estilo?';
+  }
+  if (truncado) {
+    texto = `${texto} (Por enquanto monto conjuntos de até 3 peças, então foquei nas 3 primeiras.)`;
+  }
+
+  const sugestoesConjunto: string[] = [];
+  if (gruposComProdutos.length > 0 && itens.length > 0) {
+    const base = itens.map((i) => i.tipo.toLowerCase()).join(' e ');
+    const baseCap = base.charAt(0).toUpperCase() + base.slice(1);
+    if (!args.genero?.trim()) {
+      sugestoesConjunto.push(`${baseCap} masculino`, `${baseCap} feminino`);
+    } else {
+      const oposto = /fem/i.test(args.genero) ? 'masculino' : 'feminino';
+      sugestoesConjunto.push(`${baseCap} ${oposto}`);
+    }
+    if (!args.cor?.trim()) {
+      sugestoesConjunto.push(`${baseCap} em tons neutros`);
+    }
+  }
+
+  const linhasCtx: string[] = [];
+  let contadorCtx = 0;
+  for (const g of gruposComProdutos) {
+    for (const p of g.produtos) {
+      contadorCtx += 1;
+      linhasCtx.push(linhaContextoProduto(p, contadorCtx, `[${g.titulo}] `));
+    }
+  }
+  const conteudoSalvar =
+    produtosFlat.length > 0 ? `${texto}<<PROD_CTX>>${linhasCtx.join(' | ')}` : texto;
+
+  return {
+    resposta: {
+      tipo: 'resposta',
+      texto,
+      sugestoes: sugestoesConjunto.slice(0, 3),
+      grupos: gruposComProdutos.map((g) => ({
+        titulo: g.titulo,
+        produtos: ragParaChat(g.produtos),
+        ...(g.quantidade > 1 ? { quantidade: g.quantidade } : {}),
+      })),
+    },
+    produtosFlat,
+    conteudoSalvar,
+  };
 }
 
 // POST /chat/mensagem
@@ -857,8 +1172,33 @@ router.post(
       if (!mensagemAgente.tool_calls || mensagemAgente.tool_calls.length === 0) {
         const resposta = JSON.parse(mensagemAgente.content ?? '{}');
         resposta.tipo = 'resposta';
+
+        // Follow-up sobre produto(s) específico(s) do histórico: re-exibe o card.
+        // A IA devolve "produtoRef" (números 1-based); mapeamos para os IDs salvos
+        // no último bloco PROD_CTX e buscamos o produto pra montar o card.
+        const refs = Array.isArray(resposta.produtoRef)
+          ? (resposta.produtoRef as unknown[])
+              .map((n) => Number(n))
+              .filter((n) => Number.isInteger(n) && n >= 1)
+          : [];
+        delete resposta.produtoRef;
         resposta.produtos = [];
-        await salvarMensagens(conversaId, texto, resposta.texto || '');
+
+        let produtosRef: ProdutoRAG[] = [];
+        if (refs.length > 0 && ultimoContextoProdutos) {
+          const idsOrdenados = idsDoContextoProdutos(ultimoContextoProdutos);
+          const idsEscolhidos = [...new Set(refs.map((n) => idsOrdenados[n - 1]).filter(Boolean))];
+          if (idsEscolhidos.length > 0) {
+            const encontrados = await buscarProdutosPorIds(idsEscolhidos);
+            produtosRef = idsEscolhidos
+              .map((id) => encontrados.find((p) => p.id === id))
+              .filter((p): p is ProdutoRAG => !!p);
+            resposta.produtos = ragParaChat(produtosRef);
+          }
+        }
+
+        const { msgAju } = await salvarMensagens(conversaId, texto, resposta.texto || '');
+        if (produtosRef.length > 0) await salvarSugestoesChat(msgAju.id, produtosRef);
         return res.json({ ...resposta, conversaId });
       }
 
@@ -888,6 +1228,23 @@ router.post(
         const resultado = await iniciarFluxoQueixa(conversaId, usuarioId, toolArgs.motivo ?? texto);
         await salvarMensagens(conversaId, texto, resultado.texto);
         return res.json({ ...resultado, conversaId });
+      }
+
+      if (toolCall.function.name === 'buscar_conjunto') {
+        const conjuntoArgs = JSON.parse(toolCall.function.arguments) as {
+          itens?: unknown;
+          ocasiao?: string;
+          genero?: string;
+          cor?: string;
+        };
+        const { resposta, produtosFlat, conteudoSalvar } = await processarConjunto(conjuntoArgs, {
+          texto,
+          lojaContexto,
+          usuarioId,
+        });
+        const { msgAju } = await salvarMensagens(conversaId, texto, conteudoSalvar);
+        if (produtosFlat.length > 0) await salvarSugestoesChat(msgAju.id, produtosFlat);
+        return res.json({ ...resposta, conversaId });
       }
 
       // ── Executa outras tools normalmente ─────────────────────────────────────
@@ -1036,11 +1393,7 @@ router.post(
             // Salva com numeração explícita 1-based para o AI referenciar corretamente
             // quando o usuário disser "item 1", "item 2" etc. — alinhado com os badges dos cards.
             const listaProdutos = similares
-              .map((p, i) => {
-                const desc = p.descricao ? `: ${p.descricao.slice(0, 120)}` : '';
-                const estoque = typeof p.estoque === 'number' ? ` [estoque: ${p.estoque}]` : '';
-                return `item ${i + 1} — ${p.nome} (${p.loja})${desc}${estoque}`;
-              })
+              .map((p, i) => linhaContextoProduto(p, i + 1))
               .join(' | ');
             conteudoParaSalvar = `${textoDisplay}<<PROD_CTX>>${listaProdutos}`;
           }
@@ -1168,11 +1521,7 @@ router.post(
       // produto+descrição para o AI ter contexto em follow-ups.
       if (toolResult.tipo === 'produtos' && produtosExibidos.length > 0 && !conteudoParaSalvar) {
         const listaProdutos = produtosExibidos
-          .map((p, i) => {
-            const desc = p.descricao ? ': ' + p.descricao.slice(0, 120) : '';
-            const estoque = typeof p.estoque === 'number' ? ` [estoque: ${p.estoque}]` : '';
-            return `item ${i + 1} — ${p.nome} (${p.loja})${desc}${estoque}`;
-          })
+          .map((p, i) => linhaContextoProduto(p, i + 1))
           .join(' | ');
         conteudoParaSalvar = `${(resposta.texto as string) ?? ''}<<PROD_CTX>>${listaProdutos}`;
       }
