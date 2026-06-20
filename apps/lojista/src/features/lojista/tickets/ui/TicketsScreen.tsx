@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTickets } from '../model/useTickets';
+import { useHardwareBack } from '../../../../shared/hooks';
 import { TicketDetail } from './TicketDetail';
 import { TicketCard } from './components/TicketCard';
 import { TicketFilterTabs } from './components/TicketFilterTabs';
@@ -30,6 +31,16 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
     countFor,
     abertos,
   } = useTickets();
+
+  // Botão físico de voltar: se um ticket está aberto, volta pra lista
+  // (em vez de cair no "aperte voltar para sair" da tab).
+  useHardwareBack(() => {
+    if (selected) {
+      setSelected(null);
+      return true;
+    }
+    return false;
+  });
 
   if (selected) {
     return (

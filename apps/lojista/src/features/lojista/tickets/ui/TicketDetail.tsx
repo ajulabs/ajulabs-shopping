@@ -44,11 +44,15 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
     enviarNota,
   } = useTicketDetail({ ticket, token, onUpdate });
 
+  // Rola até o input quando o teclado abre (UX de digitação).
+  const scrollToInput = () =>
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+
   return (
     <KeyboardAvoidingView
       style={s.safe}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={80}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
       <SafeAreaView style={{ flex: 1 }}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -75,6 +79,8 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
           ref={scrollRef}
           style={s.scroll}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
           {/* Status + ação */}
           <TicketStatusAction
@@ -133,6 +139,7 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
             setMsg={setMsg}
             sendingMsg={sendingMsg}
             onEnviar={enviarMensagem}
+            onInputFocus={scrollToInput}
           />
 
           {/* Notas internas */}
@@ -142,6 +149,7 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
             setNota={setNota}
             addingNota={addingNota}
             onEnviar={enviarNota}
+            onInputFocus={scrollToInput}
           />
         </ScrollView>
       </SafeAreaView>

@@ -1,6 +1,9 @@
 /// <reference lib="dom" />
 import React, { useRef, useEffect, useId } from 'react';
 
+// URL do PNG do entregador servido pela pasta public/ do app (raiz no web).
+const ENTREGADOR_ICON_URL = '/entregador-marker.png';
+
 export interface MapMarker {
   lat: number;
   lng: number;
@@ -56,23 +59,9 @@ async function fetchOsrmSimple(
   }
 }
 
-function buildUserMarkerHtml(heading: number): string {
-  // Arrow pointing in direction of travel
-  return `
-    <div style="
-      position:relative;
-      width:28px;height:28px;
-      display:flex;align-items:center;justify-content:center;
-    ">
-      <div style="
-        width:22px;height:22px;
-        background:#209CEF;
-        border:3px solid #fff;
-        border-radius:50% 50% 50% 0;
-        box-shadow:0 2px 10px rgba(0,0,0,.5);
-        transform:rotate(${heading - 45}deg);
-      "></div>
-    </div>`;
+function buildUserMarkerHtml(): string {
+  // Ilustração do entregador (o mesmo PNG usado no nativo).
+  return `<img src="${ENTREGADOR_ICON_URL}" style="width:55px;height:55px;object-fit:contain;display:block;" />`;
 }
 
 export function LeafletMap({
@@ -116,10 +105,10 @@ export function LeafletMap({
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-      // User (entregador) marker — directional arrow
+      // User (entregador) marker — scooter icon
       const icon = L.divIcon({
         className: '',
-        html: buildUserMarkerHtml(0),
+        html: buildUserMarkerHtml(),
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       });
@@ -160,12 +149,12 @@ export function LeafletMap({
 
     userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
 
-    // Update icon rotation
+    // Atualiza o ícone (mantém o marcador sincronizado)
     const icon = L.divIcon({
       className: '',
-      html: buildUserMarkerHtml(heading),
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
+      html: buildUserMarkerHtml(),
+      iconSize: [55, 55],
+      iconAnchor: [28, 28],
     });
     userMarkerRef.current.setIcon(icon);
 

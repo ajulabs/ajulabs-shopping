@@ -17,9 +17,10 @@ interface Props {
   setMsg: (v: string) => void;
   sendingMsg: boolean;
   onEnviar: () => void;
+  onInputFocus?: () => void;
 }
 
-export function TicketMessages({ ticket, msg, setMsg, sendingMsg, onEnviar }: Props) {
+export function TicketMessages({ ticket, msg, setMsg, sendingMsg, onEnviar, onInputFocus }: Props) {
   return (
     <View style={s.section}>
       <Text style={s.sectionTitle}>Conversa com consumidor</Text>
@@ -46,6 +47,7 @@ export function TicketMessages({ ticket, msg, setMsg, sendingMsg, onEnviar }: Pr
             style={s.notaInput}
             value={msg}
             onChangeText={setMsg}
+            onFocus={onInputFocus}
             placeholder="Responder ao consumidor..."
             placeholderTextColor="#C8CDE0"
             multiline

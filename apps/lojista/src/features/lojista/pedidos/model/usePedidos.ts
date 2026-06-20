@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Animated } from 'react-native';
+import { Animated, Platform, ToastAndroid } from 'react-native';
 import { LojistaService, ApiUnauthorizedError } from '@ajulabs/api-client';
 import { usePedidosRealtime, usePedidoLojistaRealtime } from '@ajulabs/realtime';
 import { useAuthLojistaStore } from '../../../../store';
@@ -26,16 +26,33 @@ export function usePedidos() {
 
   // Botão físico de voltar do Android: respeita a navegação por estado interno.
   // Sem isso, voltar de uma sub-tela (detail/delivery/chat/tickets) fecha o app.
+  const lastBackPressRef = useRef(0);
   useHardwareBack(() => {
     if (screen === 'chat') {
       setScreen('detail');
+      return true;
+    }
+    // Em 'tickets' (lista aberta via card de Pedidos), voltar retorna pros
+    // pedidos. O TicketsScreen é renderizado por estado (não é rota), então seu
+    // próprio useFocusEffect/back não dispara aqui — quem trata é esta rota.
+    if (screen === 'tickets') {
+      setScreen('list');
       return true;
     }
     if (screen !== 'list') {
       setScreen('list');
       return true;
     }
-    return false; // em 'list': comportamento padrão (trocar de tab / minimizar)
+    // Em 'list' (raiz da tab): padrão "aperte voltar novamente para sair".
+    const agora = Date.now();
+    if (agora - lastBackPressRef.current < 2000) {
+      return false; // segundo toque em 2s → deixa o app fechar
+    }
+    lastBackPressRef.current = agora;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Aperte voltar novamente para sair', ToastAndroid.SHORT);
+    }
+    return true; // primeiro toque → não fecha
   });
   const [showSomModal, setShowSomModal] = useState(false);
   const [openTickets, setOpenTickets] = useState(0);
@@ -45,7 +62,6 @@ export function usePedidos() {
     status: OrderStatus;
   } | null>(null);
   const [recarregando, setRecarregando] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(0)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
   const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const { tocarSom, somAtual, salvarSom } = usePedidoSound();
@@ -134,15 +150,6 @@ export function usePedidos() {
     },
   });
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 900, useNativeDriver: false }),
-      ]),
-    ).start();
-  }, []);
-
   const novos = orders.filter((o) => o.status === 'novo').length;
 
   useEffect(() => {
@@ -194,7 +201,20 @@ export function usePedidos() {
     [token, fetchPedidos],
   );
 
-  const list = filter === 'todos' ? orders : orders.filter((o) => o.status === filter);
+  // Ordem de prioridade: novos primeiro (precisam de ação imediata), depois o fluxo.
+  const PRIORIDADE: Record<OrderStatus, number> = {
+    novo: 0,
+    preparando: 1,
+    pronto: 2,
+    despachado: 3,
+    entregue: 4,
+  };
+  const ordenarPorPrioridade = (lista: Order[]) =>
+    [...lista].sort((a, b) => (PRIORIDADE[a.status] ?? 9) - (PRIORIDADE[b.status] ?? 9));
+
+  const list = ordenarPorPrioridade(
+    filter === 'todos' ? orders : orders.filter((o) => o.status === filter),
+  );
 
   const filters: { id: 'todos' | OrderStatus; label: string }[] = [
     { id: 'todos', label: 'Todos' },
@@ -202,12 +222,13 @@ export function usePedidos() {
     { id: 'preparando', label: 'Preparando' },
     { id: 'pronto', label: 'Prontos' },
     { id: 'despachado', label: 'Despachados' },
+    { id: 'entregue', label: 'Concluídos' },
   ];
 
-  const borderColor = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#DE6708', '#FFD0A8'],
-  });
+  // Borda laranja fixa para destacar itens novos. (Antes era um pulse animado via
+  // borderColor com useNativeDriver:false, que conflitava com animações nativas e
+  // disparava "JS driven animation on a node moved to native" ao re-renderizar a lista.)
+  const borderColor = '#DE6708';
 
   return {
     // store-derived

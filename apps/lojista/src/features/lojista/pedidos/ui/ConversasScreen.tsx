@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -5,8 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConversas } from '../model/useConversas';
@@ -14,12 +16,27 @@ import { tempoRelativo } from '../lib/tempoRelativo';
 
 export function ConversasScreen() {
   const router = useRouter();
-  const { chats, loading } = useConversas();
+  const { conversas, loading, abrirConversa } = useConversas();
+
+  // Botão físico de voltar leva ao Perfil (origem da navegação), não à tab anterior.
+  useFocusEffect(
+    useCallback(() => {
+      const onBack = () => {
+        router.replace('/(lojista)/perfil' as any);
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => sub.remove();
+    }, [router]),
+  );
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(lojista)/perfil')} style={s.backBtn}>
+        <TouchableOpacity
+          onPress={() => router.replace('/(lojista)/perfil' as any)}
+          style={s.backBtn}
+        >
           <Ionicons name="chevron-back" size={20} color="#000933" />
         </TouchableOpacity>
         <Text style={s.titulo}>Conversas</Text>
@@ -29,7 +46,7 @@ export function ConversasScreen() {
         <View style={s.center}>
           <ActivityIndicator color="#DE6708" />
         </View>
-      ) : chats.length === 0 ? (
+      ) : conversas.length === 0 ? (
         <View style={s.center}>
           <Ionicons name="chatbubbles-outline" size={48} color="#9099B3" />
           <Text style={s.emptyTxt}>Nenhuma conversa</Text>
@@ -37,11 +54,11 @@ export function ConversasScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {chats.map((chat) => (
+          {conversas.map((chat) => (
             <TouchableOpacity
               key={chat.id}
               style={s.chatItem}
-              onPress={() => router.push(`/(lojista)/chat-pedido/${chat.pedidoId}`)}
+              onPress={() => abrirConversa(chat)}
               activeOpacity={0.75}
             >
               <View style={s.avatar}>

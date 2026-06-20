@@ -1,8 +1,11 @@
+import { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
 import { useProdutosScreen } from '../model/useProdutosScreen';
+import { useHardwareBack } from '../../../../shared/hooks';
 import { GerenciarColaboradoresScreen } from '../../rbac/ui/GerenciarColaboradoresScreen';
 import { SolicitacoesPrecoScreen } from '../../rbac/ui/SolicitacoesPrecoScreen';
 import { AuditLogScreen } from '../../rbac/ui/AuditLogScreen';
@@ -33,6 +36,30 @@ export function ProdutosScreen() {
     canViewAuditLog,
     isFuncionario,
   } = useProdutosScreen();
+
+  // Volta para a lista principal limpando o sub-modo e o produto em edição.
+  const voltarParaMain = useCallback(() => {
+    setMode('main');
+    setEditando(null);
+    setNivelAtivo(null);
+  }, [setMode, setEditando, setNivelAtivo]);
+
+  // Botão físico de voltar: se está num sub-modo, volta pra lista (não sai da tab).
+  useHardwareBack(() => {
+    if (mode !== 'main') {
+      voltarParaMain();
+      return true;
+    }
+    return false;
+  });
+
+  // Ao reentrar na aba Produtos, sempre começa na lista — evita reabrir o
+  // último produto/sub-modo que ficou no estado.
+  useFocusEffect(
+    useCallback(() => {
+      return () => voltarParaMain();
+    }, [voltarParaMain]),
+  );
 
   if (mode === 'add') {
     return (

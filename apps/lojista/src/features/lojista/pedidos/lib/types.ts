@@ -1,4 +1,4 @@
-export type OrderStatus = 'novo' | 'preparando' | 'pronto' | 'despachado';
+export type OrderStatus = 'novo' | 'preparando' | 'pronto' | 'despachado' | 'entregue';
 
 export interface OrderItem {
   nome: string;

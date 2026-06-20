@@ -67,6 +67,14 @@ export function usePedidoSound() {
   const intervalRef = useRef<any>(null);
   const [somAtual, setSomAtual] = useState<SomTipo>('padrao');
 
+  // Cada tipo de som tem seu próprio arquivo no celular (réplica dos bipes da web).
+  const ARQUIVOS_SOM: Record<SomTipo, any> = {
+    padrao: require('../../../../../assets/sounds/som_padrao.mp3'),
+    rappi: require('../../../../../assets/sounds/som_rappi.mp3'),
+    shopee: require('../../../../../assets/sounds/som_shopee.mp3'),
+    suave: require('../../../../../assets/sounds/som_suave.mp3'),
+  };
+
   useEffect(() => {
     AsyncStorage.getItem(SOUND_KEY)
       .then((v) => {
@@ -104,10 +112,10 @@ export function usePedidoSound() {
           if (soundRef.current) {
             await soundRef.current.unloadAsync().catch(() => {});
           }
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../../../../assets/notification.mp3'),
-            { shouldPlay: true, volume: 1.0 },
-          );
+          const { sound } = await Audio.Sound.createAsync(ARQUIVOS_SOM[t] ?? ARQUIVOS_SOM.padrao, {
+            shouldPlay: true,
+            volume: 1.0,
+          });
           soundRef.current = sound;
           sound.setOnPlaybackStatusUpdate((status: any) => {
             if (status.didJustFinish) sound.unloadAsync();

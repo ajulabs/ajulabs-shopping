@@ -20,6 +20,7 @@ export function useOrderDetail(order: Order) {
     preparando: 'time-outline',
     pronto: isEntregadorAcaminho ? 'bicycle' : 'checkmark',
     despachado: 'bicycle',
+    entregue: 'checkmark-circle',
   };
 
   const statusSubtitle: Record<string, string> = {
@@ -29,6 +30,7 @@ export function useOrderDetail(order: Order) {
       ? `${order.entregadorNome ? order.entregadorNome + ' · a' : 'A'} caminho do cliente`
       : 'Chame um motoboy pra despachar',
     despachado: `Com ${order.motoboy || 'motoboy'} · a caminho do cliente`,
+    entregue: 'Pedido entregue ao cliente',
   };
 
   return { meta, initials, statusIcon, statusSubtitle };

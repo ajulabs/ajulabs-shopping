@@ -84,7 +84,11 @@ export function DeliveryScreen({ order, onBack }: Props) {
                 </View>
                 <View style={s.statusPill}>
                   <Text style={s.statusPillText}>
-                    {order.status === 'despachado' ? 'A caminho' : 'Aguardando'}
+                    {order.status === 'entregue'
+                      ? 'Entregue'
+                      : order.status === 'despachado'
+                        ? 'A caminho'
+                        : 'Aguardando'}
                   </Text>
                 </View>
               </View>

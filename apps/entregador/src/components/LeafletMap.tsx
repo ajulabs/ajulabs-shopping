@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Image } from 'react-native';
 import {
   Map,
   Camera,
@@ -160,7 +160,11 @@ export function LeafletMap({
       {userLocation && (
         <Marker id="user" lngLat={[userLocation.lng, userLocation.lat]} anchor="center">
           <Animated.View style={[styles.userMarkerWrap, { transform: [{ rotate: spin }] }]}>
-            <View style={styles.userMarker} />
+            <Image
+              source={require('../../assets/entregador-marker.png')}
+              style={styles.userMarker}
+              resizeMode="contain"
+            />
           </Animated.View>
         </Marker>
       )}
@@ -177,20 +181,14 @@ export function LeafletMap({
 const styles = StyleSheet.create({
   map: { flex: 1 },
   userMarkerWrap: {
-    width: 28,
-    height: 28,
+    width: 55,
+    height: 55,
     alignItems: 'center',
     justifyContent: 'center',
   },
   userMarker: {
-    width: 22,
-    height: 22,
-    backgroundColor: '#209CEF',
-    borderRadius: 11,
-    borderBottomRightRadius: 2,
-    borderWidth: 3,
-    borderColor: '#fff',
-    elevation: 6,
+    width: 55,
+    height: 55,
   },
   markerDot: {
     width: 18,

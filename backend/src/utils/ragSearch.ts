@@ -326,3 +326,39 @@ export async function buscarProdutosPorLoja(lojaId: string, limit = 8): Promise<
 
   return rows.map(mapRow);
 }
+
+/** Busca produtos por uma lista de IDs (para re-exibir cards já mostrados). */
+export async function buscarProdutosPorIds(ids: string[]): Promise<ProdutoRAG[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.$queryRawUnsafe<RawRow[]>(
+    `SELECT
+       p.id,
+       p.loja_id,
+       p.nome,
+       p.descricao,
+       p.preco,
+       p.estoque,
+       p.categoria,
+       p.imagem_url,
+       p.tags,
+       l.nome          AS loja_nome,
+       l.categoria     AS loja_categoria,
+       l.tempo_entrega_min,
+       l.tempo_entrega_max,
+       l.taxa_entrega,
+       l.avaliacao,
+       COALESCE(
+         json_agg(json_build_object('id', v.id, 'nome', v.nome, 'preco', v.preco, 'estoque', v.estoque))
+         FILTER (WHERE v.id IS NOT NULL),
+         '[]'::json
+       ) AS variacoes
+     FROM "produtos" p
+     JOIN "lojas" l ON l.id = p.loja_id
+     LEFT JOIN "variacoes_produto" v ON v.produto_id = p.id
+     WHERE p.id = ANY($1::text[])
+     GROUP BY p.id, l.id`,
+    ids,
+  );
+
+  return rows.map(mapRow);
+}

@@ -170,17 +170,20 @@ export function PedidosScreen() {
         </View>
 
         {novos > 0 && (
-          <Animated.View style={[s.alertBanner, { borderColor }]}>
-            <View style={s.alertIcon}>
-              <Ionicons name="notifications" size={16} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>
-                {novos} pedido{novos > 1 ? 's' : ''} novo{novos > 1 ? 's' : ''}!
-              </Text>
-              <Text style={s.alertSub}>Aceite rápido pra manter a avaliação alta.</Text>
-            </View>
-          </Animated.View>
+          <TouchableOpacity onPress={() => setFilter('novo')} activeOpacity={1}>
+            <Animated.View style={[s.alertBanner, { borderColor }]}>
+              <View style={s.alertIcon}>
+                <Ionicons name="notifications" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertTitle}>
+                  {novos} pedido{novos > 1 ? 's' : ''} novo{novos > 1 ? 's' : ''}!
+                </Text>
+                <Text style={s.alertSub}>Aceite rápido pra manter a avaliação alta.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#fff" />
+            </Animated.View>
+          </TouchableOpacity>
         )}
 
         <OrderFilterBar filters={filters} filter={filter} orders={orders} onSelect={setFilter} />

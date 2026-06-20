@@ -5,7 +5,7 @@ import { STATUS_META, brl, type Order } from '../../lib';
 
 interface Props {
   order: Order;
-  borderColor: Animated.AnimatedInterpolation<string | number>;
+  borderColor: string;
   onPress: () => void;
   onAdvance: () => void;
   onCancel: () => void;
@@ -88,8 +88,16 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
           )}
           {!meta.next && o.status === 'despachado' && (
             <View style={s.dispatched}>
-              <Ionicons name="bicycle" size={14} color="#046C2E" />
-              <Text style={s.dispatchedText}>{(o as any).motoboy ?? 'Despachado'}</Text>
+              <Ionicons name="bicycle" size={14} color="#0369A1" />
+              <Text style={[s.dispatchedText, { color: '#0369A1' }]}>
+                {(o as any).motoboy ?? 'Despachado'}
+              </Text>
+            </View>
+          )}
+          {!meta.next && o.status === 'entregue' && (
+            <View style={s.dispatched}>
+              <Ionicons name="checkmark-circle" size={14} color="#046C2E" />
+              <Text style={[s.dispatchedText, { color: '#046C2E' }]}>Entrega concluída</Text>
             </View>
           )}
         </View>

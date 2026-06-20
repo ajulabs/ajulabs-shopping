@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../../../theme';
 import { useVendas } from '../model/useVendas';
 import { PERIODS } from '../lib/constants';
@@ -10,6 +11,7 @@ interface VendasDashboardProps {
 }
 
 export function VendasDashboard({ dark = false }: VendasDashboardProps) {
+  const insets = useSafeAreaInsets();
   const {
     lojaNome,
     period,
@@ -31,7 +33,12 @@ export function VendasDashboard({ dark = false }: VendasDashboardProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
-      <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: surface, borderBottomColor: border, paddingTop: insets.top + 12 },
+        ]}
+      >
         <Text style={[styles.headerTitle, { color: textColor }]}>Dashboard</Text>
         <Text style={[styles.headerSub, { color: subColor }]}>{lojaNome ?? 'Minha Loja'}</Text>
       </View>

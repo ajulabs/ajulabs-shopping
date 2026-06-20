@@ -17,9 +17,10 @@ interface Props {
   setNota: (v: string) => void;
   addingNota: boolean;
   onEnviar: () => void;
+  onInputFocus?: () => void;
 }
 
-export function TicketNotas({ ticket, nota, setNota, addingNota, onEnviar }: Props) {
+export function TicketNotas({ ticket, nota, setNota, addingNota, onEnviar, onInputFocus }: Props) {
   return (
     <View style={s.section}>
       <Text style={s.sectionTitle}>Notas internas</Text>
@@ -36,6 +37,7 @@ export function TicketNotas({ ticket, nota, setNota, addingNota, onEnviar }: Pro
           style={s.notaInput}
           value={nota}
           onChangeText={setNota}
+          onFocus={onInputFocus}
           placeholder="Adicionar nota interna..."
           placeholderTextColor="#C8CDE0"
           multiline
