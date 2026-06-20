@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,106 +10,47 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PedidoChatService } from '@ajulabs/api-client';
-import { useChatPedidoRealtime } from '@ajulabs/realtime';
-import type { ChatMensagemPedido, TipoParticipanteChat } from '@ajulabs/types';
-import { useAuthLojistaStore } from '../../../../store';
-import { setCurrentChatPedido } from '../../../../utils/currentChat';
-
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-
-type Destinatario = 'CONSUMER' | 'ENTREGADOR';
+import { useChatPedido } from '../model/useChatPedido';
+import { ChatBubble, DestinatarioToggle } from './components';
 
 interface Props {
   pedidoId: string;
-  onBack: () => void;
+  destinatario?: string;
+  onBack?: () => void;
 }
 
-export function ChatPedidoScreen({ pedidoId, onBack }: Props) {
-  const token = useAuthLojistaStore((s) => s.token);
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-
-  const [chat, setChat] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [destinatario, setDestinatario] = useState<Destinatario>('CONSUMER');
-  const [mensagens, setMensagens] = useState<ChatMensagemPedido[]>([]);
-  const [input, setInput] = useState('');
-  const [enviando, setEnviando] = useState(false);
+export function ChatPedidoScreen({ pedidoId, destinatario: destinatarioParam, onBack }: Props) {
+  const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
 
-  const carregarChat = useCallback(async () => {
-    if (!token) return;
-    const data = await PedidoChatService.buscarChat(pedidoId, token);
-    if (data) {
-      setChat(data);
-      setMensagens(data.mensagens ?? []);
-      await PedidoChatService.marcarLido(pedidoId, token);
-    }
-    setLoading(false);
-  }, [pedidoId, token]);
+  const {
+    chat,
+    loading,
+    destinatario,
+    setDestinatario,
+    mensagens,
+    input,
+    setInput,
+    enviando,
+    enviar,
+    erroEnvio,
+    hasEntregador,
+    chatEncerrado,
+    msgsFiltradas,
+  } = useChatPedido(pedidoId, destinatarioParam, () =>
+    scrollRef.current?.scrollToEnd({ animated: true }),
+  );
 
-  useEffect(() => {
-    carregarChat();
-  }, [carregarChat]);
-
-  // Marca este chat como aberto enquanto a tela está montada.
-  useEffect(() => {
-    setCurrentChatPedido(pedidoId);
-    return () => {
-      setCurrentChatPedido(null);
-    };
-  }, [pedidoId]);
-
-  useChatPedidoRealtime({
-    apiUrl: API_URL,
-    pedidoId,
-    roomId: lojaId ?? null,
-    roomType: 'lojista',
-    enabled: !!lojaId,
-    onMensagem: (payload) => {
-      setMensagens((prev) => {
-        if (prev.find((m) => m.id === payload.mensagem.id)) return prev;
-        return [...prev, payload.mensagem as ChatMensagemPedido];
-      });
-      scrollRef.current?.scrollToEnd({ animated: true });
-    },
-  });
+  const handleBack = onBack ?? (() => router.back());
 
   useEffect(() => {
     if (mensagens.length > 0) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
     }
   }, [mensagens.length]);
-
-  const enviar = async () => {
-    if (!input.trim() || enviando || !token) return;
-    const texto = input.trim();
-    setInput('');
-    setEnviando(true);
-    try {
-      const msg = await PedidoChatService.enviarMensagem(pedidoId, token, texto, destinatario);
-      setMensagens((prev) => {
-        if (prev.find((m) => m.id === msg.id)) return prev;
-        return [...prev, msg as ChatMensagemPedido];
-      });
-      scrollRef.current?.scrollToEnd({ animated: true });
-    } catch {
-      setInput(texto);
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  const hasEntregador = chat?.participantes?.includes('ENTREGADOR');
-  const chatEncerrado = chat?.status === 'encerrado';
-
-  const msgsFiltradas = mensagens.filter(
-    (m) =>
-      (m.remetenteType === 'LOJISTA' && m.destinatarioType === destinatario) ||
-      (m.destinatarioType === 'LOJISTA' && m.remetenteType === destinatario),
-  );
 
   if (loading) {
     return (
@@ -126,7 +67,7 @@ export function ChatPedidoScreen({ pedidoId, onBack }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={s.header}>
-          <TouchableOpacity onPress={onBack} style={s.backBtn}>
+          <TouchableOpacity onPress={handleBack} style={s.backBtn}>
             <Ionicons name="chevron-back" size={20} color="#000933" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>
@@ -138,24 +79,7 @@ export function ChatPedidoScreen({ pedidoId, onBack }: Props) {
         </View>
 
         {hasEntregador && (
-          <View style={s.seletor}>
-            {(['CONSUMER', 'ENTREGADOR'] as Destinatario[]).map((p) => (
-              <TouchableOpacity
-                key={p}
-                style={[s.seletorBtn, destinatario === p && s.seletorBtnAtivo]}
-                onPress={() => setDestinatario(p)}
-              >
-                <Ionicons
-                  name={p === 'CONSUMER' ? 'person-outline' : 'bicycle-outline'}
-                  size={14}
-                  color={destinatario === p ? '#fff' : '#000933'}
-                />
-                <Text style={[s.seletorTxt, { color: destinatario === p ? '#fff' : '#000933' }]}>
-                  {p === 'CONSUMER' ? 'Cliente' : 'Entregador'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <DestinatarioToggle destinatario={destinatario} onChange={setDestinatario} />
         )}
 
         <ScrollView
@@ -169,26 +93,17 @@ export function ChatPedidoScreen({ pedidoId, onBack }: Props) {
               <Text style={s.msgsEmptyTxt}>Nenhuma mensagem ainda</Text>
             </View>
           )}
-          {msgsFiltradas.map((m) => {
-            const minha = m.remetenteType === 'LOJISTA';
-            return (
-              <View key={m.id} style={[s.msgWrapper, minha ? s.msgRight : s.msgLeft]}>
-                {!minha && <Text style={s.msgNome}>{m.remetenteNome}</Text>}
-                <View style={[s.bubble, minha ? s.bubbleMinha : s.bubbleDeles]}>
-                  <Text style={[s.bubbleTxt, { color: minha ? '#fff' : '#000933' }]}>
-                    {m.conteudo}
-                  </Text>
-                </View>
-                <Text style={s.hora}>
-                  {new Date(m.criadoEm).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
-              </View>
-            );
-          })}
+          {msgsFiltradas.map((m) => (
+            <ChatBubble key={m.id} mensagem={m} />
+          ))}
         </ScrollView>
+
+        {erroEnvio && (
+          <View style={s.erroRow}>
+            <Ionicons name="alert-circle-outline" size={14} color="#B91C1C" />
+            <Text style={s.erroTxt}>{erroEnvio}</Text>
+          </View>
+        )}
 
         {!chatEncerrado ? (
           <View style={s.inputRow}>
@@ -247,37 +162,9 @@ const s = StyleSheet.create({
   },
   headerTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#000933' },
   encerradoTag: { fontSize: 11, color: '#9099B3' },
-  seletor: {
-    flexDirection: 'row',
-    gap: 8,
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-    backgroundColor: '#fff',
-  },
-  seletorBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  seletorBtnAtivo: { backgroundColor: '#DE6708' },
-  seletorTxt: { fontSize: 13, fontWeight: '600' },
   msgs: { padding: 16, gap: 8, paddingBottom: 8 },
   msgsEmpty: { alignItems: 'center', marginTop: 40 },
   msgsEmptyTxt: { fontSize: 13, color: '#9099B3' },
-  msgWrapper: { maxWidth: '80%', gap: 3 },
-  msgRight: { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  msgLeft: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  msgNome: { fontSize: 11, fontWeight: '600', color: '#9099B3', marginLeft: 4 },
-  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMinha: { backgroundColor: '#DE6708' },
-  bubbleDeles: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E4E7F1' },
-  bubbleTxt: { fontSize: 14, lineHeight: 20 },
-  hora: { fontSize: 10, color: '#9099B3', marginHorizontal: 4 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -316,4 +203,13 @@ const s = StyleSheet.create({
     borderTopColor: '#E4E7F1',
   },
   encerradoBannerTxt: { fontSize: 13, color: '#9099B3' },
+  erroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  erroTxt: { fontSize: 12, color: '#B91C1C', flex: 1 },
 });

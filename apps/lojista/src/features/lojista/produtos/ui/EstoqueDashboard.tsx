@@ -1,4 +1,3 @@
-import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,50 +6,19 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Image,
-  Modal,
-  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, G } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { EstoqueService, LojistaService } from '@ajulabs/api-client';
-import { EstoqueDashboard as TDashboard, NivelEstoque, Produto } from '@ajulabs/types';
-import { colors } from '../../../../theme';
-import { useAuthLojistaStore } from '../../auth/model/store';
-import { usePermissions } from '../../rbac/hooks/usePermissions';
+import { NivelEstoque, Produto } from '@ajulabs/types';
+import { usePermissions } from '../../../../shared/hooks/usePermissions';
+import { TIPO_LABEL } from '../../../../entities/produto';
+import { C, NIVEL_CFG } from '../lib/dashboardTheme';
+import { useEstoqueDashboard } from '../model/useEstoqueDashboard';
+import { DonutChart } from './components/DonutChart';
+import { EstoqueStatsGrid, StatCard } from './components/EstoqueStatsGrid';
+import { ProdutoRow } from './components/ProdutoRow';
+import { AjusteRapidoPicker } from './components/AjusteRapidoPicker';
 import { AjusteRapidoModal } from './AjusteRapidoModal';
-
-const C = {
-  bg: '#F1F5F9',
-  card: '#FFFFFF',
-  border: '#E2E8F0',
-  text: '#0F172A',
-  sub: '#64748B',
-  mute: '#CBD5E1',
-  green: '#10B981',
-  red: '#EF4444',
-  amber: '#F59E0B',
-  slate: '#64748B',
-  orange: '#F2760F',
-  navy: '#0F172A',
-};
-
-const NIVEL_CFG: Record<NivelEstoque, { color: string; label: string; icon: string }> = {
-  saudavel: { color: C.green, label: 'Saudável', icon: 'checkmark-circle' },
-  atencao: { color: C.amber, label: 'Atenção', icon: 'alert-circle' },
-  critico: { color: C.red, label: 'Crítico', icon: 'close-circle' },
-  zerado: { color: C.slate, label: 'Zerado', icon: 'remove-circle' },
-};
-
-const TIPO_LABEL: Record<string, string> = {
-  venda: 'Venda',
-  entrada_manual: 'Entrada',
-  saida_manual: 'Saída',
-  ajuste_inventario: 'Inventário',
-  devolucao: 'Devolução',
-  cancelamento: 'Cancelamento',
-};
 
 interface Props {
   onVoltar?: () => void;
@@ -72,40 +40,23 @@ export function EstoqueDashboard({
   skipTopInset = false,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-  const token = useAuthLojistaStore((s) => s.token);
   const { canViewStockValue } = usePermissions();
-
-  const [dashboard, setDashboard] = useState<TDashboard | null>(null);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [ajusteTarget, setAjusteTarget] = useState<Produto | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
-  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
-
-  const carregar = useCallback(
-    async (silent = false) => {
-      if (!lojaId || !token) return;
-      if (!silent) setLoading(true);
-      try {
-        const [dash, lista] = await Promise.all([
-          EstoqueService.getDashboard(lojaId, token),
-          LojistaService.listarProdutos(lojaId, token),
-        ]);
-        setDashboard(dash);
-        setProdutos(lista);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [lojaId, token],
-  );
-
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  const {
+    lojaId,
+    token,
+    dashboard,
+    produtos,
+    loading,
+    refreshing,
+    ajusteTarget,
+    setAjusteTarget,
+    showPicker,
+    setShowPicker,
+    imgErrors,
+    markImgError,
+    onRefresh,
+    onAjusteSaved,
+  } = useEstoqueDashboard();
 
   const d = dashboard;
   const totalProd = d?.totalProdutos ?? 0;
@@ -115,7 +66,7 @@ export function EstoqueDashboard({
   const nSaudavel = Math.max(0, totalProd - nZerado - nCritico - nAtencao);
   const alertas = d?.alertas ?? [];
 
-  const gridCards = [
+  const gridCards: StatCard[] = [
     {
       label: 'Saudável',
       value: String(nSaudavel),
@@ -188,14 +139,7 @@ export function EstoqueDashboard({
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                carregar(true);
-              }}
-              tintColor={C.orange}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.orange} />
           }
         >
           <View style={s.donutCard}>
@@ -228,22 +172,7 @@ export function EstoqueDashboard({
             </View>
           </View>
 
-          <View style={s.grid}>
-            {gridCards.map((card, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[s.gridCard, { backgroundColor: card.color }]}
-                onPress={card.onPress}
-                activeOpacity={card.onPress ? 0.82 : 1}
-              >
-                <View style={s.gridIconWrap}>
-                  <Ionicons name={card.icon as any} size={26} color="rgba(255,255,255,0.9)" />
-                </View>
-                <Text style={s.gridValue}>{card.value}</Text>
-                <Text style={s.gridLabel}>{card.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <EstoqueStatsGrid cards={gridCards} />
 
           {alertas.length > 0 && (
             <View style={s.section}>
@@ -318,60 +247,17 @@ export function EstoqueDashboard({
                 <Text style={s.emptyText}>Nenhum produto cadastrado</Text>
               </View>
             ) : (
-              produtos.map((produto) => {
-                const nivel = calcNivel(produto.estoque ?? 0, produto.estoqueMinimo ?? 0);
-                const cfg = NIVEL_CFG[nivel];
-                const hasImg = produto.imagem && !imgErrors[produto.id];
-                return (
-                  <View key={produto.id} style={s.prodRow}>
-                    {hasImg ? (
-                      <Image
-                        source={{ uri: produto.imagem }}
-                        style={s.prodThumb}
-                        resizeMode="cover"
-                        onError={() => setImgErrors((prev) => ({ ...prev, [produto.id]: true }))}
-                      />
-                    ) : (
-                      <View style={[s.prodThumb, s.prodThumbFallback]}>
-                        <Text style={s.prodThumbLetter}>
-                          {produto.nome.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={s.prodInfo}>
-                      <Text style={s.prodNome} numberOfLines={1}>
-                        {produto.nome}
-                      </Text>
-                      <Text style={s.prodPreco}>
-                        R$ {Number(produto.preco).toFixed(2).replace('.', ',')}
-                      </Text>
-                    </View>
-                    <View style={s.prodRight}>
-                      <TouchableOpacity
-                        style={[s.stockBadge, { backgroundColor: cfg.color }]}
-                        onPress={() => setAjusteTarget(produto)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={s.stockBadgeText}>{produto.estoque ?? 0}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={s.prodAction}
-                        onPress={() => onEditarProduto(produto)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="pencil-outline" size={15} color={C.sub} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[s.prodAction, { backgroundColor: '#FEE2E2' }]}
-                        onPress={() => onDeleteProduto(produto)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={15} color={C.red} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })
+              produtos.map((produto) => (
+                <ProdutoRow
+                  key={produto.id}
+                  produto={produto}
+                  hasImgError={!!imgErrors[produto.id]}
+                  onImgError={() => markImgError(produto.id)}
+                  onAjuste={() => setAjusteTarget(produto)}
+                  onEditar={() => onEditarProduto(produto)}
+                  onDelete={() => onDeleteProduto(produto)}
+                />
+              ))
             )}
           </View>
 
@@ -439,60 +325,15 @@ export function EstoqueDashboard({
       )}
 
       {/* Seletor de produto para ajuste de estoque */}
-      <Modal
+      <AjusteRapidoPicker
         visible={showPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPicker(false)}
-      >
-        <View style={s.pickerOverlay}>
-          <View style={s.pickerSheet}>
-            <View style={s.pickerHandle} />
-            <View style={s.pickerHead}>
-              <Text style={s.pickerTitle}>Qual produto ajustar?</Text>
-              <TouchableOpacity
-                style={s.pickerClose}
-                onPress={() => setShowPicker(false)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close" size={16} color={C.sub} />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={produtos}
-              keyExtractor={(p) => p.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={s.pickerList}
-              renderItem={({ item: p }) => {
-                const nivel = calcNivel(p.estoque ?? 0, p.estoqueMinimo ?? 0);
-                const cfg = NIVEL_CFG[nivel];
-                return (
-                  <TouchableOpacity
-                    style={s.pickerItem}
-                    activeOpacity={0.75}
-                    onPress={() => {
-                      setShowPicker(false);
-                      setAjusteTarget(p);
-                    }}
-                  >
-                    <View style={[s.pickerItemIcon, { backgroundColor: cfg.color + '18' }]}>
-                      <Ionicons name={cfg.icon as any} size={16} color={cfg.color} />
-                    </View>
-                    <Text style={s.pickerItemNome} numberOfLines={1}>
-                      {p.nome}
-                    </Text>
-                    <View style={[s.pickerItemBadge, { backgroundColor: cfg.color }]}>
-                      <Text style={s.pickerItemQty}>{p.estoque ?? 0}</Text>
-                      <Text style={s.pickerItemUnit}>un</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={14} color={C.mute} />
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
+        produtos={produtos}
+        onClose={() => setShowPicker(false)}
+        onSelect={(p) => {
+          setShowPicker(false);
+          setAjusteTarget(p);
+        }}
+      />
 
       {ajusteTarget && lojaId && token && (
         <AjusteRapidoModal
@@ -501,127 +342,9 @@ export function EstoqueDashboard({
           lojaId={lojaId}
           token={token}
           onClose={() => setAjusteTarget(null)}
-          onSaved={(atualizado) => {
-            setProdutos((prev) =>
-              prev.map((p) => (p.id === atualizado.id ? { ...p, ...atualizado } : p)),
-            );
-            setAjusteTarget(null);
-            carregar(true);
-          }}
+          onSaved={onAjusteSaved}
         />
       )}
-    </View>
-  );
-}
-
-function calcNivel(estoque: number, estoqueMinimo = 0): NivelEstoque {
-  if (estoque <= 0) return 'zerado';
-  if (estoqueMinimo > 0) {
-    if (estoque < estoqueMinimo) return 'critico';
-    if (estoque < estoqueMinimo * 2) return 'atencao';
-    return 'saudavel';
-  }
-  if (estoque < 10) return 'critico';
-  if (estoque < 20) return 'atencao';
-  return 'saudavel';
-}
-
-function DonutChart({
-  saudavel,
-  atencao,
-  critico,
-  zerado,
-  total,
-  size = 180,
-  strokeWidth = 24,
-}: {
-  saudavel: number;
-  atencao: number;
-  critico: number;
-  zerado: number;
-  total: number;
-  size?: number;
-  strokeWidth?: number;
-}) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size / 2 - strokeWidth / 2;
-  const circumference = 2 * Math.PI * r;
-
-  const segments = [
-    { value: saudavel, color: C.green },
-    { value: atencao, color: C.amber },
-    { value: critico, color: C.red },
-    { value: zerado, color: C.slate },
-  ].filter((s) => s.value > 0);
-
-  if (total === 0) {
-    return (
-      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-        <Svg width={size} height={size}>
-          <Circle cx={cx} cy={cy} r={r} fill="none" stroke={C.border} strokeWidth={strokeWidth} />
-        </Svg>
-        <View style={{ position: 'absolute', alignItems: 'center' }}>
-          <Text style={{ fontSize: 32, fontWeight: '800', color: C.text }}>0</Text>
-          <Text style={{ fontSize: 12, color: C.sub, fontWeight: '600' }}>produtos</Text>
-        </View>
-      </View>
-    );
-  }
-
-  let accumulated = 0;
-  return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <G rotation="-90" origin={`${cx}, ${cy}`}>
-          {segments.map((seg, i) => {
-            const segLen = (seg.value / total) * circumference;
-            const offset = circumference - accumulated;
-            const gap = segments.length > 1 ? 4 : 0;
-            accumulated += segLen;
-            return (
-              <Circle
-                key={i}
-                cx={cx}
-                cy={cy}
-                r={r}
-                fill="none"
-                stroke={seg.color}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                strokeDasharray={`${Math.max(0, segLen - gap)} ${circumference - segLen + gap}`}
-                strokeDashoffset={offset}
-              />
-            );
-          })}
-        </G>
-      </Svg>
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={{ fontSize: 38, fontWeight: '900', color: C.text, letterSpacing: -2 }}>
-          {total}
-        </Text>
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: '700',
-            color: C.sub,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-          }}
-        >
-          produtos
-        </Text>
-      </View>
     </View>
   );
 }
@@ -689,29 +412,6 @@ const s = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { fontSize: 12, color: C.sub, fontWeight: '500' },
   legendPct: { fontSize: 12, fontWeight: '800' },
-
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, marginTop: 16 },
-  gridCard: {
-    width: '30.5%',
-    borderRadius: 18,
-    padding: 14,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  gridIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridValue: { fontSize: 20, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  gridLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)', lineHeight: 14 },
 
   section: { paddingHorizontal: 16, marginTop: 24 },
   sectionHead: {
@@ -788,52 +488,6 @@ const s = StyleSheet.create({
   barTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
   barFill: { height: 5, borderRadius: 3 },
 
-  prodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  prodThumb: { width: 46, height: 46, borderRadius: 12 },
-  prodThumbFallback: {
-    backgroundColor: C.orange + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  prodThumbLetter: { fontSize: 18, fontWeight: '800', color: C.orange },
-  prodInfo: { flex: 1 },
-  prodNome: { fontSize: 14, fontWeight: '700', color: C.text },
-  prodPreco: { fontSize: 13, color: C.orange, fontWeight: '700', marginTop: 2 },
-  prodRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  stockBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stockBadgeText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  prodAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: C.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-
   emptyCard: {
     backgroundColor: C.card,
     borderRadius: 14,
@@ -866,72 +520,4 @@ const s = StyleSheet.create({
   movRight: { alignItems: 'flex-end', gap: 2 },
   movQty: { fontSize: 16, fontWeight: '800' },
   movData: { fontSize: 10, color: C.mute },
-
-  /* Picker de produto */
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  pickerSheet: {
-    backgroundColor: C.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingBottom: 44,
-    maxHeight: '80%',
-    borderTopWidth: 1,
-    borderColor: C.border,
-  },
-  pickerHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 18,
-  },
-  pickerHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  pickerTitle: { fontSize: 18, fontWeight: '800', color: C.text },
-  pickerClose: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerList: { gap: 8, paddingBottom: 8 },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.bg,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  pickerItemIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerItemNome: { flex: 1, fontSize: 14, fontWeight: '600', color: C.text },
-  pickerItemBadge: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  pickerItemQty: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  pickerItemUnit: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
 });

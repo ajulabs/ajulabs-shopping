@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   StatusBar,
   ActivityIndicator,
@@ -12,62 +11,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LojistaService } from '@ajulabs/api-client';
-import { useAuthLojistaStore } from '../../auth/model/store';
+import { useEntregas } from '../model/useEntregas';
+import { EntregaCard } from './components/EntregaCard';
 import { RastreamentoModal } from './components/RastreamentoModal';
-import { mapPedidoToEntrega } from '../lib/mappers';
 import type { EntregaDisplay } from '../model/types';
-import { usePedidoLojistaRealtime } from '@ajulabs/realtime';
-
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export function LogisticaScreen() {
   const router = useRouter();
-  const token = useAuthLojistaStore((s) => s.token);
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
+  const { token, lojaId, loading, refreshing, emAndamento, concluidas, handleRefresh } =
+    useEntregas();
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [emAndamento, setEmAndamento] = useState<EntregaDisplay[]>([]);
-  const [concluidas, setConcluidas] = useState<EntregaDisplay[]>([]);
   const [selectedEntrega, setSelectedEntrega] = useState<EntregaDisplay | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!token || !lojaId) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const { emAndamento: ea, concluidas: co } = await LojistaService.buscarEntregas(
-        lojaId,
-        token,
-      );
-      setEmAndamento(ea.map((p: any) => mapPedidoToEntrega(p, 'andamento')));
-      setConcluidas(co.map((p: any) => mapPedidoToEntrega(p, 'concluida')));
-    } catch {}
-    setLoading(false);
-  }, [token, lojaId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-  useEffect(() => {
-    const interval = setInterval(fetchData, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
-
-  usePedidoLojistaRealtime({
-    apiUrl: API_URL,
-    lojaId: lojaId ?? null,
-    enabled: !!lojaId,
-    onAtualizado: fetchData,
-  });
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
-  }, [fetchData]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -111,62 +65,7 @@ export function LogisticaScreen() {
             </View>
           ) : (
             emAndamento.map((e) => (
-              <TouchableOpacity
-                key={e.id}
-                style={s.card}
-                activeOpacity={0.75}
-                onPress={() => setSelectedEntrega(e)}
-              >
-                <View style={s.cardTop}>
-                  <View style={s.cardLeft}>
-                    <View style={s.cardTitleRow}>
-                      <Text style={s.orderId}>{e.pedidoId}</Text>
-                      <View style={e.statusRaw === 'saiu_entrega' ? s.badgeGreen : s.badgeOrange}>
-                        <View
-                          style={e.statusRaw === 'saiu_entrega' ? s.dotGreen : s.dotOrangeSmall}
-                        />
-                        <Text
-                          style={
-                            e.statusRaw === 'saiu_entrega' ? s.badgeGreenText : s.badgeOrangeText
-                          }
-                        >
-                          {e.statusRaw === 'saiu_entrega' ? 'Em rota' : 'Aguardando'}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={s.cardCliente}>{e.cliente}</Text>
-                    <Text style={s.cardEndereco} numberOfLines={1}>
-                      {e.endereco}
-                    </Text>
-                  </View>
-                  <View style={s.cardRight}>
-                    <Text style={s.hora}>{e.hora}</Text>
-                    <View style={s.mapHint}>
-                      <Ionicons name="map" size={12} color="#DE6708" />
-                      <Text style={s.mapHintTxt}>Ver mapa</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={s.motoboyRow}>
-                  <View style={s.motoboyAvatar}>
-                    <Text style={s.motoboyInitials}>
-                      {e.motoboy
-                        .split(' ')
-                        .map((w: string) => w[0])
-                        .join('')
-                        .slice(0, 2)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.motoboyName}>{e.motoboy}</Text>
-                    <Text style={s.motoboyPlaca}>{e.placa}</Text>
-                  </View>
-                  <View style={s.rastrearHint}>
-                    <Ionicons name="navigate" size={13} color="#fff" />
-                    <Text style={s.rastrearTxt}>Rastrear</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+              <EntregaCard key={e.id} entrega={e} onPress={setSelectedEntrega} />
             ))
           )}
 
@@ -177,43 +76,7 @@ export function LogisticaScreen() {
               <Text style={{ fontSize: 13, color: '#9099B3' }}>Nenhuma entrega concluída</Text>
             </View>
           ) : (
-            concluidas.map((e) => (
-              <View key={e.id} style={[s.card, s.cardConcluida]}>
-                <View style={s.cardTop}>
-                  <View style={s.cardLeft}>
-                    <View style={s.cardTitleRow}>
-                      <Text style={s.orderId}>{e.pedidoId}</Text>
-                      <View style={s.badgeGreenAlt}>
-                        <Ionicons name="checkmark-circle" size={11} color="#046C2E" />
-                        <Text style={s.badgeGreenTextAlt}>Concluída</Text>
-                      </View>
-                    </View>
-                    <Text style={s.cardCliente}>{e.cliente}</Text>
-                    <Text style={s.cardEndereco} numberOfLines={1}>
-                      {e.endereco}
-                    </Text>
-                  </View>
-                  <View style={s.cardRight}>
-                    <Text style={[s.hora, { color: '#9099B3', fontSize: 13 }]}>{e.hora}</Text>
-                  </View>
-                </View>
-                <View style={s.motoboyRow}>
-                  <View style={[s.motoboyAvatar, { backgroundColor: '#E4E7F1' }]}>
-                    <Text style={[s.motoboyInitials, { color: '#9099B3' }]}>
-                      {e.motoboy
-                        .split(' ')
-                        .map((w: string) => w[0])
-                        .join('')
-                        .slice(0, 2)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.motoboyName}>{e.motoboy}</Text>
-                    <Text style={s.motoboyPlaca}>{e.placa}</Text>
-                  </View>
-                </View>
-              </View>
-            ))
+            concluidas.map((e) => <EntregaCard key={e.id} entrega={e} />)
           )}
         </ScrollView>
       )}
@@ -282,78 +145,4 @@ const s = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
-  cardConcluida: { opacity: 0.72 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  cardLeft: { flex: 1, marginRight: 12 },
-  cardRight: { alignItems: 'flex-end', gap: 6 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  orderId: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  cardCliente: { fontSize: 12.5, color: '#9099B3', marginBottom: 2 },
-  cardEndereco: { fontSize: 12, color: '#000933' },
-  hora: { fontSize: 17, fontWeight: '700', color: '#DE6708' },
-  mapHint: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  mapHintTxt: { fontSize: 10, fontWeight: '600', color: '#DE6708' },
-
-  badgeOrange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF0E6',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  dotOrangeSmall: { width: 5, height: 5, borderRadius: 99, backgroundColor: '#DE6708' },
-  badgeOrangeText: { fontSize: 10, fontWeight: '700', color: '#DE6708' },
-  badgeGreen: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E6F7ED',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  dotGreen: { width: 5, height: 5, borderRadius: 99, backgroundColor: '#22C55E' },
-  badgeGreenText: { fontSize: 10, fontWeight: '700', color: '#046C2E' },
-  badgeGreenAlt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E6F7ED',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  badgeGreenTextAlt: { fontSize: 10, fontWeight: '700', color: '#046C2E' },
-
-  motoboyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F1F7',
-  },
-  motoboyAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 99,
-    backgroundColor: '#DE6708',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  motoboyInitials: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  motoboyName: { fontSize: 13, fontWeight: '600', color: '#000933' },
-  motoboyPlaca: { fontSize: 11, color: '#9099B3' },
-  rastrearHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#DE6708',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 99,
-  },
-  rastrearTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
 });

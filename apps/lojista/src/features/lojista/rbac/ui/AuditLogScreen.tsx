@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,143 +12,68 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RBACService } from '@ajulabs/api-client';
 import type { AuditLogEntry } from '@ajulabs/types';
 import { colors } from '../../../../theme';
-import { useAuthLojistaStore } from '../../auth/model/store';
+import {
+  ACTION_LABEL,
+  ACTION_ICON,
+  ACTION_COLOR,
+  PAPEL_LABEL,
+  formatarData,
+} from '../lib/auditLog';
+import { useAuditLog } from '../model/useAuditLog';
 
 interface Props {
   onVoltar: () => void;
 }
 
-const ACTION_LABEL: Record<string, string> = {
-  product_created: 'Produto criado',
-  product_edited: 'Produto editado',
-  product_deleted: 'Produto excluído',
-  price_change_requested: 'Solicitação de preço',
-  price_change_approved: 'Preço aprovado',
-  price_change_rejected: 'Preço rejeitado',
-};
-
-const ACTION_ICON: Record<string, string> = {
-  product_created: 'add-circle-outline',
-  product_edited: 'create-outline',
-  product_deleted: 'trash-outline',
-  price_change_requested: 'pricetag-outline',
-  price_change_approved: 'checkmark-circle-outline',
-  price_change_rejected: 'close-circle-outline',
-};
-
-const ACTION_COLOR: Record<string, string> = {
-  product_created: '#059669',
-  product_edited: '#2563EB',
-  product_deleted: '#DC2626',
-  price_change_requested: '#D97706',
-  price_change_approved: '#059669',
-  price_change_rejected: '#DC2626',
-};
-
-const PAPEL_LABEL: Record<string, string> = {
-  admin: 'Admin',
-  gerente: 'Gerente',
-  funcionario: 'Funcionário',
-  lojista: 'Dono',
-};
-
-function formatarData(iso: string) {
-  const d = new Date(iso);
-  return (
-    d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
-    ' ' +
-    d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  );
-}
-
 export function AuditLogScreen({ onVoltar }: Props) {
   const insets = useSafeAreaInsets();
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-  const token = useAuthLojistaStore((s) => s.token);
+  const {
+    logs,
+    loading,
+    refreshing,
+    setRefreshing,
+    detalhe,
+    setDetalhe,
+    carregandoMais,
+    carregar,
+    carregarMais,
+  } = useAuditLog();
 
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [detalhe, setDetalhe] = useState<AuditLogEntry | null>(null);
-  const [pagina, setPagina] = useState(1);
-  const [temMais, setTemMais] = useState(false);
-  const [carregandoMais, setCarregandoMais] = useState(false);
-
-  const PER_PAGE = 30;
-
-  const carregar = useCallback(
-    async (reset = false) => {
-      if (!lojaId || !token) return;
-      const pg = reset ? 1 : pagina;
-      if (reset) setLoading(true);
-      try {
-        const resultado = await RBACService.listarAuditLog(lojaId, token, {
-          page: pg,
-          limit: PER_PAGE,
-        });
-        const items = resultado.items;
-        if (reset) {
-          setLogs(items);
-        } else {
-          setLogs((prev) => [...prev, ...items]);
-        }
-        setTemMais(items.length === PER_PAGE);
-        if (reset) setPagina(2);
-        else setPagina((p) => p + 1);
-      } catch {
-        // silently fail on pagination errors
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-        setCarregandoMais(false);
-      }
-    },
-    [lojaId, token, pagina],
-  );
-
-  useEffect(() => {
-    carregar(true);
-  }, [lojaId, token]);
-
-  const carregarMais = useCallback(() => {
-    if (!temMais || carregandoMais) return;
-    setCarregandoMais(true);
-    carregar(false);
-  }, [temMais, carregandoMais, carregar]);
-
-  const renderItem = useCallback(({ item }: { item: AuditLogEntry }) => {
-    const icon = ACTION_ICON[item.action] ?? 'ellipse-outline';
-    const cor = ACTION_COLOR[item.action] ?? colors.n300;
-    const label = ACTION_LABEL[item.action] ?? item.action;
-    return (
-      <TouchableOpacity
-        style={styles.logItem}
-        onPress={() => setDetalhe(item)}
-        activeOpacity={0.75}
-      >
-        <View style={[styles.logIcon, { backgroundColor: cor + '18' }]}>
-          <Ionicons name={icon as any} size={20} color={cor} />
-        </View>
-        <View style={styles.logInfo}>
-          <Text style={styles.logAction}>{label}</Text>
-          <Text style={styles.logEntity} numberOfLines={1}>
-            {item.entityName}
-          </Text>
-          <View style={styles.logMeta}>
-            <Text style={styles.logActor}>{item.actorNome}</Text>
-            <Text style={styles.logDot}>·</Text>
-            <Text style={styles.logPapel}>{PAPEL_LABEL[item.actorPapel] ?? item.actorPapel}</Text>
-            <Text style={styles.logDot}>·</Text>
-            <Text style={styles.logData}>{formatarData(item.timestamp)}</Text>
+  const renderItem = useCallback(
+    ({ item }: { item: AuditLogEntry }) => {
+      const icon = ACTION_ICON[item.action] ?? 'ellipse-outline';
+      const cor = ACTION_COLOR[item.action] ?? colors.n300;
+      const label = ACTION_LABEL[item.action] ?? item.action;
+      return (
+        <TouchableOpacity
+          style={styles.logItem}
+          onPress={() => setDetalhe(item)}
+          activeOpacity={0.75}
+        >
+          <View style={[styles.logIcon, { backgroundColor: cor + '18' }]}>
+            <Ionicons name={icon as any} size={20} color={cor} />
           </View>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.n300} />
-      </TouchableOpacity>
-    );
-  }, []);
+          <View style={styles.logInfo}>
+            <Text style={styles.logAction}>{label}</Text>
+            <Text style={styles.logEntity} numberOfLines={1}>
+              {item.entityName}
+            </Text>
+            <View style={styles.logMeta}>
+              <Text style={styles.logActor}>{item.actorNome}</Text>
+              <Text style={styles.logDot}>·</Text>
+              <Text style={styles.logPapel}>{PAPEL_LABEL[item.actorPapel] ?? item.actorPapel}</Text>
+              <Text style={styles.logDot}>·</Text>
+              <Text style={styles.logData}>{formatarData(item.timestamp)}</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.n300} />
+        </TouchableOpacity>
+      );
+    },
+    [setDetalhe],
+  );
 
   return (
     <View style={styles.container}>

@@ -1,4 +1,3 @@
-import { useState, useCallback, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -7,379 +6,46 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Platform,
-  Alert,
-  BackHandler,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
-import * as Location from 'expo-location';
 import { colors, AjuLogo } from '../../../../theme';
-import { useAuthLojistaStore } from '../model/store';
+import { useCadastro } from '../model/useCadastro';
 import { validateCNPJ } from '../lib/validateCNPJ';
 import { Field } from './components/Field';
 import { PhoneInput } from './components/PhoneInput';
-import { LocationPickerMap } from '../../../../components/LocationPickerMap';
-import { enrichRateLimit } from '../../../../utils/enrichRateLimit';
-
-const LAPI =
-  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
-
-function formatCNPJ(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 14);
-  return digits
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2');
-}
+import { EnderecoSection } from './components/EnderecoSection';
+import { TermosCheckbox } from './components/TermosCheckbox';
 
 interface CadastroLojistaProps {
   onCadastroSuccess?: () => void;
 }
 
-interface FormData {
-  cnpj: string;
-  nomeLoja: string;
-  telefone: string;
-  telefoneCompleto: string;
-  email: string;
-  senha: string;
-  confirmarSenha: string;
-}
-
-interface EnderecoLoja {
-  cep: string;
-  rua: string;
-  numero: string;
-  bairro: string;
-}
-
 export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const registrar = useAuthLojistaStore((s) => s.registrar);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [aceitouTermos, setAceitouTermos] = useState(false);
-  const [form, setForm] = useState<FormData>({
-    cnpj: '',
-    nomeLoja: '',
-    telefone: '',
-    telefoneCompleto: '',
-    email: '',
-    senha: '',
-    confirmarSenha: '',
-  });
-  const [endereco, setEndereco] = useState<EnderecoLoja>({
-    cep: '',
-    rua: '',
-    numero: '',
-    bairro: '',
-  });
-  const [locLoading, setLocLoading] = useState(false);
-  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
-
-  const scrollRef = useRef<ScrollView>(null);
-  const fieldPositions = useRef<Record<string, number>>({});
-
-  const setEnderecoField = useCallback((key: keyof EnderecoLoja, value: string) => {
-    setEndereco((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const clearError = useCallback(
-    (...keys: string[]) =>
-      setErrors((prev) => {
-        if (keys.every((k) => !prev[k])) return prev;
-        const next = { ...prev };
-        keys.forEach((k) => delete next[k]);
-        return next;
-      }),
-    [],
-  );
-
-  const scrollToField = useCallback((key: string) => {
-    const y = fieldPositions.current[key];
-    if (typeof y !== 'number') return;
-    scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
-  }, []);
-
-  const usarLocalizacao = useCallback(async () => {
-    setLocLoading(true);
-    clearError('localizacao');
-    try {
-      let lat: number, lng: number;
-      if (Platform.OS === 'web') {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: false,
-              timeout: 15000,
-              maximumAge: 60000,
-            }),
-          );
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-        } catch (geoErr: any) {
-          const msg =
-            geoErr?.code === 1
-              ? 'Permissão de localização negada. Permita o acesso no navegador e tente novamente.'
-              : 'Não foi possível obter sua localização. Verifique se o GPS está ativo.';
-          setErrors((e) => ({ ...e, localizacao: msg }));
-          return;
-        }
-      } else {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setErrors((e) => ({ ...e, localizacao: 'Permissão de localização negada.' }));
-          return;
-        }
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        lat = loc.coords.latitude;
-        lng = loc.coords.longitude;
-      }
-
-      // GPS obtido — exibe mapa mesmo que o geocode falhe
-      setPinCoords({ lat, lng });
-
-      try {
-        const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setEndereco({
-          cep: (data.cep ?? '').replace(/\D/g, ''),
-          rua: data.rua ?? '',
-          numero: '',
-          bairro: data.bairro ?? '',
-        });
-        clearError('cep', 'rua', 'bairro');
-      } catch {
-        // Geocode falhou mas coordenadas estão disponíveis — usuário pode preencher manualmente
-      }
-    } finally {
-      setLocLoading(false);
-    }
-  }, [clearError]);
-
-  const handlePinMoved = useCallback(
-    async (lat: number, lng: number) => {
-      setPinCoords({ lat, lng });
-      try {
-        const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setEndereco((prev) => ({
-          ...prev,
-          cep: (data.cep ?? prev.cep).replace(/\D/g, ''),
-          rua: data.rua || prev.rua,
-          bairro: data.bairro || prev.bairro,
-        }));
-        clearError('cep', 'rua', 'bairro');
-      } catch {}
-    },
-    [clearError],
-  );
-
-  const setField = useCallback(
-    (key: keyof FormData, value: string) => {
-      setForm((prev) => ({ ...prev, [key]: value }));
-      clearError(key);
-    },
-    [clearError],
-  );
-
-  const checkDisponivel = useCallback(
-    async (field: 'cnpj' | 'email' | 'telefone', value: string) => {
-      try {
-        const res = await fetch(
-          `${LAPI}/auth/lojista/check?field=${field}&value=${encodeURIComponent(value)}`,
-        );
-        if (!res.ok) return;
-        const { available } = await res.json();
-        if (!available) {
-          const msgs: Record<string, string> = {
-            cnpj: 'Este CNPJ já possui uma conta. Faça login ou use outro CNPJ.',
-            email: 'Este e-mail já está em uso. Faça login ou use outro e-mail.',
-            telefone: 'Este telefone já está cadastrado. Faça login ou use outro número.',
-          };
-          setErrors((prev) => ({ ...prev, [field]: msgs[field] }));
-        }
-      } catch {
-        // falha silenciosa — o submit valida novamente no servidor
-      }
-    },
-    [],
-  );
-
-  const blurCnpj = useCallback(async () => {
-    const digits = form.cnpj.replace(/\D/g, '');
-    if (!digits) return;
-    if (digits.length < 14) {
-      setErrors((e) => ({ ...e, cnpj: 'CNPJ incompleto — informe os 14 dígitos.' }));
-    } else if (!validateCNPJ(form.cnpj)) {
-      setErrors((e) => ({ ...e, cnpj: 'CNPJ inválido. Verifique os números digitados.' }));
-    } else {
-      await checkDisponivel('cnpj', digits);
-    }
-  }, [form.cnpj, checkDisponivel]);
-
-  const blurEmail = useCallback(async () => {
-    const trimmed = form.email.trim();
-    if (!trimmed) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed)) {
-      setErrors((e) => ({ ...e, email: 'Email inválido.' }));
-    } else {
-      await checkDisponivel('email', trimmed);
-    }
-  }, [form.email, checkDisponivel]);
-
-  const blurTelefone = useCallback(async () => {
-    const digits = form.telefoneCompleto.replace(/\D/g, '');
-    if (digits.length < 10) return;
-    await checkDisponivel('telefone', form.telefoneCompleto.replace(/[^\d+]/g, ''));
-  }, [form.telefoneCompleto, checkDisponivel]);
-
-  const validate = useCallback(() => {
-    const errs: Record<string, string> = {};
-    const cnpjDigits = form.cnpj.replace(/\D/g, '');
-    if (cnpjDigits.length < 14) errs.cnpj = 'CNPJ incompleto — informe os 14 dígitos.';
-    else if (!validateCNPJ(form.cnpj)) errs.cnpj = 'CNPJ inválido. Verifique os números digitados.';
-    if (!form.nomeLoja.trim()) errs.nomeLoja = 'Informe o nome da loja.';
-    if (form.telefoneCompleto.replace(/\D/g, '').length < 10) errs.telefone = 'Telefone inválido.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) errs.email = 'Email inválido.';
-    if (form.senha.length < 8) errs.senha = 'Mínimo 8 caracteres.';
-    else if (!/[A-Z]/.test(form.senha)) errs.senha = 'Inclua ao menos 1 letra maiúscula.';
-    else if (!/[0-9]/.test(form.senha)) errs.senha = 'Inclua ao menos 1 número.';
-    if (!form.confirmarSenha) errs.confirmarSenha = 'Confirme sua senha.';
-    else if (form.senha !== form.confirmarSenha) errs.confirmarSenha = 'As senhas não coincidem.';
-    if (!endereco.cep) errs.cep = 'Informe o CEP da loja.';
-    else if (endereco.cep.length < 8) errs.cep = 'CEP incompleto — informe os 8 dígitos.';
-    if (!endereco.rua.trim()) errs.rua = 'Informe a rua ou avenida da loja.';
-    if (!endereco.bairro.trim()) errs.bairro = 'Informe o bairro da loja.';
-    if (!aceitouTermos) errs.termos = 'Aceite os Termos de Uso para continuar.';
-    setErrors(errs);
-    return errs;
-  }, [form, endereco, aceitouTermos]);
-
-  const handleCadastro = useCallback(async () => {
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      const order = [
-        'cnpj',
-        'nomeLoja',
-        'telefone',
-        'email',
-        'senha',
-        'confirmarSenha',
-        'cep',
-        'bairro',
-        'rua',
-        'termos',
-      ];
-      const firstKey = order.find((k) => errs[k]);
-      if (firstKey) scrollToField(firstKey);
-      return;
-    }
-    setLoading(true);
-    try {
-      await registrar({
-        cnpj: form.cnpj,
-        nomeResponsavel: form.nomeLoja,
-        telefone: form.telefoneCompleto,
-        email: form.email,
-        senha: form.senha,
-      });
-
-      if (endereco.rua.trim() && endereco.cep.trim()) {
-        const { lojaId, token } = useAuthLojistaStore.getState();
-        if (lojaId && token) {
-          await fetch(`${LAPI}/lojista/lojas/${lojaId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-              endereco: {
-                rua: endereco.rua,
-                numero: endereco.numero || 's/n',
-                bairro: endereco.bairro,
-                cep: endereco.cep.replace(/\D/g, ''),
-                cidade: 'Aracaju',
-                ...(pinCoords ? { lat: pinCoords.lat, lng: pinCoords.lng } : {}),
-              },
-            }),
-          }).catch(() => {});
-        }
-      }
-
-      onCadastroSuccess?.();
-      router.replace('/(lojista)/onboarding');
-    } catch (e) {
-      const isNetwork =
-        e instanceof Error &&
-        (e.message.includes('Network') ||
-          e.message.includes('fetch') ||
-          e.message.includes('Failed'));
-      const msg = isNetwork
-        ? 'Sem conexão com o servidor.'
-        : e instanceof Error
-          ? e.message
-          : 'Erro ao criar conta.';
-      const field = (e as any)?.field as string | undefined;
-      if (field && fieldPositions.current[field] !== undefined) {
-        setErrors({ [field]: enrichRateLimit(msg) });
-        scrollToField(field);
-      } else {
-        setErrors({ geral: enrichRateLimit(msg) });
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [form, validate, registrar, onCadastroSuccess, router, scrollToField, pinCoords, endereco]);
-
-  // Confirma antes de sair se já começou a preencher (evita perder tudo por engano)
-  const temDadosPreenchidos = useCallback(
-    () =>
-      !!(
-        form.cnpj.trim() ||
-        form.nomeLoja.trim() ||
-        form.telefone.trim() ||
-        form.email.trim() ||
-        form.senha ||
-        form.confirmarSenha ||
-        endereco.rua.trim() ||
-        endereco.cep.trim()
-      ),
-    [form, endereco.rua, endereco.cep],
-  );
-
-  const confirmarSaida = useCallback(() => {
-    if (!temDadosPreenchidos()) {
-      router.back();
-      return;
-    }
-    Alert.alert(
-      'Descartar cadastro?',
-      'Você preencheu alguns dados. Se sair agora, eles serão perdidos.',
-      [
-        { text: 'Continuar cadastro', style: 'cancel' },
-        { text: 'Descartar', style: 'destructive', onPress: () => router.back() },
-      ],
-    );
-  }, [temDadosPreenchidos, router]);
-
-  useFocusEffect(
-    useCallback(() => {
-      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (temDadosPreenchidos()) {
-          confirmarSaida();
-          return true;
-        }
-        return false;
-      });
-      return () => sub.remove();
-    }, [temDadosPreenchidos, confirmarSaida]),
-  );
+  const {
+    loading,
+    errors,
+    aceitouTermos,
+    form,
+    endereco,
+    locLoading,
+    pinCoords,
+    scrollRef,
+    fieldPositions,
+    setField,
+    setTelefone,
+    setEnderecoField,
+    clearError,
+    toggleTermos,
+    usarLocalizacao,
+    handlePinMoved,
+    limparEndereco,
+    blurCnpj,
+    blurEmail,
+    blurTelefone,
+    handleCadastro,
+    confirmarSaida,
+    formatCNPJ,
+  } = useCadastro(onCadastroSuccess);
 
   return (
     <View style={styles.container}>
@@ -445,10 +111,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           <Text style={styles.fieldLabel}>TELEFONE / WHATSAPP</Text>
           <PhoneInput
             value={form.telefone}
-            onChange={(local, full) => {
-              setForm((f) => ({ ...f, telefone: local, telefoneCompleto: full }));
-              clearError('telefone');
-            }}
+            onChange={setTelefone}
             onBlur={blurTelefone}
             error={errors.telefone}
           />
@@ -518,163 +181,27 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
         </View>
 
         {/* ── Endereço da loja ─────────────────────────────── */}
-        <View style={styles.enderecoSection}>
-          <View style={styles.enderecoTitleRow}>
-            <Text style={styles.enderecoTitle}>ENDEREÇO DA LOJA</Text>
-            <Text style={styles.enderecoOpcional}>obrigatório</Text>
-          </View>
+        <EnderecoSection
+          endereco={endereco}
+          errors={errors}
+          locLoading={locLoading}
+          pinCoords={pinCoords}
+          fieldPositions={fieldPositions}
+          onUsarLocalizacao={usarLocalizacao}
+          onLimpar={limparEndereco}
+          onPinMoved={handlePinMoved}
+          onChangeEndereco={setEnderecoField}
+          clearError={clearError}
+        />
 
-          <View style={styles.gpsBtnRow}>
-            <TouchableOpacity
-              style={styles.gpsBtn}
-              onPress={usarLocalizacao}
-              disabled={locLoading}
-              activeOpacity={0.8}
-            >
-              {locLoading ? (
-                <ActivityIndicator size="small" color={colors.orange} />
-              ) : (
-                <Ionicons name="location" size={15} color={colors.orange} />
-              )}
-              <Text style={styles.gpsBtnText}>
-                {locLoading ? 'Obtendo localização...' : 'Usar minha localização'}
-              </Text>
-            </TouchableOpacity>
-
-            {!!pinCoords && !locLoading && (
-              <TouchableOpacity
-                style={styles.clearBtn}
-                onPress={() => {
-                  setPinCoords(null);
-                  setEndereco({ cep: '', rua: '', numero: '', bairro: '' });
-                  clearError('cep', 'rua', 'bairro', 'localizacao');
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="close-circle-outline" size={15} color={colors.n600} />
-                <Text style={styles.clearBtnText}>Limpar</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {!!errors.localizacao && (
-            <Text style={[styles.errorGeral, { textAlign: 'left', marginBottom: 8 }]}>
-              {errors.localizacao}
-            </Text>
-          )}
-
-          {pinCoords && (
-            <View style={styles.mapContainer}>
-              <LocationPickerMap
-                lat={pinCoords.lat}
-                lng={pinCoords.lng}
-                onLocationChange={handlePinMoved}
-                style={{ flex: 1 }}
-              />
-            </View>
-          )}
-
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View
-              onLayout={(e) => {
-                fieldPositions.current.cep = e.nativeEvent.layout.y;
-              }}
-              style={{ flex: 1 }}
-            >
-              <Field
-                label="CEP"
-                value={endereco.cep}
-                onChange={(v) => {
-                  setEnderecoField('cep', v.replace(/\D/g, '').slice(0, 8));
-                  clearError('cep');
-                }}
-                placeholder="49000000"
-                keyboardType="numeric"
-                autoComplete="off"
-                textContentType="none"
-                maxLength={8}
-                error={errors.cep}
-                isValid={!errors.cep && endereco.cep.length === 8}
-              />
-            </View>
-            <View
-              onLayout={(e) => {
-                fieldPositions.current.bairro = e.nativeEvent.layout.y;
-              }}
-              style={{ flex: 2 }}
-            >
-              <Field
-                label="BAIRRO"
-                value={endereco.bairro}
-                onChange={(v) => {
-                  setEnderecoField('bairro', v);
-                  clearError('bairro');
-                }}
-                placeholder="Atalaia"
-                error={errors.bairro}
-                isValid={!errors.bairro && endereco.bairro.trim().length > 0}
-              />
-            </View>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View
-              onLayout={(e) => {
-                fieldPositions.current.rua = e.nativeEvent.layout.y;
-              }}
-              style={{ flex: 1 }}
-            >
-              <Field
-                label="RUA / AV."
-                value={endereco.rua}
-                onChange={(v) => {
-                  setEnderecoField('rua', v);
-                  clearError('rua');
-                }}
-                placeholder="Av. Beira Mar"
-                error={errors.rua}
-                isValid={!errors.rua && endereco.rua.trim().length > 0}
-              />
-            </View>
-            <View style={{ width: 76, flexShrink: 0, overflow: 'hidden' }}>
-              <Field
-                label="Nº"
-                value={endereco.numero}
-                onChange={(v) => setEnderecoField('numero', v.replace(/\D/g, '').slice(0, 7))}
-                placeholder="100"
-                keyboardType="numeric"
-                maxLength={7}
-              />
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity
+        <TermosCheckbox
+          aceitou={aceitouTermos}
+          error={errors.termos}
+          onToggle={toggleTermos}
           onLayout={(e) => {
             fieldPositions.current.termos = e.nativeEvent.layout.y;
           }}
-          style={styles.termosRow}
-          onPress={() => {
-            setAceitouTermos((v) => !v);
-            clearError('termos');
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={aceitouTermos ? 'checkbox' : 'square-outline'}
-            size={20}
-            color={errors.termos ? '#E24B4A' : aceitouTermos ? colors.orange : colors.n300}
-          />
-          <Text style={styles.terms}>
-            Li e aceito os <Text style={styles.termsLink}>Termos de Uso</Text> e a{' '}
-            <Text style={styles.termsLink}>Política de Privacidade</Text> da AjuLabs.
-          </Text>
-        </TouchableOpacity>
-        {errors.termos ? (
-          <Text style={[styles.errorGeral, { textAlign: 'left', marginTop: 4 }]}>
-            {errors.termos}
-          </Text>
-        ) : null}
+        />
 
         {errors.geral ? <Text style={styles.errorGeral}>{errors.geral}</Text> : null}
 
@@ -746,47 +273,4 @@ const styles = StyleSheet.create({
   loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16 },
   loginText: { fontSize: 13, color: colors.n600 },
   loginLink: { fontSize: 13, fontWeight: '600', color: colors.orange600 },
-
-  enderecoSection: {
-    marginBottom: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.n100,
-  },
-  enderecoTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  enderecoTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.n600,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  enderecoOpcional: { fontSize: 11, color: colors.orange600, fontStyle: 'italic' },
-  gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  gpsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.orange,
-    paddingHorizontal: 14,
-  },
-  gpsBtnText: { fontSize: 13, fontWeight: '600', color: colors.orange },
-  clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    paddingHorizontal: 12,
-  },
-  clearBtnText: { fontSize: 13, fontWeight: '600', color: colors.n600 },
-  mapContainer: { height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
-  termosRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 },
-  terms: { flex: 1, fontSize: 11, color: colors.n500, lineHeight: 16 },
-  termsLink: { color: colors.orange, fontWeight: '600' },
 });

@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthLojistaStore } from '../../auth/model/store';
+import { useAuthLojistaStore } from '../../../../store';
 
 export function LogoutConfirmScreen() {
   const router = useRouter();

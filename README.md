@@ -227,7 +227,7 @@ apps/consumer/
 └── assets/                       Ícones, imagens, fontes
 ```
 
-> O app **consumer** é a implementação de referência dessa estrutura. Os apps `lojista` e `entregador` ainda estão sendo migrados para o mesmo padrão.
+> O app **consumer** é a implementação de referência dessa estrutura, e o **lojista** já segue o mesmo padrão. O app `entregador` ainda está sendo migrado.
 
 ### Regras
 

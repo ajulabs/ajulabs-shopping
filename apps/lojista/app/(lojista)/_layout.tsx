@@ -1,58 +1,18 @@
-import { useState } from 'react';
 import { View } from 'react-native';
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthLojistaStore } from '../../src/features/lojista/auth/model/store';
-import { useTicketRealtime } from '@ajulabs/realtime';
-import { NotificationToast, ToastData } from '../../src/components/NotificationToast';
-
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+import { useAuthLojistaStore } from '../../src/store';
+import { NotificationToast } from '../../src/shared/ui/NotificationToast';
+import { useTicketToasts } from '../../src/features/lojista/tickets';
 
 export default function LojistaLayout() {
   const papel = useAuthLojistaStore((s) => s.papel);
   const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
   const isFuncionario = !isLojistaDono && papel === 'funcionario';
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-  const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [toast, setToast] = useState<ToastData | null>(null);
-
-  useTicketRealtime({
-    apiUrl: API_URL,
-    ticketId: null,
-    roomId: lojaId ?? null,
-    roomType: 'lojista',
-    enabled: !!lojaId,
-    onMensagem: (msg) => {
-      if (msg.remetente !== 'consumidor') return;
-      const nome = msg.remetenteNome ?? 'Consumidor';
-      setToast({
-        type: 'mensagem',
-        title: `Nova mensagem de ${nome}`,
-        body: msg.texto,
-        onPress: () =>
-          router.navigate({
-            pathname: '/(lojista)/tickets',
-            params: { autoTicketId: msg.ticketId },
-          } as any),
-      });
-    },
-    onNovo: (payload) => {
-      const nome = payload.consumidorNome ?? 'Consumidor';
-      setToast({
-        type: 'novo',
-        title: `Novo ticket de ${nome}`,
-        body: payload.motivo,
-        onPress: () =>
-          router.navigate({
-            pathname: '/(lojista)/tickets',
-            params: { autoTicketId: payload.id },
-          } as any),
-      });
-    },
-  });
+  const { toast, setToast } = useTicketToasts();
 
   return (
     <View style={{ flex: 1 }}>

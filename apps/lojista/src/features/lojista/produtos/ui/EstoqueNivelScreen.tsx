@@ -1,4 +1,3 @@
-import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,9 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LojistaService } from '@ajulabs/api-client';
 import { Produto, NivelEstoque } from '@ajulabs/types';
-import { useAuthLojistaStore } from '../../auth/model/store';
+import { useEstoqueNivel } from '../model/useEstoqueNivel';
 import { AjusteRapidoModal } from './AjusteRapidoModal';
 
 const C = {
@@ -61,18 +59,6 @@ const NIVEL_CFG: Record<
   },
 };
 
-function calcNivel(estoque: number, estoqueMinimo = 0): NivelEstoque {
-  if (estoque <= 0) return 'zerado';
-  if (estoqueMinimo > 0) {
-    if (estoque < estoqueMinimo) return 'critico';
-    if (estoque < estoqueMinimo * 2) return 'atencao';
-    return 'saudavel';
-  }
-  if (estoque < 10) return 'critico';
-  if (estoque < 20) return 'atencao';
-  return 'saudavel';
-}
-
 interface Props {
   nivel: NivelEstoque;
   onVoltar: () => void;
@@ -81,38 +67,21 @@ interface Props {
 
 export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) {
   const insets = useSafeAreaInsets();
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-  const token = useAuthLojistaStore((s) => s.token);
-
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [ajusteTarget, setAjusteTarget] = useState<Produto | null>(null);
-  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  const {
+    lojaId,
+    token,
+    produtos,
+    loading,
+    refreshing,
+    ajusteTarget,
+    setAjusteTarget,
+    imgErrors,
+    markImgError,
+    onRefresh,
+    onAjusteSaved,
+  } = useEstoqueNivel(nivel);
 
   const cfg = NIVEL_CFG[nivel];
-
-  const carregar = useCallback(
-    async (silent = false) => {
-      if (!lojaId || !token) return;
-      if (!silent) setLoading(true);
-      try {
-        const lista = await LojistaService.listarProdutos(lojaId, token);
-        const filtrados = lista.filter(
-          (p) => calcNivel(p.estoque ?? 0, p.estoqueMinimo ?? 0) === nivel,
-        );
-        setProdutos(filtrados);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [lojaId, token, nivel],
-  );
-
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
 
   function renderItem({ item: produto }: { item: Produto }) {
     const hasImg = produto.imagem && !imgErrors[produto.id];
@@ -124,7 +93,7 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
             source={{ uri: produto.imagem }}
             style={s.thumb}
             resizeMode="cover"
-            onError={() => setImgErrors((prev) => ({ ...prev, [produto.id]: true }))}
+            onError={() => markImgError(produto.id)}
           />
         ) : (
           <View style={[s.thumb, s.thumbFallback, { backgroundColor: cfg.color + '20' }]}>
@@ -210,14 +179,7 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                carregar(true);
-              }}
-              tintColor={cfg.color}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={cfg.color} />
           }
           ListHeaderComponent={
             <View style={s.listHeader}>
@@ -238,14 +200,7 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
           lojaId={lojaId}
           token={token}
           onClose={() => setAjusteTarget(null)}
-          onSaved={(atualizado) => {
-            setProdutos((prev) =>
-              prev
-                .map((p) => (p.id === atualizado.id ? { ...p, ...atualizado } : p))
-                .filter((p) => calcNivel(p.estoque ?? 0, p.estoqueMinimo ?? 0) === nivel),
-            );
-            setAjusteTarget(null);
-          }}
+          onSaved={onAjusteSaved}
         />
       )}
     </View>

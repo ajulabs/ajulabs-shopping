@@ -1,4 +1,4 @@
-import { useAuthLojistaStore } from '../../src/features/lojista/auth/model/store';
+import { useAuthLojistaStore } from '../../src/store';
 import { PerfilLoja } from '../../src/features/lojista/perfil';
 import { LogoutConfirmScreen } from '../../src/features/lojista/rbac/ui/LogoutConfirmScreen';
 

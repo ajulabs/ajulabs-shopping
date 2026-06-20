@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,38 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  TextInput,
-  ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LojistaService } from '@ajulabs/api-client';
-import {
-  Ticket,
-  TicketMensagem,
-  STATUS_META,
-  STATUS_NEXT,
-  STATUS_NEXT_LABEL,
-  mapTicket,
-} from '../model/data';
-import { useTicketRealtime } from '@ajulabs/realtime';
-import { useAuthLojistaStore } from '../../../../store';
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-
-const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-function dataCompleta(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import { Ticket } from '../model/data';
+import { useTicketDetail } from '../model/useTicketDetail';
+import { dataCompleta, brl } from '../lib/format';
+import { TicketStatusAction } from './components/TicketStatusAction';
+import { TicketMessages } from './components/TicketMessages';
+import { TicketNotas } from './components/TicketNotas';
 
 interface Props {
   ticket: Ticket;
@@ -47,112 +26,23 @@ interface Props {
 }
 
 export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-  const [nota, setNota] = useState('');
-  const [msg, setMsg] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [addingNota, setAddingNota] = useState(false);
-  const [sendingMsg, setSendingMsg] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
-
-  useTicketRealtime({
-    apiUrl: API_URL,
-    ticketId: ticket.id,
-    roomId: lojaId,
-    roomType: 'lojista',
-    enabled: !!lojaId,
-    onMensagem: (msg) => {
-      if (msg.remetente === 'lojista') return;
-      onUpdate({
-        ...ticket,
-        mensagens: [
-          ...ticket.mensagens,
-          {
-            id: msg.id,
-            remetente: msg.remetente as 'consumidor' | 'lojista',
-            texto: msg.texto,
-            criadoEm: msg.criadoEm,
-          },
-        ],
-      });
-    },
-  });
-
-  const proximoStatus = STATUS_NEXT[ticket.status];
-  const proximoLabel = STATUS_NEXT_LABEL[ticket.status];
-  const meta = STATUS_META[ticket.status];
-
-  async function avancarStatus() {
-    if (!proximoStatus) return;
-    setSaving(true);
-    try {
-      await LojistaService.atualizarStatusTicket(ticket.id, proximoStatus, token);
-      const raw = await LojistaService.buscarTicket(ticket.id, token);
-      if (raw) onUpdate(mapTicket(raw));
-    } catch {
-      Alert.alert('Erro', 'Não foi possível atualizar o status.');
-    }
-    setSaving(false);
-  }
-
-  async function toggleUrgente() {
-    setSaving(true);
-    try {
-      await LojistaService.toggleUrgenteTicket(ticket.id, !ticket.urgente, token);
-      onUpdate({ ...ticket, urgente: !ticket.urgente });
-    } catch {
-      Alert.alert('Erro', 'Não foi possível atualizar o ticket.');
-    }
-    setSaving(false);
-  }
-
-  async function enviarMensagem() {
-    if (!msg.trim()) return;
-    setSendingMsg(true);
-    try {
-      const nova = await LojistaService.enviarMensagemTicket(ticket.id, msg.trim(), token);
-      onUpdate({
-        ...ticket,
-        mensagens: [
-          ...ticket.mensagens,
-          {
-            id: nova.id,
-            remetente: 'lojista',
-            texto: nova.texto,
-            criadoEm: nova.criadoEm ?? nova.criado_em,
-          },
-        ],
-      });
-      setMsg('');
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
-    } catch {
-      Alert.alert('Erro', 'Não foi possível enviar a mensagem.');
-    }
-    setSendingMsg(false);
-  }
-
-  async function enviarNota() {
-    if (!nota.trim()) return;
-    setAddingNota(true);
-    try {
-      const novaNota = await LojistaService.adicionarNotaTicket(ticket.id, nota.trim(), token);
-      onUpdate({
-        ...ticket,
-        notas: [
-          ...ticket.notas,
-          {
-            id: novaNota.id,
-            texto: novaNota.texto,
-            criadoEm: novaNota.criadoEm ?? novaNota.criado_em,
-          },
-        ],
-      });
-      setNota('');
-    } catch {
-      Alert.alert('Erro', 'Não foi possível salvar a nota.');
-    }
-    setAddingNota(false);
-  }
+  const {
+    nota,
+    setNota,
+    msg,
+    setMsg,
+    saving,
+    addingNota,
+    sendingMsg,
+    scrollRef,
+    proximoStatus,
+    proximoLabel,
+    meta,
+    avancarStatus,
+    toggleUrgente,
+    enviarMensagem,
+    enviarNota,
+  } = useTicketDetail({ ticket, token, onUpdate });
 
   return (
     <KeyboardAvoidingView
@@ -187,49 +77,14 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         >
           {/* Status + ação */}
-          <View style={s.section}>
-            <View style={s.statusRow}>
-              <View style={[s.badge, { backgroundColor: meta.bg }]}>
-                <Ionicons
-                  name={meta.icon as any}
-                  size={12}
-                  color={meta.color}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={[s.badgeText, { color: meta.color }]}>{meta.label}</Text>
-              </View>
-              {ticket.urgente && (
-                <View style={s.urgentePill}>
-                  <Ionicons name="flame" size={11} color="#DC2626" />
-                  <Text style={s.urgentePillText}>Urgente</Text>
-                </View>
-              )}
-            </View>
-
-            {proximoStatus && (
-              <TouchableOpacity
-                style={s.avancarBtn}
-                onPress={avancarStatus}
-                disabled={saving}
-                activeOpacity={0.85}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Text style={s.avancarBtnText}>{proximoLabel}</Text>
-                    <Ionicons name="chevron-forward" size={15} color="#fff" />
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-            {!proximoStatus && (
-              <View style={s.resolvidoBox}>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                <Text style={s.resolvidoText}>Ticket resolvido</Text>
-              </View>
-            )}
-          </View>
+          <TicketStatusAction
+            ticket={ticket}
+            meta={meta}
+            proximoStatus={proximoStatus}
+            proximoLabel={proximoLabel}
+            saving={saving}
+            onAvancar={avancarStatus}
+          />
 
           {/* Consumidor */}
           <View style={s.section}>
@@ -272,87 +127,22 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
           )}
 
           {/* Mensagens com consumidor */}
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>Conversa com consumidor</Text>
-            {ticket.mensagens.length === 0 ? (
-              <Text style={s.semNotas}>Nenhuma mensagem ainda.</Text>
-            ) : (
-              ticket.mensagens.map((m: TicketMensagem) => (
-                <View
-                  key={m.id}
-                  style={[s.msgBubble, m.remetente === 'lojista' ? s.msgLojista : s.msgConsumidor]}
-                >
-                  <Text
-                    style={[s.msgRem, { color: m.remetente === 'lojista' ? '#000933' : '#DE6708' }]}
-                  >
-                    {m.remetente === 'lojista' ? 'Você' : ticket.consumidor.nome}
-                  </Text>
-                  <Text style={s.msgTxt}>{m.texto}</Text>
-                  <Text style={s.msgData}>{dataCompleta(m.criadoEm)}</Text>
-                </View>
-              ))
-            )}
-
-            {ticket.status !== 'resolvido' && (
-              <View style={s.notaInputRow}>
-                <TextInput
-                  style={s.notaInput}
-                  value={msg}
-                  onChangeText={setMsg}
-                  placeholder="Responder ao consumidor..."
-                  placeholderTextColor="#C8CDE0"
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[s.notaEnviarBtn, (!msg.trim() || sendingMsg) && { opacity: 0.4 }]}
-                  onPress={enviarMensagem}
-                  disabled={!msg.trim() || sendingMsg}
-                  activeOpacity={0.8}
-                >
-                  {sendingMsg ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Ionicons name="send" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+          <TicketMessages
+            ticket={ticket}
+            msg={msg}
+            setMsg={setMsg}
+            sendingMsg={sendingMsg}
+            onEnviar={enviarMensagem}
+          />
 
           {/* Notas internas */}
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>Notas internas</Text>
-            {ticket.notas.length === 0 && <Text style={s.semNotas}>Nenhuma nota ainda.</Text>}
-            {ticket.notas.map((n) => (
-              <View key={n.id} style={s.notaCard}>
-                <Text style={s.notaTexto}>{n.texto}</Text>
-                <Text style={s.notaData}>{dataCompleta(n.criadoEm)}</Text>
-              </View>
-            ))}
-
-            <View style={s.notaInputRow}>
-              <TextInput
-                style={s.notaInput}
-                value={nota}
-                onChangeText={setNota}
-                placeholder="Adicionar nota interna..."
-                placeholderTextColor="#C8CDE0"
-                multiline
-              />
-              <TouchableOpacity
-                style={[s.notaEnviarBtn, (!nota.trim() || addingNota) && { opacity: 0.4 }]}
-                onPress={enviarNota}
-                disabled={!nota.trim() || addingNota}
-                activeOpacity={0.8}
-              >
-                {addingNota ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="send" size={16} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
+          <TicketNotas
+            ticket={ticket}
+            nota={nota}
+            setNota={setNota}
+            addingNota={addingNota}
+            onEnviar={enviarNota}
+          />
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>
@@ -407,43 +197,6 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 10,
   },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 99,
-  },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  urgentePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 99,
-    backgroundColor: '#FEE2E2',
-  },
-  urgentePillText: { fontSize: 11, fontWeight: '700', color: '#DC2626' },
-  avancarBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#000933',
-    borderRadius: 12,
-    paddingVertical: 12,
-  },
-  avancarBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  resolvidoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  resolvidoText: { fontSize: 14, fontWeight: '600', color: '#16A34A' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   infoText: { fontSize: 14, color: '#000933' },
   motivoText: { fontSize: 14, color: '#000933', lineHeight: 21, marginBottom: 6 },
@@ -461,48 +214,4 @@ const s = StyleSheet.create({
   itemRow: { flexDirection: 'row', gap: 6, marginBottom: 3 },
   itemQty: { fontSize: 13, fontWeight: '700', color: '#9099B3' },
   itemNome: { fontSize: 13, color: '#000933' },
-  semNotas: { fontSize: 13, color: '#C8CDE0', marginBottom: 14 },
-  notaCard: { backgroundColor: '#F6F7FB', borderRadius: 10, padding: 12, marginBottom: 8 },
-  notaTexto: { fontSize: 13, color: '#000933', lineHeight: 19, marginBottom: 4 },
-  notaData: { fontSize: 11, color: '#9099B3' },
-  notaInputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', marginTop: 4 },
-  notaInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#000933',
-    maxHeight: 100,
-    backgroundColor: '#fff',
-  },
-  notaEnviarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000933',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  msgBubble: { borderRadius: 12, padding: 10, marginBottom: 8 },
-  msgLojista: {
-    backgroundColor: '#EEF2FF',
-    alignSelf: 'flex-end' as const,
-    borderBottomRightRadius: 2,
-  },
-  msgConsumidor: {
-    backgroundColor: '#F6F7FB',
-    alignSelf: 'flex-start' as const,
-    borderBottomLeftRadius: 2,
-  },
-  msgRem: {
-    fontSize: 10.5,
-    fontWeight: '700' as const,
-    marginBottom: 3,
-    textTransform: 'uppercase' as const,
-  },
-  msgTxt: { fontSize: 13, color: '#000933', lineHeight: 19 },
-  msgData: { fontSize: 10.5, color: '#9099B3', marginTop: 4, textAlign: 'right' as const },
 });

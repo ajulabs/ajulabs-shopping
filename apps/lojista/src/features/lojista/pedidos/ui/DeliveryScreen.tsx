@@ -10,40 +10,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Order } from '../data';
+import { type Order } from '../lib';
+import { useDeliveryTracking, iniciais } from '../model/useDeliveryTracking';
+import { DeliveryTimeline } from './components';
 
 interface Props {
   order?: Order | null;
   onBack: () => void;
 }
 
-const STEPS = [
-  { id: 'alocado', label: 'Entregador alocado' },
-  { id: 'retirada', label: 'Retirada na loja' },
-  { id: 'entregando', label: 'Saiu para entrega' },
-];
-
-// Deriva em qual etapa o pedido está a partir do estado REAL:
-// - sem entregador (status pronto)      → -1 (procurando)
-// - entregador alocado (status pronto)  →  0 (aguardando retirada)
-// - despachado (saiu para entrega)      →  2
-function stepIndexFromOrder(order: Order): number {
-  if (order.status === 'despachado') return 2;
-  if (order.entregadorId) return 0;
-  return -1;
-}
-
-function iniciais(nome?: string): string {
-  if (!nome) return '–';
-  return nome
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 export function DeliveryScreen({ order, onBack }: Props) {
+  const { stepIdx, procurando, steps } = useDeliveryTracking(order);
+
   if (!order) {
     return (
       <SafeAreaView style={s.safe}>
@@ -65,9 +43,6 @@ export function DeliveryScreen({ order, onBack }: Props) {
       </SafeAreaView>
     );
   }
-
-  const stepIdx = stepIndexFromOrder(order);
-  const procurando = stepIdx === -1;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -115,43 +90,7 @@ export function DeliveryScreen({ order, onBack }: Props) {
               </View>
             </View>
 
-            <View style={s.timelineCard}>
-              <Text style={s.timelineTitle}>Status</Text>
-              {STEPS.map((step, i) => {
-                const done = i <= stepIdx;
-                const active = i === stepIdx;
-                return (
-                  <View key={step.id} style={s.stepRow}>
-                    {i < STEPS.length - 1 && (
-                      <View
-                        style={[
-                          s.stepLine,
-                          { backgroundColor: i < stepIdx ? '#DE6708' : '#E4E7F1' },
-                        ]}
-                      />
-                    )}
-                    <View
-                      style={[
-                        s.stepDot,
-                        done ? s.stepDotDone : s.stepDotPending,
-                        active && s.stepDotActive,
-                      ]}
-                    >
-                      {done && !active && <Ionicons name="checkmark" size={10} color="#fff" />}
-                      {active && <View style={s.stepDotInner} />}
-                    </View>
-                    <Text style={[s.stepLabel, done ? s.stepLabelDone : s.stepLabelPending]}>
-                      {step.label}
-                    </Text>
-                    {active && (
-                      <View style={s.nowBadge}>
-                        <Text style={s.nowBadgeText}>Agora</Text>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
+            <DeliveryTimeline steps={steps} stepIdx={stepIdx} />
 
             <Text style={s.disclaimer}>
               O entregador é alocado automaticamente pela plataforma. Entregue o pedido a ele quando
@@ -231,51 +170,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
   statusPillText: { fontSize: 12, fontWeight: '700', color: '#39FF89' },
-  timelineCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  timelineTitle: { fontSize: 16, fontWeight: '700', color: '#000933', marginBottom: 14 },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-    position: 'relative',
-  },
-  stepLine: { position: 'absolute', left: 9, top: 28, width: 2, height: 24 },
-  stepDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 99,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  stepDotDone: { backgroundColor: '#DE6708' },
-  stepDotPending: { backgroundColor: '#E4E7F1' },
-  stepDotActive: {
-    shadowColor: '#DE6708',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  stepDotInner: { width: 6, height: 6, borderRadius: 99, backgroundColor: '#fff' },
-  stepLabel: { flex: 1, fontSize: 13.5 },
-  stepLabelDone: { fontWeight: '600', color: '#000933' },
-  stepLabelPending: { color: '#9099B3' },
-  nowBadge: {
-    backgroundColor: '#FFF0E6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  nowBadgeText: { fontSize: 11, fontWeight: '700', color: '#DE6708' },
   ctaBtn: {
     backgroundColor: '#000933',
     borderRadius: 14,

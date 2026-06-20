@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,88 +10,12 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NotificationPreferencesService, type NotificationPreference } from '@ajulabs/api-client';
-import { useAuthLojistaStore } from '../../../../store';
-
-function Toggle({
-  value,
-  onValueChange,
-  disabled,
-}: {
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={() => !disabled && onValueChange(!value)}
-      activeOpacity={0.85}
-      style={[
-        s.toggleTrack,
-        { backgroundColor: value ? '#DE6708' : '#E4E7F1' },
-        disabled && { opacity: 0.5 },
-      ]}
-    >
-      <View style={[s.toggleThumb, { transform: [{ translateX: value ? 22 : 2 }] }]} />
-    </TouchableOpacity>
-  );
-}
+import { useNotificationPreferences } from '../model/useNotificationPreferences';
+import { PreferenceToggle } from './components/PreferenceToggle';
 
 export function NotificacoesScreen() {
   const router = useRouter();
-  const token = useAuthLojistaStore((s) => s.token);
-  const [preferencias, setPreferencias] = useState<NotificationPreference[]>([]);
-  const [loading, setLoading] = useState(true);
-  // Categorias com toggle em voo — desativa o Switch só na que está salvando
-  const [salvando, setSalvando] = useState<Set<string>>(new Set());
-  const [erro, setErro] = useState('');
-  const [saved, setSaved] = useState(false);
-
-  const carregar = useCallback(async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const lista = await NotificationPreferencesService.listar(token);
-      setPreferencias(lista);
-      setErro('');
-    } catch {
-      setErro('Não foi possível carregar suas preferências.');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
-
-  const toggle = useCallback(
-    async (categoria: string, ativo: boolean) => {
-      if (!token) return;
-      setPreferencias((prev) => prev.map((p) => (p.categoria === categoria ? { ...p, ativo } : p)));
-      setSalvando((prev) => new Set(prev).add(categoria));
-      try {
-        await NotificationPreferencesService.atualizar(token, categoria, ativo);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 1500);
-      } catch {
-        // Rollback
-        setPreferencias((prev) =>
-          prev.map((p) => (p.categoria === categoria ? { ...p, ativo: !ativo } : p)),
-        );
-        setErro('Não foi possível salvar a preferência. Tente novamente.');
-      } finally {
-        setSalvando((prev) => {
-          const next = new Set(prev);
-          next.delete(categoria);
-          return next;
-        });
-      }
-    },
-    [token],
-  );
+  const { preferencias, loading, salvando, erro, saved, toggle } = useNotificationPreferences();
 
   return (
     <SafeAreaView style={s.safe}>
@@ -149,7 +73,7 @@ export function NotificacoesScreen() {
                     <Text style={s.rowTitle}>{p.label}</Text>
                     <Text style={s.rowSub}>{p.descricao}</Text>
                   </View>
-                  <Toggle
+                  <PreferenceToggle
                     value={p.ativo}
                     disabled={salvando.has(p.categoria)}
                     onValueChange={(v) => toggle(p.categoria, v)}
@@ -242,16 +166,4 @@ const s = StyleSheet.create({
     borderRadius: 12,
   },
   infoText: { flex: 1, fontSize: 12, color: '#2A3156', lineHeight: 18 },
-  toggleTrack: { width: 48, height: 28, borderRadius: 14, justifyContent: 'center' },
-  toggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
 });

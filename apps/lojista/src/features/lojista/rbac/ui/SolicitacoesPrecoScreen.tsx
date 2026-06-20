@@ -1,4 +1,3 @@
-import { useState, useCallback, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -10,98 +9,38 @@ import {
   ScrollView,
   Modal,
   Pressable,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RBACService } from '@ajulabs/api-client';
-import type { SolicitacaoPreco, StatusSolicitacaoPreco } from '@ajulabs/types';
+import type { StatusSolicitacaoPreco } from '@ajulabs/types';
 import { colors } from '../../../../theme';
-import { useAuthLojistaStore } from '../../auth/model/store';
-import { usePermissions } from '../hooks/usePermissions';
+import { STATUS_CFG, moeda } from '../lib/solicitacoes';
+import { useSolicitacoes } from '../model/useSolicitacoes';
+import { SolicitacaoCard } from './components/SolicitacaoCard';
 
 interface Props {
   onVoltar: () => void;
 }
 
-const STATUS_CFG: Record<StatusSolicitacaoPreco, { label: string; color: string; bg: string }> = {
-  pendente: { label: 'Pendente', color: '#D97706', bg: '#FEF3C7' },
-  aprovado: { label: 'Aprovado', color: '#059669', bg: '#D1FAE5' },
-  rejeitado: { label: 'Rejeitado', color: '#DC2626', bg: '#FEE2E2' },
-};
-
-function moeda(valor: number) {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
   const insets = useSafeAreaInsets();
-  const lojaId = useAuthLojistaStore((s) => s.lojaId);
-  const colaboradorId = useAuthLojistaStore((s) => s.colaboradorId);
-  const token = useAuthLojistaStore((s) => s.token);
-  const { canApprovePrice, isFuncionario } = usePermissions();
-
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoPreco[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filtroStatus, setFiltroStatus] = useState<StatusSolicitacaoPreco | undefined>(undefined);
-
-  // Modal de revisão (aprovar/rejeitar)
-  const [revisaoModal, setRevisaoModal] = useState<{
-    sol: SolicitacaoPreco;
-    acao: 'aprovar' | 'rejeitar';
-  } | null>(null);
-  const [notaRevisao, setNotaRevisao] = useState('');
-  const [processando, setProcessando] = useState(false);
-
-  const carregar = useCallback(
-    async (silent = false) => {
-      if (!lojaId || !token) return;
-      if (!silent) setLoading(true);
-      try {
-        const opts: { solicitanteId?: string; status?: StatusSolicitacaoPreco } = {};
-        if (isFuncionario && colaboradorId) opts.solicitanteId = colaboradorId;
-        if (filtroStatus) opts.status = filtroStatus;
-        const lista = await RBACService.listarSolicitacoes(lojaId, token, opts.status);
-        // filter by solicitante client-side if funcionario
-        const filtrada =
-          isFuncionario && colaboradorId
-            ? lista.filter((s) => s.solicitanteId === colaboradorId)
-            : lista;
-        setSolicitacoes(filtrada);
-      } catch {
-        if (!silent) Alert.alert('Erro', 'Não foi possível carregar as solicitações.');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [lojaId, token, isFuncionario, colaboradorId, filtroStatus],
-  );
-
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
-
-  const revisar = useCallback(async () => {
-    if (!revisaoModal || !lojaId || !token) return;
-    const { sol, acao } = revisaoModal;
-    setProcessando(true);
-    try {
-      if (acao === 'aprovar') {
-        await RBACService.aprovarSolicitacao(sol.id, lojaId, token, notaRevisao || undefined);
-      } else {
-        await RBACService.rejeitarSolicitacao(sol.id, lojaId, token, notaRevisao || undefined);
-      }
-      setRevisaoModal(null);
-      setNotaRevisao('');
-      carregar(true);
-    } catch (e) {
-      Alert.alert('Erro', e instanceof Error ? e.message : 'Erro ao processar solicitação.');
-    } finally {
-      setProcessando(false);
-    }
-  }, [revisaoModal, lojaId, token, notaRevisao, carregar]);
+  const {
+    solicitacoes,
+    loading,
+    refreshing,
+    setRefreshing,
+    filtroStatus,
+    setFiltroStatus,
+    revisaoModal,
+    setRevisaoModal,
+    notaRevisao,
+    setNotaRevisao,
+    processando,
+    carregar,
+    revisar,
+    canApprovePrice,
+    isFuncionario,
+  } = useSolicitacoes();
 
   const filtros: (StatusSolicitacaoPreco | undefined)[] = [
     undefined,
@@ -161,78 +100,22 @@ export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
           {solicitacoes.length === 0 && (
             <Text style={styles.emptyText}>Nenhuma solicitação encontrada.</Text>
           )}
-          {solicitacoes.map((sol) => {
-            const cfg = STATUS_CFG[sol.status];
-            return (
-              <View key={sol.id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <Text style={styles.produtoNome} numberOfLines={1}>
-                    {sol.produto.nome}
-                  </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
-                    <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.precoRow}>
-                  <View style={styles.precoBox}>
-                    <Text style={styles.precoLabel}>Preço atual</Text>
-                    <Text style={styles.precoValor}>{moeda(sol.precoAtual)}</Text>
-                  </View>
-                  <Ionicons name="arrow-forward" size={16} color={colors.n300} />
-                  <View style={styles.precoBox}>
-                    <Text style={styles.precoLabel}>Solicitado</Text>
-                    <Text style={[styles.precoValor, { color: colors.orange }]}>
-                      {moeda(sol.precoSolicitado)}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.justLabel}>Justificativa</Text>
-                <Text style={styles.justText}>{sol.justificativa}</Text>
-
-                {!isFuncionario && (
-                  <Text style={styles.solicitanteText}>
-                    Solicitado por:{' '}
-                    <Text style={{ fontWeight: '600' }}>{sol.solicitante.nome}</Text>
-                  </Text>
-                )}
-
-                {sol.status !== 'pendente' && sol.revisadoPorNome && (
-                  <View style={styles.revisaoBox}>
-                    <Text style={styles.revisaoBy}>
-                      {sol.status === 'aprovado' ? 'Aprovado' : 'Rejeitado'} por{' '}
-                      {sol.revisadoPorNome}
-                    </Text>
-                    {sol.notaRevisao && <Text style={styles.revisaoNota}>"{sol.notaRevisao}"</Text>}
-                  </View>
-                )}
-
-                {canApprovePrice && sol.status === 'pendente' && (
-                  <View style={styles.acaoRow}>
-                    <TouchableOpacity
-                      style={[styles.acaoBtn, styles.acaoBtnRejeitar]}
-                      onPress={() => {
-                        setRevisaoModal({ sol, acao: 'rejeitar' });
-                        setNotaRevisao('');
-                      }}
-                    >
-                      <Text style={styles.acaoBtnText}>Rejeitar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.acaoBtn, styles.acaoBtnAprovar]}
-                      onPress={() => {
-                        setRevisaoModal({ sol, acao: 'aprovar' });
-                        setNotaRevisao('');
-                      }}
-                    >
-                      <Text style={[styles.acaoBtnText, { color: '#fff' }]}>Aprovar</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            );
-          })}
+          {solicitacoes.map((sol) => (
+            <SolicitacaoCard
+              key={sol.id}
+              solicitacao={sol}
+              isFuncionario={isFuncionario}
+              canApprovePrice={canApprovePrice}
+              onAprovar={(s) => {
+                setRevisaoModal({ sol: s, acao: 'aprovar' });
+                setNotaRevisao('');
+              }}
+              onRejeitar={(s) => {
+                setRevisaoModal({ sol: s, acao: 'rejeitar' });
+                setNotaRevisao('');
+              }}
+            />
+          ))}
         </ScrollView>
       )}
 
@@ -334,56 +217,6 @@ const styles = StyleSheet.create({
 
   lista: { padding: 16, gap: 12 },
   emptyText: { textAlign: 'center', color: colors.n600, marginTop: 40, fontSize: 14 },
-
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  produtoNome: { fontSize: 15, fontWeight: '700', color: colors.navy, flex: 1, marginRight: 8 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  statusText: { fontSize: 12, fontWeight: '700' },
-
-  precoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  precoBox: { flex: 1 },
-  precoLabel: { fontSize: 11, color: colors.n600, fontWeight: '600', marginBottom: 2 },
-  precoValor: { fontSize: 16, fontWeight: '700', color: colors.navy },
-
-  justLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.n600,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  justText: { fontSize: 13, color: colors.navy, lineHeight: 19, marginBottom: 10 },
-
-  solicitanteText: { fontSize: 12, color: colors.n600, marginBottom: 10 },
-
-  revisaoBox: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10, marginBottom: 10 },
-  revisaoBy: { fontSize: 12, color: colors.n600, fontWeight: '500' },
-  revisaoNota: { fontSize: 13, color: colors.navy, fontStyle: 'italic', marginTop: 4 },
-
-  acaoRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  acaoBtn: {
-    flex: 1,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acaoBtnRejeitar: { borderWidth: 1.5, borderColor: '#DC2626' },
-  acaoBtnAprovar: { backgroundColor: '#059669' },
-  acaoBtnText: { fontSize: 14, fontWeight: '700', color: '#DC2626' },
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,9,51,0.6)', justifyContent: 'flex-end' },
   sheet: {

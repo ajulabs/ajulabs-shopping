@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
-import { TIPOS_PRODUTO, TipoProdutoValue, getCatNome, getSubcatNome } from '../model/tipoProdutos';
+import { TipoProdutoValue, getCatNome, getSubcatNome } from '../model/tipoProdutos';
+import { useTipoProdutoState } from '../model/useTipoProdutoState';
+import { CategoriaGrid } from './components/CategoriaGrid';
+import { CustomModeCard } from './components/CustomModeCard';
 
 interface Props {
   value: TipoProdutoValue | null;
@@ -12,98 +14,28 @@ interface Props {
 }
 
 export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpecLayout }: Props) {
-  const [novaVariacao, setNovaVariacao] = useState('');
-  const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
-
-  const specsSectionY = useRef(0);
-  const specGroupYs = useRef<Record<string, number>>({});
-  // Lembra a última configuração de cada categoria, para restaurar ao voltar.
-  const catMemory = useRef<Record<string, TipoProdutoValue>>({});
-
-  const reportPositions = () => {
-    if (!onSpecLayout) return;
-    const positions: Record<string, number> = {};
-    for (const [id, y] of Object.entries(specGroupYs.current)) {
-      positions[id] = specsSectionY.current + y;
-    }
-    onSpecLayout(positions);
-  };
-
-  const cat = value ? TIPOS_PRODUTO.find((c) => c.id === value.catId) : null;
-  const subcat =
-    cat && value?.subcatId && !cat.isCustom
-      ? cat.subcats.find((s) => s.id === value.subcatId)
-      : null;
-
-  const selectCat = (catId: string) => {
-    // Guarda a configuração atual antes de sair, para poder restaurar depois.
-    if (value?.catId && value.subcatId) {
-      catMemory.current[value.catId] = value;
-    }
-    if (value?.catId === catId) {
-      onChange(null);
-      return;
-    }
-    const remembered = catMemory.current[catId];
-    if (remembered) {
-      onChange(remembered);
-      return;
-    }
-    const cfg = TIPOS_PRODUTO.find((c) => c.id === catId);
-    onChange({ catId, subcatId: cfg?.isCustom ? '__custom__' : '', specs: {} });
-  };
-
-  const selectSubcat = (subcatId: string) => {
-    if (!value) return;
-    onChange({ catId: value.catId, subcatId, specs: {} });
-  };
-
-  const toggleSpec = (specId: string, opt: string) => {
-    if (!value || !value.subcatId) return;
-    const specCfg = subcat?.specs.find((s) => s.id === specId);
-    const current = value.specs[specId] ?? [];
-    const next = specCfg?.multiplo
-      ? current.includes(opt)
-        ? current.filter((v) => v !== opt)
-        : [...current, opt]
-      : current.includes(opt)
-        ? []
-        : [opt];
-    onChange({ ...value, specs: { ...value.specs, [specId]: next } });
-  };
-
-  const addCustomSpec = (specId: string) => {
-    const v = customInputs[specId]?.trim();
-    if (!v || !value) return;
-    onChange({ ...value, specs: { ...value.specs, [specId]: [v] } });
-    setCustomInputs((prev) => ({ ...prev, [specId]: '' }));
-  };
-
-  const setCustomTipo = (text: string) => {
-    if (!value) return;
-    onChange({ ...value, specs: { ...value.specs, _tipo: text ? [text] : [] } });
-  };
-
-  const addVariacaoCustom = () => {
-    const v = novaVariacao.trim();
-    if (!v || !value) return;
-    const current = value.specs['variacao'] ?? [];
-    if (!current.includes(v)) {
-      onChange({ ...value, specs: { ...value.specs, variacao: [...current, v] } });
-    }
-    setNovaVariacao('');
-  };
-
-  const removeVariacaoCustom = (v: string) => {
-    if (!value) return;
-    const next = (value.specs['variacao'] ?? []).filter((x) => x !== v);
-    onChange({ ...value, specs: { ...value.specs, variacao: next } });
-  };
-
-  const customTipo = value?.specs['_tipo']?.[0] ?? '';
-  const customVars = value?.specs['variacao'] ?? [];
-  const isCustom = !!cat?.isCustom;
-  const hasSelection = !!(value?.catId && value.subcatId);
+  const {
+    novaVariacao,
+    setNovaVariacao,
+    customInputs,
+    setCustomInputs,
+    specsSectionY,
+    specGroupYs,
+    reportPositions,
+    cat,
+    subcat,
+    selectCat,
+    selectSubcat,
+    toggleSpec,
+    addCustomSpec,
+    setCustomTipo,
+    addVariacaoCustom,
+    removeVariacaoCustom,
+    customTipo,
+    customVars,
+    isCustom,
+    hasSelection,
+  } = useTipoProdutoState({ value, onChange, onSpecLayout });
 
   return (
     <View style={styles.container}>
@@ -132,28 +64,7 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
       )}
 
       {/* Grid de categorias */}
-      <View style={styles.catGrid}>
-        {TIPOS_PRODUTO.map((c) => {
-          const selected = value?.catId === c.id;
-          return (
-            <TouchableOpacity
-              key={c.id}
-              style={[styles.catCard, selected && styles.catCardSelected]}
-              onPress={() => selectCat(c.id)}
-              activeOpacity={0.75}
-            >
-              <MaterialCommunityIcons
-                name={c.icon as any}
-                size={28}
-                color={selected ? colors.orange : colors.n500}
-              />
-              <Text style={[styles.catNome, selected && styles.catNomeSelected]} numberOfLines={2}>
-                {c.nome}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <CategoriaGrid selectedCatId={value?.catId} onSelect={selectCat} />
 
       {/* Subcategorias — categorias normais */}
       {cat && !isCustom && (
@@ -185,73 +96,15 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
 
       {/* Modo customizado — categoria "Outros" */}
       {isCustom && (
-        <View style={styles.customSection}>
-          <View style={styles.customCard}>
-            <View style={styles.customTitleRow}>
-              <MaterialCommunityIcons name="pencil-outline" size={15} color={colors.orange} />
-              <Text style={styles.customTitle}>Produto personalizado</Text>
-            </View>
-            <Text style={styles.customHint}>
-              Descreva o tipo de produto e adicione as variações que ele possui.
-            </Text>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.sectionLabel}>Tipo de produto</Text>
-              <TextInput
-                style={styles.customInput}
-                value={customTipo}
-                onChangeText={setCustomTipo}
-                placeholder="Ex: Artesanato, Plantas, Serviços, Bijuterias…"
-                placeholderTextColor={colors.n500}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.sectionLabel}>
-                Variações <Text style={styles.optionalHint}>(opcional)</Text>
-              </Text>
-              {customVars.length > 0 && (
-                <View style={styles.chipsWrap}>
-                  {customVars.map((v) => (
-                    <TouchableOpacity
-                      key={v}
-                      style={styles.customVarChip}
-                      onPress={() => removeVariacaoCustom(v)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={styles.customVarText}>{v}</Text>
-                      <Ionicons
-                        name="close"
-                        size={11}
-                        color={colors.orange600}
-                        style={{ marginLeft: 4 }}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-              <View style={styles.addVarRow}>
-                <TextInput
-                  style={styles.addVarInput}
-                  value={novaVariacao}
-                  onChangeText={setNovaVariacao}
-                  onSubmitEditing={addVariacaoCustom}
-                  placeholder="Ex: Azul, G, 500ml…"
-                  placeholderTextColor={colors.n500}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity
-                  style={[styles.addVarBtn, !novaVariacao.trim() && { opacity: 0.4 }]}
-                  onPress={addVariacaoCustom}
-                  activeOpacity={0.75}
-                  disabled={!novaVariacao.trim()}
-                >
-                  <Ionicons name="add" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
+        <CustomModeCard
+          customTipo={customTipo}
+          customVars={customVars}
+          novaVariacao={novaVariacao}
+          onChangeTipo={setCustomTipo}
+          onChangeNovaVariacao={setNovaVariacao}
+          onAddVariacao={addVariacaoCustom}
+          onRemoveVariacao={removeVariacaoCustom}
+        />
       )}
 
       {/* Especificações — categorias normais */}
@@ -384,22 +237,6 @@ const styles = StyleSheet.create({
   },
   summaryText: { fontSize: 13, fontWeight: '600', color: colors.orange600 },
 
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catCard: {
-    width: '31%',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    backgroundColor: colors.n0,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    gap: 8,
-  },
-  catCardSelected: { borderColor: colors.orange, backgroundColor: '#FFF3E8' },
-  catNome: { fontSize: 11, fontWeight: '600', color: colors.n600, textAlign: 'center' },
-  catNomeSelected: { color: colors.orange600 },
-
   subcatSection: { gap: 6 },
   subcatRow: { gap: 8, paddingVertical: 2 },
   subcatChip: {
@@ -414,31 +251,6 @@ const styles = StyleSheet.create({
   subcatText: { fontSize: 13, fontWeight: '600', color: colors.n600 },
   subcatTextSelected: { color: colors.orange600 },
 
-  // Modo customizado
-  customSection: { gap: 0 },
-  customCard: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    backgroundColor: colors.n50,
-    padding: 14,
-    gap: 12,
-  },
-  customTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  customTitle: { fontSize: 13, fontWeight: '700', color: colors.navy },
-  customHint: { fontSize: 12, color: colors.n600, lineHeight: 17, marginTop: -4 },
-  fieldGroup: { gap: 6 },
-  optionalHint: { fontSize: 10, fontWeight: '400', color: colors.n500, textTransform: 'none' },
-  customInput: {
-    backgroundColor: colors.n0,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: colors.navy,
-  },
   chipInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chipInput: {
     paddingHorizontal: 12,
@@ -460,35 +272,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addVarRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  addVarInput: {
-    flex: 1,
-    backgroundColor: colors.n0,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: colors.navy,
-  },
-  addVarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.orange,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  customVarChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.orange100,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 99,
-  },
-  customVarText: { fontSize: 12, fontWeight: '600', color: colors.orange600 },
 
   specsSection: { gap: 12 },
   specGroup: { gap: 6 },
@@ -532,5 +315,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   sectionLabelError: { color: '#DC2626' },
-  specErrorText: { fontSize: 11, color: '#DC2626', fontWeight: '500', marginTop: 2 },
 });

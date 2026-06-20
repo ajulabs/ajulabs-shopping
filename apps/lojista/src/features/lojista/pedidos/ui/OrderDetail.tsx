@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Order, STATUS_META } from '../data';
-
-const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+import { type Order } from '../lib';
+import { useOrderDetail } from '../model/useOrderDetail';
+import { OrderItemsList, OrderSummary } from './components';
 
 interface Props {
   order: Order;
@@ -15,41 +15,8 @@ interface Props {
   onChatEntregador?: () => void;
 }
 
-export function OrderDetail({
-  order,
-  onBack,
-  onAdvance,
-  onDispatch,
-  onChatConsumer,
-  onChatEntregador,
-}: Props) {
-  const baseMeta = STATUS_META[order.status];
-  const isEntregadorAcaminho = order.status === 'pronto' && !!order.entregadorId;
-  const meta = isEntregadorAcaminho
-    ? { ...baseMeta, label: 'Entregador a caminho', color: '#0369A1', bg: '#E0F2FE' }
-    : baseMeta;
-
-  const initials = order.cliente
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2);
-
-  const statusIcon: Record<string, any> = {
-    novo: 'time-outline',
-    preparando: 'time-outline',
-    pronto: isEntregadorAcaminho ? 'bicycle' : 'checkmark',
-    despachado: 'bicycle',
-  };
-
-  const statusSubtitle: Record<string, string> = {
-    novo: 'Aceite pra começar a preparar',
-    preparando: 'Marque como pronto quando terminar',
-    pronto: isEntregadorAcaminho
-      ? `${order.entregadorNome ? order.entregadorNome + ' · a' : 'A'} caminho do cliente`
-      : 'Chame um motoboy pra despachar',
-    despachado: `Com ${order.motoboy || 'motoboy'} · a caminho do cliente`,
-  };
+export function OrderDetail({ order, onBack, onAdvance, onDispatch, onChatConsumer }: Props) {
+  const { meta, initials, statusIcon, statusSubtitle } = useOrderDetail(order);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -105,20 +72,7 @@ export function OrderDetail({
         </View>
 
         <Text style={s.sectionLabel}>Itens do pedido</Text>
-        <View style={s.card}>
-          {order.itens.map((it, i) => (
-            <View key={i} style={[s.itemRow, i < order.itens.length - 1 && s.itemBorder]}>
-              <View style={s.qtyBadge}>
-                <Text style={s.qtyText}>{it.qtd}×</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.itemName}>{it.nome}</Text>
-                <Text style={s.itemEach}>{brl(it.preco)} cada</Text>
-              </View>
-              <Text style={s.itemTotal}>{brl(it.preco * it.qtd)}</Text>
-            </View>
-          ))}
-        </View>
+        <OrderItemsList itens={order.itens} />
 
         {order.obs && (
           <View style={s.obsCard}>
@@ -130,29 +84,7 @@ export function OrderDetail({
           </View>
         )}
 
-        <View style={[s.card, { marginTop: 16 }]}>
-          <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Subtotal</Text>
-            <Text style={s.summaryValue}>{brl(order.total - 8.9)}</Text>
-          </View>
-          <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Taxa de entrega</Text>
-            <Text style={s.summaryValue}>R$ 8,90</Text>
-          </View>
-          <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Pagamento</Text>
-            <Text style={[s.summaryValue, { fontWeight: '600' }]}>Pix · pago</Text>
-          </View>
-          <View style={s.totalRow}>
-            <Text style={s.totalLabel}>Total</Text>
-            <Text style={s.totalValue}>{brl(order.total)}</Text>
-          </View>
-          <Text style={s.platformFee}>
-            Você recebe{' '}
-            <Text style={{ color: '#046C2E', fontWeight: '700' }}>{brl(order.total * 0.88)}</Text>{' '}
-            depois da taxa da plataforma (12%).
-          </Text>
-        </View>
+        <OrderSummary order={order} />
       </ScrollView>
 
       {meta.next && (
@@ -270,20 +202,6 @@ const s = StyleSheet.create({
     borderTopColor: '#E4E7F1',
   },
   addressText: { fontSize: 12.5, color: '#000933', lineHeight: 18, flex: 1 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  itemBorder: { borderBottomWidth: 1, borderBottomColor: '#E4E7F1' },
-  qtyBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFF0E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyText: { fontSize: 14, fontWeight: '700', color: '#B34D00' },
-  itemName: { fontSize: 13.5, fontWeight: '600', color: '#000933' },
-  itemEach: { fontSize: 11.5, color: '#9099B3' },
-  itemTotal: { fontSize: 14, fontWeight: '700', color: '#000933' },
   obsCard: {
     flexDirection: 'row',
     gap: 10,
@@ -294,20 +212,6 @@ const s = StyleSheet.create({
   },
   obsTitle: { fontSize: 12, fontWeight: '700', color: '#B34D00', marginBottom: 2 },
   obsText: { fontSize: 12.5, color: '#B34D00', lineHeight: 18 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  summaryLabel: { fontSize: 13, color: '#9099B3' },
-  summaryValue: { fontSize: 13, color: '#000933' },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E4E7F1',
-  },
-  totalLabel: { fontSize: 16, fontWeight: '700', color: '#000933' },
-  totalValue: { fontSize: 20, fontWeight: '700', color: '#000933' },
-  platformFee: { fontSize: 11, color: '#9099B3', marginTop: 8, lineHeight: 16 },
   stickyBtn: {
     position: 'absolute',
     left: 0,

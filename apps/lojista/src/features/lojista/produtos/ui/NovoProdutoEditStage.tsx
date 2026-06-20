@@ -1,4 +1,3 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,297 +10,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
+import { VariacoesSection, VariacaoEstoque } from '../../../../entities/produto';
+import { TipoProdutoValue } from '../model/tipoProdutos';
+import { useNovoProdutoEditStage } from '../model/useNovoProdutoEditStage';
+import { ProductData } from '../lib/types';
 import { TipoProdutoSelector } from './TipoProdutoSelector';
-import { TIPOS_PRODUTO, TipoProdutoValue, EspecConfig } from '../model/tipoProdutos';
+import { TagsInput } from './components/TagsInput';
 
-export interface VariacaoEstoque {
-  nome: string;
-  estoque: number;
-  preco?: number;
-}
-
-export interface ProductData {
-  nome: string;
-  categoria: string;
-  descricao: string;
-  tags: string[];
-  preco: string;
-  estoque: string;
-  variacoes: string[];
-  tipoProduto: TipoProdutoValue | null;
-  variacoesEstoque: VariacaoEstoque[];
-}
-
-type FieldKey = 'nome' | 'tipoProduto' | 'descricao' | 'preco' | 'estoque';
-
-const FIELD_ORDER: FieldKey[] = ['nome', 'tipoProduto', 'descricao', 'preco', 'estoque'];
-
-// ─── Lógica de geração de variações ─────────────────────────────
-
-function getMultiSpecs(tipoProduto: TipoProdutoValue | null): EspecConfig[] {
-  if (!tipoProduto?.catId || !tipoProduto?.subcatId) return [];
-  const cat = TIPOS_PRODUTO.find((c) => c.id === tipoProduto.catId);
-  const subcat = cat?.subcats.find((s) => s.id === tipoProduto.subcatId);
-  const tipoSelecionado = tipoProduto.specs['tipo']?.[0];
-  return (subcat?.specs ?? []).filter(
-    (s) =>
-      s.multiplo &&
-      (!s.hideForTipos || !tipoSelecionado || !s.hideForTipos.includes(tipoSelecionado)),
-  );
-}
-
-export function gerarCombinacoes(tipoProduto: TipoProdutoValue | null): string[] {
-  const multiSpecs = getMultiSpecs(tipoProduto);
-  if (!tipoProduto) return [];
-  const eixos = multiSpecs
-    .map((s) => tipoProduto.specs[s.id] ?? [])
-    .filter((vals) => vals.length > 0);
-  if (eixos.length === 0) return [];
-  let combos: string[][] = [[]];
-  for (const vals of eixos) {
-    combos = combos.flatMap((combo) => vals.map((v) => [...combo, v]));
-  }
-  // Só há variações reais com mais de uma combinação. Com um único valor por
-  // eixo (ex: 1 cor + 1 tamanho) o produto é único e usa o estoque global.
-  if (combos.length <= 1) return [];
-  return combos.map((combo) => combo.join(' · '));
-}
-
-export function syncVariacoes(
-  novosTipos: string[],
-  anterior: VariacaoEstoque[],
-): VariacaoEstoque[] {
-  const mapa = Object.fromEntries(
-    anterior.map((v) => [v.nome, { estoque: v.estoque, preco: v.preco }]),
-  );
-  return novosTipos.map((nome) => ({
-    nome,
-    estoque: mapa[nome]?.estoque ?? 0,
-    preco: mapa[nome]?.preco,
-  }));
-}
-
-function getMissingSpecs(tipoProduto: TipoProdutoValue | null): string[] {
-  if (!tipoProduto?.catId || !tipoProduto?.subcatId) return [];
-  const cat = TIPOS_PRODUTO.find((c) => c.id === tipoProduto.catId);
-  const subcat = cat?.subcats.find((s) => s.id === tipoProduto.subcatId);
-  const tipoSelecionado = tipoProduto.specs['tipo']?.[0];
-  return (subcat?.specs ?? [])
-    .filter((spec) => {
-      if (spec.hideForTipos && tipoSelecionado && spec.hideForTipos.includes(tipoSelecionado))
-        return false;
-      return (tipoProduto.specs[spec.id] ?? []).length === 0;
-    })
-    .map((spec) => spec.id);
-}
-
-function validate(data: ProductData): {
-  errors: Partial<Record<FieldKey, string>>;
-  missingSpecs: string[];
-} {
-  const errors: Partial<Record<FieldKey, string>> = {};
-  if (!data.nome.trim()) errors.nome = 'Informe o nome do produto';
-  if (!data.tipoProduto?.catId || !data.tipoProduto?.subcatId)
-    errors.tipoProduto = 'Selecione o tipo do produto';
-  if (!data.descricao.trim()) errors.descricao = 'Informe uma descrição';
-  const preco = parseFloat(data.preco.replace(',', '.'));
-  if (!data.preco.trim() || isNaN(preco) || preco <= 0) errors.preco = 'Informe um preço válido';
-  const missingSpecs = getMissingSpecs(data.tipoProduto);
-  if (missingSpecs.length > 0 && !errors.tipoProduto)
-    errors.tipoProduto = 'Preencha todas as especificações do produto';
-  // estoque global só é obrigatório quando não há variações
-  if (data.variacoesEstoque.length === 0) {
-    const estoque = parseInt(data.estoque, 10);
-    if (!data.estoque.trim() || isNaN(estoque) || estoque < 0)
-      errors.estoque = 'Informe a quantidade em estoque';
-  }
-  return { errors, missingSpecs };
-}
-
-// ─── VariacoesSection ─────────────────────────────────────────
-
-export function VariacoesSection({
-  variacoes,
-  precoBase,
-  onChange,
-  estoqueReadOnly = false,
-}: {
-  variacoes: VariacaoEstoque[];
-  precoBase: string;
-  onChange: (v: VariacaoEstoque[]) => void;
-  /** No editar produto o estoque é gerenciado em "Ajustar estoque" (somente leitura aqui). */
-  estoqueReadOnly?: boolean;
-}) {
-  const totalEstoque = variacoes.reduce((s, v) => s + (v.estoque || 0), 0);
-
-  const updateEstoque = (nome: string, raw: string) => {
-    const val = parseInt(raw.replace(/[^0-9]/g, ''), 10);
-    onChange(variacoes.map((v) => (v.nome === nome ? { ...v, estoque: isNaN(val) ? 0 : val } : v)));
-  };
-
-  const updatePreco = (nome: string, raw: string) => {
-    const normalized = raw.replace(',', '.');
-    const val = parseFloat(normalized);
-    onChange(
-      variacoes.map((v) =>
-        v.nome === nome ? { ...v, preco: raw === '' ? undefined : isNaN(val) ? v.preco : val } : v,
-      ),
-    );
-  };
-
-  return (
-    <View style={varStyles.container}>
-      <View style={varStyles.headerRow}>
-        <View style={varStyles.headerLeft}>
-          <Ionicons name="grid-outline" size={14} color={colors.orange600} />
-          <Text style={varStyles.title}>Variações do produto</Text>
-        </View>
-        <View style={varStyles.totalBadge}>
-          <Text style={varStyles.totalText}>Total: {totalEstoque} un.</Text>
-        </View>
-      </View>
-
-      <View style={varStyles.tableHeader}>
-        <Text style={[varStyles.colLabel, { flex: 1 }]}>Combinação</Text>
-        <Text style={[varStyles.colLabel, { width: 80, textAlign: 'center' }]}>Preço (R$)</Text>
-        <Text style={[varStyles.colLabel, { width: 72, textAlign: 'right' }]}>Estoque</Text>
-      </View>
-
-      {variacoes.map((v, idx) => (
-        <View key={v.nome} style={[varStyles.row, idx % 2 === 0 && varStyles.rowAlt]}>
-          <Text style={varStyles.nomeTxt} numberOfLines={1}>
-            {v.nome}
-          </Text>
-          <TextInput
-            style={varStyles.precoInput}
-            value={v.preco != null ? String(v.preco).replace('.', ',') : ''}
-            onChangeText={(raw) => updatePreco(v.nome, raw)}
-            placeholder={precoBase || '0,00'}
-            placeholderTextColor={colors.n300}
-            keyboardType="decimal-pad"
-            maxLength={8}
-          />
-          {estoqueReadOnly ? (
-            <View style={varStyles.estoqueReadonly}>
-              <Text style={varStyles.estoqueReadonlyTxt}>{v.estoque}</Text>
-            </View>
-          ) : (
-            <TextInput
-              style={varStyles.estoqueInput}
-              value={v.estoque === 0 ? '' : String(v.estoque)}
-              onChangeText={(raw) => updateEstoque(v.nome, raw)}
-              placeholder="0"
-              placeholderTextColor={colors.n300}
-              keyboardType="number-pad"
-              maxLength={5}
-            />
-          )}
-        </View>
-      ))}
-
-      <Text style={varStyles.hint}>
-        {estoqueReadOnly
-          ? 'O estoque de cada variação é gerenciado em "Ajustar estoque".'
-          : 'Preço vazio usa o preço base. Estoque 0 = sem estoque para esta variação.'}
-      </Text>
-    </View>
-  );
-}
-
-const varStyles = StyleSheet.create({
-  container: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#FFD4A8',
-    backgroundColor: '#FFFAF5',
-    overflow: 'hidden',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: colors.orange100,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFD4A8',
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { fontSize: 13, fontWeight: '700', color: colors.orange600 },
-  totalBadge: {
-    backgroundColor: colors.orange600,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 99,
-  },
-  totalText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  tableHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.n100,
-  },
-  colLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.n500,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  rowAlt: { backgroundColor: 'rgba(0,0,0,0.015)' },
-  nomeTxt: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.navy },
-  precoInput: {
-    width: 80,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    backgroundColor: '#fff',
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.navy,
-  },
-  estoqueInput: {
-    width: 72,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: colors.n200,
-    backgroundColor: '#fff',
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  estoqueReadonly: {
-    width: 72,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: colors.n100,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  estoqueReadonlyTxt: { fontSize: 14, fontWeight: '700', color: colors.n600 },
-  hint: {
-    fontSize: 11,
-    color: colors.n500,
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-    paddingTop: 4,
-  },
-});
-
-// ─── EditStage ────────────────────────────────────────────────
+export type { ProductData } from '../lib/types';
 
 export function EditStage({
   data,
@@ -321,91 +37,23 @@ export function EditStage({
   saving?: boolean;
   imageUri: string | null;
 }) {
-  const [newTag, setNewTag] = useState('');
-  const [imgLoading, setImgLoading] = useState(true);
-  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
-  const [missingSpecs, setMissingSpecs] = useState<string[]>([]);
-
-  const scrollRef = useRef<ScrollView>(null);
-  const fieldPositions = useRef<Partial<Record<FieldKey, number>>>({});
-  const selectorWrapY = useRef(0);
-  const specPositions = useRef<Record<string, number>>({});
-
-  // Re-gera variações quando tipoProduto muda
-  useEffect(() => {
-    const nomes = gerarCombinacoes(data.tipoProduto);
-    if (nomes.length === 0 && data.variacoesEstoque.length === 0) return;
-    const synced = syncVariacoes(nomes, data.variacoesEstoque);
-    // só chama se realmente mudou
-    const mudou =
-      synced.length !== data.variacoesEstoque.length ||
-      synced.some((v, i) => v.nome !== data.variacoesEstoque[i]?.nome);
-    if (mudou) onChange('variacoesEstoque', synced);
-  }, [data.tipoProduto]);
-
-  const hasVariacoes = data.variacoesEstoque.length > 0;
-
-  const handleChange = useCallback(
-    <K extends keyof ProductData>(key: K, value: ProductData[K]) => {
-      onChange(key, value as string | string[] | TipoProdutoValue | null | VariacaoEstoque[]);
-      if (key in errors)
-        setErrors((prev) => {
-          const next = { ...prev };
-          delete next[key as FieldKey];
-          return next;
-        });
-      if (key === 'tipoProduto') {
-        const next = value as TipoProdutoValue | null;
-        setMissingSpecs((prev) => prev.filter((id) => (next?.specs[id] ?? []).length === 0));
-      }
-    },
-    [onChange, errors],
-  );
-
-  const handlePublicar = useCallback(() => {
-    const { errors: errs, missingSpecs: missing } = validate(data);
-    setErrors(errs);
-    setMissingSpecs(missing);
-    if (Object.keys(errs).length > 0 || missing.length > 0) {
-      const tipoProdutoIdx = FIELD_ORDER.indexOf('tipoProduto');
-      const firstFieldKey = FIELD_ORDER.find((k) => errs[k]);
-      const firstFieldIdx = firstFieldKey ? FIELD_ORDER.indexOf(firstFieldKey) : Infinity;
-      if (missing.length > 0 && firstFieldIdx >= tipoProdutoIdx) {
-        const specY =
-          (fieldPositions.current['tipoProduto'] ?? 0) +
-          selectorWrapY.current +
-          (specPositions.current[missing[0]] ?? 0);
-        scrollRef.current?.scrollTo({ y: specY - 16, animated: true });
-      } else if (firstFieldKey) {
-        scrollRef.current?.scrollTo({
-          y: (fieldPositions.current[firstFieldKey] ?? 0) - 16,
-          animated: true,
-        });
-      }
-      return;
-    }
-    onPublicar();
-  }, [data, onPublicar]);
-
-  const addTag = useCallback(() => {
-    if (!newTag.trim()) return;
-    handleChange('tags', [...data.tags, newTag.trim().toLowerCase()]);
-    setNewTag('');
-  }, [newTag, data.tags, handleChange]);
-
-  const removeTag = useCallback(
-    (tag: string) => {
-      handleChange(
-        'tags',
-        data.tags.filter((t) => t !== tag),
-      );
-    },
-    [data.tags, handleChange],
-  );
-
-  const recordY = (key: FieldKey) => (e: { nativeEvent: { layout: { y: number } } }) => {
-    fieldPositions.current[key] = e.nativeEvent.layout.y;
-  };
+  const {
+    newTag,
+    setNewTag,
+    imgLoading,
+    setImgLoading,
+    errors,
+    missingSpecs,
+    scrollRef,
+    selectorWrapY,
+    specPositions,
+    hasVariacoes,
+    handleChange,
+    handlePublicar,
+    addTag,
+    removeTag,
+    recordY,
+  } = useNovoProdutoEditStage({ data, onChange, onPublicar });
 
   return (
     <ScrollView
@@ -509,33 +157,13 @@ export function EditStage({
         {errors.descricao && <Text style={styles.errorText}>{errors.descricao}</Text>}
       </View>
 
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Tags sugeridas</Text>
-        <View style={styles.tagsWrap}>
-          {data.tags.map((tag) => (
-            <TouchableOpacity
-              key={tag}
-              style={styles.tag}
-              onPress={() => removeTag(tag)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.tagText}>#{tag}</Text>
-              <Text style={styles.tagRemove}>×</Text>
-            </TouchableOpacity>
-          ))}
-          <View style={styles.tagInput}>
-            <TextInput
-              style={styles.tagInputField}
-              value={newTag}
-              onChangeText={setNewTag}
-              onSubmitEditing={addTag}
-              placeholder="+ tag"
-              placeholderTextColor={colors.n600}
-              returnKeyType="done"
-            />
-          </View>
-        </View>
-      </View>
+      <TagsInput
+        tags={data.tags}
+        newTag={newTag}
+        onChangeNewTag={setNewTag}
+        onAddTag={addTag}
+        onRemoveTag={removeTag}
+      />
 
       {/* Preço sempre visível; estoque global só quando não há variações */}
       <View style={styles.rowFields} onLayout={recordY('preco')}>
@@ -644,27 +272,6 @@ const styles = StyleSheet.create({
   selectorWrap: { padding: 2 },
   errorText: { fontSize: 11, color: '#DC2626', fontWeight: '500' },
   rowFields: { flexDirection: 'row', gap: 10 },
-  tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFEAD4',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 99,
-  },
-  tagText: { fontSize: 12, fontWeight: '600', color: '#DE6708' },
-  tagRemove: { fontSize: 14, color: '#DE6708', opacity: 0.6 },
-  tagInput: {
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    borderStyle: 'dashed',
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  tagInputField: { fontSize: 12, color: '#000933', minWidth: 50 },
   trocarFotoBtn: {
     position: 'absolute',
     bottom: 10,
