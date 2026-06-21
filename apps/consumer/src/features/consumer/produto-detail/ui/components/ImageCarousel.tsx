@@ -24,6 +24,7 @@ export function ImageCarousel({ imagens, nome }: { imagens: string[]; nome: stri
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
+        style={styles.carouselScroll}
         onScroll={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
           if (idx !== current) setCurrent(idx);
@@ -62,6 +63,7 @@ export function ImageCarousel({ imagens, nome }: { imagens: string[]; nome: stri
 
 const styles = StyleSheet.create({
   carouselWrapper: { width: SCREEN_W, backgroundColor: '#f5f5f7' },
+  carouselScroll: { height: 300 },
   carouselImg: { width: SCREEN_W, height: 300, backgroundColor: '#f5f5f7' },
   carouselImgFallback: {
     width: SCREEN_W,
