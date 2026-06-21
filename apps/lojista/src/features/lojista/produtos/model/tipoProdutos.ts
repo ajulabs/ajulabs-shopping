@@ -388,10 +388,12 @@ export const TIPOS_PRODUTO: CatConfig[] = [
     id: 'esporte',
     nome: 'Esporte',
     icon: 'soccer',
+    // Subcategorias por TIPO de produto (não por modalidade): só vestuário usa
+    // numeração de roupa. Bola/equipamento são item único, sem tamanho de roupa.
     subcats: [
       {
-        id: 'futebol',
-        nome: 'Futebol',
+        id: 'vestuario',
+        nome: 'Roupa / Uniforme',
         specs: [
           {
             id: 'tamanho',
@@ -407,24 +409,8 @@ export const TIPOS_PRODUTO: CatConfig[] = [
           },
         ],
       },
-      {
-        id: 'academia',
-        nome: 'Academia / Fitness',
-        specs: [
-          {
-            id: 'tamanho',
-            label: 'Tamanho',
-            multiplo: true,
-            opcoes: ['PP', 'P', 'M', 'G', 'GG', 'GGG'],
-          },
-          {
-            id: 'cor',
-            label: 'Cor',
-            multiplo: true,
-            opcoes: ['Preto', 'Cinza', 'Branco', 'Azul', 'Rosa'],
-          },
-        ],
-      },
+      { id: 'bola', nome: 'Bola', specs: [] },
+      { id: 'equipamento', nome: 'Equipamento / Acessório', specs: [] },
     ],
   },
   {
@@ -498,6 +484,22 @@ export function derivarCategoriaString(v: TipoProdutoValue): string {
   return parts.join(' - ');
 }
 
+/**
+ * Em "Esporte" a categoria vinda da IA é uma modalidade ("Futebol", "Academia"),
+ * não um tipo de produto. Decidimos a subcategoria pelo nome/descrição: bola e
+ * equipamento NÃO usam numeração de roupa; só vestuário usa PP/P/M/G.
+ */
+function inferirSubcatEsporteId(texto: string): 'vestuario' | 'bola' | 'equipamento' {
+  if (/\bbolas?\b/.test(texto)) return 'bola';
+  if (
+    /\b(roupa|uniforme|camisa|camiseta|regata|short|bermuda|calca|calcao|meiao|agasalho|moletom|legging|jaqueta|blusa|top)\b/.test(
+      texto,
+    )
+  )
+    return 'vestuario';
+  return 'equipamento';
+}
+
 export function inferirTipoProduto(data: Record<string, unknown>): TipoProdutoValue | null {
   const categoria = typeof data.categoria === 'string' ? data.categoria : '';
   if (!categoria) return null;
@@ -518,7 +520,11 @@ export function inferirTipoProduto(data: Record<string, unknown>): TipoProdutoVa
 
   let matchedSubcat: SubcatConfig | undefined;
   if (matchedCat.subcats.length > 0) {
-    if (subcatPart) {
+    if (matchedCat.id === 'esporte') {
+      const nome = typeof data.nome === 'string' ? data.nome : '';
+      const subId = inferirSubcatEsporteId(norm(`${nome} ${categoria}`));
+      matchedSubcat = matchedCat.subcats.find((s) => s.id === subId);
+    } else if (subcatPart) {
       matchedSubcat = matchedCat.subcats.find((sub) => {
         const n = norm(sub.nome);
         return n === subcatPart || n.includes(subcatPart) || subcatPart.includes(n);

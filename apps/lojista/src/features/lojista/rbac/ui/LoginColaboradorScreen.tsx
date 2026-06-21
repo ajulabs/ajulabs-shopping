@@ -1,4 +1,3 @@
-import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,10 +8,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, AjuLogo } from '@ajulabs/theme';
-import { useAuthLojistaStore } from '../../auth/model/store';
+import { useLoginColaborador } from '../model/useLoginColaborador';
 
 interface Props {
   onLoginSuccess?: () => void;
@@ -21,43 +19,19 @@ interface Props {
 
 export function LoginColaboradorScreen({ onLoginSuccess, onVoltar }: Props) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const loginColaborador = useAuthLojistaStore((s) => s.loginColaborador);
-
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [senhaVisivel, setSenhaVisivel] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleLogin = useCallback(async () => {
-    if (!email.trim() || !senha.trim()) {
-      setError('Preencha todos os campos.');
-      return;
-    }
-    setError('');
-    setLoading(true);
-    try {
-      await loginColaborador(email.trim(), senha);
-      onLoginSuccess?.();
-      router.replace('/(lojista)/pedidos');
-    } catch (err) {
-      const isNetwork =
-        err instanceof Error &&
-        (err.message.includes('Network') ||
-          err.message.includes('fetch') ||
-          err.message.includes('Failed'));
-      setError(
-        isNetwork
-          ? 'Sem conexão com o servidor. Verifique sua internet.'
-          : err instanceof Error
-            ? err.message
-            : 'Email ou senha incorretos.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [email, senha, loginColaborador, onLoginSuccess, router]);
+  const {
+    router,
+    email,
+    setEmail,
+    senha,
+    setSenha,
+    senhaVisivel,
+    setSenhaVisivel,
+    loading,
+    error,
+    setError,
+    handleLogin,
+  } = useLoginColaborador(onLoginSuccess);
 
   return (
     <View style={styles.container}>

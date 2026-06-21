@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { useAuthLojistaStore } from '../src/features/lojista/auth/model/store';
-import { usePushRegistrationLojista } from '../src/hooks';
+import { useAuthLojistaStore } from '../src/store';
+import { usePushRegistrationLojista } from '../src/shared/hooks';
 import { SplashLojista } from '../src/features/lojista/splash';
 
 export default function RootLayout() {
