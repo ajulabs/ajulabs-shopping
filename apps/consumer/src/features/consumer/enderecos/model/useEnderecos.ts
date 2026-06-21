@@ -8,6 +8,7 @@ export function useEnderecos() {
   const token = useAuthStore((s) => s.token);
   const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sucessoRemocao, setSucessoRemocao] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
     if (!token) {
@@ -42,6 +43,7 @@ export function useEnderecos() {
           await EnderecoService.definirPadrao(token, outro.id);
           await EnderecoService.remover(token, addr.id);
           carregar();
+          setSucessoRemocao(addr.apelido);
         } catch {
           Alert.alert('Erro', 'Não foi possível remover o endereço');
         }
@@ -69,7 +71,10 @@ export function useEnderecos() {
     const confirmar = () => {
       if (!token) return;
       EnderecoService.remover(token, addr.id)
-        .then(carregar)
+        .then(() => {
+          carregar();
+          setSucessoRemocao(addr.apelido);
+        })
         .catch(() => Alert.alert('Erro', 'Não foi possível remover o endereço'));
     };
     if (Platform.OS === 'web') {
@@ -89,5 +94,16 @@ export function useEnderecos() {
     EnderecoService.definirPadrao(token, id).catch(() => setEnderecos(anterior));
   };
 
-  return { token, enderecos, loading, carregar, handleRemover, handleDefinirPadrao };
+  const fecharSucessoRemocao = () => setSucessoRemocao(null);
+
+  return {
+    token,
+    enderecos,
+    loading,
+    carregar,
+    handleRemover,
+    handleDefinirPadrao,
+    sucessoRemocao,
+    fecharSucessoRemocao,
+  };
 }

@@ -31,6 +31,7 @@ import { StageCard } from './components/StageCard';
 import { NavigationChoiceModal } from './components/NavigationChoiceModal';
 import { ExternalNavBadge } from './components/NavigationChoiceModal';
 import { CancelCorridaModal, type MotivoCancelamento } from './components/CancelCorridaModal';
+import { EntregaSucessoOverlay } from './components/EntregaSucessoOverlay';
 import { useRideNavigation } from '../hooks/useRideNavigation';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -68,6 +69,7 @@ export function ActiveScreen({
   const [codigoEntrega, setCodigoEntrega] = useState('');
   const [loadingEntrega, setLoadingEntrega] = useState(false);
   const [entregaError, setEntregaError] = useState<string | null>(null);
+  const [sucessoVisivel, setSucessoVisivel] = useState(false);
 
   const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [clientCoords, setClientCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -356,7 +358,7 @@ export function ActiveScreen({
     setEntregaError(null);
     try {
       await EntregadorService.confirmarEntrega(token, ride.id, codigoEntrega);
-      onFinish();
+      setSucessoVisivel(true);
     } catch (err: any) {
       const msg = err?.message?.includes('incorreto')
         ? 'Código incorreto. Confira os 4 últimos dígitos do telefone com o cliente.'
@@ -365,7 +367,7 @@ export function ActiveScreen({
     } finally {
       setLoadingEntrega(false);
     }
-  }, [token, ride.id, codigoEntrega, onFinish]);
+  }, [token, ride.id, codigoEntrega]);
 
   // Desenha só o trecho à frente: começa na posição atual do entregador e segue
   // até o destino, "apagando" o rastro já percorrido conforme ele avança.
@@ -801,6 +803,13 @@ export function ActiveScreen({
         loading={loadingCancelamento}
         onConfirm={handleConfirmarCancelamento}
         onClose={() => setCancelModalVisible(false)}
+      />
+
+      <EntregaSucessoOverlay
+        visible={sucessoVisivel}
+        ganho={ride.ganho}
+        clienteNome={ride.cliente.nome}
+        onClose={onFinish}
       />
 
       <NavigationChoiceModal

@@ -120,7 +120,7 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
         return;
       }
       if (!hasVariacoes && p.id === produtoId && !tamanhoFallbackSelecionado) {
-        const tamanhosDoProduto = categoriaTamanho(p.categoria) ?? [];
+        const tamanhosDoProduto = categoriaTamanho(p.categoria, p.nome) ?? [];
         if (tamanhosDoProduto.length > 0) {
           Alert.alert('Selecione um tamanho', 'Escolha o tamanho antes de adicionar ao carrinho.');
           return;
@@ -185,7 +185,7 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
   const variacoes = produto?.variacoes ?? [];
   const hasVariacoes = variacoes.length > 0;
   const tamanhosFallback =
-    produto && !hasVariacoes ? (categoriaTamanho(produto.categoria) ?? []) : [];
+    produto && !hasVariacoes ? (categoriaTamanho(produto.categoria, produto.nome) ?? []) : [];
 
   const mediaAvaliacoes = avaliacoes.length
     ? Math.round((avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length) * 10) / 10
