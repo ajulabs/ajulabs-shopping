@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { EntregadorService } from '../../../../lib/authServices';
-import { useLocationEmitter } from '@ajulabs/realtime';
+import { useLocationEmitter, useCorridaAtivaRealtime } from '@ajulabs/realtime';
 import { useAuthEntregadorStore } from '../../auth/model/store';
 import { DeliveryTrackingMap } from '@ajulabs/maps';
 import {
@@ -292,6 +292,23 @@ export function ActiveScreen({
       : coarseLocation,
     enabled: isMoving,
     intervalMs: 5000,
+  });
+
+  // Sai da tela ativa imediatamente quando o pedido é cancelado pelo lojista ou
+  // pelo próprio entregador em outro dispositivo. Sem isso o entregador continua
+  // dirigindo e só descobre o cancelamento ao bater num 404 em confirmarRetirada.
+  useCorridaAtivaRealtime({
+    apiUrl: API_URL,
+    entregadorId,
+    pedidoId: ride.id,
+    enabled: stage !== 'delivered',
+    onCancelada: () => {
+      Alert.alert(
+        'Corrida cancelada',
+        'Este pedido foi cancelado e não está mais disponível para entrega.',
+        [{ text: 'OK', onPress: onFinish }],
+      );
+    },
   });
 
   const advanceStage = useCallback(() => {

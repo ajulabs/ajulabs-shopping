@@ -78,6 +78,13 @@ export interface ServerEvents {
   'corrida:oferta': (payload: CorridaOfertaPayload) => void;
   'corrida:aceita': (payload: { pedidoId: string; entregadorId: string }) => void;
   'corrida:cancelada': (payload: { pedidoId: string }) => void;
+  /**
+   * Emitido para a sala `entregador:<id>` quando o pedido ativo desse
+   * entregador foi cancelado pelo lojista (ou por outro dispositivo do
+   * próprio entregador). Permite o app sair da tela de corrida ativa
+   * imediatamente, sem esperar bater num 404 no confirmarRetirada.
+   */
+  'pedido:cancelado': (payload: { pedidoId: string }) => void;
   'ticket:mensagem': (payload: TicketMensagemPayload) => void;
   'ticket:status': (payload: { ticketId: string; status: string }) => void;
   'ticket:novo': (payload: TicketNovoPayload) => void;
