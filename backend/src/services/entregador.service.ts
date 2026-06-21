@@ -1,5 +1,11 @@
 import { prisma } from '../utils/prisma';
-import { getIo, setEntregadorLocalizacao, emitPedidoAtualizado } from '../utils/socket';
+import {
+  getIo,
+  setEntregadorLocalizacao,
+  emitPedidoAtualizado,
+  emitCorridaOferta,
+  emitPedidoCanceladoEntregador,
+} from '../utils/socket';
 import {
   uploadImagemEntregador,
   uploadDocumentoTrocaVeiculo,
@@ -524,44 +530,105 @@ export async function cancelarCorrida(
     throw Object.assign(new Error('Foto do incidente obrigatória'), { statusCode: 400 });
   }
 
-  // Upload da foto antes de liberar o pedido — se falhar o cancelamento não ocorre.
-  assertValidImage(fotoFile.buffer);
-  const fotoUrl = await uploadFotoIncidente(fotoFile.buffer, fotoFile.mimetype);
-
-  // Só permite cancelar antes da retirada (status 'pronto').
-  const released = await prisma.pedido.updateMany({
+  // Pré-checagem: rejeita upload se o pedido já avançou ou nem pertence a este
+  // entregador. Evita storage gasto quando o release iria falhar de qualquer jeito.
+  // Não dispensa o `updateMany` com guard abaixo: o status pode mudar entre esta
+  // leitura e o release.
+  const preCheck = await prisma.pedido.findFirst({
     where: { id: pedidoId, entregadorId, status: 'pronto' },
-    data: { entregadorId: null },
+    select: { id: true },
   });
-
-  if (released.count === 0) {
+  if (!preCheck) {
     throw Object.assign(
       new Error('Corrida não encontrada ou retirada já confirmada — não é possível cancelar'),
       { statusCode: 409 },
     );
   }
 
-  // Impede que este entregador receba a mesma corrida novamente.
-  await prisma.corridaRejeitada.upsert({
-    where: { pedidoId_entregadorId: { pedidoId, entregadorId } },
-    create: { pedidoId, entregadorId },
-    update: {},
+  assertValidImage(fotoFile.buffer);
+  const fotoUrl = await uploadFotoIncidente(fotoFile.buffer, fotoFile.mimetype);
+
+  // Tudo numa única transação: libera o pedido (guard atômico), grava auditoria
+  // e bloqueia este entregador na corrida. Se qualquer passo falhar, o release
+  // é desfeito e o pedido continua com o entregador — sem estado parcial.
+  const pedidoParaOferta = await prisma.$transaction(async (tx) => {
+    const released = await tx.pedido.updateMany({
+      where: { id: pedidoId, entregadorId, status: 'pronto' },
+      data: { entregadorId: null },
+    });
+    if (released.count === 0) {
+      throw Object.assign(
+        new Error('Corrida não encontrada ou retirada já confirmada — não é possível cancelar'),
+        { statusCode: 409 },
+      );
+    }
+
+    await tx.cancelamentoEntregador.create({
+      data: { pedidoId, entregadorId, motivo, fotoUrl },
+    });
+    await tx.corridaRejeitada.upsert({
+      where: { pedidoId_entregadorId: { pedidoId, entregadorId } },
+      create: { pedidoId, entregadorId },
+      update: {},
+    });
+
+    return carregarPedidoCompleto(tx, pedidoId);
   });
 
-  // Avisa o lojista que o pedido voltou a aguardar entregador.
-  try {
-    const pedido = await prisma.pedido.findUnique({
-      where: { id: pedidoId },
-      select: { consumidorId: true, lojaId: true },
+  // Notifica o consumidor e o lojista que a corrida voltou a aguardar entregador,
+  // e re-oferece a corrida para os entregadores online (exceto o que cancelou —
+  // a sala 'entregadores' inclui todos; quem rejeitou já está em corridas_rejeitadas
+  // e o app filtra ofertas rejeitadas na home).
+  if (pedidoParaOferta) {
+    emitPedidoAtualizado(
+      pedidoParaOferta.consumidorId,
+      pedidoId,
+      'pronto',
+      pedidoParaOferta.lojaId,
+    );
+    emitPedidoCanceladoEntregador(entregadorId, pedidoId);
+
+    const lojaEnd = pedidoParaOferta.loja?.endereco;
+    const entregaEnd = pedidoParaOferta.enderecoEntrega;
+    emitCorridaOferta({
+      id: pedidoId,
+      lojaId: pedidoParaOferta.lojaId,
+      lojaNome: pedidoParaOferta.loja?.nome ?? '',
+      lojaLogoUrl: pedidoParaOferta.loja?.logoUrl ?? undefined,
+      lojaEndereco: lojaEnd ? `${lojaEnd.rua}, ${lojaEnd.numero}` : undefined,
+      lojaBairro: lojaEnd?.bairro ?? undefined,
+      entregaEndereco: entregaEnd ? `${entregaEnd.rua}, ${entregaEnd.numero}` : undefined,
+      entregaBairro: entregaEnd?.bairro ?? undefined,
+      total: Number(pedidoParaOferta.total ?? 0),
+      taxaEntrega: Number(pedidoParaOferta.taxaEntrega ?? 0),
     });
-    if (pedido) {
-      emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'pronto', pedido.lojaId);
-    }
-  } catch {
-    /* socket opcional */
   }
 
   return { fotoUrl, motivo };
+}
+
+async function carregarPedidoCompleto(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  pedidoId: string,
+) {
+  return tx.pedido.findUnique({
+    where: { id: pedidoId },
+    select: {
+      consumidorId: true,
+      lojaId: true,
+      total: true,
+      taxaEntrega: true,
+      loja: {
+        select: {
+          nome: true,
+          logoUrl: true,
+          endereco: { select: { rua: true, numero: true, bairro: true } },
+        },
+      },
+      enderecoEntrega: { select: { rua: true, numero: true, bairro: true } },
+    },
+  });
 }
 
 export async function confirmarRetirada(entregadorId: string, pedidoId: string) {
