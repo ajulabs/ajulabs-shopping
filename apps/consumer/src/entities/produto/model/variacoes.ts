@@ -65,7 +65,23 @@ const TAMANHOS_POR_CATEGORIA: Record<string, string[]> = {
   esporte: ['PP', 'P', 'M', 'G', 'GG', 'GGG'],
 };
 
-export function categoriaTamanho(categoria: string): string[] | null {
+// Dentro de "Esporte" só vestuário usa numeração de roupa. Bola e equipamentos
+// (raquete, luva, etc.) vinham herdando PP..GGG porque a categoria salva é uma
+// modalidade ("Esporte - Futebol"); decidimos pelo nome do produto.
+function esporteUsaTamanhoRoupa(nome: string): boolean {
+  const n = nome.toLowerCase();
+  if (/\bbolas?\b/.test(n)) return false;
+  if (
+    /\b(roupa|uniforme|camisa|camiseta|regata|short|bermuda|calca|calça|calcao|calção|meiao|meião|agasalho|moletom|legging|jaqueta|blusa|top)\b/.test(
+      n,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function categoriaTamanho(categoria: string, nome = ''): string[] | null {
   const c = categoria.toLowerCase();
   // Calçado é checado ANTES de roupa: "calçados" contém a substring "calça"
   // (usada para detectar calças/pants), então a ordem inversa classificaria
@@ -90,7 +106,7 @@ export function categoriaTamanho(categoria: string): string[] | null {
     return TAMANHOS_POR_CATEGORIA.roupa;
   }
   if (c.includes('esporte') || c.includes('academia') || c.includes('futebol')) {
-    return TAMANHOS_POR_CATEGORIA.esporte;
+    return esporteUsaTamanhoRoupa(nome) ? TAMANHOS_POR_CATEGORIA.esporte : null;
   }
   return null;
 }
