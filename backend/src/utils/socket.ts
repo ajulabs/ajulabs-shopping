@@ -210,6 +210,19 @@ export function emitCorridaCancelada(pedidoId: string): void {
   }
 }
 
+/**
+ * Avisa o entregador especificamente assinalado a um pedido que ele foi
+ * cancelado (pelo lojista, ou ele próprio em outro dispositivo). A sala
+ * 'entregadores' é broadcast para todos online; esta é direcionada.
+ */
+export function emitPedidoCanceladoEntregador(entregadorId: string, pedidoId: string): void {
+  try {
+    getIo().to(`entregador:${entregadorId}`).emit('pedido:cancelado', { pedidoId });
+  } catch {
+    /* intentional */
+  }
+}
+
 export function emitTicketMensagem(
   consumidorId: string,
   lojaId: string | null,
