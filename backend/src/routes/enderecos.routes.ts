@@ -78,7 +78,7 @@ async function resolverCoords(
 // GET /enderecos
 router.get('/', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
   const enderecos = await prisma.enderecoUsuario.findMany({
-    where: { usuarioId: req.user!.id },
+    where: { usuarioId: req.user!.id, arquivado: false },
     orderBy: [{ padrao: 'desc' }, { criadoEm: 'asc' }],
   });
   res.json({ enderecos });
@@ -107,7 +107,9 @@ router.post(
         : undefined,
     );
 
-    const total = await prisma.enderecoUsuario.count({ where: { usuarioId: req.user!.id } });
+    const total = await prisma.enderecoUsuario.count({
+      where: { usuarioId: req.user!.id, arquivado: false },
+    });
 
     const endereco = await prisma.enderecoUsuario.create({
       data: {
@@ -127,7 +129,7 @@ router.put('/:id', authMiddleware, authUsuario, async (req: AuthRequest, res) =>
   const dados = enderecoSchema.partial().parse(req.body);
 
   const endereco = await prisma.enderecoUsuario.findUnique({ where: { id: req.params.id } });
-  if (!endereco || endereco.usuarioId !== req.user!.id) {
+  if (!endereco || endereco.usuarioId !== req.user!.id || endereco.arquivado) {
     return res.status(403).json({ error: 'Acesso negado' });
   }
 
@@ -165,23 +167,27 @@ router.put('/:id', authMiddleware, authUsuario, async (req: AuthRequest, res) =>
   res.json({ endereco: atualizado });
 });
 
-// DELETE /enderecos/:id
+// DELETE /enderecos/:id — soft delete: o endereço some da listagem mas
+// continua existindo no banco para preservar a FK em `pedidos` antigos.
 router.delete('/:id', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
   const endereco = await prisma.enderecoUsuario.findUnique({ where: { id: req.params.id } });
-  if (!endereco || endereco.usuarioId !== req.user!.id) {
+  if (!endereco || endereco.usuarioId !== req.user!.id || endereco.arquivado) {
     return res.status(403).json({ error: 'Acesso negado' });
   }
   if (endereco.padrao) {
     return res.status(400).json({ error: 'Não é possível remover o endereço padrão' });
   }
-  await prisma.enderecoUsuario.delete({ where: { id: req.params.id } });
+  await prisma.enderecoUsuario.update({
+    where: { id: req.params.id },
+    data: { arquivado: true },
+  });
   res.json({ message: 'Endereço removido com sucesso' });
 });
 
 // PATCH /enderecos/:id/padrao
 router.patch('/:id/padrao', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
   const endereco = await prisma.enderecoUsuario.findUnique({ where: { id: req.params.id } });
-  if (!endereco || endereco.usuarioId !== req.user!.id) {
+  if (!endereco || endereco.usuarioId !== req.user!.id || endereco.arquivado) {
     return res.status(403).json({ error: 'Acesso negado' });
   }
   await prisma.enderecoUsuario.updateMany({

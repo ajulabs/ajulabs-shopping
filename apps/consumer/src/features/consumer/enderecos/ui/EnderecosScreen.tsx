@@ -15,14 +15,23 @@ import { EnderecoSalvo } from '@ajulabs/types';
 import { useTheme, useHardwareBack, useGoBack } from '../../../../shared/hooks';
 import { useEnderecoForm, EnderecoFormModal, iconeApelido } from '../../../../entities/endereco';
 import { useEnderecos } from '../model/useEnderecos';
+import { RemocaoSucessoOverlay } from './components/RemocaoSucessoOverlay';
 
 export function EnderecosScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isDark, bg, surf, border, borderL, text, textSec, backBtn, iconBg } = useTheme();
 
-  const { token, enderecos, loading, carregar, handleRemover, handleDefinirPadrao } =
-    useEnderecos();
+  const {
+    token,
+    enderecos,
+    loading,
+    carregar,
+    handleRemover,
+    handleDefinirPadrao,
+    sucessoRemocao,
+    fecharSucessoRemocao,
+  } = useEnderecos();
 
   const [showModal, setShowModal] = useState(false);
   const enderecoForm = useEnderecoForm(token, () => {
@@ -157,6 +166,12 @@ export function EnderecosScreen() {
       )}
 
       <EnderecoFormModal visible={showModal} controller={enderecoForm} onClose={fecharModal} />
+
+      <RemocaoSucessoOverlay
+        visible={sucessoRemocao !== null}
+        apelido={sucessoRemocao ?? ''}
+        onClose={fecharSucessoRemocao}
+      />
     </View>
   );
 }
