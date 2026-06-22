@@ -7,9 +7,9 @@ ALTER TYPE "CancelamentoPor" ADD VALUE IF NOT EXISTS 'entregador';
 CREATE TYPE "MotivoCancelamentoEntregador" AS ENUM ('area_risco', 'pneu_furou', 'acidente');
 
 CREATE TABLE "cancelamentos_entregador" (
-  "id"            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "pedido_id"     UUID NOT NULL REFERENCES "pedidos"("id") ON DELETE CASCADE,
-  "entregador_id" UUID NOT NULL REFERENCES "entregadores"("id") ON DELETE CASCADE,
+  "id"            TEXT PRIMARY KEY,
+  "pedido_id"     TEXT NOT NULL REFERENCES "pedidos"("id") ON DELETE CASCADE,
+  "entregador_id" TEXT NOT NULL REFERENCES "entregadores"("id") ON DELETE CASCADE,
   "motivo"        "MotivoCancelamentoEntregador" NOT NULL,
   "foto_url"      TEXT NOT NULL,
   "criado_em"     TIMESTAMP NOT NULL DEFAULT NOW()

@@ -39,6 +39,7 @@ export function useNovoProduto({
   const [analisarErro, setAnalisarErro] = useState<{
     titulo: string;
     descricao: string;
+    aviso?: string;
   } | null>(null);
 
   const stepIndex = stage === 'capture' ? 0 : stage === 'analyzing' ? 1 : 2;
@@ -71,6 +72,8 @@ export function useNovoProduto({
       } catch (e) {
         const status = (e as { status?: number } | null)?.status;
         const msg = e instanceof Error ? e.message : '';
+        const avisoMatch = msg.match(/Aviso:[^]*$|Sua conta foi bloqueada[^]*$/);
+        const aviso = avisoMatch ? avisoMatch[0].trim() : undefined;
         const isTipoArquivo =
           status === 400 && /formato.*imagem|imagem.*inv|jpe?g|png|gif|webp/i.test(msg);
         const isSemProduto = status === 400 && /produto vend|sem_produto|n[ãa]o mostra/i.test(msg);
@@ -94,12 +97,14 @@ export function useNovoProduto({
             titulo: 'Imagem bloqueada',
             descricao:
               'Esta foto não pode ser usada para cadastro de produto. Escolha outra imagem.',
+            aviso,
           });
         } else if (isSemProduto) {
           setAnalisarErro({
             titulo: 'Nenhum produto identificado',
             descricao:
               'A imagem não mostra um produto vendável. Envie uma foto clara do item que você quer cadastrar.',
+            aviso,
           });
         } else {
           setAnalisarErro({

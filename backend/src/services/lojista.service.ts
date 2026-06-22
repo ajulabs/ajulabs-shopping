@@ -425,10 +425,11 @@ Campos opcionais — inclua apenas se visível ou aplicável ao produto:
   };
 
   if (parsed.erro === 'sem_produto') {
-    await aplicarStrikeProduto(lojistaId, 'sem_produto');
+    const resultado = await aplicarStrikeProduto(lojistaId, 'sem_produto');
+    const aviso = mensagemAviso(resultado.strikes, resultado.bloqueado);
     throw Object.assign(
       new Error(
-        'A imagem não mostra um produto vendável. Envie uma foto clara do item que você quer cadastrar.',
+        `A imagem não mostra um produto vendável. Envie uma foto clara do item que você quer cadastrar.${aviso}`,
       ),
       { statusCode: 400 },
     );
@@ -456,7 +457,10 @@ export async function verificarBloqueioProdutos(lojistaId: string): Promise<void
   }
 }
 
-async function aplicarStrikeProduto(lojistaId: string, motivo: string): Promise<void> {
+async function aplicarStrikeProduto(
+  lojistaId: string,
+  motivo: string,
+): Promise<{ strikes: number; bloqueado: boolean }> {
   const atualizado = await prisma.lojista.update({
     where: { id: lojistaId },
     data: { produtoStrikesCount: { increment: 1 } },
@@ -476,7 +480,17 @@ async function aplicarStrikeProduto(lojistaId: string, motivo: string): Promise<
       { lojistaId, bloqueadoAte },
       '[produtos/moderação] lojista bloqueado de cadastrar produtos',
     );
+    return { strikes: PRODUTO_STRIKES_LIMITE, bloqueado: true };
   }
+  return { strikes: atualizado.produtoStrikesCount, bloqueado: false };
+}
+
+function mensagemAviso(strikes: number, bloqueado: boolean): string {
+  if (bloqueado) {
+    return ` Sua conta foi bloqueada de cadastrar produtos por ${PRODUTO_BLOQUEIO_HORAS}h.`;
+  }
+  const restantes = PRODUTO_STRIKES_LIMITE - strikes;
+  return ` Aviso: ${strikes}/${PRODUTO_STRIKES_LIMITE} tentativas inadequadas registradas. Faltam ${restantes} antes da conta ser bloqueada por ${PRODUTO_BLOQUEIO_HORAS}h.`;
 }
 
 async function moderarImagemBuffer(
@@ -504,11 +518,13 @@ async function moderarImagemBuffer(
   }
   if (!flagged) return;
   logger.warn({ categorias, lojistaId }, '[produtos/moderação] imagem rejeitada');
+  let aviso = '';
   if (lojistaId) {
-    await aplicarStrikeProduto(lojistaId, `moderacao: ${categorias.join(',')}`);
+    const resultado = await aplicarStrikeProduto(lojistaId, `moderacao: ${categorias.join(',')}`);
+    aviso = mensagemAviso(resultado.strikes, resultado.bloqueado);
   }
   throw Object.assign(
-    new Error('Esta imagem não pode ser usada para cadastro de produto. Envie outra foto.'),
+    new Error(`Esta imagem não pode ser usada para cadastro de produto. Envie outra foto.${aviso}`),
     { statusCode: 400 },
   );
 }
@@ -528,13 +544,15 @@ export async function criarProduto(
   variacoes: { nome: string; estoque: number; preco?: number }[] = [],
 ) {
   await verificarBloqueioProdutos(lojistaId);
-  let imagemUrl = '';
-  if (file) {
-    assertValidImage(file.buffer);
-    await moderarImagemBuffer(file.buffer, file.mimetype, lojistaId);
-    imagemUrl = await uploadImagemProduto(file.buffer, file.mimetype);
-    logger.debug({ imagemUrl }, '[produto] imagemUrl salva');
+  if (!file) {
+    throw Object.assign(new Error('A foto do produto é obrigatória para publicar.'), {
+      statusCode: 400,
+    });
   }
+  assertValidImage(file.buffer);
+  await moderarImagemBuffer(file.buffer, file.mimetype, lojistaId);
+  const imagemUrl = await uploadImagemProduto(file.buffer, file.mimetype);
+  logger.debug({ imagemUrl }, '[produto] imagemUrl salva');
 
   const produto = await prisma.produto.create({
     data: {

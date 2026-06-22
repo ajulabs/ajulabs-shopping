@@ -71,16 +71,27 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
 
       {stage === 'edit' && analisarErro && (
         <View style={styles.errorBanner}>
-          <View style={styles.errorBannerIcon}>
-            <Ionicons name="alert-circle" size={20} color="#9B1C1C" />
+          <View style={styles.errorBannerHeader}>
+            <Ionicons
+              name="alert-circle"
+              size={20}
+              color="#9B1C1C"
+              style={styles.errorBannerIcon}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.errorBannerTitle}>{analisarErro.titulo}</Text>
+              <Text style={styles.errorBannerDesc}>{analisarErro.descricao}</Text>
+            </View>
+            <TouchableOpacity onPress={limparAnalisarErro} hitSlop={8} activeOpacity={0.7}>
+              <Ionicons name="close" size={18} color="#9B1C1C" />
+            </TouchableOpacity>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.errorBannerTitle}>{analisarErro.titulo}</Text>
-            <Text style={styles.errorBannerDesc}>{analisarErro.descricao}</Text>
-          </View>
-          <TouchableOpacity onPress={limparAnalisarErro} hitSlop={8} activeOpacity={0.7}>
-            <Ionicons name="close" size={18} color="#9B1C1C" />
-          </TouchableOpacity>
+          {analisarErro.aviso && (
+            <View style={styles.errorBannerStrike}>
+              <Ionicons name="warning" size={14} color="#B45309" />
+              <Text style={styles.errorBannerStrikeTxt}>{analisarErro.aviso}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -155,9 +166,6 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 12, color: '#6B7390', marginTop: 1 },
   stepperWrapper: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
   errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
     backgroundColor: '#FEF2F2',
     borderColor: '#FCA5A5',
     borderWidth: 1,
@@ -165,10 +173,29 @@ const styles = StyleSheet.create({
     padding: 12,
     marginHorizontal: 16,
     marginTop: 12,
+    gap: 10,
   },
+  errorBannerHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   errorBannerIcon: { marginTop: 1 },
   errorBannerTitle: { fontSize: 13.5, fontWeight: '700', color: '#9B1C1C' },
   errorBannerDesc: { fontSize: 12.5, color: '#7F1D1D', marginTop: 2, lineHeight: 17 },
+  errorBannerStrike: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+  },
+  errorBannerStrikeTxt: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400E',
+    fontWeight: '600',
+    lineHeight: 16,
+  },
   successOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
