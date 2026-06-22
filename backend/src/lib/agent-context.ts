@@ -20,14 +20,20 @@ export const AGENT_SPEC_CONTEXT = `
 - GET /v1/pedidos [usuario] — —
 - GET /v1/pedidos/:id [usuario] — —
 - POST /v1/pedidos/:id/rastrear [usuario] — —
+- POST /v1/pedidos/:id/cancelar [usuario] — motivo?
 
 ### produtos
 - POST /v1/produtos [lojista] — lojaId(uuid), nome(min 2 caracteres), descricao, preco(positivo (> 0)), estoque(int), imagemUrl(URL válida), categoria, tags?, destaque?
 - GET /v1/produtos/:id [público] — —
 - PUT /v1/produtos/:id [lojista] — nome?, descricao?, preco?, estoque?, disponivel?, destaque?, categoria?, tags?
+- GET /v1/produtos/:id/aviso-estoque [usuario] — —
+- POST /v1/produtos/:id/aviso-estoque [usuario] — —
+- DELETE /v1/produtos/:id/aviso-estoque [usuario] — —
 
 ### lojista
 - PUT /v1/lojista/produtos/:id [lojista] — nome?, descricao?, preco?, estoque?, categoria?, disponivel?, imagensExistentes?, variacoes?
+- POST /v1/lojista/produtos [lojista] — lojaId(uuid), nome(min 2 caracteres), descricao, preco(positivo (> 0)), estoque(int), categoria, tags?, variacoes?
+- POST /v1/lojista/produtos/analisar [lojista] — —
 - PATCH /v1/lojista/pedidos/:id/status [lojista] — —
 - GET /v1/lojista/lojas/:id/dashboard [lojista] — —
 

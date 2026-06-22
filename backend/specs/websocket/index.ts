@@ -8,6 +8,9 @@ export { ticketNovoWsSpec } from './ticket_novo.spec';
 export { corridaOfertaWsSpec } from './corrida_oferta.spec';
 export { chatMensagemNovaWsSpec } from './chat_mensagem_nova.spec';
 export { produtoVariacoesWsSpec } from './produto_variacoes.spec';
+export { estoqueAtualizadoWsSpec } from './estoque_atualizado.spec';
+export { estoqueAlertaWsSpec } from './estoque_alerta.spec';
+export { vitrineAtualizadaWsSpec } from './vitrine_atualizada.spec';
 
 // Client → Server
 export { localizacaoUpdateWsSpec } from './localizacao_update.spec';
@@ -24,6 +27,9 @@ import { ticketNovoWsSpec } from './ticket_novo.spec';
 import { corridaOfertaWsSpec } from './corrida_oferta.spec';
 import { chatMensagemNovaWsSpec } from './chat_mensagem_nova.spec';
 import { produtoVariacoesWsSpec } from './produto_variacoes.spec';
+import { estoqueAtualizadoWsSpec } from './estoque_atualizado.spec';
+import { estoqueAlertaWsSpec } from './estoque_alerta.spec';
+import { vitrineAtualizadaWsSpec } from './vitrine_atualizada.spec';
 import { localizacaoUpdateWsSpec } from './localizacao_update.spec';
 import { entregadorJoinWsSpec, usuarioJoinWsSpec, lojistaJoinWsSpec } from './join_rooms.spec';
 
@@ -38,6 +44,9 @@ export const WEBSOCKET_SPECS = {
     corridaOfertaWsSpec,
     chatMensagemNovaWsSpec,
     produtoVariacoesWsSpec,
+    estoqueAtualizadoWsSpec,
+    estoqueAlertaWsSpec,
+    vitrineAtualizadaWsSpec,
   ],
   clientToServer: [
     localizacaoUpdateWsSpec,

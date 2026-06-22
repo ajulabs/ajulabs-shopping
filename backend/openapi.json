@@ -670,6 +670,75 @@
         }
       }
     },
+    "/v1/pedidos/{id}/cancelar": {
+      "post": {
+        "operationId": "POST_pedidos_id_cancelar",
+        "summary": "Cancela um pedido do próprio consumidor",
+        "description": "Cancela um pedido do próprio consumidor. Só é permitido enquanto o pedido aguarda confirmação da loja (status \"aguardando\"). O cancelamento é condicional (TOCTOU-safe): se a loja aceitar o pedido entre a leitura e a escrita, o cancelamento é rejeitado com 409 e o estoque não é restaurado indevidamente.",
+        "tags": [
+          "pedidos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "STATUS_NAO_CANCELAVEL: Cancelamento não permitido. Só é possível cancelar enquanto o pedido aguarda confirmação da loja."
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "ACESSO_NEGADO: Pedido não existe ou não pertence ao usuário"
+          },
+          "409": {
+            "description": "JA_ACEITO: O pedido já foi aceito pela loja e não pode mais ser cancelado."
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao cancelar pedido"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "description": "motivo opcional do cancelamento"
+                  }
+                }
+              },
+              "example": {
+                "id": "ped_abc123",
+                "motivo": "Pedi sem querer"
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/produtos": {
       "post": {
         "operationId": "POST_produtos",
@@ -995,6 +1064,259 @@
                 "variacoes": "[{\"nome\":\"P\",\"estoque\":5},{\"nome\":\"M\",\"estoque\":5},{\"nome\":\"G\",\"estoque\":5},{\"nome\":\"GG\",\"estoque\":3}]"
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/lojista/produtos": {
+      "post": {
+        "operationId": "POST_lojista_produtos",
+        "summary": "Cria um produto com imagem obrigatória (multipart/form-data)",
+        "description": "Cria um produto com imagem obrigatória (multipart/form-data). A imagem passa por moderação automática: imagens reprovadas (conteúdo impróprio ou que não mostram um produto vendável) são rejeitadas e geram um strike no lojista. Ao atingir 3 strikes, o lojista fica bloqueado de cadastrar produtos por 24h. Fecha o bypass de cadastro sem imagem: a foto é obrigatória para publicar.",
+        "tags": [
+          "lojista"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "IMAGEM_REPROVADA: Esta imagem não pode ser usada para cadastro de produto. Envie outra foto. (acompanha aviso de strikes 1/3, 2/3...)"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "403": {
+            "description": "ACESSO_NEGADO: Loja não pertence ao lojista autenticado"
+          },
+          "422": {
+            "description": "Campos obrigatórios ausentes (spec-validator)"
+          },
+          "423": {
+            "description": "LOJISTA_BLOQUEADO: Cadastro de produtos temporariamente bloqueado por uploads inadequados. Tente novamente em ~N min."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "lojaId",
+                  "nome",
+                  "descricao",
+                  "preco",
+                  "estoque",
+                  "categoria"
+                ],
+                "properties": {
+                  "lojaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "uuid, loja pertence ao lojista"
+                  },
+                  "nome": {
+                    "type": "string",
+                    "description": "min 2 caracteres"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "preco": {
+                    "type": "number",
+                    "description": "positivo (> 0), enviado como string no form"
+                  },
+                  "estoque": {
+                    "type": "number",
+                    "description": "int, nonnegative (>= 0), enviado como string no form"
+                  },
+                  "categoria": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {},
+                    "description": "string[], JSON serializado no form, default []"
+                  },
+                  "variacoes": {
+                    "type": "array",
+                    "items": {},
+                    "description": "{ nome, estoque }[], JSON serializado no form"
+                  }
+                }
+              },
+              "example": {
+                "lojaId": "loja_xyz789",
+                "nome": "Tênis Running",
+                "descricao": "Tênis leve para corrida",
+                "preco": 149.9,
+                "estoque": 10,
+                "categoria": "Esporte - Academia / Fitness",
+                "imagem": "<arquivo binário>"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lojista/produtos/analisar": {
+      "post": {
+        "operationId": "POST_lojista_produtos_analisar",
+        "summary": "Pré-análise da imagem antes do cadastro (multipart/form-data)",
+        "description": "Pré-análise da imagem antes do cadastro (multipart/form-data). Verifica bloqueio do lojista, valida o formato e modera a imagem; em seguida usa visão (GPT-4o) para extrair uma sugestão de cadastro (nome, categoria, descrição, preço, estoque, tags e atributos). Se a imagem não mostrar um produto vendável, rejeita e aplica strike — é o passo que \"avisa antes de bloquear\".",
+        "tags": [
+          "lojista"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "400": {
+            "description": "SEM_PRODUTO: A imagem não mostra um produto vendável. (acompanha aviso de strikes)"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "423": {
+            "description": "LOJISTA_BLOQUEADO: Cadastro de produtos temporariamente bloqueado por uploads inadequados. Tente novamente em ~N min."
+          }
+        }
+      }
+    },
+    "/v1/produtos/{id}/aviso-estoque": {
+      "get": {
+        "operationId": "GET_produtos_id_aviso_estoque",
+        "summary": "Indica se o consumidor autenticado está inscrito para ser avisado quando o produto voltar ao estoque (restock alert)",
+        "description": "Indica se o consumidor autenticado está inscrito para ser avisado quando o produto voltar ao estoque (restock alert).",
+        "tags": [
+          "produtos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao consultar aviso de estoque"
+          }
+        }
+      },
+      "post": {
+        "operationId": "POST_produtos_id_aviso_estoque",
+        "summary": "Inscreve o consumidor autenticado para receber um push quando o produto voltar ao estoque",
+        "description": "Inscreve o consumidor autenticado para receber um push quando o produto voltar ao estoque. Idempotente: inscrever de novo não cria duplicata (upsert).",
+        "tags": [
+          "produtos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "404": {
+            "description": "PRODUTO_NAO_ENCONTRADO: Produto não encontrado"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao inscrever no aviso de estoque"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "DELETE_produtos_id_aviso_estoque",
+        "summary": "Cancela a inscrição do consumidor autenticado no aviso de reposição do produto",
+        "description": "Cancela a inscrição do consumidor autenticado no aviso de reposição do produto. Idempotente: cancelar sem inscrição existente não gera erro.",
+        "tags": [
+          "produtos"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "SERVER_ERROR: Erro ao cancelar aviso de estoque"
           }
         }
       }
@@ -1437,8 +1759,8 @@
     "/v1/avaliacoes": {
       "post": {
         "operationId": "POST_avaliacoes",
-        "summary": "Consumidor avalia a loja após pedido entregue",
-        "description": "Consumidor avalia a loja após pedido entregue. Atualiza a média de avaliação da loja atomicamente.",
+        "summary": "Avaliação unificada do pedido: consumidor avalia loja, entregador e os produtos numa única chamada após a entrega",
+        "description": "Avaliação unificada do pedido: consumidor avalia loja, entregador e os produtos numa única chamada após a entrega. Atualiza as médias de loja, entregador e produtos atomicamente em uma transação e marca o pedido como avaliado.",
         "tags": [
           "avaliacoes"
         ],
@@ -1456,7 +1778,7 @@
             "description": "Criado com sucesso"
           },
           "400": {
-            "description": "INVALID_NOTA: Nota deve ser inteira entre 1 e 5"
+            "description": "PRODUTO_FORA_DO_PEDIDO: Produto não pertence a este pedido"
           },
           "401": {
             "description": "Token ausente ou inválido"
@@ -1465,7 +1787,7 @@
             "description": "FORBIDDEN: Acesso negado: pedido pertence a outro usuário"
           },
           "404": {
-            "description": "NOT_FOUND_LOJA: Loja não encontrada"
+            "description": "NOT_FOUND_ENTREGADOR: Entregador não encontrado"
           },
           "409": {
             "description": "ALREADY_RATED: Este pedido já foi avaliado"
@@ -1485,7 +1807,9 @@
                 "type": "object",
                 "required": [
                   "pedidoId",
-                  "nota"
+                  "notaLoja",
+                  "notaEntregador",
+                  "avaliacoesProdutos"
                 ],
                 "properties": {
                   "pedidoId": {
@@ -1493,20 +1817,58 @@
                     "format": "uuid",
                     "description": "uuid, pedido entregue e não avaliado"
                   },
-                  "nota": {
+                  "notaLoja": {
                     "type": "number",
                     "description": "int, min 1, max 5"
                   },
-                  "comentario": {
+                  "comentarioLoja": {
                     "type": "string",
                     "description": "max 500 caracteres"
+                  },
+                  "tagsLoja": {
+                    "type": "array",
+                    "items": {},
+                    "description": "máx 10, ids do catálogo TAGS_AVALIACAO_LOJA"
+                  },
+                  "notaEntregador": {
+                    "type": "number",
+                    "description": "int, min 1, max 5"
+                  },
+                  "comentarioEntregador": {
+                    "type": "string",
+                    "description": "max 500 caracteres"
+                  },
+                  "tagsEntregador": {
+                    "type": "array",
+                    "items": {},
+                    "description": "máx 10, ids do catálogo TAGS_AVALIACAO_ENTREGADOR"
+                  },
+                  "avaliacoesProdutos": {
+                    "type": "array",
+                    "items": {},
+                    "description": "min 1 item, cada item: { produtoId: uuid, nota: int 1-5, comentario?: string }"
                   }
                 }
               },
               "example": {
                 "pedidoId": "ped_abc123",
-                "nota": 5,
-                "comentario": "Entrega super rápida e produto excelente!"
+                "notaLoja": 5,
+                "comentarioLoja": "Tudo certo, produto excelente!",
+                "tagsLoja": [
+                  "embalagem_caprichada"
+                ],
+                "notaEntregador": 5,
+                "comentarioEntregador": "Entrega super rápida",
+                "tagsEntregador": [
+                  "simpatico"
+                ],
+                "avaliacoesProdutos": [
+                  {
+                    "produtoId": "prod_tenis",
+                    "nota": 4,
+                    "comentario": "Bom custo-benefício"
+                  }
+                ]
               }
             }
           }
@@ -1688,6 +2050,64 @@
                 "lng": -37.049
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/chat/historico": {
+      "get": {
+        "operationId": "GET_chat_historico",
+        "summary": "Retorna as últimas 50 mensagens da conversa mais recente do usuário com a Aju",
+        "description": "Retorna as últimas 50 mensagens da conversa mais recente do usuário com a Aju. Usado para reidratar o chat quando o histórico local não está disponível (troca de aparelho, acesso pela web, dados do app limpos).",
+        "tags": [
+          "chat"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "DB_ERROR: Erro ao carregar histórico"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "DELETE_chat_historico",
+        "summary": "Apaga todas as conversas do usuário com a Aju (mensagens e estado em cascata)",
+        "description": "Apaga todas as conversas do usuário com a Aju (mensagens e estado em cascata). Chamado quando o usuário toca no botão de lixeira no chat. Garante que o histórico não reaparece ao recarregar a página ou trocar de aparelho.",
+        "tags": [
+          "chat"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado com sucesso"
+          },
+          "401": {
+            "description": "Token ausente ou inválido"
+          },
+          "500": {
+            "description": "DB_ERROR: Erro ao limpar histórico"
           }
         }
       }
