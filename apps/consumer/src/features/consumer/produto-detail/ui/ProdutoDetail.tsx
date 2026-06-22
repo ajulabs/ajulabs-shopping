@@ -59,7 +59,12 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
     mediaAvaliacoes,
     avsVisiveis,
     estoqueDisponivel,
+    semEstoqueTotal,
+    semEstoqueSelecao,
     podeContinuar,
+    avisoEstoqueAtivo,
+    salvandoAviso,
+    toggleAvisoEstoque,
   } = useProduto(produtoId, quantidadeInicial);
 
   if (loading) {
@@ -153,7 +158,13 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
               <Text style={[styles.badgeTxt, { color: colors.n600 }]}>Indisponível</Text>
             </View>
           )}
-          {!hasVariacoes &&
+          {semEstoqueTotal && (
+            <View style={[styles.badge, { backgroundColor: 'rgba(163,45,45,0.15)' }]}>
+              <Text style={[styles.badgeTxt, { color: '#A32D2D' }]}>Esgotado</Text>
+            </View>
+          )}
+          {!semEstoqueTotal &&
+            !hasVariacoes &&
             produto.estoque != null &&
             produto.estoque <= 5 &&
             produto.estoque > 0 && (
@@ -189,6 +200,50 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
           </View>
 
           <Text style={[styles.desc, { color: textSec as string }]}>{produto.descricao}</Text>
+
+          {semEstoqueTotal && (
+            <View style={styles.semEstoqueBanner}>
+              <View style={styles.semEstoqueRow}>
+                <Ionicons name="alert-circle" size={18} color="#A32D2D" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.semEstoqueTitulo}>Produto esgotado</Text>
+                  <Text style={styles.semEstoqueTxt}>
+                    Este produto está sem estoque no momento. Acompanhe a vitrine — você será
+                    avisado quando voltar.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.avisarBtn, avisoEstoqueAtivo && styles.avisarBtnAtivo]}
+                onPress={toggleAvisoEstoque}
+                disabled={salvandoAviso}
+                activeOpacity={0.85}
+              >
+                {salvandoAviso ? (
+                  <ActivityIndicator size="small" color={colors.n0} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={avisoEstoqueAtivo ? 'checkmark-circle' : 'notifications-outline'}
+                      size={16}
+                      color={colors.n0}
+                    />
+                    <Text style={styles.avisarBtnTxt}>
+                      {avisoEstoqueAtivo ? 'Você será avisado' : 'Avise-me quando voltar'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+          {!semEstoqueTotal && semEstoqueSelecao && (
+            <View style={styles.semEstoqueBanner}>
+              <Ionicons name="alert-circle" size={18} color="#A32D2D" />
+              <Text style={[styles.semEstoqueTxt, { flex: 1 }]}>
+                Esta opção está esgotada. Escolha outra acima.
+              </Text>
+            </View>
+          )}
 
           {/* Seletor de variações reais */}
           {hasVariacoes && (
@@ -318,12 +373,18 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
 
       {/* Footer fixo */}
       <View style={[styles.footer, { backgroundColor: surf, borderTopColor: borderL as string }]}>
-        {hasVariacoes && !variacaoSelecionada && (
+        {semEstoqueTotal && (
+          <Text style={styles.semEstoqueHint}>Produto sem estoque no momento</Text>
+        )}
+        {!semEstoqueTotal && semEstoqueSelecao && (
+          <Text style={styles.semEstoqueHint}>Esta opção está esgotada</Text>
+        )}
+        {!semEstoqueTotal && !semEstoqueSelecao && hasVariacoes && !variacaoSelecionada && (
           <Text style={styles.variacaoHint}>Selecione o tamanho para adicionar ao carrinho</Text>
         )}
 
         {/* Seletor de quantidade */}
-        {!added && (
+        {!added && !semEstoqueTotal && !semEstoqueSelecao && (
           <View
             style={{
               flexDirection: 'row',
@@ -367,12 +428,18 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
             style={[styles.btnAdd, added && styles.btnAdded, !podeContinuar && { opacity: 0.55 }]}
             onPress={() => (added ? router.push('/(consumer)/carrinho') : handleAdd())}
             activeOpacity={0.85}
+            disabled={semEstoqueTotal || semEstoqueSelecao}
           >
             {added ? (
               <>
                 <Ionicons name="cart" size={18} color={colors.n0} />
                 <Text style={styles.btnAddTxt}>Ver carrinho</Text>
                 <Ionicons name="chevron-forward" size={15} color={colors.n0} />
+              </>
+            ) : semEstoqueTotal || semEstoqueSelecao ? (
+              <>
+                <Ionicons name="close-circle-outline" size={18} color={colors.n0} />
+                <Text style={styles.btnAddTxt}>Esgotado</Text>
               </>
             ) : (
               <>
@@ -461,6 +528,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   variacaoHint: { fontSize: 12, color: colors.n500, textAlign: 'center' },
+  semEstoqueBanner: {
+    backgroundColor: '#FCEBEB',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    gap: 12,
+  },
+  semEstoqueRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  avisarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#A32D2D',
+    borderRadius: 10,
+    paddingVertical: 11,
+  },
+  avisarBtnAtivo: { backgroundColor: colors.navy },
+  avisarBtnTxt: { fontSize: 13, fontWeight: '700', color: colors.n0 },
+  semEstoqueTitulo: { fontSize: 13.5, fontWeight: '700', color: '#A32D2D' },
+  semEstoqueTxt: { fontSize: 12.5, color: '#7F1D1D', marginTop: 2, lineHeight: 17 },
+  semEstoqueHint: {
+    fontSize: 12,
+    color: '#A32D2D',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   btnAdd: {
     height: 52,
     borderRadius: 14,

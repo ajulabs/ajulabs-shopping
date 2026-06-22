@@ -23,6 +23,8 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
   const [mostrarTodasAv, setMostrarTodasAv] = useState(false);
   const [variacaoSelecionada, setVariacaoSelecionada] = useState<VariacaoProduto | null>(null);
   const [quantidade, setQuantidade] = useState(quantidadeInicial ?? 1);
+  const [avisoEstoqueAtivo, setAvisoEstoqueAtivo] = useState(false);
+  const [salvandoAviso, setSalvandoAviso] = useState(false);
 
   const heartScale = useRef(new Animated.Value(1)).current;
   const addScale = useRef(new Animated.Value(1)).current;
@@ -54,14 +56,18 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
       }
       setProduto(p);
 
-      const [avs, sim, fav] = await Promise.all([
+      const [avs, sim, fav, aviso] = await Promise.all([
         AvaliacaoService.listarPorLoja(p.lojaId),
         ProdutoService.listarPorLoja(p.lojaId).catch(() => [] as Produto[]),
         token ? FavoritoService.checar(produtoId, token) : Promise.resolve(false),
+        token
+          ? ProdutoService.checarAvisoEstoque(produtoId, token).catch(() => false)
+          : Promise.resolve(false),
       ]);
       setAvaliacoes(avs);
       setSimilares(sim.filter((s) => s.id !== p.id).slice(0, 10));
       setFavoritado(fav);
+      setAvisoEstoqueAtivo(aviso);
       setLoading(false);
     });
   }, [produtoId]);
@@ -80,6 +86,25 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
       setProduto((prev) => (prev ? { ...prev, estoque } : prev));
     },
   });
+
+  const toggleAvisoEstoque = useCallback(async () => {
+    if (!token) {
+      router.push('/(auth)/login');
+      return;
+    }
+    if (salvandoAviso) return;
+    const proximo = !avisoEstoqueAtivo;
+    setSalvandoAviso(true);
+    setAvisoEstoqueAtivo(proximo);
+    try {
+      if (proximo) await ProdutoService.inscreverAvisoEstoque(produtoId, token);
+      else await ProdutoService.cancelarAvisoEstoque(produtoId, token);
+    } catch {
+      setAvisoEstoqueAtivo(!proximo);
+    } finally {
+      setSalvandoAviso(false);
+    }
+  }, [token, produtoId, avisoEstoqueAtivo, salvandoAviso, router]);
 
   const handleFavorito = useCallback(async () => {
     if (!token) {
@@ -181,7 +206,19 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
     ? (variacaoSelecionada?.estoque ?? Infinity)
     : (produto?.estoque ?? Infinity);
 
-  const podeContinuar = !!produto?.disponivel && (!hasVariacoes || variacaoSelecionada !== null);
+  const semEstoqueTotal = hasVariacoes
+    ? variacoes.length > 0 && variacoes.every((v) => v.estoque <= 0)
+    : produto?.estoque === 0;
+
+  const semEstoqueSelecao = hasVariacoes
+    ? variacaoSelecionada?.estoque === 0
+    : produto?.estoque === 0;
+
+  const podeContinuar =
+    !!produto?.disponivel &&
+    !semEstoqueTotal &&
+    !semEstoqueSelecao &&
+    (!hasVariacoes || variacaoSelecionada !== null);
 
   return {
     produto,
@@ -208,6 +245,11 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
     mediaAvaliacoes,
     avsVisiveis,
     estoqueDisponivel,
+    semEstoqueTotal,
+    semEstoqueSelecao,
     podeContinuar,
+    avisoEstoqueAtivo,
+    salvandoAviso,
+    toggleAvisoEstoque,
   };
 }

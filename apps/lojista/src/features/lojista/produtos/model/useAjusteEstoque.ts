@@ -5,6 +5,37 @@ import { Produto } from '@ajulabs/types';
 
 export type TipoAjuste = 'entrada_manual' | 'saida_manual' | 'ajuste_inventario' | 'devolucao';
 
+const TAMANHOS_ROUPA = new Set(['PP', 'P', 'M', 'G', 'GG', 'GGG', 'XS', 'S', 'L', 'XL', 'XXL']);
+const CORES = new Set([
+  'Preto',
+  'Branco',
+  'Azul',
+  'Vermelho',
+  'Verde',
+  'Amarelo',
+  'Cinza',
+  'Rosa',
+  'Marrom',
+  'Bege',
+  'Nude',
+  'Prata',
+  'Dourado',
+  'Marinho',
+  'Coral',
+  'Roxo',
+  'Laranja',
+]);
+
+function inferirEixoVariacao(nomes: string[]): { label: string; abrev: string } {
+  if (nomes.length === 0) return { label: 'Variação', abrev: '' };
+  const tokens = nomes.flatMap((n) => n.split(/\s*[·\-/]\s*/));
+  const numericoSapato = tokens.some((t) => /^\d{2}$/.test(t));
+  const tamanhoRoupa = tokens.some((t) => TAMANHOS_ROUPA.has(t.toUpperCase()));
+  if (numericoSapato || tamanhoRoupa) return { label: 'Tamanho', abrev: 'Tam.' };
+  if (tokens.some((t) => CORES.has(t))) return { label: 'Cor', abrev: '' };
+  return { label: 'Variação', abrev: '' };
+}
+
 export function useAjusteEstoque({
   produto,
   lojaId,
@@ -51,6 +82,8 @@ export function useAjusteEstoque({
   const variacaoSel = temVariacoes
     ? (variacoes.find((v) => v.id === variacaoId) ?? variacoes[0])
     : null;
+
+  const eixoVariacao = inferirEixoVariacao(variacoes.map((v) => v.nome));
 
   const isInvent = tipo === 'ajuste_inventario';
   const qtyNum = parseInt(qty, 10);
@@ -108,6 +141,7 @@ export function useAjusteEstoque({
     variacoes,
     temVariacoes,
     variacaoSel,
+    eixoVariacao,
     tipo,
     setTipo,
     qty,

@@ -32,6 +32,7 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
     variacoes,
     temVariacoes,
     variacaoSel,
+    eixoVariacao,
     tipo,
     setTipo,
     qty,
@@ -79,7 +80,7 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
             {/* Variação (apenas se o produto tiver variações) */}
             {temVariacoes && (
               <View style={s.varWrap}>
-                <Text style={s.fieldLabel}>Variação a ajustar</Text>
+                <Text style={s.fieldLabel}>{eixoVariacao.label} a ajustar</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -88,6 +89,9 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
                 >
                   {variacoes.map((v) => {
                     const active = variacaoSel?.id === v.id;
+                    const nomeExibido = eixoVariacao.abrev
+                      ? `${eixoVariacao.abrev} ${v.nome}`
+                      : v.nome;
                     return (
                       <TouchableOpacity
                         key={v.id}
@@ -102,7 +106,7 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
                           style={[s.varChipNome, active && { color: cfg.color }]}
                           numberOfLines={1}
                         >
-                          {v.nome}
+                          {nomeExibido}
                         </Text>
                         <View style={[s.varChipBadge, active && { backgroundColor: cfg.color }]}>
                           <Text style={[s.varChipQty, active && { color: '#fff' }]}>
