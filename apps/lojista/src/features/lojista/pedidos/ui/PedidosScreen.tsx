@@ -17,7 +17,13 @@ import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
 import { TicketsScreen } from '../../tickets/ui/TicketsScreen';
 import { ChatPedidoScreen } from './ChatPedidoScreen';
-import { OrderCard, OrderFilterBar, SoundModal, CancelModal } from './components';
+import {
+  OrderCard,
+  OrderFilterBar,
+  SoundModal,
+  CancelModal,
+  CancelamentoSucessoOverlay,
+} from './components';
 
 export function PedidosScreen() {
   const {
@@ -39,6 +45,9 @@ export function PedidosScreen() {
     setShowSomModal,
     cancelModal,
     setCancelModal,
+    cancelando,
+    sucessoCancel,
+    fecharSucessoCancel,
     recarregando,
     spinAnim,
     borderColor,
@@ -262,8 +271,17 @@ export function PedidosScreen() {
 
       <CancelModal
         data={cancelModal}
-        onClose={() => setCancelModal(null)}
+        loading={cancelando}
+        onClose={() => {
+          if (!cancelando) setCancelModal(null);
+        }}
         onConfirm={handleCancelar}
+      />
+
+      <CancelamentoSucessoOverlay
+        visible={sucessoCancel !== null}
+        orderId={sucessoCancel}
+        onClose={fecharSucessoCancel}
       />
 
       <SoundModal

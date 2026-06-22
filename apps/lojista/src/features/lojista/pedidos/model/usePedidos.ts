@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Animated, Platform, ToastAndroid } from 'react-native';
+import { Alert, Animated, Platform, ToastAndroid } from 'react-native';
 import { LojistaService, ApiUnauthorizedError } from '@ajulabs/api-client';
 import { usePedidosRealtime, usePedidoLojistaRealtime } from '@ajulabs/realtime';
 import { useAuthLojistaStore } from '../../../../store';
@@ -61,6 +61,8 @@ export function usePedidos() {
     dbId: string;
     status: OrderStatus;
   } | null>(null);
+  const [cancelando, setCancelando] = useState(false);
+  const [sucessoCancel, setSucessoCancel] = useState<string | null>(null);
   const [recarregando, setRecarregando] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
   const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -190,16 +192,27 @@ export function usePedidos() {
   const handleCancelar = useCallback(
     async (dbId: string, motivo: string) => {
       if (!token) return;
-      setCancelModal(null);
-      setOrders((os) => os.filter((o) => o._id !== dbId));
+      const current = cancelModal;
+      setCancelando(true);
       try {
         await LojistaService.cancelarPedido(dbId, token, motivo);
-      } catch {
+        setOrders((os) => os.map((o) => (o._id === dbId ? { ...o, status: 'cancelado' } : o)));
+        setCancelModal(null);
+        setSucessoCancel(current?.orderId ?? null);
+      } catch (e) {
+        Alert.alert(
+          'Não foi possível cancelar',
+          e instanceof Error ? e.message : 'Tente novamente em instantes.',
+        );
         fetchPedidos();
+      } finally {
+        setCancelando(false);
       }
     },
-    [token, fetchPedidos],
+    [token, cancelModal, fetchPedidos],
   );
+
+  const fecharSucessoCancel = useCallback(() => setSucessoCancel(null), []);
 
   // Ordem de prioridade: novos primeiro (precisam de ação imediata), depois o fluxo.
   const PRIORIDADE: Record<OrderStatus, number> = {
@@ -208,6 +221,7 @@ export function usePedidos() {
     pronto: 2,
     despachado: 3,
     entregue: 4,
+    cancelado: 5,
   };
   const ordenarPorPrioridade = (lista: Order[]) =>
     [...lista].sort((a, b) => (PRIORIDADE[a.status] ?? 9) - (PRIORIDADE[b.status] ?? 9));
@@ -223,6 +237,7 @@ export function usePedidos() {
     { id: 'pronto', label: 'Prontos' },
     { id: 'despachado', label: 'Despachados' },
     { id: 'entregue', label: 'Concluídos' },
+    { id: 'cancelado', label: 'Cancelados' },
   ];
 
   // Borda laranja fixa para destacar itens novos. (Antes era um pulse animado via
@@ -253,6 +268,9 @@ export function usePedidos() {
     setShowSomModal,
     cancelModal,
     setCancelModal,
+    cancelando,
+    sucessoCancel,
+    fecharSucessoCancel,
     // refresh anim
     recarregando,
     spinAnim,

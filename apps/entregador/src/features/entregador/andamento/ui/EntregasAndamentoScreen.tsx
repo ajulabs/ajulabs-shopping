@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Stage } from '../../corrida-ativa/model/types';
 import { EntregadorService } from '../../../../lib/authServices';
 import { useAuthEntregadorStore } from '../../auth/model/store';
+import { EntregasFilterBar, type EntregaFilter } from './components/EntregasFilterBar';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -82,6 +83,27 @@ interface EntregaHistorico {
   } | null;
 }
 
+interface CancelamentoHistorico {
+  id: string;
+  motivo: 'area_risco' | 'pneu_furou' | 'acidente';
+  criadoEm: string;
+  pedido: {
+    id: string;
+    loja: { nome: string } | null;
+    enderecoEntrega: { bairro: string; cidade: string } | null;
+  } | null;
+}
+
+const MOTIVO_LABELS: Record<CancelamentoHistorico['motivo'], string> = {
+  area_risco: 'Área de risco',
+  pneu_furou: 'Pneu furou',
+  acidente: 'Acidente',
+};
+
+type HistoricoItem =
+  | { kind: 'entrega'; data: EntregaHistorico }
+  | { kind: 'cancelamento'; data: CancelamentoHistorico };
+
 interface Props {
   rides: ActiveRideWithStage[];
   onSelectRide: (ride: ActiveRideWithStage) => void;
@@ -91,28 +113,64 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
   const token = useAuthEntregadorStore((s) => s.token);
   const slots = 2 - rides.length;
 
-  const [historico, setHistorico] = useState<EntregaHistorico[]>([]);
+  const [entregas, setEntregas] = useState<EntregaHistorico[]>([]);
+  const [cancelamentos, setCancelamentos] = useState<CancelamentoHistorico[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(true);
+  const [filter, setFilter] = useState<EntregaFilter>('todos');
 
   useEffect(() => {
     if (!token) return;
     setLoadingHistorico(true);
-    EntregadorService.listarEntregas(token)
-      .then(setHistorico)
-      .catch(() => {})
+    Promise.all([
+      EntregadorService.listarEntregas(token).catch(() => [] as EntregaHistorico[]),
+      EntregadorService.listarCancelamentos(token).catch(() => [] as CancelamentoHistorico[]),
+    ])
+      .then(([es, cs]) => {
+        setEntregas(es);
+        setCancelamentos(cs);
+      })
       .finally(() => setLoadingHistorico(false));
   }, [token]);
+
+  const historicoAll: HistoricoItem[] = [
+    ...entregas.map((e) => ({ kind: 'entrega' as const, data: e })),
+    ...cancelamentos.map((c) => ({ kind: 'cancelamento' as const, data: c })),
+  ].sort((a, b) => new Date(b.data.criadoEm).getTime() - new Date(a.data.criadoEm).getTime());
+
+  const counts: Record<EntregaFilter, number> = {
+    todos: rides.length + historicoAll.length,
+    em_andamento: rides.length,
+    entregue: entregas.length,
+    cancelado: cancelamentos.length,
+  };
+
+  const filters: { id: EntregaFilter; label: string }[] = [
+    { id: 'todos', label: 'Todos' },
+    { id: 'em_andamento', label: 'Andamento' },
+    { id: 'entregue', label: 'Entregues' },
+    { id: 'cancelado', label: 'Cancelados' },
+  ];
+
+  const mostrarRides = filter === 'todos' || filter === 'em_andamento';
+  const historicoFiltrado =
+    filter === 'todos'
+      ? historicoAll
+      : filter === 'entregue'
+        ? historicoAll.filter((i) => i.kind === 'entrega')
+        : filter === 'cancelado'
+          ? historicoAll.filter((i) => i.kind === 'cancelamento')
+          : [];
 
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <Text style={s.headerSub}>Suas entregas</Text>
         <Text style={s.headerTitle}>Em andamento</Text>
+        <EntregasFilterBar filters={filters} filter={filter} counts={counts} onSelect={setFilter} />
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Seção: corridas ativas ── */}
-        {rides.length === 0 ? (
+        {mostrarRides && rides.length === 0 && filter === 'em_andamento' ? (
           <View style={s.emptyState}>
             <View style={s.emptyIcon}>
               <Ionicons name="bicycle-outline" size={40} color="#9099B3" />
@@ -124,7 +182,9 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
               entregar.
             </Text>
           </View>
-        ) : (
+        ) : null}
+
+        {mostrarRides && rides.length > 0 && (
           <>
             {slots > 0 ? (
               <View style={s.slotBanner}>
@@ -197,38 +257,75 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
           </>
         )}
 
-        {/* ── Seção: histórico ── */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Histórico</Text>
-        </View>
-
-        {loadingHistorico ? (
-          <ActivityIndicator size="small" color="#F2760F" style={{ marginTop: 20 }} />
-        ) : historico.length === 0 ? (
-          <Text style={s.historicoEmpty}>Nenhuma entrega concluída ainda.</Text>
-        ) : (
-          historico.map((item) => {
-            const ganho = Number(item.valorRecebido) + (item.bonus ? Number(item.bonus) : 0);
-            return (
-              <View key={item.id} style={s.historicoCard}>
-                <View style={s.historicoBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="#046C2E" />
-                  <Text style={s.historicoBadgeText}>Entregue</Text>
-                </View>
-                <View style={s.historicoBody}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.historicoLoja}>{item.pedido?.loja?.nome ?? '–'}</Text>
-                    <Text style={s.historicoDest}>
-                      {item.pedido?.enderecoEntrega?.bairro ?? '–'} ·{' '}
-                      {item.pedido?.enderecoEntrega?.cidade ?? ''}
-                    </Text>
-                    <Text style={s.historicoData}>{fmt(item.criadoEm)}</Text>
-                  </View>
-                  <Text style={s.historicoGanho}>{brl(ganho)}</Text>
-                </View>
+        {filter !== 'em_andamento' && (
+          <>
+            {filter === 'todos' && (rides.length > 0 || historicoFiltrado.length > 0) && (
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Histórico</Text>
               </View>
-            );
-          })
+            )}
+
+            {loadingHistorico ? (
+              <ActivityIndicator size="small" color="#F2760F" style={{ marginTop: 20 }} />
+            ) : historicoFiltrado.length === 0 ? (
+              <Text style={s.historicoEmpty}>
+                {filter === 'entregue'
+                  ? 'Nenhuma entrega concluída ainda.'
+                  : filter === 'cancelado'
+                    ? 'Nenhuma corrida cancelada.'
+                    : 'Nenhuma entrega ou cancelamento ainda.'}
+              </Text>
+            ) : (
+              historicoFiltrado.map((item) => {
+                if (item.kind === 'entrega') {
+                  const e = item.data;
+                  const ganho = Number(e.valorRecebido) + (e.bonus ? Number(e.bonus) : 0);
+                  return (
+                    <View key={`e-${e.id}`} style={s.historicoCard}>
+                      <View style={s.historicoBadge}>
+                        <Ionicons name="checkmark-circle" size={16} color="#046C2E" />
+                        <Text style={s.historicoBadgeText}>Entregue</Text>
+                      </View>
+                      <View style={s.historicoBody}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.historicoLoja}>{e.pedido?.loja?.nome ?? '–'}</Text>
+                          <Text style={s.historicoDest}>
+                            {e.pedido?.enderecoEntrega?.bairro ?? '–'} ·{' '}
+                            {e.pedido?.enderecoEntrega?.cidade ?? ''}
+                          </Text>
+                          <Text style={s.historicoData}>{fmt(e.criadoEm)}</Text>
+                        </View>
+                        <Text style={s.historicoGanho}>{brl(ganho)}</Text>
+                      </View>
+                    </View>
+                  );
+                }
+
+                const c = item.data;
+                return (
+                  <View key={`c-${c.id}`} style={s.historicoCard}>
+                    <View style={s.historicoBadge}>
+                      <Ionicons name="close-circle" size={16} color="#9B1C1C" />
+                      <Text style={[s.historicoBadgeText, { color: '#9B1C1C' }]}>Cancelado</Text>
+                    </View>
+                    <View style={s.historicoBody}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.historicoLoja}>{c.pedido?.loja?.nome ?? '–'}</Text>
+                        <Text style={s.historicoDest}>
+                          {c.pedido?.enderecoEntrega?.bairro ?? '–'} ·{' '}
+                          {c.pedido?.enderecoEntrega?.cidade ?? ''}
+                        </Text>
+                        <Text style={s.historicoData}>{fmt(c.criadoEm)}</Text>
+                      </View>
+                      <View style={s.motivoChip}>
+                        <Text style={s.motivoChipTxt}>{MOTIVO_LABELS[c.motivo]}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -241,7 +338,6 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E4E7F1',
   },
@@ -345,4 +441,13 @@ const s = StyleSheet.create({
   historicoDest: { fontSize: 11, color: '#9099B3', marginTop: 2 },
   historicoData: { fontSize: 10, color: '#B0B7CC', marginTop: 3 },
   historicoGanho: { fontSize: 16, fontWeight: '800', color: '#046C2E' },
+  motivoChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 99,
+    backgroundColor: '#FCEBEB',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  motivoChipTxt: { fontSize: 11, fontWeight: '700', color: '#9B1C1C' },
 });

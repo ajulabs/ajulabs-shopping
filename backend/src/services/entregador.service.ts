@@ -768,6 +768,22 @@ export async function getEntregas(entregadorId: string) {
   return { total: entregas.length, totalGanho: totalGanho.toFixed(2), entregas };
 }
 
+export async function getCancelamentos(entregadorId: string) {
+  return prisma.cancelamentoEntregador.findMany({
+    where: { entregadorId },
+    orderBy: { criadoEm: 'desc' },
+    include: {
+      pedido: {
+        select: {
+          id: true,
+          loja: { select: { nome: true } },
+          enderecoEntrega: { select: { bairro: true, cidade: true } },
+        },
+      },
+    },
+  });
+}
+
 // ── Saques ────────────────────────────────────────────────────────────────────
 
 export async function solicitarSaque(entregadorId: string, valor: number) {

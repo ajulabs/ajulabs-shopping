@@ -16,7 +16,6 @@ import { useTheme, useHardwareBack } from '../../../../shared/hooks';
 import { useProduto } from '../model/useProduto';
 import { Stars } from './components/Stars';
 import { ImageCarousel } from './components/ImageCarousel';
-import { TabelaTamanhoSimples } from './components/TabelaTamanhoSimples';
 import { InfoRow } from './components/InfoRow';
 import { ProdutoSimilarCard } from './components/ProdutoSimilarCard';
 import { AvaliacaoResumo, AvaliacaoItem } from './components/Avaliacoes';
@@ -46,8 +45,6 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
     setMostrarTodasAv,
     variacaoSelecionada,
     setVariacaoSelecionada,
-    tamanhoFallbackSelecionado,
-    setTamanhoFallbackSelecionado,
     quantidade,
     setQuantidade,
     heartScale,
@@ -59,7 +56,6 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
     tags,
     variacoes,
     hasVariacoes,
-    tamanhosFallback,
     mediaAvaliacoes,
     avsVisiveis,
     estoqueDisponivel,
@@ -207,20 +203,6 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
               />
             </View>
           )}
-
-          {/* Fallback: tamanhos inferidos por categoria — seleção obrigatória */}
-          {!hasVariacoes && tamanhosFallback.length > 0 && (
-            <View style={[styles.tamanhoSection, { borderTopColor: borderL as string }]}>
-              <TabelaTamanhoSimples
-                opcoes={tamanhosFallback}
-                selecionado={tamanhoFallbackSelecionado}
-                onSelecionar={setTamanhoFallbackSelecionado}
-                isDark={isDark}
-                text={text}
-                borderL={borderL as string}
-              />
-            </View>
-          )}
         </View>
 
         {/* Informações */}
@@ -336,8 +318,7 @@ export function ProdutoDetail({ produtoId, quantidadeInicial }: ProdutoDetailPro
 
       {/* Footer fixo */}
       <View style={[styles.footer, { backgroundColor: surf, borderTopColor: borderL as string }]}>
-        {((hasVariacoes && !variacaoSelecionada) ||
-          (tamanhosFallback.length > 0 && !tamanhoFallbackSelecionado)) && (
+        {hasVariacoes && !variacaoSelecionada && (
           <Text style={styles.variacaoHint}>Selecione o tamanho para adicionar ao carrinho</Text>
         )}
 

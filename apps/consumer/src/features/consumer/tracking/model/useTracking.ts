@@ -29,8 +29,12 @@ export function useTracking(pedidoId: string) {
   const [cancelando, setCancelando] = useState(false);
   const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
   const [erroCancelar, setErroCancelar] = useState<string | null>(null);
+  const [canceladoPelaLoja, setCanceladoPelaLoja] = useState<{
+    motivo: string | null;
+  } | null>(null);
   const statusAnterior = useRef<string | null>(null);
   const modalDisparado = useRef(false);
+  const cancelOverlayDisparado = useRef(false);
 
   useEffect(() => {
     if (!pedido || modalDisparado.current) return;
@@ -50,6 +54,16 @@ export function useTracking(pedidoId: string) {
           modalDisparado.current = true;
           setShowConfirmada(true);
         }
+        if (
+          !cancelOverlayDisparado.current &&
+          statusAnterior.current !== 'cancelado' &&
+          data.status === 'cancelado' &&
+          data.canceladoPor &&
+          data.canceladoPor !== 'consumidor'
+        ) {
+          cancelOverlayDisparado.current = true;
+          setCanceladoPelaLoja({ motivo: data.motivoCancelamento ?? null });
+        }
         statusAnterior.current = data.status;
         setPedido(data);
       })
@@ -64,6 +78,9 @@ export function useTracking(pedidoId: string) {
     PedidoService.buscarPorId(pedidoId, token)
       .then((data) => {
         statusAnterior.current = data?.status ?? null;
+        if (data?.status === 'cancelado') {
+          cancelOverlayDisparado.current = true;
+        }
         setPedido(data);
         setLoading(false);
       })
@@ -111,6 +128,7 @@ export function useTracking(pedidoId: string) {
     setErroCancelar(null);
     try {
       await PedidoService.cancelar(pedido.id, token);
+      cancelOverlayDisparado.current = true;
       setConfirmandoCancelar(false);
       setPedido((prev) => (prev ? { ...prev, status: 'cancelado' } : prev));
     } catch (e: unknown) {
@@ -163,6 +181,8 @@ export function useTracking(pedidoId: string) {
     setErroCancelar,
     handleEnviarAvaliacao,
     confirmarCancelamento,
+    canceladoPelaLoja,
+    fecharCanceladoPelaLoja: () => setCanceladoPelaLoja(null),
     isActive,
     isAtivo,
     etaMin,

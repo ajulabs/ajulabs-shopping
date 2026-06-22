@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
 import { useTheme } from '../../../../shared/hooks';
 import { PedidoCard } from './PedidoCard';
+import { OrdersFilterBar } from './components/OrdersFilterBar';
 import { MeusTicketsScreen } from '../../tickets/ui/MeusTicketsScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { EntregaConfirmadaModal } from '../../avaliacao/ui/EntregaConfirmadaModal';
@@ -30,8 +31,11 @@ export function OrdersScreen() {
     pedidos,
     loading,
     ticketsAbertos,
-    ativos,
-    historico,
+    filter,
+    setFilter,
+    filters,
+    counts,
+    list,
     pedidoParaAvaliar,
     setPedidoParaAvaliar,
     showConfirmada,
@@ -164,6 +168,7 @@ export function OrdersScreen() {
             </Text>
           </View>
         </View>
+        <OrdersFilterBar filters={filters} filter={filter} counts={counts} onSelect={setFilter} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -200,30 +205,19 @@ export function OrdersScreen() {
           </View>
         </TouchableOpacity>
 
-        {ativos.length > 0 && (
-          <>
-            <Text style={[styles.secao, { color: textSec as string }]}>Em andamento</Text>
-            {ativos.map((p) => (
-              <PedidoCard key={p.id} pedido={p} onPress={handlePress} />
-            ))}
-          </>
-        )}
-
-        {historico.length > 0 && (
-          <>
-            <Text
-              style={[
-                styles.secao,
-                ativos.length > 0 && { marginTop: 20 },
-                { color: textSec as string },
-              ]}
-            >
-              Histórico
+        {list.length > 0 ? (
+          list.map((p) => <PedidoCard key={p.id} pedido={p} onPress={handlePress} />)
+        ) : (
+          <View style={styles.listaVazia}>
+            <Ionicons
+              name="document-outline"
+              size={36}
+              color={isDark ? 'rgba(255,255,255,0.25)' : colors.n300}
+            />
+            <Text style={[styles.listaVaziaTxt, { color: textSec as string }]}>
+              Nenhum pedido neste filtro.
             </Text>
-            {historico.map((p) => (
-              <PedidoCard key={p.id} pedido={p} onPress={handlePress} />
-            ))}
-          </>
+          </View>
         )}
       </ScrollView>
       {avaliacaoModals}
@@ -233,7 +227,7 @@ export function OrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, borderBottomWidth: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: { marginLeft: -4, padding: 4 },
   titulo: { fontSize: 20, fontWeight: '700' },
@@ -268,13 +262,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   ticketCardBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  secao: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
+  listaVazia: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  listaVaziaTxt: { fontSize: 13 },
 
   vazio: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
   vazioTitulo: { fontSize: 18, fontWeight: '700', marginTop: 12 },

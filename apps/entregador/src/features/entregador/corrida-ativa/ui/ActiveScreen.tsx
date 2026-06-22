@@ -31,6 +31,7 @@ import { StageCard } from './components/StageCard';
 import { NavigationChoiceModal } from './components/NavigationChoiceModal';
 import { ExternalNavBadge } from './components/NavigationChoiceModal';
 import { CancelCorridaModal, type MotivoCancelamento } from './components/CancelCorridaModal';
+import { CancelamentoCorridaOverlay } from './components/CancelamentoCorridaOverlay';
 import { EntregaSucessoOverlay } from './components/EntregaSucessoOverlay';
 import { useRideNavigation } from '../hooks/useRideNavigation';
 
@@ -70,6 +71,9 @@ export function ActiveScreen({
   const [loadingEntrega, setLoadingEntrega] = useState(false);
   const [entregaError, setEntregaError] = useState<string | null>(null);
   const [sucessoVisivel, setSucessoVisivel] = useState(false);
+  const [cancelamentoConfirmado, setCancelamentoConfirmado] = useState<MotivoCancelamento | null>(
+    null,
+  );
 
   const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [clientCoords, setClientCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -114,10 +118,19 @@ export function ActiveScreen({
     runGeocode();
   }, []);
 
+  const prevStageRef = useRef<Stage>(stage);
   useEffect(() => {
-    setNavMode(null);
-    setNavChoiceOpen(false);
-    setExtNavUrl(null);
+    const prev = prevStageRef.current;
+    prevStageRef.current = stage;
+    const destinoDe = (st: Stage) =>
+      st === 'to-store' || st === 'at-store' ? 'loja' : st === 'to-customer' ? 'cliente' : null;
+    const prevDest = destinoDe(prev);
+    const newDest = destinoDe(stage);
+    if (newDest && prevDest && newDest !== prevDest) {
+      setNavMode(null);
+      setNavChoiceOpen(false);
+      setExtNavUrl(null);
+    }
   }, [stage]);
 
   const isMoving = stage === 'to-store' || stage === 'to-customer';
@@ -346,14 +359,14 @@ export function ActiveScreen({
       try {
         await EntregadorService.cancelarCorrida(token, ride.id, motivo, fotoUri);
         setCancelModalVisible(false);
-        onFinish();
+        setCancelamentoConfirmado(motivo);
       } catch (err: any) {
         Alert.alert('Erro', err?.message ?? 'Não foi possível cancelar a corrida.');
       } finally {
         setLoadingCancelamento(false);
       }
     },
-    [token, ride.id, onFinish],
+    [token, ride.id],
   );
 
   const handleConfirmarRetirada = useCallback(async () => {
@@ -826,6 +839,12 @@ export function ActiveScreen({
         visible={sucessoVisivel}
         ganho={ride.ganho}
         clienteNome={ride.cliente.nome}
+        onClose={onFinish}
+      />
+
+      <CancelamentoCorridaOverlay
+        visible={cancelamentoConfirmado !== null}
+        motivo={cancelamentoConfirmado}
         onClose={onFinish}
       />
 

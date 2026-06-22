@@ -122,15 +122,39 @@ export function useOrders() {
     },
   });
 
-  const ativos = pedidos.filter((p) => !['entregue', 'cancelado'].includes(p.status));
-  const historico = pedidos.filter((p) => ['entregue', 'cancelado'].includes(p.status));
+  type PedidoFilter = 'todos' | 'em_andamento' | 'entregue' | 'cancelado';
+  const [filter, setFilter] = useState<PedidoFilter>('em_andamento');
+
+  const counts = {
+    todos: pedidos.length,
+    em_andamento: pedidos.filter((p) => !['entregue', 'cancelado'].includes(p.status)).length,
+    entregue: pedidos.filter((p) => p.status === 'entregue').length,
+    cancelado: pedidos.filter((p) => p.status === 'cancelado').length,
+  };
+
+  const filters: { id: PedidoFilter; label: string }[] = [
+    { id: 'todos', label: 'Todos' },
+    { id: 'em_andamento', label: 'Andamento' },
+    { id: 'entregue', label: 'Entregues' },
+    { id: 'cancelado', label: 'Cancelados' },
+  ];
+
+  const list =
+    filter === 'todos'
+      ? pedidos
+      : filter === 'em_andamento'
+        ? pedidos.filter((p) => !['entregue', 'cancelado'].includes(p.status))
+        : pedidos.filter((p) => p.status === filter);
 
   return {
     pedidos,
     loading,
     ticketsAbertos,
-    ativos,
-    historico,
+    filter,
+    setFilter,
+    filters,
+    counts,
+    list,
     pedidoParaAvaliar,
     setPedidoParaAvaliar,
     showConfirmada,

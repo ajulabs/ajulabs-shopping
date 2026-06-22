@@ -141,6 +141,8 @@ function mapPedido(raw: any): Pedido {
         } as EntregadorResumo)
       : null,
     avaliado: raw.avaliado ?? false,
+    canceladoPor: raw.canceladoPor ?? null,
+    motivoCancelamento: raw.motivoCancelamento ?? null,
   };
 }
 
@@ -989,6 +991,15 @@ export const EntregadorService = {
     if (!res.ok) return [];
     const { entregas } = await res.json();
     return entregas ?? [];
+  },
+
+  listarCancelamentos: async (token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/entregador/cancelamentos`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { cancelamentos } = await res.json();
+    return cancelamentos ?? [];
   },
 
   uploadDocumentosIdentidade: async (
