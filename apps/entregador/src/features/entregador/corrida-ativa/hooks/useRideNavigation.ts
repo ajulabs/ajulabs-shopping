@@ -8,7 +8,7 @@ interface Params {
 
 export function useRideNavigation({ destination, enabled }: Params) {
   const [centerTrigger, setCenterTrigger] = useState(0);
-  const [fitTrigger, setFitTrigger]       = useState(0);
+  const [fitTrigger, setFitTrigger] = useState(0);
   const routeReadyRef = useRef(false);
 
   // GPS starts as soon as destination is available — no button needed.
@@ -25,11 +25,11 @@ export function useRideNavigation({ destination, enabled }: Params) {
   useEffect(() => {
     if (nav.routeReady && !routeReadyRef.current) {
       routeReadyRef.current = true;
-      setFitTrigger(t => t + 1);
+      setFitTrigger((t) => t + 1);
     }
   }, [nav.routeReady]);
 
-  const centerMap = useCallback(() => setCenterTrigger(t => t + 1), []);
+  const centerMap = useCallback(() => setCenterTrigger((t) => t + 1), []);
 
   return {
     ...nav,

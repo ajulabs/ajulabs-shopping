@@ -1,190 +1,52 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
-  Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useHardwareBack } from '../../../../hooks';
-import * as ImagePicker from 'expo-image-picker';
-import { EntregadorService } from '../../../../lib/authServices';
-import { useAuthEntregadorStore } from '../../auth/model/store';
-
-const TIPOS = [
-  { id: 'moto' as const, label: 'Moto', icon: 'motorbike', lib: 'mci', needsDocs: true },
-  { id: 'carro' as const, label: 'Carro', icon: 'car', lib: 'ion', needsDocs: true },
-  { id: 'bike' as const, label: 'Bicicleta', icon: 'bicycle', lib: 'ion', needsDocs: false },
-];
-
-type Tipo = 'moto' | 'carro' | 'bike';
-
-const TIPO_ICON: Record<Tipo, { icon: string; lib: string }> = {
-  moto: { icon: 'motorbike', lib: 'mci' },
-  carro: { icon: 'car', lib: 'ion' },
-  bike: { icon: 'bicycle', lib: 'ion' },
-};
-
-function VehicleIcon({ tipo, size, color }: { tipo: Tipo; size: number; color: string }) {
-  const { icon, lib } = TIPO_ICON[tipo] ?? TIPO_ICON.moto;
-  if (lib === 'mci') return <MaterialCommunityIcons name={icon as any} size={size} color={color} />;
-  return <Ionicons name={icon as any} size={size} color={color} />;
-}
+import { TIPOS, Tipo, useVeiculo } from '../model/useVeiculo';
+import { VehicleIcon } from './components/VehicleIcon';
+import { Header } from './components/VeiculoHeader';
+import { DocUploadButton } from './components/DocUploadButton';
+import { FieldRow } from './components/FieldRow';
 
 interface Props {
   onBack: () => void;
 }
 
-type Mode = 'view' | 'request';
-
 export function VeiculoScreen({ onBack }: Props) {
-  const token = useAuthEntregadorStore((s) => s.token);
-
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [mode, setMode] = useState<Mode>('view');
-
-  // Botão físico: de 'request' volta para 'view'; de 'view' sai da tela.
-  useHardwareBack(() => {
-    if (mode === 'request') {
-      setMode('view');
-      return true;
-    }
-    onBack();
-    return true;
-  });
-
-  // Current data
-  const [currentVehicle, setCurrentVehicle] = useState<any>(null);
-  const [currentTipo, setCurrentTipo] = useState<Tipo>('moto');
-  const [pendingRequest, setPendingRequest] = useState<any>(null);
-
-  // Form state
-  const [tipo, setTipo] = useState<Tipo>('moto');
-  const [modelo, setModelo] = useState('');
-  const [placa, setPlaca] = useState('');
-  const [cor, setCor] = useState('');
-  const [ano, setAno] = useState(String(new Date().getFullYear()));
-  const [cnhUri, setCnhUri] = useState<string | null>(null);
-  const [docUri, setDocUri] = useState<string | null>(null);
-
-  const needsDocs = TIPOS.find((t) => t.id === tipo)?.needsDocs ?? false;
-
-  const fetchData = useCallback(async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    const [perfil, solicitacao] = await Promise.all([
-      EntregadorService.buscarPerfil(token).catch(() => null),
-      EntregadorService.buscarSolicitacaoTrocaVeiculo(token).catch(() => null),
-    ]);
-    setCurrentVehicle(perfil?.entregador?.veiculo ?? null);
-    setCurrentTipo((perfil?.entregador?.tipoTransporte ?? 'moto') as Tipo);
-    setPendingRequest(solicitacao);
-  }, [token]);
-
-  useEffect(() => {
-    fetchData().finally(() => setLoading(false));
-  }, [fetchData]);
-
-  const openRequest = () => {
-    setTipo(currentTipo);
-    setModelo(currentVehicle?.modelo ?? '');
-    setPlaca(currentVehicle?.placa === 'BICICLETA' ? '' : (currentVehicle?.placa ?? ''));
-    setCor(currentVehicle?.cor ?? '');
-    setAno(currentVehicle?.ano ? String(currentVehicle.ano) : String(new Date().getFullYear()));
-    setCnhUri(null);
-    setDocUri(null);
-    setMode('request');
-  };
-
-  const pickImage = async (setter: (u: string) => void) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Permita o acesso à galeria para enviar a foto.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) setter(result.assets[0].uri);
-  };
-
-  const handleSubmit = async () => {
-    if (tipo !== 'bike') {
-      if (!modelo.trim()) {
-        Alert.alert('Erro', 'Informe o modelo do veículo.');
-        return;
-      }
-      if (!placa.trim()) {
-        Alert.alert('Erro', 'Informe a placa do veículo.');
-        return;
-      }
-      if (!cnhUri) {
-        Alert.alert('Erro', 'Envie a foto da sua CNH.');
-        return;
-      }
-      if (!docUri) {
-        Alert.alert('Erro', 'Envie o documento do veículo.');
-        return;
-      }
-    }
-    if (!token) return;
-
-    setSubmitting(true);
-    try {
-      const result = await EntregadorService.solicitarTrocaVeiculo(
-        token,
-        {
-          tipoTransporte: tipo,
-          modelo: tipo === 'bike' ? 'Bicicleta' : modelo.trim(),
-          placa: tipo === 'bike' ? 'BICICLETA' : placa.trim().toUpperCase(),
-          cor: cor.trim() || 'Não informado',
-          ano: parseInt(ano) || new Date().getFullYear(),
-        },
-        tipo !== 'bike' ? { cnhUri: cnhUri!, docVeiculoUri: docUri! } : undefined,
-      );
-
-      if (result.status === 'aprovado') {
-        Alert.alert('Veículo atualizado!', 'Seu veículo foi atualizado com sucesso.', [
-          {
-            text: 'OK',
-            onPress: async () => {
-              await fetchData();
-              setMode('view');
-            },
-          },
-        ]);
-      } else {
-        Alert.alert(
-          'Solicitação enviada!',
-          'Seus documentos estão em análise. Em até 24h seu veículo será atualizado.',
-          [
-            {
-              text: 'OK',
-              onPress: async () => {
-                await fetchData();
-                setMode('view');
-              },
-            },
-          ],
-        );
-      }
-    } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível enviar a solicitação.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const {
+    loading,
+    submitting,
+    mode,
+    setMode,
+    currentVehicle,
+    currentTipo,
+    pendingRequest,
+    tipo,
+    setTipo,
+    modelo,
+    setModelo,
+    placa,
+    setPlaca,
+    cor,
+    setCor,
+    ano,
+    setAno,
+    cnhUri,
+    setCnhUri,
+    docUri,
+    setDocUri,
+    needsDocs,
+    openRequest,
+    pickImage,
+    handleSubmit,
+  } = useVeiculo(onBack);
 
   if (loading) {
     return (
@@ -422,122 +284,8 @@ export function VeiculoScreen({ onBack }: Props) {
   );
 }
 
-function Header({ onBack, title }: { onBack: () => void; title: string }) {
-  return (
-    <View style={s.header}>
-      <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
-        <Ionicons name="chevron-back" size={20} color="#000933" />
-      </TouchableOpacity>
-      <Text style={s.headerTitle}>{title}</Text>
-    </View>
-  );
-}
-
-function DocUploadButton({
-  label,
-  uri,
-  onPick,
-}: {
-  label: string;
-  uri: string | null;
-  onPick: () => void;
-}) {
-  return (
-    <TouchableOpacity style={s.docBtn} onPress={onPick} activeOpacity={0.85}>
-      {uri ? (
-        <Image source={{ uri }} style={s.docThumb} resizeMode="cover" />
-      ) : (
-        <View style={s.docPlaceholder}>
-          <Ionicons name="cloud-upload-outline" size={24} color="#F2760F" />
-        </View>
-      )}
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={s.docLabel}>{label}</Text>
-        <Text style={[s.docStatus, uri ? { color: '#039855' } : { color: '#9099B3' }]}>
-          {uri ? 'Foto selecionada' : 'Toque para selecionar'}
-        </Text>
-      </View>
-      <Ionicons
-        name={uri ? 'checkmark-circle' : 'chevron-forward'}
-        size={18}
-        color={uri ? '#039855' : '#9099B3'}
-      />
-    </TouchableOpacity>
-  );
-}
-
-function FieldRow({
-  label,
-  value,
-  onChange,
-  placeholder,
-  keyboard = 'default',
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  keyboard?: any;
-}) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-      }}
-    >
-      <Text style={sr.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#9099B3"
-        keyboardType={keyboard}
-        style={[sr.input, focused && sr.inputFocused]}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-    </View>
-  );
-}
-
-const sr = StyleSheet.create({
-  label: { width: 70, fontSize: 13, fontWeight: '600', color: '#9099B3' },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: '#000933',
-    textAlign: 'right',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  inputFocused: { backgroundColor: 'rgba(242,118,15,0.06)' },
-});
-
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933' },
   content: { padding: 16, paddingBottom: 48 },
 
   sectionLabel: {
@@ -645,28 +393,6 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   docsHintText: { flex: 1, fontSize: 12, color: '#209CEF', lineHeight: 18 },
-
-  docBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    padding: 14,
-    marginBottom: 8,
-  },
-  docThumb: { width: 48, height: 48, borderRadius: 10 },
-  docPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: 'rgba(242,118,15,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  docLabel: { fontSize: 14, fontWeight: '600', color: '#000933' },
-  docStatus: { fontSize: 12, marginTop: 2 },
 
   submitBtn: {
     backgroundColor: '#F2760F',

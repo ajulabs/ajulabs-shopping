@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { useAuthEntregadorStore } from '../src/store';
-import { usePushRegistrationEntregador } from '../src/hooks';
-import { setupNotificationChannels } from '../src/tasks/notificationChannels';
+import { usePushRegistrationEntregador } from '../src/shared/hooks';
+import { setupNotificationChannels } from '../src/shared/lib/notificationChannels';
 import { SplashEntregador } from '../src/features/entregador/splash';
 
 export default function RootLayout() {

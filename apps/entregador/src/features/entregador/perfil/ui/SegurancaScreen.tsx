@@ -1,175 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EntregadorService } from '../../../../lib/authServices';
-import { useAuthEntregadorStore } from '../../auth/model/store';
+import { useSeguranca } from '../model/useSeguranca';
+import { Field } from './components/SegurancaField';
+import { SecureInput } from './components/SecureInput';
+import { PlainInput } from './components/SegurancaPlainInput';
 
 interface Props {
   onBack: () => void;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View style={s.field}>
-      <Text style={s.fieldLabel}>{label}</Text>
-      {children}
-    </View>
-  );
-}
-
-function SecureInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  const [show, setShow] = useState(false);
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={[s.input, focused && s.inputFocused]}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#9099B3"
-        secureTextEntry={!show}
-        autoCapitalize="none"
-        style={s.inputInner}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-      <TouchableOpacity onPress={() => setShow((v) => !v)} hitSlop={10} style={{ paddingLeft: 8 }}>
-        <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9099B3" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function PlainInput({
-  value,
-  onChange,
-  placeholder,
-  keyboard = 'default',
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  keyboard?: any;
-}) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={[s.input, focused && s.inputFocused]}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#9099B3"
-        keyboardType={keyboard}
-        style={s.inputInner}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-    </View>
-  );
-}
-
 export function SegurancaScreen({ onBack }: Props) {
-  const token = useAuthEntregadorStore((s) => s.token);
-  const nomeAuth = useAuthEntregadorStore((s) => s.nome);
-
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [loadingPerfil, setLoadingPerfil] = useState(true);
-  const [savingPerfil, setSavingPerfil] = useState(false);
-
-  const [senhaAtual, setSenhaAtual] = useState('');
-  const [novaSenha, setNovaSenha] = useState('');
-  const [confirmar, setConfirmar] = useState('');
-  const [savingSenha, setSavingSenha] = useState(false);
-
-  useEffect(() => {
-    if (!token) {
-      setLoadingPerfil(false);
-      return;
-    }
-    EntregadorService.buscarPerfil(token)
-      .then((p) => {
-        setNome(p?.entregador?.nome ?? nomeAuth ?? '');
-        setEmail(p?.entregador?.email ?? '');
-        setTelefone(p?.entregador?.telefone ?? '');
-      })
-      .catch(() => {
-        setNome(nomeAuth ?? '');
-      })
-      .finally(() => setLoadingPerfil(false));
-  }, [token]);
-
-  const salvarDados = async () => {
-    if (!token) return;
-    if (nome.trim().length < 2) {
-      Alert.alert('Erro', 'Nome muito curto.');
-      return;
-    }
-    if (!email.includes('@')) {
-      Alert.alert('Erro', 'Email inválido.');
-      return;
-    }
-    setSavingPerfil(true);
-    try {
-      await EntregadorService.atualizarDadosPessoais(token, {
-        nome: nome.trim(),
-        email: email.trim(),
-        telefone: telefone.trim(),
-      });
-      Alert.alert('Salvo!', 'Dados pessoais atualizados com sucesso.');
-    } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível atualizar os dados.');
-    } finally {
-      setSavingPerfil(false);
-    }
-  };
-
-  const alterarSenha = async () => {
-    if (!token) return;
-    if (!senhaAtual) {
-      Alert.alert('Erro', 'Informe a senha atual.');
-      return;
-    }
-    if (novaSenha.length < 6) {
-      Alert.alert('Erro', 'Nova senha deve ter ao menos 6 caracteres.');
-      return;
-    }
-    if (novaSenha !== confirmar) {
-      Alert.alert('Erro', 'As senhas não coincidem.');
-      return;
-    }
-    setSavingSenha(true);
-    try {
-      await EntregadorService.alterarSenha(token, senhaAtual, novaSenha);
-      Alert.alert('Senha alterada!', 'Sua senha foi atualizada com sucesso.');
-      setSenhaAtual('');
-      setNovaSenha('');
-      setConfirmar('');
-    } catch (e: any) {
-      Alert.alert('Erro', e?.message ?? 'Não foi possível alterar a senha.');
-    } finally {
-      setSavingSenha(false);
-    }
-  };
+  const {
+    nome,
+    setNome,
+    email,
+    setEmail,
+    telefone,
+    setTelefone,
+    loadingPerfil,
+    savingPerfil,
+    senhaAtual,
+    setSenhaAtual,
+    novaSenha,
+    setNovaSenha,
+    confirmar,
+    setConfirmar,
+    savingSenha,
+    salvarDados,
+    alterarSenha,
+  } = useSeguranca();
 
   return (
     <SafeAreaView style={s.safe}>
@@ -318,20 +186,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  field: { marginBottom: 12 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: '#2A3156', marginBottom: 6 },
-  input: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  inputInner: { flex: 1, fontSize: 15, color: '#000933' },
-  inputFocused: { borderColor: '#F2760F' },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
