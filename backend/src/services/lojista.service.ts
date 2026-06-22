@@ -8,6 +8,7 @@ import {
   emitPedidoAtualizado,
   emitCorridaOferta,
   emitCorridaCancelada,
+  emitPedidoCanceladoEntregador,
   emitTicketMensagem,
   emitTicketStatus,
   emitProdutoVariacoes,
@@ -107,14 +108,26 @@ export async function avancarStatusPedido(
     throw Object.assign(new Error('Não é possível avançar este status'), { statusCode: 400 });
   }
 
-  const atualizado = await prisma.pedido.update({
-    where: { id: pedidoId },
+  // Avanço atômico: só aplica se o status AINDA for o esperado. Se o consumidor
+  // cancelou (aguardando → cancelado) entre o findUnique acima e o update, o
+  // updateMany retorna count=0 e a rota retorna 409 sem reverter o cancelamento.
+  const updated = await prisma.pedido.updateMany({
+    where: { id: pedidoId, status: pedido.status },
     data: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       status: proximoStatus as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      historico: { create: { status: proximoStatus as any } },
     },
+  });
+  if (updated.count === 0) {
+    throw Object.assign(new Error('Pedido já mudou de status — atualize a tela'), {
+      statusCode: 409,
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.historicoStatusPedido.create({ data: { pedidoId, status: proximoStatus as any } });
+
+  const atualizado = await prisma.pedido.findUniqueOrThrow({
+    where: { id: pedidoId },
     include: {
       itens: true,
       historico: { orderBy: { criadoEm: 'asc' } },
@@ -713,23 +726,47 @@ export async function cancelarPedidoLojista(
     });
   }
 
-  const penaliza = PENALIZA_LOJISTA.includes(pedido.status);
-
+  // Cancelamento atômico: a transação re-lê o status e usa updateMany com guard
+  // (where status in CANCELAVEIS). Se outra rota — confirmarRetirada/confirmarEntrega
+  // do entregador ou cancelamento do consumidor — alterar o status entre o
+  // findUnique acima e o update, o updateMany retorna count=0 e a transação aborta
+  // sem restock duplicado nem sobrescrever um pedido já finalizado.
+  let statusOriginal = pedido.status;
+  let entregadorAssinaladoId: string | null = null;
   await prisma.$transaction(async (tx) => {
-    await tx.pedido.update({
+    const atual = await tx.pedido.findUnique({
       where: { id: pedidoId },
+      select: { status: true, entregadorId: true },
+    });
+    if (!atual || !CANCELAVEIS_LOJISTA.includes(atual.status)) {
+      throw Object.assign(new Error('Pedido já avançou de status e não pode mais ser cancelado'), {
+        statusCode: 409,
+      });
+    }
+    statusOriginal = atual.status;
+    entregadorAssinaladoId = atual.entregadorId ?? null;
+    const penalizaAgora = PENALIZA_LOJISTA.includes(atual.status);
+
+    const upd = await tx.pedido.updateMany({
+      where: { id: pedidoId, status: { in: CANCELAVEIS_LOJISTA as never[] } },
       data: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         status: 'cancelado' as any,
         canceladoPor: 'lojista',
         motivoCancelamento: motivo,
-        penalizouLojista: penaliza,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        historico: { create: { status: 'cancelado' as any } },
+        penalizouLojista: penalizaAgora,
       },
     });
+    if (upd.count === 0) {
+      throw Object.assign(new Error('Pedido já avançou de status e não pode mais ser cancelado'), {
+        statusCode: 409,
+      });
+    }
 
-    if (penaliza) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await tx.historicoStatusPedido.create({ data: { pedidoId, status: 'cancelado' as any } });
+
+    if (penalizaAgora) {
       await tx.loja.update({
         where: { id: pedido.lojaId },
         data: { cancelamentosAposAceite: { increment: 1 } },
@@ -741,9 +778,14 @@ export async function cancelarPedidoLojista(
 
   emitPedidoAtualizado(pedido.consumidorId, pedidoId, 'cancelado', pedido.lojaId);
   void notificarStatusPedido(pedido.consumidorId, pedidoId, 'cancelado');
-  // Pedido estava em 'pronto' → corrida já havia sido ofertada aos entregadores.
-  // Remove da lista em tempo real para evitar tentativa de aceitar pedido cancelado.
-  if (pedido.status === 'pronto') {
+  // Pedido estava em 'pronto' (oferta aberta) → remove da lista de corridas
+  // disponíveis para todos os entregadores em tempo real.
+  if (statusOriginal === 'pronto') {
     emitCorridaCancelada(pedidoId);
+  }
+  // Se já havia um entregador atribuído, avisa o app dele diretamente para
+  // ele saber que a corrida sumiu antes de tentar `confirmarRetirada` e levar 404.
+  if (entregadorAssinaladoId) {
+    emitPedidoCanceladoEntregador(entregadorAssinaladoId, pedidoId);
   }
 }

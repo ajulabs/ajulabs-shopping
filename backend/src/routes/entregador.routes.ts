@@ -387,6 +387,11 @@ router.get('/entregas', async (req: AuthRequest, res: Response) => {
   res.json(data);
 });
 
+router.get('/cancelamentos', async (req: AuthRequest, res: Response) => {
+  const cancelamentos = await svc.getCancelamentos(req.user!.id);
+  res.json({ cancelamentos });
+});
+
 // ── Saques ────────────────────────────────────────────────────────────────────
 
 router.post(

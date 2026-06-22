@@ -16,6 +16,7 @@ import { TrackingTimeline } from './TrackingTimeline';
 import { DeliveryMap } from '../../../../shared/ui/DeliveryMap';
 import { EntregaConfirmadaModal } from '../../avaliacao/ui/EntregaConfirmadaModal';
 import { AvaliacaoModal } from '../../avaliacao/ui/AvaliacaoModal';
+import { CanceladoPelaLojaOverlay } from './components/CanceladoPelaLojaOverlay';
 import { useTracking } from '../model/useTracking';
 
 const CHAT_STATUSES = ['confirmado', 'preparando', 'pronto', 'saiu_entrega'];
@@ -50,6 +51,8 @@ export function TrackingScreen({ pedidoId }: Props) {
     setErroCancelar,
     handleEnviarAvaliacao,
     confirmarCancelamento,
+    canceladoPelaLoja,
+    fecharCanceladoPelaLoja,
     isActive,
     isAtivo,
     etaMin,
@@ -337,6 +340,13 @@ export function TrackingScreen({ pedidoId }: Props) {
         enviando={enviandoAvaliacao}
         onEnviar={handleEnviarAvaliacao}
         onFechar={() => setShowAvaliacao(false)}
+      />
+
+      <CanceladoPelaLojaOverlay
+        visible={canceladoPelaLoja !== null}
+        lojaNome={pedido.lojaNome}
+        motivo={canceladoPelaLoja?.motivo ?? null}
+        onClose={fecharCanceladoPelaLoja}
       />
     </View>
   );

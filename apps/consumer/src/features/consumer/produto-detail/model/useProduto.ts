@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { Produto, AvaliacaoLoja, VariacaoProduto } from '@ajulabs/types';
 import { ProdutoService, AvaliacaoService, FavoritoService } from '@ajulabs/api-client';
 import { useProdutoEstoqueRealtime } from '@ajulabs/realtime';
-import { categoriaTamanho } from '../../../../entities/produto';
 import { useCartStore, useAuthStore } from '../../../../store';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -23,7 +22,6 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
   const [added, setAdded] = useState(false);
   const [mostrarTodasAv, setMostrarTodasAv] = useState(false);
   const [variacaoSelecionada, setVariacaoSelecionada] = useState<VariacaoProduto | null>(null);
-  const [tamanhoFallbackSelecionado, setTamanhoFallbackSelecionado] = useState<string | null>(null);
   const [quantidade, setQuantidade] = useState(quantidadeInicial ?? 1);
 
   const heartScale = useRef(new Animated.Value(1)).current;
@@ -49,7 +47,6 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
     setLoading(true);
     setAdded(false);
     setVariacaoSelecionada(null);
-    setTamanhoFallbackSelecionado(null);
     ProdutoService.buscarPorId(produtoId).then(async (p) => {
       if (!p) {
         setLoading(false);
@@ -119,13 +116,6 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
         Alert.alert('Sem estoque', 'Esta combinação está esgotada.');
         return;
       }
-      if (!hasVariacoes && p.id === produtoId && !tamanhoFallbackSelecionado) {
-        const tamanhosDoProduto = categoriaTamanho(p.categoria, p.nome) ?? [];
-        if (tamanhosDoProduto.length > 0) {
-          Alert.alert('Selecione um tamanho', 'Escolha o tamanho antes de adicionar ao carrinho.');
-          return;
-        }
-      }
       if (!p.disponivel) {
         Alert.alert('Produto indisponível', 'Este produto não está disponível para compra.');
         return;
@@ -141,12 +131,7 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
         );
         return;
       }
-      // Produtos com tamanho de fallback não têm variações reais — passa o tamanho como nome.
-      const variacaoNomeFinal =
-        variacaoEfetiva?.nome ??
-        (p.id === produtoId && !hasVariacoes
-          ? (tamanhoFallbackSelecionado ?? undefined)
-          : undefined);
+      const variacaoNomeFinal = variacaoEfetiva?.nome;
       const qtd = p.id === produtoId ? quantidade : 1;
       for (let i = 0; i < qtd; i++) {
         adicionar(
@@ -169,7 +154,7 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
         ]).start();
       }
     },
-    [produto, adicionar, produtoId, variacaoSelecionada, tamanhoFallbackSelecionado, quantidade],
+    [produto, adicionar, produtoId, variacaoSelecionada, quantidade],
   );
 
   // ─── Derivados ───────────────────────────────────────────────
@@ -184,8 +169,6 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
   const tags = produto?.tags?.filter(Boolean) ?? [];
   const variacoes = produto?.variacoes ?? [];
   const hasVariacoes = variacoes.length > 0;
-  const tamanhosFallback =
-    produto && !hasVariacoes ? (categoriaTamanho(produto.categoria, produto.nome) ?? []) : [];
 
   const mediaAvaliacoes = avaliacoes.length
     ? Math.round((avaliacoes.reduce((s, a) => s + a.nota, 0) / avaliacoes.length) * 10) / 10
@@ -198,10 +181,7 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
     ? (variacaoSelecionada?.estoque ?? Infinity)
     : (produto?.estoque ?? Infinity);
 
-  const podeContinuar =
-    !!produto?.disponivel &&
-    (!hasVariacoes || variacaoSelecionada !== null) &&
-    (tamanhosFallback.length === 0 || tamanhoFallbackSelecionado !== null);
+  const podeContinuar = !!produto?.disponivel && (!hasVariacoes || variacaoSelecionada !== null);
 
   return {
     produto,
@@ -214,8 +194,6 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
     setMostrarTodasAv,
     variacaoSelecionada,
     setVariacaoSelecionada,
-    tamanhoFallbackSelecionado,
-    setTamanhoFallbackSelecionado,
     quantidade,
     setQuantidade,
     heartScale,
@@ -227,7 +205,6 @@ export function useProduto(produtoId: string, quantidadeInicial?: number) {
     tags,
     variacoes,
     hasVariacoes,
-    tamanhosFallback,
     mediaAvaliacoes,
     avsVisiveis,
     estoqueDisponivel,

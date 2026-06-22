@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Pedido } from '@ajulabs/types';
 import { PedidoService, AvaliacaoService } from '@ajulabs/api-client';
+import { usePedidoConsumerRealtime } from '@ajulabs/realtime';
 import { useAuthStore } from '../../../../store';
 import { useEntregadorTracking } from '../hooks/useEntregadorTracking';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 interface AvaliacaoPayload {
   notaLoja: number;
@@ -26,8 +29,12 @@ export function useTracking(pedidoId: string) {
   const [cancelando, setCancelando] = useState(false);
   const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
   const [erroCancelar, setErroCancelar] = useState<string | null>(null);
+  const [canceladoPelaLoja, setCanceladoPelaLoja] = useState<{
+    motivo: string | null;
+  } | null>(null);
   const statusAnterior = useRef<string | null>(null);
   const modalDisparado = useRef(false);
+  const cancelOverlayDisparado = useRef(false);
 
   useEffect(() => {
     if (!pedido || modalDisparado.current) return;
@@ -38,6 +45,31 @@ export function useTracking(pedidoId: string) {
     }
   }, [pedido?.id, pedido?.status, pedido?.avaliado]);
 
+  const refetch = useCallback(() => {
+    if (!token) return;
+    return PedidoService.buscarPorId(pedidoId, token)
+      .then((data) => {
+        if (!data) return;
+        if (statusAnterior.current !== 'entregue' && data.status === 'entregue' && !data.avaliado) {
+          modalDisparado.current = true;
+          setShowConfirmada(true);
+        }
+        if (
+          !cancelOverlayDisparado.current &&
+          statusAnterior.current !== 'cancelado' &&
+          data.status === 'cancelado' &&
+          data.canceladoPor &&
+          data.canceladoPor !== 'consumidor'
+        ) {
+          cancelOverlayDisparado.current = true;
+          setCanceladoPelaLoja({ motivo: data.motivoCancelamento ?? null });
+        }
+        statusAnterior.current = data.status;
+        setPedido(data);
+      })
+      .catch(() => {});
+  }, [pedidoId, token]);
+
   useEffect(() => {
     if (!token) {
       setLoading(false);
@@ -46,30 +78,35 @@ export function useTracking(pedidoId: string) {
     PedidoService.buscarPorId(pedidoId, token)
       .then((data) => {
         statusAnterior.current = data?.status ?? null;
+        if (data?.status === 'cancelado') {
+          cancelOverlayDisparado.current = true;
+        }
         setPedido(data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
 
+    // Fallback polling: cobre o caso de socket caído / app voltando do background.
+    // O realtime abaixo reage instantaneamente; o poll só preenche gaps.
     const interval = setInterval(() => {
-      PedidoService.buscarPorId(pedidoId, token)
-        .then((data) => {
-          if (!data) return;
-          if (
-            statusAnterior.current !== 'entregue' &&
-            data.status === 'entregue' &&
-            !data.avaliado
-          ) {
-            modalDisparado.current = true;
-            setShowConfirmada(true);
-          }
-          statusAnterior.current = data.status;
-          setPedido(data);
-        })
-        .catch(() => {});
-    }, 10000);
+      refetch();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [pedidoId, token]);
+  }, [pedidoId, token, refetch]);
+
+  // Realtime: lista de pedidos já usa isso; sem o mesmo aqui, a tela de detalhe
+  // ficava até 10s atrasada quando o lojista/entregador cancelava ou avançava
+  // o status. Refeta o pedido completo no evento — mais simples e correto que
+  // tentar mesclar payloads parciais.
+  usePedidoConsumerRealtime({
+    apiUrl: API_URL,
+    userId,
+    enabled: !!token,
+    onAtualizado: (payload) => {
+      if (payload.pedidoId !== pedidoId) return;
+      refetch();
+    },
+  });
 
   async function handleEnviarAvaliacao(dados: AvaliacaoPayload) {
     if (!token || !pedido) return;
@@ -91,10 +128,21 @@ export function useTracking(pedidoId: string) {
     setErroCancelar(null);
     try {
       await PedidoService.cancelar(pedido.id, token);
+      cancelOverlayDisparado.current = true;
       setConfirmandoCancelar(false);
       setPedido((prev) => (prev ? { ...prev, status: 'cancelado' } : prev));
     } catch (e: unknown) {
-      setErroCancelar(e instanceof Error ? e.message : 'Erro ao cancelar. Tente novamente.');
+      // 409: a loja aceitou no meio do clique. Fecha o modal — não adianta o
+      // usuário ficar retentando — e refeta para refletir o novo status real.
+      const status = (e as { status?: number } | null)?.status;
+      const msg = e instanceof Error ? e.message : 'Erro ao cancelar. Tente novamente.';
+      if (status === 409) {
+        setConfirmandoCancelar(false);
+        setErroCancelar(null);
+        await refetch();
+      } else {
+        setErroCancelar(msg);
+      }
       setCancelando(false);
     }
   }
@@ -133,6 +181,8 @@ export function useTracking(pedidoId: string) {
     setErroCancelar,
     handleEnviarAvaliacao,
     confirmarCancelamento,
+    canceladoPelaLoja,
+    fecharCanceladoPelaLoja: () => setCanceladoPelaLoja(null),
     isActive,
     isAtivo,
     etaMin,

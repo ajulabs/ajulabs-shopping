@@ -141,6 +141,8 @@ function mapPedido(raw: any): Pedido {
         } as EntregadorResumo)
       : null,
     avaliado: raw.avaliado ?? false,
+    canceladoPor: raw.canceladoPor ?? null,
+    motivoCancelamento: raw.motivoCancelamento ?? null,
   };
 }
 
@@ -375,7 +377,10 @@ export const PedidoService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao cancelar pedido');
+      const message = typeof err.error === 'string' ? err.error : 'Erro ao cancelar pedido';
+      // Expor o HTTP status no Error para a UI distinguir race (409 — loja aceitou
+      // antes) de erro de rede. Em race, o consumer fecha o modal e refeta.
+      throw Object.assign(new Error(message), { status: res.status });
     }
   },
 
@@ -936,11 +941,27 @@ export const EntregadorService = {
     form.append('motivo', motivo);
     // React Native FormData aceita { uri, name, type } para arquivos locais.
     form.append('foto', { uri: fotoUri, name: 'incidente.jpg', type: 'image/jpeg' } as any);
-    const res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/cancelar`, {
-      method: 'POST',
-      headers: authHeader(token),
-      body: form,
-    });
+    // Timeout de 30s: sem isso, se o upload travar (rede ruim em área de risco),
+    // o modal fica preso em loading=true e o entregador só consegue força-fechar
+    // o app — não cancela e não recebe novos pedidos.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/entregador/corridas/${pedidoId}/cancelar`, {
+        method: 'POST',
+        headers: authHeader(token),
+        body: form,
+        signal: controller.signal,
+      });
+    } catch (e: unknown) {
+      clearTimeout(timeoutId);
+      if (e instanceof Error && e.name === 'AbortError') {
+        throw new Error('Tempo esgotado enviando a foto. Verifique sua conexão e tente de novo.');
+      }
+      throw e;
+    }
+    clearTimeout(timeoutId);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao cancelar corrida');
@@ -970,6 +991,15 @@ export const EntregadorService = {
     if (!res.ok) return [];
     const { entregas } = await res.json();
     return entregas ?? [];
+  },
+
+  listarCancelamentos: async (token: string): Promise<any[]> => {
+    const res = await fetch(`${API_URL}/entregador/cancelamentos`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { cancelamentos } = await res.json();
+    return cancelamentos ?? [];
   },
 
   uploadDocumentosIdentidade: async (

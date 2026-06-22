@@ -100,6 +100,12 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
               <Text style={[s.dispatchedText, { color: '#046C2E' }]}>Entrega concluída</Text>
             </View>
           )}
+          {!meta.next && o.status === 'cancelado' && (
+            <View style={s.dispatched}>
+              <Ionicons name="close-circle" size={14} color="#9B1C1C" />
+              <Text style={[s.dispatchedText, { color: '#9B1C1C' }]}>Cancelado</Text>
+            </View>
+          )}
         </View>
         {['novo', 'preparando', 'pronto'].includes(o.status) && (
           <TouchableOpacity style={s.cancelLink} onPress={onCancel} activeOpacity={0.7}>

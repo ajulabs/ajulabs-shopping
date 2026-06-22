@@ -131,7 +131,8 @@ model Entregador {
   prefsOptOut           PreferenciaNotificacaoOptOut[]
   avaliacoes            AvaliacaoEntregador[]
   tokensRecuperacao     TokenRecuperacaoSenhaEntregador[]
-  corridasRejeitadas    CorridaRejeitada[]
+  corridasRejeitadas      CorridaRejeitada[]
+  cancelamentosCorrida    CancelamentoEntregador[]
 
   @@map("entregadores")
 }
@@ -487,7 +488,14 @@ enum StatusPedido {
 enum CancelamentoPor {
   consumidor
   lojista
+  entregador
   admin
+}
+
+enum MotivoCancelamentoEntregador {
+  area_risco
+  pneu_furou
+  acidente
 }
 
 enum MetodoPagamento {
@@ -530,7 +538,8 @@ model Pedido {
   avaliacoesProdutos  AvaliacaoProduto[]
   supportTickets      SupportTicket[]
   chat                ChatPedido?
-  corridasRejeitadas  CorridaRejeitada[]
+  corridasRejeitadas      CorridaRejeitada[]
+  cancelamentosEntregador CancelamentoEntregador[]
 
   @@map("pedidos")
 }
@@ -546,6 +555,28 @@ model CorridaRejeitada {
 
   @@unique([pedidoId, entregadorId])
   @@map("corridas_rejeitadas")
+}
+
+/**
+ * Registro de cancelamento de uma corrida pelo entregador, com prova de
+ * incidente (foto) e motivo. Cada tentativa fica registrada — se um segundo
+ * entregador também cancelar a mesma corrida depois de re-ofertada, geramos
+ * uma nova linha. Anti-fraude / suporte consulta por pedidoId ou entregadorId.
+ */
+model CancelamentoEntregador {
+  id           String                       @id @default(uuid())
+  pedidoId     String                       @map("pedido_id")
+  entregadorId String                       @map("entregador_id")
+  motivo       MotivoCancelamentoEntregador
+  fotoUrl      String                       @map("foto_url")
+  criadoEm     DateTime                     @default(now()) @map("criado_em")
+
+  pedido     Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  entregador Entregador @relation(fields: [entregadorId], references: [id], onDelete: Cascade)
+
+  @@index([pedidoId])
+  @@index([entregadorId])
+  @@map("cancelamentos_entregador")
 }
 
 model ItemPedido {
