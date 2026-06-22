@@ -186,6 +186,58 @@ curl.exe http://localhost:3000/perfil \
 
 ---
 
+## Specs do backend (Spec Kit)
+
+Em `backend/specs/` mantemos a **especificação** de cada endpoint REST, evento WebSocket, tool da Aju e validação crítica — arquivos `.spec.ts` tipados que descrevem entrada, saída, exemplos reais, erros, pré-condições e efeitos colaterais.
+
+### O que são
+
+Não são testes nem código de produção: são a **fonte única da verdade** do contrato da API. Cada spec é um objeto TypeScript validado em tempo de compilação (`satisfies EndpointSpec`).
+
+```
+backend/specs/
+├── endpoints/      Contrato de cada rota REST (POST_pedidos, POST_lojista_produtos, …)
+├── websocket/      Contrato dos eventos realtime (pedido:novo, estoque:alerta, …)
+├── tools/          Tools que o agente Aju pode chamar (buscar_produtos, …)
+└── validations/    Regras de validação críticas (checkout, estoque, …)
+```
+
+### Por que usar
+
+A partir de **uma** edição de spec, três artefatos são regenerados em sincronia — sem precisar ajustar cada um à mão:
+
+| Gerado a partir da spec | Para quê |
+|---|---|
+| Testes Vitest (`src/__tests__/generated/`) | Validam campos obrigatórios e contratos automaticamente |
+| `openapi.json` | Documentação da API (abre no Swagger UI) |
+| `src/lib/agent-context.ts` | Diz ao agente Aju quais endpoints existem e como chamá-los (evita alucinação de API) |
+
+Endpoints com corpo obrigatório também ganham validação em runtime via `specValidatorMiddleware` (estrito em dev/test, não-bloqueante em produção).
+
+### Quando usar
+
+- **Toda rota/evento novo nasce com sua spec** (de preferência antes da implementação).
+- **Ao alterar** entrada, saída ou erros de um endpoint existente, atualize a spec e **regenere**.
+- Depois de editar qualquer spec, rode `pnpm spec:gen` e **commite os arquivos gerados junto** — eles são versionados.
+
+> **O CI trava o merge se os specs e os arquivos gerados estiverem fora de sincronia** (passo `Spec drift check` → `pnpm spec:check`). Se esquecer de regenerar, o build falha. Rode `pnpm spec:gen` e commite o resultado.
+
+### Comandos
+
+Da pasta `backend/`:
+
+```bash
+pnpm spec:gen-tests          # Gera só os testes a partir dos specs
+pnpm spec:gen-openapi        # Gera só o openapi.json (doc da API)
+pnpm spec:gen-agent-context  # Gera só o contexto do agente Aju
+
+pnpm spec:gen                # Roda os três geradores de uma vez
+pnpm spec:check              # Regenera e falha se houver drift (usado no CI)
+pnpm test                    # Roda os testes (inclui os gerados)
+```
+
+---
+
 ## Arquitetura dos apps
 
 Cada app segue **Feature-Sliced Design** adaptado para React Native, em camadas com direção de dependência única (cada camada só importa das de baixo):
