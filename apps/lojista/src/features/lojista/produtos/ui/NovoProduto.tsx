@@ -23,6 +23,8 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     showSuccess,
     publishedName,
     productData,
+    analisarErro,
+    limparAnalisarErro,
     handleVoltarStage,
     handleCapture,
     handleTrocarFoto,
@@ -66,6 +68,21 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
       >
         <Stepper current={stepIndex} />
       </View>
+
+      {stage === 'edit' && analisarErro && (
+        <View style={styles.errorBanner}>
+          <View style={styles.errorBannerIcon}>
+            <Ionicons name="alert-circle" size={20} color="#9B1C1C" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.errorBannerTitle}>{analisarErro.titulo}</Text>
+            <Text style={styles.errorBannerDesc}>{analisarErro.descricao}</Text>
+          </View>
+          <TouchableOpacity onPress={limparAnalisarErro} hitSlop={8} activeOpacity={0.7}>
+            <Ionicons name="close" size={18} color="#9B1C1C" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {stage === 'capture' && (
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -137,6 +154,21 @@ const styles = StyleSheet.create({
   headerTitle: { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
   headerSub: { fontSize: 12, color: '#6B7390', marginTop: 1 },
   stepperWrapper: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+  },
+  errorBannerIcon: { marginTop: 1 },
+  errorBannerTitle: { fontSize: 13.5, fontWeight: '700', color: '#9B1C1C' },
+  errorBannerDesc: { fontSize: 12.5, color: '#7F1D1D', marginTop: 2, lineHeight: 17 },
   successOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

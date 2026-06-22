@@ -662,7 +662,8 @@ export const LojistaService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao analisar imagem');
+      const message = typeof err.error === 'string' ? err.error : 'Erro ao analisar imagem';
+      throw Object.assign(new Error(message), { status: res.status });
     }
     return res.json();
   },

@@ -247,7 +247,7 @@ router.post(
   upload.single('imagem'),
   async (req: AuthRequest, res) => {
     if (!req.file) return res.status(400).json({ error: 'Imagem ausente' });
-    const resultado = await svc.analisarImagemProduto(req.file);
+    const resultado = await svc.analisarImagemProduto(req.file, req.user!.id);
     res.json(resultado);
   },
 );
@@ -260,7 +260,7 @@ router.post(
   async (req: AuthRequest, res) => {
     const { variacoes = [], ...dadosSemVar } = produtoFormSchema.parse(req.body);
     await svc.verificarDonoLoja(dadosSemVar.lojaId, req.user!.id);
-    const produto = await svc.criarProduto(dadosSemVar, req.file, variacoes);
+    const produto = await svc.criarProduto(dadosSemVar, req.user!.id, req.file, variacoes);
     res.status(201).json({ produto });
   },
 );

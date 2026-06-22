@@ -151,14 +151,16 @@ model TokenRecuperacaoSenhaEntregador {
 }
 
 model Lojista {
-  id              String   @id @default(uuid())
-  cnpj            String   @unique
-  nomeResponsavel String   @map("nome_responsavel")
-  email           String   @unique
-  senhaHash       String   @map("senha_hash")
-  telefone        String
-  criadoEm        DateTime @default(now()) @map("criado_em")
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  id                   String    @id @default(uuid())
+  cnpj                 String    @unique
+  nomeResponsavel      String    @map("nome_responsavel")
+  email                String    @unique
+  senhaHash            String    @map("senha_hash")
+  telefone             String
+  produtoStrikesCount  Int       @default(0) @map("produto_strikes_count")
+  produtoBloqueadoAte  DateTime? @map("produto_bloqueado_ate")
+  criadoEm             DateTime  @default(now()) @map("criado_em")
+  atualizadoEm         DateTime  @updatedAt @map("atualizado_em")
 
   lojas            Loja[]
   dispositivosPush DispositivoPush[]
