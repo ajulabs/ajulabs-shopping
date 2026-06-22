@@ -1,6 +1,7 @@
 import { TipoMovimentacao } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { emitEstoqueAtualizado, emitEstoqueAlerta, emitProdutoVariacoes } from '../utils/socket';
+import { dispararAvisosRestock } from './avisoEstoque.service';
 
 export type NivelEstoque = 'saudavel' | 'atencao' | 'critico' | 'zerado';
 
@@ -104,12 +105,13 @@ export async function ajustarEstoqueManual(
 
   const novoEstoque = aplicarAjuste(tipo, produto.estoque, quantidade);
 
+  const saiuDoEsgotado = produto.estoque === 0 && novoEstoque > 0;
   const [produtoAtualizado] = await prisma.$transaction([
     prisma.produto.update({
       where: { id: produtoId },
       data: {
         estoque: novoEstoque,
-        disponivel: novoEstoque > 0 ? produto.disponivel : false,
+        disponivel: saiuDoEsgotado ? true : novoEstoque > 0 ? produto.disponivel : false,
       },
       include: { variacoes: true },
     }),
@@ -128,6 +130,9 @@ export async function ajustarEstoqueManual(
   ]);
 
   notificarEstoque(lojaId, produtoId, produto.nome, novoEstoque, produto.estoqueMinimo);
+  if (produto.estoque === 0 && novoEstoque > 0) {
+    void dispararAvisosRestock(produtoId);
+  }
   return produtoAtualizado;
 }
 
@@ -173,11 +178,12 @@ async function ajustarEstoqueVariacao(
     const totalDepois = todasVars.reduce((s, v) => s + v.estoque, 0);
     const totalAntes = totalDepois - delta;
 
+    const saiuDoEsgotado = totalAntes === 0 && totalDepois > 0;
     const atualizado = await tx.produto.update({
       where: { id: produtoId },
       data: {
         estoque: totalDepois,
-        disponivel: totalDepois > 0 ? produto.disponivel : false,
+        disponivel: saiuDoEsgotado ? true : totalDepois > 0 ? produto.disponivel : false,
       },
       include: { variacoes: true },
     });
@@ -209,6 +215,10 @@ async function ajustarEstoqueVariacao(
   );
   // Atualiza o estoque por variação na PDP do consumidor em tempo real.
   emitProdutoVariacoes(lojaId, produtoId, produtoAtualizado.variacoes);
+  const estoqueAntes = produtoAtualizado.estoque - delta;
+  if (estoqueAntes === 0 && produtoAtualizado.estoque > 0) {
+    void dispararAvisosRestock(produtoId);
+  }
   return produtoAtualizado;
 }
 
@@ -351,6 +361,11 @@ export async function restaurarEstoqueNoCancelamento(
     },
   });
 
+  const restockCandidatos = new Set<string>();
+  for (const item of itens) {
+    if (item.produto.estoque === 0) restockCandidatos.add(item.produtoId);
+  }
+
   for (const item of itens) {
     if (item.variacaoId) {
       // Produto com variação: devolve à variação e recomputa o total do produto
@@ -405,5 +420,9 @@ export async function restaurarEstoqueNoCancelamento(
         },
       });
     }
+  }
+
+  for (const produtoId of restockCandidatos) {
+    void dispararAvisosRestock(produtoId);
   }
 }

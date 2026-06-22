@@ -36,6 +36,11 @@ export function useNovoProduto({
   const [showSuccess, setShowSuccess] = useState(false);
   const [publishedName, setPublishedName] = useState('');
   const [productData, setProductData] = useState<ProductData>(EMPTY_DATA);
+  const [analisarErro, setAnalisarErro] = useState<{
+    titulo: string;
+    descricao: string;
+    aviso?: string;
+  } | null>(null);
 
   const stepIndex = stage === 'capture' ? 0 : stage === 'analyzing' ? 1 : 2;
 
@@ -43,12 +48,14 @@ export function useNovoProduto({
     setStage('capture');
     setImageUri(null);
     setProductData(EMPTY_DATA);
+    setAnalisarErro(null);
   }, []);
 
   const handleCapture = useCallback(
     async (uri: string) => {
       setImageUri(uri);
       setStage('analyzing');
+      setAnalisarErro(null);
       try {
         const data = await LojistaService.analisarImagem(token!, uri);
         setProductData({
@@ -62,14 +69,57 @@ export function useNovoProduto({
           tipoProduto: inferirTipoProduto(data as Record<string, unknown>),
           variacoesEstoque: [],
         });
-      } catch {
-        Alert.alert('Aviso', 'Não foi possível analisar a imagem. Preencha os dados manualmente.');
+      } catch (e) {
+        const status = (e as { status?: number } | null)?.status;
+        const msg = e instanceof Error ? e.message : '';
+        const avisoMatch = msg.match(/Aviso:[^]*$|Sua conta foi bloqueada[^]*$/);
+        const aviso = avisoMatch ? avisoMatch[0].trim() : undefined;
+        const isTipoArquivo =
+          status === 400 && /formato.*imagem|imagem.*inv|jpe?g|png|gif|webp/i.test(msg);
+        const isSemProduto = status === 400 && /produto vend|sem_produto|n[ãa]o mostra/i.test(msg);
+        const isModerado = status === 400 && /n[ãa]o pode ser usada|cadastro de produto/i.test(msg);
+        const isBloqueado = status === 423;
+        if (isBloqueado) {
+          setAnalisarErro({
+            titulo: 'Cadastro bloqueado temporariamente',
+            descricao:
+              msg ||
+              'Sua conta foi bloqueada de cadastrar produtos por uploads inadequados repetidos.',
+          });
+        } else if (isTipoArquivo) {
+          setAnalisarErro({
+            titulo: 'Tipo de arquivo não suportado',
+            descricao:
+              'A IA aceita apenas imagens (JPEG, PNG, GIF ou WebP). Troque a foto e tente de novo.',
+          });
+        } else if (isModerado) {
+          setAnalisarErro({
+            titulo: 'Imagem bloqueada',
+            descricao:
+              'Esta foto não pode ser usada para cadastro de produto. Escolha outra imagem.',
+            aviso,
+          });
+        } else if (isSemProduto) {
+          setAnalisarErro({
+            titulo: 'Nenhum produto identificado',
+            descricao:
+              'A imagem não mostra um produto vendável. Envie uma foto clara do item que você quer cadastrar.',
+            aviso,
+          });
+        } else {
+          setAnalisarErro({
+            titulo: 'Não foi possível analisar a imagem',
+            descricao: 'Preencha os dados manualmente abaixo ou troque a foto e tente de novo.',
+          });
+        }
       } finally {
         setStage('edit');
       }
     },
     [token],
   );
+
+  const limparAnalisarErro = useCallback(() => setAnalisarErro(null), []);
 
   const handleTrocarFoto = useCallback(() => {
     Alert.alert('Trocar foto', 'Escolha uma opção', [
@@ -168,6 +218,8 @@ export function useNovoProduto({
     showSuccess,
     publishedName,
     productData,
+    analisarErro,
+    limparAnalisarErro,
     handleVoltarStage,
     handleCapture,
     handleTrocarFoto,

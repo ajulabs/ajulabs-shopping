@@ -366,10 +366,14 @@ export async function getProdutos(lojaId: string) {
   });
 }
 
-export async function analisarImagemProduto(file: Express.Multer.File) {
+export async function analisarImagemProduto(file: Express.Multer.File, lojistaId: string) {
+  await verificarBloqueioProdutos(lojistaId);
   assertValidImage(file.buffer);
   const base64 = file.buffer.toString('base64');
   const mimeType = file.mimetype || 'image/jpeg';
+  const dataUrl = `data:${mimeType};base64,${base64}`;
+
+  await moderarImagemBuffer(file.buffer, mimeType, lojistaId);
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -381,14 +385,19 @@ export async function analisarImagemProduto(file: Express.Multer.File) {
         content: [
           {
             type: 'image_url',
-            image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'low' },
+            image_url: { url: dataUrl, detail: 'low' },
           },
           {
             type: 'text',
-            text: `Analise esta imagem de produto para um marketplace local de Aracaju, Sergipe.
+            text: `Analise esta imagem para cadastro num marketplace local de Aracaju, Sergipe.
 Responda APENAS com JSON válido, sem markdown.
 
-Campos obrigatórios:
+PRIMEIRO: verifique se a imagem mostra um produto físico vendável (objeto comercializável: roupa, sapato, eletrônico, alimento, acessório, móvel, etc).
+
+Se NÃO for um produto vendável (selfie, paisagem, meme, screenshot, captura aleatória, animal de estimação, pessoa sem produto, conteúdo abstrato), responda APENAS:
+{ "erro": "sem_produto" }
+
+Se FOR um produto vendável, responda com:
 {
   "nome": "nome comercial do produto (máx 60 caracteres)",
   "categoria": "use EXATAMENTE um destes valores: Eletrônicos - Celular / Smartphone | Eletrônicos - Notebook / Computador | Eletrônicos - Tablet | Eletrônicos - Fone / Headphone | Eletrônicos - Eletrodoméstico | Calçados - Masculino | Calçados - Feminino | Calçados - Infantil | Roupas - Feminino | Roupas - Masculino | Roupas - Infantil | Acessórios - Bolsa / Mochila | Acessórios - Joias / Bijuterias | Acessórios - Relógio | Beleza - Maquiagem | Beleza - Perfumaria | Beleza - Cabelos | Esporte - Futebol | Esporte - Academia / Fitness | Casa / Deco - Móveis | Casa / Deco - Decoração | Casa / Deco - Utilidades | Alimentos - Geral | Alimentos - Bebidas | Alimentos - Doces / Confeitaria | Outros",
@@ -410,7 +419,114 @@ Campos opcionais — inclua apenas se visível ou aplicável ao produto:
     ],
   });
 
-  return JSON.parse(completion.choices[0]?.message?.content ?? '{}');
+  const parsed = JSON.parse(completion.choices[0]?.message?.content ?? '{}') as {
+    erro?: string;
+    [k: string]: unknown;
+  };
+
+  if (parsed.erro === 'sem_produto') {
+    const resultado = await aplicarStrikeProduto(lojistaId, 'sem_produto');
+    const aviso = mensagemAviso(resultado.strikes, resultado.bloqueado);
+    throw Object.assign(
+      new Error(
+        `A imagem não mostra um produto vendável. Envie uma foto clara do item que você quer cadastrar.${aviso}`,
+      ),
+      { statusCode: 400 },
+    );
+  }
+
+  return parsed;
+}
+
+const PRODUTO_STRIKES_LIMITE = 3;
+const PRODUTO_BLOQUEIO_HORAS = 24;
+
+export async function verificarBloqueioProdutos(lojistaId: string): Promise<void> {
+  const lojista = await prisma.lojista.findUnique({
+    where: { id: lojistaId },
+    select: { produtoBloqueadoAte: true },
+  });
+  if (lojista?.produtoBloqueadoAte && lojista.produtoBloqueadoAte > new Date()) {
+    const minutos = Math.ceil((lojista.produtoBloqueadoAte.getTime() - Date.now()) / 60000);
+    throw Object.assign(
+      new Error(
+        `Cadastro de produtos temporariamente bloqueado por uploads inadequados. Tente novamente em ~${minutos} min.`,
+      ),
+      { statusCode: 423 },
+    );
+  }
+}
+
+async function aplicarStrikeProduto(
+  lojistaId: string,
+  motivo: string,
+): Promise<{ strikes: number; bloqueado: boolean }> {
+  const atualizado = await prisma.lojista.update({
+    where: { id: lojistaId },
+    data: { produtoStrikesCount: { increment: 1 } },
+    select: { produtoStrikesCount: true },
+  });
+  logger.warn(
+    { lojistaId, strikes: atualizado.produtoStrikesCount, motivo },
+    '[produtos/moderação] strike aplicado ao lojista',
+  );
+  if (atualizado.produtoStrikesCount >= PRODUTO_STRIKES_LIMITE) {
+    const bloqueadoAte = new Date(Date.now() + PRODUTO_BLOQUEIO_HORAS * 60 * 60 * 1000);
+    await prisma.lojista.update({
+      where: { id: lojistaId },
+      data: { produtoBloqueadoAte: bloqueadoAte, produtoStrikesCount: 0 },
+    });
+    logger.warn(
+      { lojistaId, bloqueadoAte },
+      '[produtos/moderação] lojista bloqueado de cadastrar produtos',
+    );
+    return { strikes: PRODUTO_STRIKES_LIMITE, bloqueado: true };
+  }
+  return { strikes: atualizado.produtoStrikesCount, bloqueado: false };
+}
+
+function mensagemAviso(strikes: number, bloqueado: boolean): string {
+  if (bloqueado) {
+    return ` Sua conta foi bloqueada de cadastrar produtos por ${PRODUTO_BLOQUEIO_HORAS}h.`;
+  }
+  const restantes = PRODUTO_STRIKES_LIMITE - strikes;
+  return ` Aviso: ${strikes}/${PRODUTO_STRIKES_LIMITE} tentativas inadequadas registradas. Faltam ${restantes} antes da conta ser bloqueada por ${PRODUTO_BLOQUEIO_HORAS}h.`;
+}
+
+async function moderarImagemBuffer(
+  buffer: Buffer,
+  mimeType: string,
+  lojistaId?: string,
+): Promise<void> {
+  const dataUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
+  let flagged = false;
+  let categorias: string[] = [];
+  try {
+    const moderation = await openai.moderations.create({
+      model: 'omni-moderation-latest',
+      input: [{ type: 'image_url', image_url: { url: dataUrl } }],
+    });
+    const result = moderation.results[0];
+    if (!result?.flagged) return;
+    flagged = true;
+    categorias = Object.entries(result.categories ?? {})
+      .filter(([, v]) => v === true)
+      .map(([k]) => k);
+  } catch (err) {
+    logger.warn({ err }, '[produtos/moderação] API indisponível, seguindo sem ela');
+    return;
+  }
+  if (!flagged) return;
+  logger.warn({ categorias, lojistaId }, '[produtos/moderação] imagem rejeitada');
+  let aviso = '';
+  if (lojistaId) {
+    const resultado = await aplicarStrikeProduto(lojistaId, `moderacao: ${categorias.join(',')}`);
+    aviso = mensagemAviso(resultado.strikes, resultado.bloqueado);
+  }
+  throw Object.assign(
+    new Error(`Esta imagem não pode ser usada para cadastro de produto. Envie outra foto.${aviso}`),
+    { statusCode: 400 },
+  );
 }
 
 export async function criarProduto(
@@ -423,15 +539,20 @@ export async function criarProduto(
     categoria: string;
     tags: string[];
   },
+  lojistaId: string,
   file?: Express.Multer.File,
   variacoes: { nome: string; estoque: number; preco?: number }[] = [],
 ) {
-  let imagemUrl = '';
-  if (file) {
-    assertValidImage(file.buffer);
-    imagemUrl = await uploadImagemProduto(file.buffer, file.mimetype);
-    logger.debug({ imagemUrl }, '[produto] imagemUrl salva');
+  await verificarBloqueioProdutos(lojistaId);
+  if (!file) {
+    throw Object.assign(new Error('A foto do produto é obrigatória para publicar.'), {
+      statusCode: 400,
+    });
   }
+  assertValidImage(file.buffer);
+  await moderarImagemBuffer(file.buffer, file.mimetype, lojistaId);
+  const imagemUrl = await uploadImagemProduto(file.buffer, file.mimetype);
+  logger.debug({ imagemUrl }, '[produto] imagemUrl salva');
 
   const produto = await prisma.produto.create({
     data: {
@@ -479,6 +600,8 @@ export async function updateProduto(
     throw Object.assign(new Error('Acesso negado'), { statusCode: 403 });
   }
 
+  await verificarBloqueioProdutos(lojistaId);
+
   const dados: Record<string, unknown> = {};
   if (body.nome) dados.nome = body.nome;
   if (body.descricao !== undefined) dados.descricao = body.descricao;
@@ -494,6 +617,9 @@ export async function updateProduto(
   let newUrls: string[] = [];
   if (files && files.length > 0) {
     files.forEach((f) => assertValidImage(f.buffer));
+    for (const f of files) {
+      await moderarImagemBuffer(f.buffer, f.mimetype, lojistaId);
+    }
     newUrls = await Promise.all(files.map((f) => uploadImagemProduto(f.buffer, f.mimetype)));
   }
 

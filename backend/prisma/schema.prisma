@@ -33,6 +33,7 @@ model Usuario {
   supportTickets         SupportTicket[]
   favoritos              FavoritoProduto[]
   favoritosLojas         FavoritoLoja[]
+  avisosEstoque          ProdutoAvisoEstoque[]
   dispositivosPush       DispositivoPush[]
   prefsOptOut            PreferenciaNotificacaoOptOut[]
   tokensRecuperacao      TokenRecuperacaoSenha[]
@@ -151,14 +152,16 @@ model TokenRecuperacaoSenhaEntregador {
 }
 
 model Lojista {
-  id              String   @id @default(uuid())
-  cnpj            String   @unique
-  nomeResponsavel String   @map("nome_responsavel")
-  email           String   @unique
-  senhaHash       String   @map("senha_hash")
-  telefone        String
-  criadoEm        DateTime @default(now()) @map("criado_em")
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  id                   String    @id @default(uuid())
+  cnpj                 String    @unique
+  nomeResponsavel      String    @map("nome_responsavel")
+  email                String    @unique
+  senhaHash            String    @map("senha_hash")
+  telefone             String
+  produtoStrikesCount  Int       @default(0) @map("produto_strikes_count")
+  produtoBloqueadoAte  DateTime? @map("produto_bloqueado_ate")
+  criadoEm             DateTime  @default(now()) @map("criado_em")
+  atualizadoEm         DateTime  @updatedAt @map("atualizado_em")
 
   lojas            Loja[]
   dispositivosPush DispositivoPush[]
@@ -399,8 +402,24 @@ model Produto {
   movimentacoes     MovimentacaoEstoque[]
   avaliacoes        AvaliacaoProduto[]
   solicitacoesPreco SolicitacaoPreco[]
+  avisosEstoque     ProdutoAvisoEstoque[]
 
   @@map("produtos")
+}
+
+model ProdutoAvisoEstoque {
+  id           String   @id @default(uuid())
+  produtoId    String   @map("produto_id")
+  consumidorId String   @map("consumidor_id")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  consumidor Usuario @relation(fields: [consumidorId], references: [id], onDelete: Cascade)
+
+  @@unique([produtoId, consumidorId])
+  @@index([produtoId])
+  @@index([consumidorId])
+  @@map("produto_avisos_estoque")
 }
 
 model VariacaoProduto {

@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authMiddleware, authLojista, AuthRequest } from '../middleware/auth';
+import { authMiddleware, authLojista, authUsuario, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
 import { specValidatorMiddleware } from '../lib/spec-validator';
+import {
+  inscreverAvisoEstoque,
+  cancelarAvisoEstoque,
+  temAvisoEstoque,
+} from '../services/avisoEstoque.service';
 
 const router = Router();
 
@@ -135,6 +140,26 @@ router.delete('/:id', authMiddleware, authLojista, async (req: AuthRequest, res)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover produto' });
   }
+});
+
+router.get('/:id/aviso-estoque', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
+  const inscrito = await temAvisoEstoque(req.params.id, req.user!.id);
+  res.json({ inscrito });
+});
+
+router.post('/:id/aviso-estoque', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
+  const produto = await prisma.produto.findUnique({
+    where: { id: req.params.id },
+    select: { id: true },
+  });
+  if (!produto) return res.status(404).json({ error: 'Produto não encontrado' });
+  await inscreverAvisoEstoque(req.params.id, req.user!.id);
+  res.json({ inscrito: true });
+});
+
+router.delete('/:id/aviso-estoque', authMiddleware, authUsuario, async (req: AuthRequest, res) => {
+  await cancelarAvisoEstoque(req.params.id, req.user!.id);
+  res.json({ inscrito: false });
 });
 
 export default router;

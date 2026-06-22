@@ -207,6 +207,37 @@ export const ProdutoService = {
     const data = await res.json();
     return mapProduto(data.produto ?? data);
   },
+
+  checarAvisoEstoque: async (produtoId: string, token: string): Promise<boolean> => {
+    const res = await fetch(`${API_URL}/produtos/${produtoId}/aviso-estoque`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return false;
+    const { inscrito } = await res.json();
+    return Boolean(inscrito);
+  },
+
+  inscreverAvisoEstoque: async (produtoId: string, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/produtos/${produtoId}/aviso-estoque`, {
+      method: 'POST',
+      headers: authHeader(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao inscrever aviso');
+    }
+  },
+
+  cancelarAvisoEstoque: async (produtoId: string, token: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/produtos/${produtoId}/aviso-estoque`, {
+      method: 'DELETE',
+      headers: authHeader(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao cancelar aviso');
+    }
+  },
 };
 
 export const FavoritoLojaService = {
@@ -662,7 +693,8 @@ export const LojistaService = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(typeof err.error === 'string' ? err.error : 'Erro ao analisar imagem');
+      const message = typeof err.error === 'string' ? err.error : 'Erro ao analisar imagem';
+      throw Object.assign(new Error(message), { status: res.status });
     }
     return res.json();
   },

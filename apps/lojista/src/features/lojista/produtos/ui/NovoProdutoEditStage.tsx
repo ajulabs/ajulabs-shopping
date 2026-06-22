@@ -206,11 +206,12 @@ export function EditStage({
         </View>
       )}
 
+      {!imageUri && <Text style={styles.imagemRequiredHint}>A foto do produto é obrigatória.</Text>}
       <TouchableOpacity
-        style={[styles.publishBtn, saving && { opacity: 0.7 }]}
+        style={[styles.publishBtn, (saving || !imageUri) && { opacity: 0.5 }]}
         onPress={handlePublicar}
         activeOpacity={0.85}
-        disabled={saving}
+        disabled={saving || !imageUri}
       >
         {saving ? (
           <ActivityIndicator color="#fff" />
@@ -304,4 +305,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   publishBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  imagemRequiredHint: {
+    fontSize: 12.5,
+    color: '#9B1C1C',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 6,
+  },
 });
