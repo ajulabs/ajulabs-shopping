@@ -458,6 +458,7 @@ model EnderecoUsuario {
   cidade      String
   complemento String?
   padrao      Boolean  @default(false)
+  arquivado   Boolean  @default(false)
   lat         Float?
   lng         Float?
   accuracy    Int?
