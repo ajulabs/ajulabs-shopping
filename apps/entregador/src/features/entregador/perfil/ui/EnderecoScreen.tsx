@@ -1,380 +1,58 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Platform,
-  Modal,
-  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
-import { EntregadorService } from '../../../../lib/authServices';
-import { useAuthEntregadorStore } from '../../auth/model/store';
-import { LocationPickerMap } from '../../../../components/LocationPickerMap';
-
-const LAPI =
-  (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '') + '/v1';
+import { LocationPickerMap } from '../../../../shared/ui/LocationPickerMap';
+import { useEndereco } from '../model/useEndereco';
+import { Field } from './components/EnderecoField';
+import { PlainInput } from './components/EnderecoPlainInput';
+import { DiscardModal, SuccessModal } from './components/EnderecoModals';
 
 interface Props {
   onBack: () => void;
 }
 
-function Field({
-  label,
-  children,
-  error,
-}: {
-  label: string;
-  children: React.ReactNode;
-  error?: string;
-}) {
-  return (
-    <View style={s.field}>
-      <Text style={[s.fieldLabel, !!error && { color: '#E14B3C' }]}>{label}</Text>
-      {children}
-      {!!error && <Text style={s.fieldError}>{error}</Text>}
-    </View>
-  );
-}
-
-function PlainInput({
-  value,
-  onChange,
-  placeholder,
-  keyboard = 'default',
-  maxLength,
-  autoCapitalize = 'none',
-  autoCorrect = false,
-  hasError = false,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  keyboard?: any;
-  maxLength?: number;
-  autoCapitalize?: 'none' | 'words' | 'sentences' | 'characters';
-  autoCorrect?: boolean;
-  hasError?: boolean;
-}) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={[s.input, focused && s.inputFocused, hasError && s.inputError]}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor="#9099B3"
-        keyboardType={keyboard}
-        maxLength={maxLength}
-        autoCapitalize={autoCapitalize}
-        autoCorrect={autoCorrect}
-        style={s.inputInner}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-    </View>
-  );
-}
-
-type EnderecoOriginal = {
-  cep: string;
-  rua: string;
-  numero: string;
-  bairro: string;
-  cidade: string;
-  complemento: string;
-};
-
 export function EnderecoScreen({ onBack }: Props) {
-  const token = useAuthEntregadorStore((s) => s.token);
-  const refreshAccessToken = useAuthEntregadorStore((s) => s.refreshAccessToken);
-
-  const [cep, setCep] = useState('');
-  const [rua, setRua] = useState('');
-  const [numero, setNumero] = useState('');
-  const [bairro, setBairro] = useState('');
-  const [cidade, setCidade] = useState('');
-  const [complemento, setComplemento] = useState('');
-  const [original, setOriginal] = useState<EnderecoOriginal | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const [locLoading, setLocLoading] = useState(false);
-  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locError, setLocError] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [showDiscardModal, setShowDiscardModal] = useState(false);
-
-  const formatCep = (v: string) => {
-    const d = v.replace(/\D/g, '').slice(0, 8);
-    return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
-  };
-
-  const carregarPerfil = useCallback(
-    async (tk: string) => {
-      const p = await EntregadorService.buscarPerfil(tk);
-      if (!p) {
-        const ok = await refreshAccessToken();
-        if (ok) {
-          const newTk = useAuthEntregadorStore.getState().token;
-          if (newTk) return carregarPerfil(newTk);
-        }
-        return;
-      }
-      const end = p?.entregador?.endereco ?? p?.onboarding?.endereco ?? {};
-      const cepFmt = formatCep(end.cep ?? '');
-      const ruaVal = end.rua ?? '';
-      const numVal = end.numero ?? '';
-      const bairroVal = end.bairro ?? '';
-      const cidadeVal = end.cidade ?? '';
-      const compVal = end.complemento ?? '';
-      setCep(cepFmt);
-      setRua(ruaVal);
-      setNumero(numVal);
-      setBairro(bairroVal);
-      setCidade(cidadeVal);
-      setComplemento(compVal);
-      setOriginal({
-        cep: cepFmt,
-        rua: ruaVal,
-        numero: numVal,
-        bairro: bairroVal,
-        cidade: cidadeVal,
-        complemento: compVal,
-      });
-      if (end.lat && end.lng) {
-        setGpsCoords({ lat: end.lat, lng: end.lng });
-      }
-    },
-    [refreshAccessToken],
-  );
-
-  useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    carregarPerfil(token).finally(() => setLoading(false));
-  }, [token, carregarPerfil]);
-
-  const geocodeCoords = useCallback(async (lat: number, lng: number) => {
-    try {
-      const res = await fetch(`${LAPI}/geocode/by-coords?lat=${lat}&lng=${lng}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.cep) setCep(formatCep(data.cep));
-      if (data.rua) setRua(data.rua);
-      if (data.bairro) setBairro(data.bairro);
-      if (data.cidade) setCidade(data.cidade);
-    } catch {
-      // geocode silencioso — usuário preenche manualmente
-    }
-  }, []);
-
-  const usarLocalizacao = async () => {
-    setLocLoading(true);
-    setLocError('');
-    try {
-      let lat: number, lng: number;
-      if (Platform.OS === 'web') {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: false,
-              timeout: 15000,
-              maximumAge: 60000,
-            }),
-          );
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-        } catch (geoErr: any) {
-          setLocError(
-            geoErr?.code === 1
-              ? 'Permissão negada. Permita o acesso no navegador e tente novamente.'
-              : 'Não foi possível obter sua localização. Verifique se o GPS está ativo.',
-          );
-          return;
-        }
-      } else {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setLocError('Permissão de localização negada.');
-          return;
-        }
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        lat = loc.coords.latitude;
-        lng = loc.coords.longitude;
-      }
-      setGpsCoords({ lat, lng });
-      await geocodeCoords(lat, lng);
-    } finally {
-      setLocLoading(false);
-    }
-  };
-
-  const handlePinMoved = useCallback(
-    async (lat: number, lng: number) => {
-      setGpsCoords({ lat, lng });
-      await geocodeCoords(lat, lng);
-    },
-    [geocodeCoords],
-  );
-
-  const limparGps = () => {
-    setGpsCoords(null);
-    setLocError('');
-    setFieldErrors({});
-    if (original) {
-      setCep(original.cep);
-      setRua(original.rua);
-      setBairro(original.bairro);
-      setCidade(original.cidade);
-      setComplemento(original.complemento);
-      setNumero(original.numero);
-    } else {
-      setCep('');
-      setRua('');
-      setBairro('');
-      setCidade('');
-      setNumero('');
-    }
-  };
-
-  const hasChanges =
-    original !== null &&
-    (cep !== original.cep ||
-      rua.trim() !== original.rua ||
-      numero.trim() !== original.numero ||
-      bairro.trim() !== original.bairro ||
-      cidade.trim() !== original.cidade ||
-      complemento.trim() !== original.complemento);
-
-  const descartar = () => {
-    if (original) {
-      setCep(original.cep);
-      setRua(original.rua);
-      setNumero(original.numero);
-      setBairro(original.bairro);
-      setCidade(original.cidade);
-      setComplemento(original.complemento);
-    } else {
-      setCep('');
-      setRua('');
-      setNumero('');
-      setBairro('');
-      setCidade('');
-      setComplemento('');
-    }
-    setGpsCoords(null);
-    setFieldErrors({});
-    setErrorMsg('');
-  };
-
-  const tentarVoltar = useCallback(() => {
-    if (hasChanges) {
-      setShowDiscardModal(true);
-    } else {
-      onBack();
-    }
-  }, [hasChanges, onBack]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tentarVoltar();
-      return true;
-    });
-    return () => sub.remove();
-  }, [tentarVoltar]);
-
-  const salvar = async () => {
-    if (!token) return;
-    const erros: Record<string, string> = {};
-    if (cep.replace(/\D/g, '').length < 8) erros.cep = 'CEP inválido';
-    if (!rua.trim()) erros.rua = 'Informe a rua';
-    if (!numero.trim()) erros.numero = 'Informe o número';
-    if (!bairro.trim()) erros.bairro = 'Informe o bairro';
-    if (!cidade.trim()) erros.cidade = 'Informe a cidade';
-    if (Object.keys(erros).length > 0) {
-      setFieldErrors(erros);
-      return;
-    }
-    setFieldErrors({});
-
-    if (
-      original &&
-      cep === original.cep &&
-      rua.trim() === original.rua &&
-      numero.trim() === original.numero &&
-      bairro.trim() === original.bairro &&
-      cidade.trim() === original.cidade &&
-      complemento.trim() === original.complemento
-    ) {
-      setErrorMsg('Nenhuma alteração foi feita no endereço.');
-      setTimeout(() => setErrorMsg(''), 4000);
-      return;
-    }
-    setSaving(true);
-    setErrorMsg('');
-    setShowSuccess(false);
-    const payload = {
-      cep: cep.replace(/\D/g, ''),
-      rua: rua.trim(),
-      numero: numero.trim(),
-      bairro: bairro.trim(),
-      cidade: cidade.trim(),
-      complemento: complemento.trim() || undefined,
-      lat: gpsCoords?.lat,
-      lng: gpsCoords?.lng,
-    };
-    const doSave = async (tk: string) => {
-      await EntregadorService.atualizarEndereco(tk, payload);
-    };
-    try {
-      let activeToken = token;
-      try {
-        await doSave(activeToken);
-      } catch (e: any) {
-        if (e?.message === 'Token inválido') {
-          const ok = await refreshAccessToken();
-          if (!ok) throw new Error('Sessão expirada. Faça login novamente.');
-          activeToken = useAuthEntregadorStore.getState().token;
-          if (!activeToken) throw new Error('Sessão expirada. Faça login novamente.');
-          await doSave(activeToken);
-        } else {
-          throw e;
-        }
-      }
-      setOriginal({
-        cep,
-        rua: rua.trim(),
-        numero: numero.trim(),
-        bairro: bairro.trim(),
-        cidade: cidade.trim(),
-        complemento: complemento.trim(),
-      });
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        onBack();
-      }, 2200);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? 'Não foi possível atualizar o endereço.');
-      setTimeout(() => setErrorMsg(''), 5000);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    cep,
+    setCep,
+    rua,
+    setRua,
+    numero,
+    setNumero,
+    bairro,
+    setBairro,
+    cidade,
+    setCidade,
+    complemento,
+    setComplemento,
+    loading,
+    saving,
+    locLoading,
+    gpsCoords,
+    locError,
+    showSuccess,
+    errorMsg,
+    fieldErrors,
+    setFieldErrors,
+    showDiscardModal,
+    setShowDiscardModal,
+    formatCep,
+    usarLocalizacao,
+    handlePinMoved,
+    limparGps,
+    hasChanges,
+    descartar,
+    tentarVoltar,
+    salvar,
+  } = useEndereco(onBack);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -589,54 +267,18 @@ export function EnderecoScreen({ onBack }: Props) {
         </ScrollView>
       )}
 
-      <Modal
+      <DiscardModal
         visible={showDiscardModal}
-        transparent
-        animationType="fade"
         onRequestClose={() => setShowDiscardModal(false)}
-      >
-        <View style={s.modalOverlay}>
-          <View style={s.modalBox}>
-            <View style={[s.modalIconWrap, { backgroundColor: 'rgba(225,75,60,0.1)' }]}>
-              <Ionicons name="warning-outline" size={36} color="#E14B3C" />
-            </View>
-            <Text style={s.modalTitle}>Alterações não salvas</Text>
-            <Text style={s.modalMsg}>
-              Você tem alterações que ainda não foram salvas. Deseja descartá-las?
-            </Text>
-            <TouchableOpacity
-              style={s.modalBtnDanger}
-              onPress={() => {
-                descartar();
-                setShowDiscardModal(false);
-                onBack();
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={s.modalBtnDangerTxt}>Descartar e sair</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.modalBtnCancel}
-              onPress={() => setShowDiscardModal(false)}
-              activeOpacity={0.85}
-            >
-              <Text style={s.modalBtnCancelTxt}>Continuar editando</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onDiscard={() => {
+          descartar();
+          setShowDiscardModal(false);
+          onBack();
+        }}
+        onCancel={() => setShowDiscardModal(false)}
+      />
 
-      <Modal visible={showSuccess} transparent animationType="fade">
-        <View style={s.modalOverlay}>
-          <View style={s.modalBox}>
-            <View style={s.modalIconWrap}>
-              <Ionicons name="checkmark-circle" size={40} color="#039855" />
-            </View>
-            <Text style={s.modalTitle}>Endereço salvo!</Text>
-            <Text style={s.modalMsg}>Sua localização foi salva ou editada com sucesso.</Text>
-          </View>
-        </View>
-      </Modal>
+      <SuccessModal visible={showSuccess} />
     </SafeAreaView>
   );
 }
@@ -680,22 +322,6 @@ const s = StyleSheet.create({
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
   row: { flexDirection: 'row' },
-  field: { marginBottom: 12 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: '#2A3156', marginBottom: 6 },
-  input: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  inputInner: { flex: 1, fontSize: 15, color: '#000933' },
-  inputFocused: { borderColor: '#F2760F' },
-  inputError: { borderColor: '#E14B3C', backgroundColor: '#FFF5F5' },
-  fieldError: { fontSize: 11, color: '#E14B3C', fontWeight: '500', marginTop: 4 },
   gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   gpsBtn: {
     flexDirection: 'row',
@@ -768,48 +394,4 @@ const s = StyleSheet.create({
     borderColor: 'rgba(225,75,60,0.25)',
   },
   errorBannerTxt: { fontSize: 13, fontWeight: '600', color: '#E14B3C', flex: 1 },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  modalBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 28,
-    width: '100%',
-    alignItems: 'center',
-  },
-  modalIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(3,152,85,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#000933', marginBottom: 8 },
-  modalMsg: { fontSize: 13, color: '#9099B3', textAlign: 'center', lineHeight: 19 },
-  modalBtnDanger: {
-    width: '100%',
-    backgroundColor: '#E14B3C',
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  modalBtnDangerTxt: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  modalBtnCancel: {
-    width: '100%',
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  modalBtnCancelTxt: { fontSize: 15, fontWeight: '600', color: '#000933' },
 });

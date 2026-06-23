@@ -279,7 +279,7 @@ apps/consumer/
 └── assets/                       Ícones, imagens, fontes
 ```
 
-> O app **consumer** é a implementação de referência dessa estrutura, e o **lojista** já segue o mesmo padrão. O app `entregador` ainda está sendo migrado.
+> O app **consumer** é a implementação de referência dessa estrutura; **lojista** e **entregador** já seguem o mesmo padrão. No `entregador`, `entities/corrida` reúne o modelo de corrida (`Ride`/`RideWithStage`, `mapToRide`) compartilhado entre as features de home, andamento e corrida-ativa.
 
 ### Regras
 

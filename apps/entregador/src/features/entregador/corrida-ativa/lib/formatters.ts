@@ -18,16 +18,16 @@ export function fmtSpeed(kmh: number): string {
 
 export function maneuverIcon(modifier?: string): string {
   const map: Record<string, string> = {
-    'left':        'arrow-back',
-    'right':       'arrow-forward',
-    'straight':    'arrow-up',
+    left: 'arrow-back',
+    right: 'arrow-forward',
+    straight: 'arrow-up',
     'slight left': 'arrow-back-outline',
-    'slight right':'arrow-forward-outline',
-    'sharp left':  'return-down-back',
+    'slight right': 'arrow-forward-outline',
+    'sharp left': 'return-down-back',
     'sharp right': 'return-down-forward',
-    'uturn':       'refresh',
+    uturn: 'refresh',
   };
   return map[modifier ?? ''] ?? 'arrow-up';
 }
 
-export const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export { brl } from '../../../../shared/lib/format';

@@ -1,5 +1,8 @@
-export const STAGES = ['to-store', 'at-store', 'to-customer', 'delivered'] as const;
-export type Stage = (typeof STAGES)[number];
+import type { Stage } from '../../../../entities/corrida';
+
+export { STAGES } from '../../../../entities/corrida';
+export type { Stage, Ride, RideWithStage } from '../../../../entities/corrida';
+export type { Ride as ActiveRide } from '../../../../entities/corrida';
 
 export const STAGE_LABEL: Record<Stage, string> = {
   'to-store': 'Indo ao estabelecimento',
@@ -7,30 +10,3 @@ export const STAGE_LABEL: Record<Stage, string> = {
   'to-customer': 'Indo ao cliente',
   delivered: 'Entrega concluída',
 };
-
-export interface ActiveRide {
-  id: string;
-  loja: {
-    nome: string;
-    logoUrl?: string;
-    endereco: string;
-    bairro: string;
-    cep?: string;
-    lat?: number;
-    lng?: number;
-  };
-  cliente: {
-    nome: string;
-    telefone?: string;
-    endereco: string;
-    bairro: string;
-    complemento?: string;
-    cep?: string;
-    lat?: number;
-    lng?: number;
-  };
-  ganho: number;
-  distancia: number;
-  duracao: number;
-  codigo: string;
-}

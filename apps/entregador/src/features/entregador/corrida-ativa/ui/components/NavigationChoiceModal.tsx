@@ -6,6 +6,8 @@ interface Props {
   visible: boolean;
   destinationName: string;
   destinationAddress: string;
+  /** Rótulo do destino da etapa (ex.: "a loja", "o cliente") para o título. */
+  destinationLabel?: string;
   onInternal: () => void;
   onGoogleMaps: () => void;
   onWaze: () => void;
@@ -17,6 +19,7 @@ export function NavigationChoiceModal({
   visible,
   destinationName,
   destinationAddress,
+  destinationLabel,
   onInternal,
   onGoogleMaps,
   onWaze,
@@ -35,7 +38,11 @@ export function NavigationChoiceModal({
         <View style={s.sheet}>
           <View style={s.handle} />
           <View style={s.titleRow}>
-            <Text style={s.title}>Como deseja navegar?</Text>
+            <Text style={s.title}>
+              {destinationLabel
+                ? `Como deseja navegar até ${destinationLabel}?`
+                : 'Como deseja navegar?'}
+            </Text>
             {onClose && (
               <TouchableOpacity
                 onPress={onClose}
