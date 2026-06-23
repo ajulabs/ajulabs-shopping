@@ -53,7 +53,9 @@
     "db:reset": "tsx prisma/reset.ts",
     "spec:gen-tests": "tsx scripts/generate-tests.ts",
     "spec:gen-openapi": "tsx scripts/generate-openapi.ts",
-    "spec:gen-agent-context": "tsx scripts/generate-agent-context.ts"
+    "spec:gen-agent-context": "tsx scripts/generate-agent-context.ts",
+    "spec:gen": "pnpm spec:gen-tests && pnpm spec:gen-openapi && pnpm spec:gen-agent-context",
+    "spec:check": "pnpm spec:gen && git diff --exit-code -- openapi.json src/lib/agent-context.ts src/__tests__/generated"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

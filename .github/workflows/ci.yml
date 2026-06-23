@@ -39,5 +39,8 @@ jobs:
       - name: Typecheck
         run: pnpm --filter @ajulabs/backend run typecheck
 
+      - name: Spec drift check
+        run: pnpm --filter @ajulabs/backend run spec:check
+
       - name: Test
         run: pnpm --filter @ajulabs/backend run test

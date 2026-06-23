@@ -51,6 +51,18 @@ const ticketMensagemLojistaSpec = {
   },
 } as const;
 
+const criarProdutoSpec = {
+  name: 'POST_lojista_produtos',
+  input: {
+    lojaId: { required: true, type: 'string' },
+    nome: { required: true, type: 'string' },
+    descricao: { required: true, type: 'string' },
+    preco: { required: true, type: 'number' },
+    estoque: { required: true, type: 'number' },
+    categoria: { required: true, type: 'string' },
+  },
+} as const;
+
 const lojaUpdateSchema = z.object({
   nome: z.string().min(2).optional(),
   descricao: z.string().optional(),
@@ -257,6 +269,7 @@ router.post(
   authMiddleware,
   authLojista,
   upload.single('imagem'),
+  specValidatorMiddleware(criarProdutoSpec),
   async (req: AuthRequest, res) => {
     const { variacoes = [], ...dadosSemVar } = produtoFormSchema.parse(req.body);
     await svc.verificarDonoLoja(dadosSemVar.lojaId, req.user!.id);

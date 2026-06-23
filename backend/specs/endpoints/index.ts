@@ -11,12 +11,18 @@ export { postPedidosSpec } from './POST_pedidos.spec';
 export { getPedidosSpec } from './GET_pedidos.spec';
 export { getPedidoByIdSpec } from './GET_pedidos_id.spec';
 export { postPedidoRastrearSpec } from './POST_pedidos_id_rastrear.spec';
+export { postPedidoCancelarSpec } from './POST_pedidos_id_cancelar.spec';
 
 // Produtos (público/lojista)
 export { postProdutosSpec } from './POST_produtos.spec';
 export { getProdutoByIdSpec } from './GET_produtos_id.spec';
 export { putProdutoByIdSpec } from './PUT_produtos_id.spec';
 export { putLojistaProdutoSpec } from './PUT_lojista_produtos_id.spec';
+export { postLojistaProdutosSpec } from './POST_lojista_produtos.spec';
+export { postLojistaProdutosAnalisarSpec } from './POST_lojista_produtos_analisar.spec';
+export { getProdutoAvisoEstoqueSpec } from './GET_produtos_id_aviso_estoque.spec';
+export { postProdutoAvisoEstoqueSpec } from './POST_produtos_id_aviso_estoque.spec';
+export { deleteProdutoAvisoEstoqueSpec } from './DELETE_produtos_id_aviso_estoque.spec';
 
 // Lojas (público)
 export { getLojasSpec } from './GET_lojas.spec';
@@ -58,10 +64,16 @@ import { postPedidosSpec } from './POST_pedidos.spec';
 import { getPedidosSpec } from './GET_pedidos.spec';
 import { getPedidoByIdSpec } from './GET_pedidos_id.spec';
 import { postPedidoRastrearSpec } from './POST_pedidos_id_rastrear.spec';
+import { postPedidoCancelarSpec } from './POST_pedidos_id_cancelar.spec';
 import { postProdutosSpec } from './POST_produtos.spec';
 import { getProdutoByIdSpec } from './GET_produtos_id.spec';
 import { putProdutoByIdSpec } from './PUT_produtos_id.spec';
 import { putLojistaProdutoSpec } from './PUT_lojista_produtos_id.spec';
+import { postLojistaProdutosSpec } from './POST_lojista_produtos.spec';
+import { postLojistaProdutosAnalisarSpec } from './POST_lojista_produtos_analisar.spec';
+import { getProdutoAvisoEstoqueSpec } from './GET_produtos_id_aviso_estoque.spec';
+import { postProdutoAvisoEstoqueSpec } from './POST_produtos_id_aviso_estoque.spec';
+import { deleteProdutoAvisoEstoqueSpec } from './DELETE_produtos_id_aviso_estoque.spec';
 import { getLojasSpec } from './GET_lojas.spec';
 import { getLojaByIdSpec } from './GET_lojas_id.spec';
 import { getLojaProdutosSpec } from './GET_lojas_id_produtos.spec';
@@ -88,10 +100,16 @@ export const ENDPOINT_SPECS = [
   getPedidosSpec,
   getPedidoByIdSpec,
   postPedidoRastrearSpec,
+  postPedidoCancelarSpec,
   postProdutosSpec,
   getProdutoByIdSpec,
   putProdutoByIdSpec,
   putLojistaProdutoSpec,
+  postLojistaProdutosSpec,
+  postLojistaProdutosAnalisarSpec,
+  getProdutoAvisoEstoqueSpec,
+  postProdutoAvisoEstoqueSpec,
+  deleteProdutoAvisoEstoqueSpec,
   getLojasSpec,
   getLojaByIdSpec,
   getLojaProdutosSpec,

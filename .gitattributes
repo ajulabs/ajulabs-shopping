@@ -1,0 +1,6 @@
+# Spec Kit do backend: artefatos gerados e suas fontes ficam em LF para o drift
+# check (spec:check) ser determinístico em qualquer SO (Windows/Linux/macOS).
+backend/openapi.json text eol=lf
+backend/src/lib/agent-context.ts text eol=lf
+backend/src/__tests__/generated/** text eol=lf
+backend/specs/** text eol=lf
