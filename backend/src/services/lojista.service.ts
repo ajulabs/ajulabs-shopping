@@ -209,13 +209,13 @@ export async function getDashboard(lojaId: string) {
     prisma.pedido.count({
       where: { lojaId, criadoEm: { gte: inicioMes }, status: { not: 'cancelado' } },
     }),
-    prisma.pedido.aggregate({
+    prisma.pedido.findMany({
       where: { lojaId, criadoEm: { gte: inicioDia }, status: { not: 'cancelado' } },
-      _sum: { total: true },
+      select: { total: true },
     }),
-    prisma.pedido.aggregate({
+    prisma.pedido.findMany({
       where: { lojaId, criadoEm: { gte: inicioMes }, status: { not: 'cancelado' } },
-      _sum: { total: true },
+      select: { total: true },
     }),
     prisma.pedido.groupBy({ by: ['status'], where: { lojaId }, _count: { id: true } }),
     prisma.produto.count({ where: { lojaId, disponivel: true } }),
@@ -228,9 +228,12 @@ export async function getDashboard(lojaId: string) {
     }),
   ]);
 
+  const somarTotais = (rows: { total: unknown }[]) =>
+    rows.reduce((acc, r) => acc + Number(r.total), 0);
+
   return {
-    hoje: { pedidos: totalPedidosHoje, faturamento: Number(faturamentoHoje._sum.total ?? 0) },
-    mes: { pedidos: totalPedidosMes, faturamento: Number(faturamentoMes._sum.total ?? 0) },
+    hoje: { pedidos: totalPedidosHoje, faturamento: somarTotais(faturamentoHoje) },
+    mes: { pedidos: totalPedidosMes, faturamento: somarTotais(faturamentoMes) },
     pedidosPorStatus: pedidosPorStatus.reduce(
       (acc, item) => ({ ...acc, [item.status]: item._count.id }),
       {} as Record<string, number>,

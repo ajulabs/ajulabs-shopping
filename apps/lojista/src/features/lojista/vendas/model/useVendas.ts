@@ -25,11 +25,13 @@ export function useVendas() {
 
   const raw = period === 'dia' ? dashboard?.hoje : dashboard?.mes;
   const periodLabel = period === 'dia' ? 'VENDAS · HOJE' : 'VENDAS · MÊS';
-  const valor = raw ? brl(Number(raw.receita ?? 0)) : 'R$ –';
-  const pedidos = raw ? String(raw.pedidos ?? 0) : '–';
-  const ticket = raw ? brl(Number(raw.ticketMedio ?? 0)) : 'R$ –';
-  const topProduto = dashboard?.mes?.topProdutos?.[0]?.nome ?? '–';
-  const bars: number[] = [0, 0, 0, 0, 0, 0, Number(dashboard?.hoje?.receita ?? 0)];
+  const faturamento = Number(raw?.faturamento ?? 0);
+  const qtdPedidos = Number(raw?.pedidos ?? 0);
+  const valor = raw ? brl(faturamento) : 'R$ –';
+  const pedidos = raw ? String(qtdPedidos) : '–';
+  const ticket = raw ? brl(qtdPedidos > 0 ? faturamento / qtdPedidos : 0) : 'R$ –';
+  const topProduto = dashboard?.produtosMaisVendidos?.[0]?.nome ?? '–';
+  const bars: number[] = [0, 0, 0, 0, 0, 0, Number(dashboard?.hoje?.faturamento ?? 0)];
 
   return {
     lojaNome,
