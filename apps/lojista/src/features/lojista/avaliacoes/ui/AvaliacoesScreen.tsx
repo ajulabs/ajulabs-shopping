@@ -17,22 +17,24 @@ import { DashboardHeader } from './components/DashboardHeader';
 import { SecaoTags } from './components/SecaoTags';
 import { ListaAvaliacoes } from './components/AvaliacaoDetalhada';
 import { EmptyState } from './components/EmptyState';
+import { useTheme } from '../../../../shared/hooks';
 
 export function AvaliacoesScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { data, loading, refreshing, erro, carregar, onRefresh } = useAvaliacoes();
 
   return (
-    <SafeAreaView style={s.safe}>
-      <View style={s.header}>
+    <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+      <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
         <TouchableOpacity
-          style={s.backBtn}
+          style={[s.backBtn, { backgroundColor: theme.backBtn }]}
           onPress={() => router.navigate('/(lojista)/perfil' as any)}
           activeOpacity={0.8}
         >
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Avaliações</Text>
+        <Text style={[s.headerTitle, { color: theme.text }]}>Avaliações</Text>
         <View style={{ width: 36 }} />
       </View>
 

@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { type AvaliacaoDetalhada } from '@ajulabs/types';
 import { StarRow } from './StarRow';
 import type { TagCatalog } from '../../lib/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function ListaAvaliacoes({
   avaliacoes,
@@ -10,15 +11,19 @@ export function ListaAvaliacoes({
   avaliacoes: AvaliacaoDetalhada[];
   tagCatalog: TagCatalog;
 }) {
+  const theme = useTheme();
   const tagLookup = new Map(tagCatalog.map((t) => [t.id, t.label]));
   if (avaliacoes.length === 0) return null;
 
   return (
-    <View style={s.section}>
-      <Text style={s.sectionTitle}>Últimas avaliações</Text>
+    <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+      <Text style={[s.sectionTitle, { color: theme.text }]}>Últimas avaliações</Text>
       <View style={{ gap: 12, marginTop: 12 }}>
         {avaliacoes.map((av) => (
-          <View key={av.id} style={s.avCard}>
+          <View
+            key={av.id}
+            style={[s.avCard, { backgroundColor: theme.surf2, borderColor: theme.border }]}
+          >
             <View style={s.avHeader}>
               <View style={s.avAvatar}>
                 <Text style={s.avAvatarTxt}>
@@ -26,8 +31,8 @@ export function ListaAvaliacoes({
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.avNome}>{av.usuario.nome}</Text>
-                <Text style={s.avData}>
+                <Text style={[s.avNome, { color: theme.text }]}>{av.usuario.nome}</Text>
+                <Text style={[s.avData, { color: theme.textMut }]}>
                   {new Date(av.criadoEm).toLocaleDateString('pt-BR', {
                     day: '2-digit',
                     month: 'short',
@@ -37,7 +42,9 @@ export function ListaAvaliacoes({
               </View>
               <StarRow nota={av.nota} />
             </View>
-            {av.comentario ? <Text style={s.avComentario}>{av.comentario}</Text> : null}
+            {av.comentario ? (
+              <Text style={[s.avComentario, { color: theme.text }]}>{av.comentario}</Text>
+            ) : null}
             {av.tags.length > 0 && (
               <View style={s.avTagsWrap}>
                 {av.tags.map((id) => (

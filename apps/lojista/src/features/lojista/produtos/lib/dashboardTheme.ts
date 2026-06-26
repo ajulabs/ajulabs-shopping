@@ -1,4 +1,5 @@
 import { NivelEstoque } from '@ajulabs/types';
+import { useTheme } from '../../../../shared/hooks';
 
 /** Paleta local do dashboard de estoque (cores fixas, não dependem do tema). */
 export const C = {
@@ -23,3 +24,23 @@ export const NIVEL_CFG: Record<NivelEstoque, { color: string; label: string; ico
   critico: { color: C.red, label: 'Crítico', icon: 'close-circle' },
   zerado: { color: C.slate, label: 'Zerado', icon: 'remove-circle' },
 };
+
+/**
+ * Versão sensível ao tema da paleta do dashboard de estoque.
+ * Cores ESTRUTURAIS (bg/card/border/text/sub/mute) seguem o tema;
+ * cores de STATUS/marca (green/red/amber/slate/orange/navy) ficam fixas.
+ */
+export function useDashboardC() {
+  const t = useTheme();
+  return {
+    ...C,
+    bg: t.bg,
+    card: t.surf,
+    border: t.border,
+    text: t.text,
+    sub: t.textSec,
+    mute: t.textMut,
+  };
+}
+
+export type DashboardC = ReturnType<typeof useDashboardC>;

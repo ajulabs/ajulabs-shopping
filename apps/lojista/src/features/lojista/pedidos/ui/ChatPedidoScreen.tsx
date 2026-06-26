@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChatPedido } from '../model/useChatPedido';
 import { ChatBubble, DestinatarioToggle } from './components';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   pedidoId: string;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function ChatPedidoScreen({ pedidoId, destinatario: destinatarioParam, onBack }: Props) {
+  const theme = useTheme();
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -61,16 +63,19 @@ export function ChatPedidoScreen({ pedidoId, destinatario: destinatarioParam, on
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={s.header}>
-          <TouchableOpacity onPress={handleBack} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={20} color="#000933" />
+        <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={[s.backBtn, { backgroundColor: theme.backBtn }]}
+          >
+            <Ionicons name="chevron-back" size={20} color={theme.text} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>
+          <Text style={[s.headerTitle, { color: theme.text }]}>
             {destinatario === 'CONSUMER'
               ? (chat?.consumidorNome ?? 'Cliente')
               : (chat?.entregadorNome ?? 'Entregador')}
@@ -90,7 +95,7 @@ export function ChatPedidoScreen({ pedidoId, destinatario: destinatarioParam, on
         >
           {msgsFiltradas.length === 0 && (
             <View style={s.msgsEmpty}>
-              <Text style={s.msgsEmptyTxt}>Nenhuma mensagem ainda</Text>
+              <Text style={[s.msgsEmptyTxt, { color: theme.textMut }]}>Nenhuma mensagem ainda</Text>
             </View>
           )}
           {msgsFiltradas.map((m) => (
@@ -106,11 +111,11 @@ export function ChatPedidoScreen({ pedidoId, destinatario: destinatarioParam, on
         )}
 
         {!chatEncerrado ? (
-          <View style={s.inputRow}>
+          <View style={[s.inputRow, { backgroundColor: theme.surf }]}>
             <TextInput
-              style={s.input}
+              style={[s.input, { backgroundColor: theme.surf2, color: theme.text }]}
               placeholder="Digite uma mensagem..."
-              placeholderTextColor="#9099B3"
+              placeholderTextColor={theme.textMut}
               value={input}
               onChangeText={setInput}
               multiline

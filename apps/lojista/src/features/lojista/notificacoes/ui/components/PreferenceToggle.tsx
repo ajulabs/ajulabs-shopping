@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function PreferenceToggle({
   value,
@@ -10,13 +11,14 @@ export function PreferenceToggle({
   onValueChange: (v: boolean) => void;
   disabled?: boolean;
 }) {
+  const theme = useTheme();
   return (
     <TouchableOpacity
       onPress={() => !disabled && onValueChange(!value)}
       activeOpacity={0.85}
       style={[
         s.toggleTrack,
-        { backgroundColor: value ? '#DE6708' : '#E4E7F1' },
+        { backgroundColor: value ? '#DE6708' : theme.border },
         disabled && { opacity: 0.5 },
       ]}
     >

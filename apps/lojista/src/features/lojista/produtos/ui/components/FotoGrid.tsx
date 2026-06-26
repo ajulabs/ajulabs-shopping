@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, Image, Dimensions, StyleSheet } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
 import { ImageSlot } from '../../lib/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 const SLOT_SIZE = (Dimensions.get('window').width - 16 * 2 - 10 * 3) / 4;
 
@@ -14,9 +15,10 @@ export function FotoGrid({
   onPick: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
+  const theme = useTheme();
   return (
     <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>
+      <Text style={[styles.fieldLabel, { color: theme.textSec }]}>
         Fotos do produto <Text style={styles.fieldLabelHint}>(até 4)</Text>
       </Text>
       <View style={styles.photoGrid}>
@@ -44,17 +46,20 @@ export function FotoGrid({
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.photoSlotEmpty}
+                style={[
+                  styles.photoSlotEmpty,
+                  { backgroundColor: theme.surf2, borderColor: theme.border },
+                ]}
                 onPress={() => onPick(i)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add" size={22} color={colors.n500} />
+                <Ionicons name="add" size={22} color={theme.textMut} />
               </TouchableOpacity>
             )}
           </View>
         ))}
       </View>
-      <Text style={styles.photoHint}>
+      <Text style={[styles.photoHint, { color: theme.textMut }]}>
         Toque em um slot vazio para adicionar foto. A primeira é a principal.
       </Text>
     </View>

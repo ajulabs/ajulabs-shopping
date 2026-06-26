@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../../../../shared/hooks';
 import { Ticket } from '../model/data';
 import { useTicketDetail } from '../model/useTicketDetail';
 import { dataCompleta, brl } from '../lib/format';
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
+  const theme = useTheme();
   const {
     nota,
     setNota,
@@ -50,20 +52,27 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={s.safe}
+      style={[s.safe, { backgroundColor: theme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
       <SafeAreaView style={{ flex: 1 }}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar
+          barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.surf}
+        />
 
-        <View style={s.header}>
-          <TouchableOpacity onPress={onBack} style={s.backBtn} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color="#000933" />
+        <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={[s.backBtn, { backgroundColor: theme.surf2 }]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={20} color={theme.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.protocolo}>{ticket.protocolo}</Text>
-            <Text style={s.headerSub}>Ticket de suporte</Text>
+            <Text style={[s.protocolo, { color: theme.text }]}>{ticket.protocolo}</Text>
+            <Text style={[s.headerSub, { color: theme.textMut }]}>Ticket de suporte</Text>
           </View>
           <TouchableOpacity
             onPress={toggleUrgente}
@@ -93,39 +102,47 @@ export function TicketDetail({ ticket, token, onBack, onUpdate }: Props) {
           />
 
           {/* Consumidor */}
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>Consumidor</Text>
+          <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+            <Text style={[s.sectionTitle, { color: theme.textMut }]}>Consumidor</Text>
             <View style={s.infoRow}>
-              <Ionicons name="person-outline" size={15} color="#9099B3" />
-              <Text style={s.infoText}>{ticket.consumidor.nome}</Text>
+              <Ionicons name="person-outline" size={15} color={theme.textMut} />
+              <Text style={[s.infoText, { color: theme.text }]}>{ticket.consumidor.nome}</Text>
             </View>
             <View style={s.infoRow}>
-              <Ionicons name="call-outline" size={15} color="#9099B3" />
-              <Text style={s.infoText}>{ticket.consumidor.telefone}</Text>
+              <Ionicons name="call-outline" size={15} color={theme.textMut} />
+              <Text style={[s.infoText, { color: theme.text }]}>{ticket.consumidor.telefone}</Text>
             </View>
           </View>
 
           {/* Motivo */}
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>Motivo da reclamação</Text>
-            <Text style={s.motivoText}>{ticket.motivo}</Text>
-            <Text style={s.dataText}>Aberto em {dataCompleta(ticket.criadoEm)}</Text>
+          <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+            <Text style={[s.sectionTitle, { color: theme.textMut }]}>Motivo da reclamação</Text>
+            <Text style={[s.motivoText, { color: theme.text }]}>{ticket.motivo}</Text>
+            <Text style={[s.dataText, { color: theme.textMut }]}>
+              Aberto em {dataCompleta(ticket.criadoEm)}
+            </Text>
           </View>
 
           {/* Pedido vinculado */}
           {ticket.pedido && (
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>Pedido vinculado</Text>
-              <View style={s.pedidoBox}>
+            <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+              <Text style={[s.sectionTitle, { color: theme.textMut }]}>Pedido vinculado</Text>
+              <View
+                style={[s.pedidoBox, { backgroundColor: theme.surf2, borderColor: theme.border }]}
+              >
                 <View style={s.pedidoHeader}>
-                  <Text style={s.pedidoId}>#{ticket.pedido.id.slice(-8).toUpperCase()}</Text>
+                  <Text style={[s.pedidoId, { color: theme.text }]}>
+                    #{ticket.pedido.id.slice(-8).toUpperCase()}
+                  </Text>
                   <Text style={s.pedidoTotal}>{brl(ticket.pedido.total)}</Text>
                 </View>
-                <Text style={s.pedidoData}>{dataCompleta(ticket.pedido.criadoEm)}</Text>
+                <Text style={[s.pedidoData, { color: theme.textMut }]}>
+                  {dataCompleta(ticket.pedido.criadoEm)}
+                </Text>
                 {ticket.pedido.itens.map((it, i) => (
                   <View key={i} style={s.itemRow}>
                     <Text style={s.itemQty}>{it.quantidade}×</Text>
-                    <Text style={s.itemNome}>{it.nomeSnapshot}</Text>
+                    <Text style={[s.itemNome, { color: theme.text }]}>{it.nomeSnapshot}</Text>
                   </View>
                 ))}
               </View>

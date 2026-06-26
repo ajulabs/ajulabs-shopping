@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface FieldProps {
   label: string;
@@ -36,6 +37,7 @@ export function Field({
   onBlur,
   maxLength,
 }: FieldProps) {
+  const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
 
@@ -49,14 +51,20 @@ export function Field({
 
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={[styles.inputRow, borderStyle]}>
+      <Text style={[styles.fieldLabel, { color: theme.textSec }]}>{label}</Text>
+      <View
+        style={[
+          styles.inputRow,
+          { backgroundColor: theme.inputBg, borderColor: theme.border },
+          borderStyle,
+        ]}
+      >
         <TextInput
-          style={styles.inputInner}
+          style={[styles.inputInner, { color: theme.text }]}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
-          placeholderTextColor={colors.n600}
+          placeholderTextColor={theme.textMut}
           secureTextEntry={secureTextEntry && !shown}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -78,7 +86,7 @@ export function Field({
             <Ionicons
               name={shown ? 'eye-off-outline' : 'eye-outline'}
               size={18}
-              color={colors.n600}
+              color={theme.textMut}
             />
           </TouchableOpacity>
         )}

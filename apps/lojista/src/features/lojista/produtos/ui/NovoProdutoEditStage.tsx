@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
+import { useTheme } from '../../../../shared/hooks';
 import { VariacoesSection, VariacaoEstoque } from '../../../../entities/produto';
 import { TipoProdutoValue } from '../model/tipoProdutos';
 import { useNovoProdutoEditStage } from '../model/useNovoProdutoEditStage';
@@ -37,6 +38,7 @@ export function EditStage({
   saving?: boolean;
   imageUri: string | null;
 }) {
+  const theme = useTheme();
   const {
     newTag,
     setNewTag,
@@ -95,9 +97,17 @@ export function EditStage({
       </View>
 
       <View style={styles.fieldGroup} onLayout={recordY('nome')}>
-        <Text style={[styles.fieldLabel, errors.nome && styles.labelError]}>Nome do produto</Text>
+        <Text
+          style={[styles.fieldLabel, { color: theme.textSec }, errors.nome && styles.labelError]}
+        >
+          Nome do produto
+        </Text>
         <TextInput
-          style={[styles.input, errors.nome && styles.inputError]}
+          style={[
+            styles.input,
+            { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+            errors.nome && styles.inputError,
+          ]}
           value={data.nome}
           onChangeText={(v) => handleChange('nome', v)}
           placeholder="Nome do produto"
@@ -135,7 +145,7 @@ export function EditStage({
       {/* Variações geradas automaticamente pelo produto cartesiano */}
       {hasVariacoes && (
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Variações do produto</Text>
+          <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Variações do produto</Text>
           <VariacoesSection
             variacoes={data.variacoesEstoque}
             precoBase={data.preco}
@@ -145,9 +155,22 @@ export function EditStage({
       )}
 
       <View style={styles.fieldGroup} onLayout={recordY('descricao')}>
-        <Text style={[styles.fieldLabel, errors.descricao && styles.labelError]}>Descrição</Text>
+        <Text
+          style={[
+            styles.fieldLabel,
+            { color: theme.textSec },
+            errors.descricao && styles.labelError,
+          ]}
+        >
+          Descrição
+        </Text>
         <TextInput
-          style={[styles.input, styles.inputMultiline, errors.descricao && styles.inputError]}
+          style={[
+            styles.input,
+            { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+            styles.inputMultiline,
+            errors.descricao && styles.inputError,
+          ]}
           value={data.descricao}
           onChangeText={(v) => handleChange('descricao', v)}
           placeholder="Descrição do produto…"
@@ -168,9 +191,17 @@ export function EditStage({
       {/* Preço sempre visível; estoque global só quando não há variações */}
       <View style={styles.rowFields} onLayout={recordY('preco')}>
         <View style={[styles.fieldGroup, { flex: 1 }]}>
-          <Text style={[styles.fieldLabel, errors.preco && styles.labelError]}>Preço (R$)</Text>
+          <Text
+            style={[styles.fieldLabel, { color: theme.textSec }, errors.preco && styles.labelError]}
+          >
+            Preço (R$)
+          </Text>
           <TextInput
-            style={[styles.input, errors.preco && styles.inputError]}
+            style={[
+              styles.input,
+              { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+              errors.preco && styles.inputError,
+            ]}
             value={data.preco}
             onChangeText={(v) => handleChange('preco', v.replace(/[^0-9.,]/g, ''))}
             placeholder="0,00"
@@ -181,9 +212,21 @@ export function EditStage({
 
         {!hasVariacoes && (
           <View style={[styles.fieldGroup, { flex: 1 }]} onLayout={recordY('estoque')}>
-            <Text style={[styles.fieldLabel, errors.estoque && styles.labelError]}>Estoque</Text>
+            <Text
+              style={[
+                styles.fieldLabel,
+                { color: theme.textSec },
+                errors.estoque && styles.labelError,
+              ]}
+            >
+              Estoque
+            </Text>
             <TextInput
-              style={[styles.input, errors.estoque && styles.inputError]}
+              style={[
+                styles.input,
+                { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+                errors.estoque && styles.inputError,
+              ]}
               value={data.estoque}
               onChangeText={(v) => handleChange('estoque', v.replace(/[^0-9]/g, ''))}
               placeholder="0"

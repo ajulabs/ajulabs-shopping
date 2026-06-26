@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   visible: boolean;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function CancelamentoSucessoOverlay({ visible, orderId, onClose }: Props) {
+  const theme = useTheme();
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.9)).current;
   const iconScale = useRef(new Animated.Value(0)).current;
@@ -39,14 +41,18 @@ export function CancelamentoSucessoOverlay({ visible, orderId, onClose }: Props)
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={s.backdrop}>
         <Animated.View
-          style={[s.card, { opacity: cardOpacity, transform: [{ scale: cardScale }] }]}
+          style={[
+            s.card,
+            { backgroundColor: theme.surf },
+            { opacity: cardOpacity, transform: [{ scale: cardScale }] },
+          ]}
         >
           <Animated.View style={[s.iconWrap, { transform: [{ scale: iconScale }] }]}>
             <Ionicons name="checkmark" size={52} color="#fff" />
           </Animated.View>
 
-          <Text style={s.title}>Pedido cancelado</Text>
-          <Text style={s.subtitle}>
+          <Text style={[s.title, { color: theme.text }]}>Pedido cancelado</Text>
+          <Text style={[s.subtitle, { color: theme.textSec }]}>
             {orderId
               ? `O pedido ${orderId} foi cancelado e o estoque retornou ao catálogo.`
               : 'O pedido foi cancelado e o estoque retornou ao catálogo.'}

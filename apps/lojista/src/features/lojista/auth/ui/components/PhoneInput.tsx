@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Country {
   code: string;
@@ -76,6 +77,7 @@ interface PhoneInputProps {
 }
 
 export function PhoneInput({ value, onChange, onBlur, error }: PhoneInputProps) {
+  const theme = useTheme();
   const [country, setCountry] = useState<Country>(COUNTRIES[0]);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -94,19 +96,25 @@ export function PhoneInput({ value, onChange, onBlur, error }: PhoneInputProps) 
 
   return (
     <>
-      <View style={[st.container, !!error && st.containerError]}>
+      <View
+        style={[
+          st.container,
+          { backgroundColor: theme.inputBg, borderColor: theme.border },
+          !!error && st.containerError,
+        ]}
+      >
         <TouchableOpacity style={st.prefix} onPress={() => setShowPicker(true)} activeOpacity={0.7}>
           <Flag code={country.code} />
-          <Text style={st.dial}>{country.dial}</Text>
-          <Ionicons name="chevron-down" size={12} color={colors.n600} />
+          <Text style={[st.dial, { color: theme.text }]}>{country.dial}</Text>
+          <Ionicons name="chevron-down" size={12} color={theme.textMut} />
         </TouchableOpacity>
-        <View style={st.divider} />
+        <View style={[st.divider, { backgroundColor: theme.border }]} />
         <TextInput
-          style={st.input}
+          style={[st.input, { color: theme.text }]}
           value={value}
           onChangeText={handleText}
           placeholder={country.dial === '+55' ? '(79) 9 0000-0000' : '000 000 0000'}
-          placeholderTextColor={colors.n600}
+          placeholderTextColor={theme.textMut}
           keyboardType="phone-pad"
           autoComplete="tel"
           textContentType="telephoneNumber"
@@ -116,11 +124,16 @@ export function PhoneInput({ value, onChange, onBlur, error }: PhoneInputProps) 
       {!!error && <Text style={st.errorText}>{error}</Text>}
 
       <Modal visible={showPicker} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={st.modal}>
-          <View style={st.modalHeader}>
-            <Text style={st.modalTitle}>Selecionar país</Text>
+        <SafeAreaView style={[st.modal, { backgroundColor: theme.bg }]}>
+          <View
+            style={[
+              st.modalHeader,
+              { backgroundColor: theme.surf, borderBottomColor: theme.border },
+            ]}
+          >
+            <Text style={[st.modalTitle, { color: theme.text }]}>Selecionar país</Text>
             <TouchableOpacity onPress={() => setShowPicker(false)}>
-              <Ionicons name="close" size={22} color={colors.navy} />
+              <Ionicons name="close" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -128,13 +141,17 @@ export function PhoneInput({ value, onChange, onBlur, error }: PhoneInputProps) 
             keyExtractor={(item) => item.code}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[st.item, item.code === country.code && st.itemSelected]}
+                style={[
+                  st.item,
+                  { borderBottomColor: theme.border },
+                  item.code === country.code && st.itemSelected,
+                ]}
                 onPress={() => handleSelect(item)}
                 activeOpacity={0.7}
               >
                 <Flag code={item.code} />
-                <Text style={st.itemName}>{item.name}</Text>
-                <Text style={st.itemDial}>{item.dial}</Text>
+                <Text style={[st.itemName, { color: theme.text }]}>{item.name}</Text>
+                <Text style={[st.itemDial, { color: theme.textMut }]}>{item.dial}</Text>
                 {item.code === country.code && (
                   <Ionicons name="checkmark" size={18} color={colors.orange} />
                 )}

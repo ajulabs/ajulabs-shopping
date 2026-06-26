@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { EntregaDisplay } from '../../model/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   entrega: EntregaDisplay;
@@ -17,21 +18,28 @@ function getInitials(motoboy: string): string {
 }
 
 export function EntregaCard({ entrega: e, onPress }: Props) {
+  const theme = useTheme();
   // Concluída renders as a dimmed, non-interactive card (no map/rastrear hints).
   if (e.status === 'concluida') {
     return (
-      <View style={[s.card, s.cardConcluida]}>
+      <View
+        style={[
+          s.card,
+          { backgroundColor: theme.surf, borderColor: theme.border },
+          s.cardConcluida,
+        ]}
+      >
         <View style={s.cardTop}>
           <View style={s.cardLeft}>
             <View style={s.cardTitleRow}>
-              <Text style={s.orderId}>{e.pedidoId}</Text>
+              <Text style={[s.orderId, { color: theme.text }]}>{e.pedidoId}</Text>
               <View style={s.badgeGreenAlt}>
                 <Ionicons name="checkmark-circle" size={11} color="#046C2E" />
                 <Text style={s.badgeGreenTextAlt}>Concluída</Text>
               </View>
             </View>
-            <Text style={s.cardCliente}>{e.cliente}</Text>
-            <Text style={s.cardEndereco} numberOfLines={1}>
+            <Text style={[s.cardCliente, { color: theme.textMut }]}>{e.cliente}</Text>
+            <Text style={[s.cardEndereco, { color: theme.text }]} numberOfLines={1}>
               {e.endereco}
             </Text>
           </View>
@@ -39,13 +47,13 @@ export function EntregaCard({ entrega: e, onPress }: Props) {
             <Text style={[s.hora, { color: '#9099B3', fontSize: 13 }]}>{e.hora}</Text>
           </View>
         </View>
-        <View style={s.motoboyRow}>
+        <View style={[s.motoboyRow, { borderTopColor: theme.borderL }]}>
           <View style={[s.motoboyAvatar, { backgroundColor: '#E4E7F1' }]}>
             <Text style={[s.motoboyInitials, { color: '#9099B3' }]}>{getInitials(e.motoboy)}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.motoboyName}>{e.motoboy}</Text>
-            <Text style={s.motoboyPlaca}>{e.placa}</Text>
+            <Text style={[s.motoboyName, { color: theme.text }]}>{e.motoboy}</Text>
+            <Text style={[s.motoboyPlaca, { color: theme.textMut }]}>{e.placa}</Text>
           </View>
         </View>
       </View>
@@ -53,11 +61,15 @@ export function EntregaCard({ entrega: e, onPress }: Props) {
   }
 
   return (
-    <TouchableOpacity style={s.card} activeOpacity={0.75} onPress={() => onPress?.(e)}>
+    <TouchableOpacity
+      style={[s.card, { backgroundColor: theme.surf, borderColor: theme.border }]}
+      activeOpacity={0.75}
+      onPress={() => onPress?.(e)}
+    >
       <View style={s.cardTop}>
         <View style={s.cardLeft}>
           <View style={s.cardTitleRow}>
-            <Text style={s.orderId}>{e.pedidoId}</Text>
+            <Text style={[s.orderId, { color: theme.text }]}>{e.pedidoId}</Text>
             <View style={e.statusRaw === 'saiu_entrega' ? s.badgeGreen : s.badgeOrange}>
               <View style={e.statusRaw === 'saiu_entrega' ? s.dotGreen : s.dotOrangeSmall} />
               <Text style={e.statusRaw === 'saiu_entrega' ? s.badgeGreenText : s.badgeOrangeText}>
@@ -65,8 +77,8 @@ export function EntregaCard({ entrega: e, onPress }: Props) {
               </Text>
             </View>
           </View>
-          <Text style={s.cardCliente}>{e.cliente}</Text>
-          <Text style={s.cardEndereco} numberOfLines={1}>
+          <Text style={[s.cardCliente, { color: theme.textMut }]}>{e.cliente}</Text>
+          <Text style={[s.cardEndereco, { color: theme.text }]} numberOfLines={1}>
             {e.endereco}
           </Text>
         </View>
@@ -78,13 +90,13 @@ export function EntregaCard({ entrega: e, onPress }: Props) {
           </View>
         </View>
       </View>
-      <View style={s.motoboyRow}>
+      <View style={[s.motoboyRow, { borderTopColor: theme.borderL }]}>
         <View style={s.motoboyAvatar}>
           <Text style={s.motoboyInitials}>{getInitials(e.motoboy)}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.motoboyName}>{e.motoboy}</Text>
-          <Text style={s.motoboyPlaca}>{e.placa}</Text>
+          <Text style={[s.motoboyName, { color: theme.text }]}>{e.motoboy}</Text>
+          <Text style={[s.motoboyPlaca, { color: theme.textMut }]}>{e.placa}</Text>
         </View>
         <View style={s.rastrearHint}>
           <Ionicons name="navigate" size={13} color="#fff" />

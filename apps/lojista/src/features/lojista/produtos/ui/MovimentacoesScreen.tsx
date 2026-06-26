@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MovimentacaoEstoque, TipoMovimentacao } from '@ajulabs/types';
-import { C, FILTROS } from '../lib/movimentacoesTheme';
+import { C, FILTROS, useMovimentacoesC, type MovimentacoesC } from '../lib/movimentacoesTheme';
 import { useMovimentacoes } from '../model/useMovimentacoes';
 import { MovimentacaoCard } from './components/MovimentacaoCard';
 
@@ -30,6 +31,8 @@ function getLabel(iso: string) {
 type Row = { type: 'sep'; date: string } | { type: 'mov'; data: MovimentacaoEstoque };
 
 export function MovimentacoesScreen({ onVoltar }: Props) {
+  const c = useMovimentacoesC();
+  const s = useMemo(() => makeStyles(c), [c]);
   const insets = useSafeAreaInsets();
   const {
     items,
@@ -72,7 +75,7 @@ export function MovimentacoesScreen({ onVoltar }: Props) {
       {/* Header */}
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity style={s.backBtn} onPress={onVoltar} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color={C.sub} />
+          <Ionicons name="chevron-back" size={20} color={c.sub} />
         </TouchableOpacity>
         <View style={s.headerMid}>
           <Text style={s.headerTitle}>Movimentações</Text>
@@ -110,7 +113,7 @@ export function MovimentacoesScreen({ onVoltar }: Props) {
       ) : items.length === 0 ? (
         <View style={s.empty}>
           <View style={s.emptyIcon}>
-            <Ionicons name="swap-vertical-outline" size={30} color={C.mute} />
+            <Ionicons name="swap-vertical-outline" size={30} color={c.mute} />
           </View>
           <Text style={s.emptyTitle}>Nenhuma movimentação</Text>
           <Text style={s.emptySub}>Tente outro filtro.</Text>
@@ -138,75 +141,77 @@ export function MovimentacoesScreen({ onVoltar }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+function makeStyles(c: MovimentacoesC) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  /* Header */
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: C.card,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerMid: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: C.text },
-  headerSub: { fontSize: 12, color: C.mute, marginTop: 1 },
+    /* Header */
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerMid: { flex: 1 },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: c.text },
+    headerSub: { fontSize: 12, color: c.mute, marginTop: 1 },
 
-  /* Filtros */
-  filterWrap: { backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border },
-  filterRow: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.bg,
-  },
-  chipActive: { borderColor: C.orange, backgroundColor: C.orange + '15' },
-  chipText: { fontSize: 13, fontWeight: '600', color: C.sub },
-  chipTextActive: { color: C.orange },
+    /* Filtros */
+    filterWrap: { backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border },
+    filterRow: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.bg,
+    },
+    chipActive: { borderColor: C.orange, backgroundColor: C.orange + '15' },
+    chipText: { fontSize: 13, fontWeight: '600', color: c.sub },
+    chipTextActive: { color: C.orange },
 
-  list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 56 },
+    list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 56 },
 
-  /* Separador de data */
-  sep: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 14 },
-  sepLine: { flex: 1, height: 1, backgroundColor: C.border },
-  sepText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.mute,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
+    /* Separador de data */
+    sep: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 14 },
+    sepLine: { flex: 1, height: 1, backgroundColor: c.border },
+    sepText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.mute,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
 
-  /* Empty */
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: C.card,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '800', color: C.text },
-  emptySub: { fontSize: 13, color: C.sub },
-});
+    /* Empty */
+    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+    emptyIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 18,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyTitle: { fontSize: 16, fontWeight: '800', color: c.text },
+    emptySub: { fontSize: 13, color: c.sub },
+  });
+}

@@ -1,5 +1,6 @@
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function Toggle({
   value,
@@ -10,11 +11,12 @@ export function Toggle({
   onValueChange: (v: boolean) => void;
   activeColor?: string;
 }) {
+  const theme = useTheme();
   return (
     <TouchableOpacity
       onPress={() => onValueChange(!value)}
       activeOpacity={0.85}
-      style={[styles.toggleTrack, { backgroundColor: value ? activeColor : colors.n300 }]}
+      style={[styles.toggleTrack, { backgroundColor: value ? activeColor : theme.border }]}
     >
       <View style={[styles.toggleThumb, { transform: [{ translateX: value ? 22 : 2 }] }]} />
     </TouchableOpacity>

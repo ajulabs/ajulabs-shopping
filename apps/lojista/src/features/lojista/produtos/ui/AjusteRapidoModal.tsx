@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Produto } from '@ajulabs/types';
-import { C, TIPOS } from '../lib/ajusteTipos';
+import { TIPOS, useAjusteC, type AjusteC } from '../lib/ajusteTipos';
 import { useAjusteEstoque } from '../model/useAjusteEstoque';
 import { TipoAjusteSelector } from './components/TipoAjusteSelector';
 import { QtyInput } from './components/QtyInput';
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, onSaved }: Props) {
+  const c = useAjusteC();
+  const s = useMemo(() => makeStyles(c), [c]);
   const {
     variacoes,
     temVariacoes,
@@ -72,7 +75,7 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               </Text>
             </View>
             <TouchableOpacity style={s.closeBtn} onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close" size={16} color={C.sub} />
+              <Ionicons name="close" size={16} color={c.sub} />
             </TouchableOpacity>
           </View>
 
@@ -180,7 +183,7 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
               <TextInput
                 style={s.motivoInput}
                 placeholder="Ex: reposição, quebra, inventário..."
-                placeholderTextColor={C.mute}
+                placeholderTextColor={c.mute}
                 value={motivo}
                 onChangeText={setMotivo}
                 multiline
@@ -253,154 +256,156 @@ export function AjusteRapidoModal({ visible, produto, lojaId, token, onClose, on
   );
 }
 
-const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: C.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingBottom: 44,
-    maxHeight: '94%',
-    borderTopWidth: 1,
-    borderColor: C.border,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 22,
-  },
+function makeStyles(c: AjusteC) {
+  return StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    sheet: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 20,
+      paddingBottom: 44,
+      maxHeight: '94%',
+      borderTopWidth: 1,
+      borderColor: c.border,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      alignSelf: 'center',
+      marginTop: 12,
+      marginBottom: 22,
+    },
 
-  head: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 22,
-  },
-  headTitle: { fontSize: 20, fontWeight: '800', color: C.text },
-  headSub: { fontSize: 13, color: C.sub, marginTop: 3 },
-  closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    head: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 22,
+    },
+    headTitle: { fontSize: 20, fontWeight: '800', color: c.text },
+    headSub: { fontSize: 13, color: c.sub, marginTop: 3 },
+    closeBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  /* Variação */
-  varWrap: { marginBottom: 18 },
-  varRow: { gap: 8, paddingVertical: 2 },
-  varChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingLeft: 12,
-    paddingRight: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.bg,
-  },
-  varChipNome: { fontSize: 13, fontWeight: '700', color: C.sub, maxWidth: 140 },
-  varChipBadge: {
-    minWidth: 24,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
-    backgroundColor: C.border,
-    alignItems: 'center',
-  },
-  varChipQty: { fontSize: 12, fontWeight: '800', color: C.sub },
+    /* Variação */
+    varWrap: { marginBottom: 18 },
+    varRow: { gap: 8, paddingVertical: 2 },
+    varChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingLeft: 12,
+      paddingRight: 8,
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.bg,
+    },
+    varChipNome: { fontSize: 13, fontWeight: '700', color: c.sub, maxWidth: 140 },
+    varChipBadge: {
+      minWidth: 24,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 10,
+      backgroundColor: c.border,
+      alignItems: 'center',
+    },
+    varChipQty: { fontSize: 12, fontWeight: '800', color: c.sub },
 
-  /* Dica contextual */
-  hintBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 20,
-  },
-  hintText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+    /* Dica contextual */
+    hintBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 20,
+    },
+    hintText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
 
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.sub,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
+    fieldLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.sub,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 10,
+    },
 
-  /* Aviso estoque insuficiente */
-  erroBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  erroText: { flex: 1, fontSize: 13, color: '#DC2626', fontWeight: '500', lineHeight: 18 },
+    /* Aviso estoque insuficiente */
+    erroBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: '#FEF2F2',
+      borderWidth: 1,
+      borderColor: '#FECACA',
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 16,
+    },
+    erroText: { flex: 1, fontSize: 13, color: '#DC2626', fontWeight: '500', lineHeight: 18 },
 
-  /* Motivo */
-  motivoWrap: { marginBottom: 20 },
-  optional: { fontWeight: '500', color: C.mute },
-  motivoInput: {
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: C.text,
-    backgroundColor: C.bg,
-    height: 70,
-    textAlignVertical: 'top',
-  },
+    /* Motivo */
+    motivoWrap: { marginBottom: 20 },
+    optional: { fontWeight: '500', color: c.mute },
+    motivoInput: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: c.text,
+      backgroundColor: c.bg,
+      height: 70,
+      textAlignVertical: 'top',
+    },
 
-  /* Confirmar */
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 16,
-    paddingVertical: 18,
-  },
-  saveBtnOff: { opacity: 0.3 },
-  saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    /* Confirmar */
+    saveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: 16,
+      paddingVertical: 18,
+    },
+    saveBtnOff: { opacity: 0.3 },
+    saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 
-  /* Sucesso — card flutuante */
-  toastWrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  toastCard: {
-    backgroundColor: C.card,
-    borderRadius: 20,
-    paddingVertical: 22,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    gap: 6,
-    maxWidth: 300,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 10,
-  },
-  toastTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginTop: 2 },
-  toastResumo: { fontSize: 15, fontWeight: '700', color: '#10B981', textAlign: 'center' },
-});
+    /* Sucesso — card flutuante */
+    toastWrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    toastCard: {
+      backgroundColor: c.card,
+      borderRadius: 20,
+      paddingVertical: 22,
+      paddingHorizontal: 28,
+      alignItems: 'center',
+      gap: 6,
+      maxWidth: 300,
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 10,
+    },
+    toastTitle: { fontSize: 17, fontWeight: '800', color: c.text, marginTop: 2 },
+    toastResumo: { fontSize: 15, fontWeight: '700', color: '#10B981', textAlign: 'center' },
+  });
+}

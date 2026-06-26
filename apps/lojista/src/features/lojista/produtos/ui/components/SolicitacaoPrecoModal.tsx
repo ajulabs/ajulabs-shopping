@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function SolicitacaoPrecoModal({
   visible,
@@ -29,29 +30,38 @@ export function SolicitacaoPrecoModal({
   onEnviar: () => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
+  const inp = { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Solicitar mudança de preço</Text>
-          <Text style={styles.modalSub}>
+        <Pressable
+          style={[styles.modalSheet, { backgroundColor: theme.surf }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Solicitar mudança de preço</Text>
+          <Text style={[styles.modalSub, { color: theme.textMut }]}>
             Informe o novo preço e a justificativa. Um admin/gerente irá revisar sua solicitação.
           </Text>
-          <Text style={styles.solModalLabel}>NOVO PREÇO (R$)</Text>
+          <Text style={[styles.solModalLabel, { color: theme.textSec }]}>NOVO PREÇO (R$)</Text>
           <TextInput
-            style={styles.solModalInput}
+            style={[styles.solModalInput, inp]}
             value={precoSolicitado}
+            placeholderTextColor={theme.textMut}
             onChangeText={onChangePreco}
             placeholder="0,00"
             keyboardType="decimal-pad"
           />
-          <Text style={[styles.solModalLabel, { marginTop: 12 }]}>JUSTIFICATIVA</Text>
+          <Text style={[styles.solModalLabel, { color: theme.textSec, marginTop: 12 }]}>
+            JUSTIFICATIVA
+          </Text>
           <TextInput
-            style={[styles.solModalInput, { minHeight: 70, textAlignVertical: 'top' }]}
+            style={[styles.solModalInput, inp, { minHeight: 70, textAlignVertical: 'top' }]}
             value={justificativa}
             onChangeText={onChangeJustificativa}
             placeholder="Explique o motivo da mudança de preço..."
+            placeholderTextColor={theme.textMut}
             multiline
             numberOfLines={3}
           />
@@ -72,13 +82,13 @@ export function SolicitacaoPrecoModal({
               {
                 backgroundColor: 'transparent',
                 borderWidth: 1.5,
-                borderColor: colors.n200,
+                borderColor: theme.border,
                 marginTop: 8,
               },
             ]}
             onPress={onClose}
           >
-            <Text style={[styles.saveBtnText, { color: colors.n600 }]}>Cancelar</Text>
+            <Text style={[styles.saveBtnText, { color: theme.textSec }]}>Cancelar</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

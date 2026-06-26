@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function LogoutModal({
   visible,
@@ -10,23 +11,28 @@ export function LogoutModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalBox}>
+        <View style={[styles.modalBox, { backgroundColor: theme.surf }]}>
           <View style={styles.modalIconWrap}>
             <Ionicons name="log-out-outline" size={28} color="#E24B4A" />
           </View>
-          <Text style={styles.modalTitle}>Sair da conta</Text>
-          <Text style={styles.modalMsg}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Sair da conta</Text>
+          <Text style={[styles.modalMsg, { color: theme.textSec }]}>
             Tem certeza que deseja sair? Você precisará fazer login novamente para acessar sua
             conta.
           </Text>
           <TouchableOpacity style={styles.modalBtnSair} onPress={onConfirm} activeOpacity={0.85}>
             <Text style={styles.modalBtnSairText}>Sim, quero sair</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.modalBtnCancel} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+          <TouchableOpacity
+            style={[styles.modalBtnCancel, { borderColor: theme.border }]}
+            onPress={onClose}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.modalBtnCancelText, { color: theme.textSec }]}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       </View>

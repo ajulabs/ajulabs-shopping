@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import type { StatusSolicitacaoPreco } from '@ajulabs/types';
 import { colors } from '../../../../theme';
+import { useTheme } from '../../../../shared/hooks';
 import { STATUS_CFG, moeda } from '../lib/solicitacoes';
 import { useSolicitacoes } from '../model/useSolicitacoes';
 import { SolicitacaoCard } from './components/SolicitacaoCard';
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const {
     solicitacoes,
@@ -50,13 +52,22 @@ export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.surf,
+            borderBottomColor: theme.border,
+            paddingTop: insets.top + 12,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={onVoltar} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.navy} />
+          <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
           {isFuncionario ? 'Minhas solicitações' : 'Solicitações de preço'}
         </Text>
       </View>
@@ -70,10 +81,20 @@ export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
         {filtros.map((f) => (
           <TouchableOpacity
             key={f ?? 'todos'}
-            style={[styles.filtroBtn, filtroStatus === f && styles.filtroBtnAtivo]}
+            style={[
+              styles.filtroBtn,
+              { borderColor: theme.border, backgroundColor: theme.surf2 },
+              filtroStatus === f && styles.filtroBtnAtivo,
+            ]}
             onPress={() => setFiltroStatus(f)}
           >
-            <Text style={[styles.filtroText, filtroStatus === f && styles.filtroTextAtivo]}>
+            <Text
+              style={[
+                styles.filtroText,
+                { color: theme.text },
+                filtroStatus === f && styles.filtroTextAtivo,
+              ]}
+            >
               {f ? STATUS_CFG[f].label : 'Todos'}
             </Text>
           </TouchableOpacity>
@@ -98,7 +119,9 @@ export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
           }
         >
           {solicitacoes.length === 0 && (
-            <Text style={styles.emptyText}>Nenhuma solicitação encontrada.</Text>
+            <Text style={[styles.emptyText, { color: theme.textMut }]}>
+              Nenhuma solicitação encontrada.
+            </Text>
           )}
           {solicitacoes.map((sol) => (
             <SolicitacaoCard
@@ -127,14 +150,17 @@ export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
         onRequestClose={() => setRevisaoModal(null)}
       >
         <Pressable style={styles.overlay} onPress={() => setRevisaoModal(null)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.handle} />
+          <Pressable
+            style={[styles.sheet, { backgroundColor: theme.surf }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.handle, { backgroundColor: theme.border }]} />
             {revisaoModal && (
               <>
-                <Text style={styles.sheetTitle}>
+                <Text style={[styles.sheetTitle, { color: theme.text }]}>
                   {revisaoModal.acao === 'aprovar' ? 'Aprovar solicitação' : 'Rejeitar solicitação'}
                 </Text>
-                <Text style={styles.sheetSub}>
+                <Text style={[styles.sheetSub, { color: theme.textSec }]}>
                   Produto:{' '}
                   <Text style={{ fontWeight: '700' }}>{revisaoModal.sol.produto.nome}</Text>
                   {'\n'}Novo preço:{' '}
@@ -143,13 +169,20 @@ export function SolicitacoesPrecoScreen({ onVoltar }: Props) {
                   </Text>
                 </Text>
 
-                <Text style={styles.campoLabel}>NOTA (opcional)</Text>
+                <Text style={[styles.campoLabel, { color: theme.textSec }]}>NOTA (opcional)</Text>
                 <TextInput
-                  style={styles.notaInput}
+                  style={[
+                    styles.notaInput,
+                    {
+                      backgroundColor: theme.inputBg,
+                      borderColor: theme.border,
+                      color: theme.text,
+                    },
+                  ]}
                   value={notaRevisao}
                   onChangeText={setNotaRevisao}
                   placeholder="Observação para o colaborador..."
-                  placeholderTextColor={colors.n300}
+                  placeholderTextColor={theme.textMut}
                   multiline
                   numberOfLines={3}
                 />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, ScrollView, TouchableOpacity, View, StyleSheet } from 'react-native';
 import type { Order, OrderStatus } from '../../lib';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   filters: { id: 'todos' | OrderStatus; label: string }[];
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function OrderFilterBar({ filters, filter, orders, onSelect }: Props) {
+  const theme = useTheme();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll}>
       {filters.map((f) => {
@@ -20,10 +22,18 @@ export function OrderFilterBar({ filters, filter, orders, onSelect }: Props) {
           <TouchableOpacity
             key={f.id}
             onPress={() => onSelect(f.id)}
-            style={[s.filterBtn, active && s.filterBtnActive]}
+            style={[s.filterBtn, { backgroundColor: theme.surf2 }, active && s.filterBtnActive]}
           >
-            <Text style={[s.filterLabel, active && s.filterLabelActive]}>{f.label}</Text>
-            <View style={[s.filterCount, active && s.filterCountActive]}>
+            <Text style={[s.filterLabel, { color: theme.text }, active && s.filterLabelActive]}>
+              {f.label}
+            </Text>
+            <View
+              style={[
+                s.filterCount,
+                { backgroundColor: theme.surf },
+                active && s.filterCountActive,
+              ]}
+            >
               <Text style={[s.filterCountText, active && s.filterCountTextActive]}>{count}</Text>
             </View>
           </TouchableOpacity>

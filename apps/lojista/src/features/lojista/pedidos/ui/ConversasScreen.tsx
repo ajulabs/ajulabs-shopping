@@ -13,9 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConversas } from '../model/useConversas';
 import { tempoRelativo } from '../lib/tempoRelativo';
+import { useTheme } from '../../../../shared/hooks';
 
 export function ConversasScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { conversas, loading, abrirConversa } = useConversas();
 
   // Botão físico de voltar leva ao Perfil (origem da navegação), não à tab anterior.
@@ -31,15 +33,15 @@ export function ConversasScreen() {
   );
 
   return (
-    <SafeAreaView style={s.container}>
-      <View style={s.header}>
+    <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
+      <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => router.replace('/(lojista)/perfil' as any)}
-          style={s.backBtn}
+          style={[s.backBtn, { backgroundColor: theme.backBtn }]}
         >
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
-        <Text style={s.titulo}>Conversas</Text>
+        <Text style={[s.titulo, { color: theme.text }]}>Conversas</Text>
       </View>
 
       {loading ? (
@@ -49,15 +51,17 @@ export function ConversasScreen() {
       ) : conversas.length === 0 ? (
         <View style={s.center}>
           <Ionicons name="chatbubbles-outline" size={48} color="#9099B3" />
-          <Text style={s.emptyTxt}>Nenhuma conversa</Text>
-          <Text style={s.emptyHint}>Suas conversas com clientes e entregadores aparecem aqui</Text>
+          <Text style={[s.emptyTxt, { color: theme.text }]}>Nenhuma conversa</Text>
+          <Text style={[s.emptyHint, { color: theme.textMut }]}>
+            Suas conversas com clientes e entregadores aparecem aqui
+          </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           {conversas.map((chat) => (
             <TouchableOpacity
               key={chat.id}
-              style={s.chatItem}
+              style={[s.chatItem, { backgroundColor: theme.surf }]}
               onPress={() => abrirConversa(chat)}
               activeOpacity={0.75}
             >
@@ -66,14 +70,16 @@ export function ConversasScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <View style={s.chatHeader}>
-                  <Text style={s.clienteName} numberOfLines={1}>
+                  <Text style={[s.clienteName, { color: theme.text }]} numberOfLines={1}>
                     {chat.consumidorNome ?? 'Cliente'}
                   </Text>
                   {chat.ultimaMensagem && (
-                    <Text style={s.tempo}>{tempoRelativo(chat.ultimaMensagem.criadoEm)}</Text>
+                    <Text style={[s.tempo, { color: theme.textMut }]}>
+                      {tempoRelativo(chat.ultimaMensagem.criadoEm)}
+                    </Text>
                   )}
                 </View>
-                <Text style={s.ultimaMsg} numberOfLines={1}>
+                <Text style={[s.ultimaMsg, { color: theme.textMut }]} numberOfLines={1}>
                   {chat.ultimaMensagem?.conteudo ?? 'Nenhuma mensagem'}
                 </Text>
               </View>

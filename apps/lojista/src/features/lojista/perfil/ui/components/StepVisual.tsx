@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 import { StoreAvatar } from './StoreAvatar';
 
 export function StepVisual({
@@ -18,14 +19,15 @@ export function StepVisual({
   onPickLogo: () => void;
   onPickBanner: () => void;
 }) {
+  const theme = useTheme();
   return (
     <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Identidade visual</Text>
-      <Text style={styles.stepSub}>
+      <Text style={[styles.stepTitle, { color: theme.text }]}>Identidade visual</Text>
+      <Text style={[styles.stepSub, { color: theme.textSec }]}>
         Adicione o logo e uma foto de capa para sua loja aparecer com destaque no app.
       </Text>
 
-      <Text style={styles.fieldLabel}>FOTO DE CAPA (BANNER)</Text>
+      <Text style={[styles.fieldLabel, { color: theme.textMut }]}>FOTO DE CAPA (BANNER)</Text>
       <TouchableOpacity
         style={styles.bannerPicker}
         onPress={onPickBanner}
@@ -54,7 +56,7 @@ export function StepVisual({
         </View>
       </TouchableOpacity>
 
-      <Text style={[styles.fieldLabel, { marginTop: 20 }]}>LOGO DA LOJA</Text>
+      <Text style={[styles.fieldLabel, { color: theme.textMut, marginTop: 20 }]}>LOGO DA LOJA</Text>
       <View style={styles.logoRow}>
         <TouchableOpacity
           style={styles.logoBtn}
@@ -63,7 +65,10 @@ export function StepVisual({
           activeOpacity={0.8}
         >
           {logoUri ? (
-            <Image source={{ uri: logoUri }} style={styles.logoImg} />
+            <Image
+              source={{ uri: logoUri }}
+              style={[styles.logoImg, { borderColor: theme.border }]}
+            />
           ) : (
             <StoreAvatar nome={lojaNome} size={72} />
           )}
@@ -76,8 +81,10 @@ export function StepVisual({
           </View>
         </TouchableOpacity>
         <View style={styles.logoHint}>
-          <Text style={styles.logoHintTitle}>Adicione o logo da sua loja</Text>
-          <Text style={styles.logoHintSub}>
+          <Text style={[styles.logoHintTitle, { color: theme.text }]}>
+            Adicione o logo da sua loja
+          </Text>
+          <Text style={[styles.logoHintSub, { color: theme.textSec }]}>
             Recomendado: imagem quadrada,{'\n'}mínimo 200×200px
           </Text>
         </View>

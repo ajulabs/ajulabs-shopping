@@ -1,20 +1,29 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { ChatMensagemPedido } from '@ajulabs/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   mensagem: ChatMensagemPedido;
 }
 
 export function ChatBubble({ mensagem: m }: Props) {
+  const theme = useTheme();
   const minha = m.remetenteType === 'LOJISTA';
   return (
     <View style={[s.msgWrapper, minha ? s.msgRight : s.msgLeft]}>
-      {!minha && <Text style={s.msgNome}>{m.remetenteNome}</Text>}
-      <View style={[s.bubble, minha ? s.bubbleMinha : s.bubbleDeles]}>
-        <Text style={[s.bubbleTxt, { color: minha ? '#fff' : '#000933' }]}>{m.conteudo}</Text>
+      {!minha && <Text style={[s.msgNome, { color: theme.textMut }]}>{m.remetenteNome}</Text>}
+      <View
+        style={[
+          s.bubble,
+          minha
+            ? s.bubbleMinha
+            : [s.bubbleDeles, { backgroundColor: theme.surf, borderColor: theme.border }],
+        ]}
+      >
+        <Text style={[s.bubbleTxt, { color: minha ? '#fff' : theme.text }]}>{m.conteudo}</Text>
       </View>
-      <Text style={s.hora}>
+      <Text style={[s.hora, { color: theme.textMut }]}>
         {new Date(m.criadoEm).toLocaleTimeString('pt-BR', {
           hour: '2-digit',
           minute: '2-digit',

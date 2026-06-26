@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import { useTheme } from '../../../../../shared/hooks';
 import { Ionicons } from '@expo/vector-icons';
 import type { Colaborador } from '@ajulabs/types';
 import { colors } from '../../../../../theme';
@@ -35,38 +36,44 @@ export function EquipeFormModal({
   setSenhaVisivel: React.Dispatch<React.SetStateAction<boolean>>;
   onSalvar: () => void;
 }) {
+  const theme = useTheme();
+  const inp = { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity style={styles.sheetContainer} activeOpacity={1} onPress={() => {}}>
-          <View style={styles.sheetHandle} />
+        <TouchableOpacity
+          style={[styles.sheetContainer, { backgroundColor: theme.surf }]}
+          activeOpacity={1}
+          onPress={() => {}}
+        >
+          <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
 
-          <Text style={styles.sheetTitle}>
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>
             {editandoCol ? 'Editar colaborador' : 'Novo colaborador'}
           </Text>
 
           {/* Nome */}
           <View style={styles.sheetField}>
-            <Text style={styles.sheetFieldLabel}>NOME</Text>
+            <Text style={[styles.sheetFieldLabel, { color: theme.textSec }]}>NOME</Text>
             <TextInput
-              style={styles.sheetInput}
+              style={[styles.sheetInput, inp]}
               value={formCol.nome}
               onChangeText={(v) => setFormCol((f) => ({ ...f, nome: v }))}
               placeholder="Nome completo"
-              placeholderTextColor={colors.n500}
+              placeholderTextColor={theme.textMut}
             />
           </View>
 
           {/* Email (só na criação) */}
           {!editandoCol && (
             <View style={styles.sheetField}>
-              <Text style={styles.sheetFieldLabel}>EMAIL</Text>
+              <Text style={[styles.sheetFieldLabel, { color: theme.textSec }]}>EMAIL</Text>
               <TextInput
-                style={styles.sheetInput}
+                style={[styles.sheetInput, inp]}
                 value={formCol.email}
                 onChangeText={(v) => setFormCol((f) => ({ ...f, email: v }))}
                 placeholder="email@colaborador.com"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={theme.textMut}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -75,16 +82,21 @@ export function EquipeFormModal({
 
           {/* Senha */}
           <View style={styles.sheetField}>
-            <Text style={styles.sheetFieldLabel}>
+            <Text style={[styles.sheetFieldLabel, { color: theme.textSec }]}>
               {editandoCol ? 'NOVA SENHA (opcional)' : 'SENHA'}
             </Text>
-            <View style={styles.sheetInputRow}>
+            <View
+              style={[
+                styles.sheetInputRow,
+                { backgroundColor: theme.inputBg, borderColor: theme.border },
+              ]}
+            >
               <TextInput
-                style={styles.sheetInputInner}
+                style={[styles.sheetInputInner, { color: theme.text }]}
                 value={formCol.senha}
                 onChangeText={(v) => setFormCol((f) => ({ ...f, senha: v }))}
                 placeholder="••••••••"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={theme.textMut}
                 secureTextEntry={!senhaVisivel}
                 autoCapitalize="none"
               />
@@ -92,14 +104,16 @@ export function EquipeFormModal({
                 <Ionicons
                   name={senhaVisivel ? 'eye-off-outline' : 'eye-outline'}
                   size={18}
-                  color={colors.n500}
+                  color={theme.textMut}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Seletor de papel */}
-          <Text style={[styles.sheetFieldLabel, { marginBottom: 8 }]}>NÍVEL DE ACESSO</Text>
+          <Text style={[styles.sheetFieldLabel, { color: theme.textSec, marginBottom: 8 }]}>
+            NÍVEL DE ACESSO
+          </Text>
           <View style={styles.papelGrid}>
             {PAPEIS.map((p) => {
               const cfg = PAPEL_CFG[p];
@@ -109,18 +123,25 @@ export function EquipeFormModal({
                   key={p}
                   style={[
                     styles.papelCard,
+                    { borderColor: theme.border },
                     ativo && { borderColor: cfg.cor, backgroundColor: cfg.bg },
                   ]}
                   onPress={() => setFormCol((f) => ({ ...f, papel: p }))}
                   activeOpacity={0.8}
                 >
                   <View style={styles.papelCardTop}>
-                    <Text style={[styles.papelCardLabel, ativo && { color: cfg.cor }]}>
+                    <Text
+                      style={[
+                        styles.papelCardLabel,
+                        { color: theme.text },
+                        ativo && { color: cfg.cor },
+                      ]}
+                    >
                       {cfg.label}
                     </Text>
                     {ativo && <Ionicons name="checkmark-circle" size={16} color={cfg.cor} />}
                   </View>
-                  <Text style={styles.papelCardDesc}>
+                  <Text style={[styles.papelCardDesc, { color: theme.textMut }]}>
                     {p === 'admin'
                       ? 'Acesso total, gerencia equipe e preços'
                       : p === 'gerente'
@@ -149,8 +170,12 @@ export function EquipeFormModal({
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.sheetCancelarBtn} onPress={onClose} activeOpacity={0.8}>
-            <Text style={styles.sheetCancelarText}>Cancelar</Text>
+          <TouchableOpacity
+            style={[styles.sheetCancelarBtn, { borderColor: theme.border }]}
+            onPress={onClose}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.sheetCancelarText, { color: theme.textSec }]}>Cancelar</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>

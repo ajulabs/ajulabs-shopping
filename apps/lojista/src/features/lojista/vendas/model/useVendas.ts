@@ -19,7 +19,7 @@ export function useVendas() {
       return;
     }
     LojistaService.buscarDashboard(lojaId, token)
-      .then((data) => setDashboard(data as DashboardData))
+.then((data) => setDashboard(data as unknown as DashboardData))
       .finally(() => setLoading(false));
   }, [lojaId, token]);
 

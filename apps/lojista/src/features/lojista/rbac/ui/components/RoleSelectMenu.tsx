@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { PapelColaborador } from '@ajulabs/types';
 import { colors } from '../../../../../theme';
 import { PAPEL_LABEL, PAPEL_COLOR } from '../../lib/colaboradores';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   value: PapelColaborador;
@@ -9,15 +10,17 @@ interface Props {
 }
 
 export function RoleSelectMenu({ value, onChange }: Props) {
+  const theme = useTheme();
   return (
     <>
-      <Text style={styles.selectorLabel}>PAPEL</Text>
+      <Text style={[styles.selectorLabel, { color: theme.textSec }]}>PAPEL</Text>
       <View style={styles.papelRow}>
         {(['admin', 'gerente', 'funcionario'] as PapelColaborador[]).map((p) => (
           <TouchableOpacity
             key={p}
             style={[
               styles.papelOption,
+              { borderColor: theme.border },
               value === p && {
                 backgroundColor: PAPEL_COLOR[p] + '18',
                 borderColor: PAPEL_COLOR[p],
@@ -28,6 +31,7 @@ export function RoleSelectMenu({ value, onChange }: Props) {
             <Text
               style={[
                 styles.papelOptionText,
+                { color: theme.textSec },
                 value === p && { color: PAPEL_COLOR[p], fontWeight: '700' },
               ]}
             >

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   steps: { id: string; label: string }[];
@@ -8,9 +9,10 @@ interface Props {
 }
 
 export function DeliveryTimeline({ steps, stepIdx }: Props) {
+  const theme = useTheme();
   return (
-    <View style={s.timelineCard}>
-      <Text style={s.timelineTitle}>Status</Text>
+    <View style={[s.timelineCard, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+      <Text style={[s.timelineTitle, { color: theme.text }]}>Status</Text>
       {steps.map((step, i) => {
         const done = i <= stepIdx;
         const active = i === stepIdx;
@@ -18,20 +20,27 @@ export function DeliveryTimeline({ steps, stepIdx }: Props) {
           <View key={step.id} style={s.stepRow}>
             {i < steps.length - 1 && (
               <View
-                style={[s.stepLine, { backgroundColor: i < stepIdx ? '#DE6708' : '#E4E7F1' }]}
+                style={[s.stepLine, { backgroundColor: i < stepIdx ? '#DE6708' : theme.border }]}
               />
             )}
             <View
               style={[
                 s.stepDot,
-                done ? s.stepDotDone : s.stepDotPending,
+                done ? s.stepDotDone : [s.stepDotPending, { backgroundColor: theme.border }],
                 active && s.stepDotActive,
               ]}
             >
               {done && !active && <Ionicons name="checkmark" size={10} color="#fff" />}
               {active && <View style={s.stepDotInner} />}
             </View>
-            <Text style={[s.stepLabel, done ? s.stepLabelDone : s.stepLabelPending]}>
+            <Text
+              style={[
+                s.stepLabel,
+                done
+                  ? [s.stepLabelDone, { color: theme.text }]
+                  : [s.stepLabelPending, { color: theme.textMut }],
+              ]}
+            >
               {step.label}
             </Text>
             {active && (

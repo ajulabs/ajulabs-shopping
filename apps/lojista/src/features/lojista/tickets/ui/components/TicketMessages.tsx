@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Ticket, TicketMensagem } from '../../model/data';
 import { dataCompleta } from '../../lib/format';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   ticket: Ticket;
@@ -21,22 +22,28 @@ interface Props {
 }
 
 export function TicketMessages({ ticket, msg, setMsg, sendingMsg, onEnviar, onInputFocus }: Props) {
+  const theme = useTheme();
   return (
-    <View style={s.section}>
-      <Text style={s.sectionTitle}>Conversa com consumidor</Text>
+    <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+      <Text style={[s.sectionTitle, { color: theme.textMut }]}>Conversa com consumidor</Text>
       {ticket.mensagens.length === 0 ? (
-        <Text style={s.semNotas}>Nenhuma mensagem ainda.</Text>
+        <Text style={[s.semNotas, { color: theme.textMut }]}>Nenhuma mensagem ainda.</Text>
       ) : (
         ticket.mensagens.map((m: TicketMensagem) => (
           <View
             key={m.id}
-            style={[s.msgBubble, m.remetente === 'lojista' ? s.msgLojista : s.msgConsumidor]}
+            style={[
+              s.msgBubble,
+              m.remetente === 'lojista'
+                ? [s.msgLojista, theme.isDark && { backgroundColor: '#1E2547' }]
+                : [s.msgConsumidor, { backgroundColor: theme.surf2 }],
+            ]}
           >
-            <Text style={[s.msgRem, { color: m.remetente === 'lojista' ? '#000933' : '#DE6708' }]}>
+            <Text style={[s.msgRem, { color: m.remetente === 'lojista' ? theme.text : '#DE6708' }]}>
               {m.remetente === 'lojista' ? 'Você' : ticket.consumidor.nome}
             </Text>
-            <Text style={s.msgTxt}>{m.texto}</Text>
-            <Text style={s.msgData}>{dataCompleta(m.criadoEm)}</Text>
+            <Text style={[s.msgTxt, { color: theme.text }]}>{m.texto}</Text>
+            <Text style={[s.msgData, { color: theme.textMut }]}>{dataCompleta(m.criadoEm)}</Text>
           </View>
         ))
       )}
@@ -44,16 +51,23 @@ export function TicketMessages({ ticket, msg, setMsg, sendingMsg, onEnviar, onIn
       {ticket.status !== 'resolvido' && (
         <View style={s.notaInputRow}>
           <TextInput
-            style={s.notaInput}
+            style={[
+              s.notaInput,
+              { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+            ]}
             value={msg}
             onChangeText={setMsg}
             onFocus={onInputFocus}
             placeholder="Responder ao consumidor..."
-            placeholderTextColor="#C8CDE0"
+            placeholderTextColor={theme.textMut}
             multiline
           />
           <TouchableOpacity
-            style={[s.notaEnviarBtn, (!msg.trim() || sendingMsg) && { opacity: 0.4 }]}
+            style={[
+              s.notaEnviarBtn,
+              theme.isDark && { backgroundColor: '#3A4170' },
+              (!msg.trim() || sendingMsg) && { opacity: 0.4 },
+            ]}
             onPress={onEnviar}
             disabled={!msg.trim() || sendingMsg}
             activeOpacity={0.8}

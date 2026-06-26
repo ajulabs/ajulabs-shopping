@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { useTheme } from '../../../../shared/hooks';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, AjuLogo } from '@ajulabs/theme';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function LoginColaboradorScreen({ onLoginSuccess, onVoltar }: Props) {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const {
     router,
@@ -44,27 +46,31 @@ export function LoginColaboradorScreen({ onLoginSuccess, onVoltar }: Props) {
       </View>
 
       <ScrollView
-        style={styles.card}
+        style={[styles.card, { backgroundColor: theme.surf }]}
         contentContainerStyle={styles.cardContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.cardTitle}>Entrar</Text>
-        <Text style={styles.cardSub}>Use seu email e senha de colaborador</Text>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
+        <Text style={[styles.cardSub, { color: theme.textMut }]}>
+          Use seu email e senha de colaborador
+        </Text>
 
         {/* Email */}
         <View style={styles.field}>
-          <Text style={styles.fieldLabel}>EMAIL</Text>
-          <View style={styles.inputRow}>
+          <Text style={[styles.fieldLabel, { color: theme.textSec }]}>EMAIL</Text>
+          <View
+            style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+          >
             <TextInput
-              style={styles.inputInner}
+              style={[styles.inputInner, { color: theme.text }]}
               value={email}
               onChangeText={(v) => {
                 setEmail(v);
                 setError('');
               }}
               placeholder="colaborador@loja.com"
-              placeholderTextColor={colors.n600}
+              placeholderTextColor={theme.textMut}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -73,17 +79,19 @@ export function LoginColaboradorScreen({ onLoginSuccess, onVoltar }: Props) {
 
         {/* Senha */}
         <View style={styles.field}>
-          <Text style={styles.fieldLabel}>SENHA</Text>
-          <View style={styles.inputRow}>
+          <Text style={[styles.fieldLabel, { color: theme.textSec }]}>SENHA</Text>
+          <View
+            style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+          >
             <TextInput
-              style={styles.inputInner}
+              style={[styles.inputInner, { color: theme.text }]}
               value={senha}
               onChangeText={(v) => {
                 setSenha(v);
                 setError('');
               }}
               placeholder="••••••••"
-              placeholderTextColor={colors.n600}
+              placeholderTextColor={theme.textMut}
               secureTextEntry={!senhaVisivel}
               autoCapitalize="none"
             />
@@ -95,7 +103,7 @@ export function LoginColaboradorScreen({ onLoginSuccess, onVoltar }: Props) {
               <Ionicons
                 name={senhaVisivel ? 'eye-off-outline' : 'eye-outline'}
                 size={18}
-                color={colors.n600}
+                color={theme.textMut}
               />
             </TouchableOpacity>
           </View>

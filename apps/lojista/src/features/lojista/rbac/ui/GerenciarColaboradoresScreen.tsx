@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../../../theme';
 import { useColaboradores } from '../model/useColaboradores';
+import { useTheme } from '../../../../shared/hooks';
 import { ColaboradorCard } from './components/ColaboradorCard';
 import { ColaboradorForm } from './components/ColaboradorForm';
 
@@ -19,6 +20,7 @@ interface Props {
 
 export function GerenciarColaboradoresScreen({ onVoltar }: Props) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const {
     colaboradores,
     loading,
@@ -36,13 +38,22 @@ export function GerenciarColaboradoresScreen({ onVoltar }: Props) {
   } = useColaboradores();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.surf,
+            borderBottomColor: theme.border,
+            paddingTop: insets.top + 12,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={onVoltar} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.navy} />
+          <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Colaboradores</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Colaboradores</Text>
         <TouchableOpacity style={styles.addBtn} onPress={abrirCriacao}>
           <Ionicons name="add" size={22} color="#fff" />
         </TouchableOpacity>
@@ -55,7 +66,9 @@ export function GerenciarColaboradoresScreen({ onVoltar }: Props) {
       ) : (
         <ScrollView contentContainerStyle={styles.lista}>
           {colaboradores.length === 0 && (
-            <Text style={styles.emptyText}>Nenhum colaborador cadastrado.</Text>
+            <Text style={[styles.emptyText, { color: theme.textMut }]}>
+              Nenhum colaborador cadastrado.
+            </Text>
           )}
           {colaboradores.map((col) => (
             <ColaboradorCard

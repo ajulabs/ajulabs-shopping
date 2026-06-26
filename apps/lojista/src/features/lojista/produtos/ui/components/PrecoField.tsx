@@ -1,5 +1,6 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function PrecoField({
   preco,
@@ -12,21 +13,31 @@ export function PrecoField({
   onChangePreco: (v: string) => void;
   onSolicitar: () => void;
 }) {
+  const theme = useTheme();
   return (
     <View style={styles.rowFields}>
       <View style={[styles.fieldGroup, { flex: 1 }]}>
-        <Text style={styles.fieldLabel}>Preço (R$)</Text>
+        <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Preço (R$)</Text>
         {canEditPrices ? (
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+            ]}
             value={preco}
+            placeholderTextColor={theme.textMut}
             onChangeText={(v) => onChangePreco(v.replace(/[^0-9.,]/g, ''))}
             placeholder="0,00"
             keyboardType="decimal-pad"
           />
         ) : (
-          <View style={styles.precoReadonly}>
-            <Text style={styles.precoReadonlyText}>{preco}</Text>
+          <View
+            style={[
+              styles.precoReadonly,
+              { backgroundColor: theme.surf2, borderColor: theme.border },
+            ]}
+          >
+            <Text style={[styles.precoReadonlyText, { color: theme.textSec }]}>{preco}</Text>
             <TouchableOpacity onPress={onSolicitar} style={styles.solicitarBtn}>
               <Text style={styles.solicitarBtnText}>Solicitar mudança</Text>
             </TouchableOpacity>

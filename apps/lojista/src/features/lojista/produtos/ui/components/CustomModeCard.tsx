@@ -1,6 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function CustomModeCard({
   customTipo,
@@ -19,30 +20,34 @@ export function CustomModeCard({
   onAddVariacao: () => void;
   onRemoveVariacao: (v: string) => void;
 }) {
+  const theme = useTheme();
+  const inp = { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text };
   return (
     <View style={styles.customSection}>
-      <View style={styles.customCard}>
+      <View
+        style={[styles.customCard, { backgroundColor: theme.surf2, borderColor: theme.border }]}
+      >
         <View style={styles.customTitleRow}>
           <MaterialCommunityIcons name="pencil-outline" size={15} color={colors.orange} />
-          <Text style={styles.customTitle}>Produto personalizado</Text>
+          <Text style={[styles.customTitle, { color: theme.text }]}>Produto personalizado</Text>
         </View>
-        <Text style={styles.customHint}>
+        <Text style={[styles.customHint, { color: theme.textSec }]}>
           Descreva o tipo de produto e adicione as variações que ele possui.
         </Text>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.sectionLabel}>Tipo de produto</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textMut }]}>Tipo de produto</Text>
           <TextInput
-            style={styles.customInput}
+            style={[styles.customInput, inp]}
             value={customTipo}
             onChangeText={onChangeTipo}
             placeholder="Ex: Artesanato, Plantas, Serviços, Bijuterias…"
-            placeholderTextColor={colors.n500}
+            placeholderTextColor={theme.textMut}
           />
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.sectionLabel}>
+          <Text style={[styles.sectionLabel, { color: theme.textMut }]}>
             Variações <Text style={styles.optionalHint}>(opcional)</Text>
           </Text>
           {customVars.length > 0 && (
@@ -67,12 +72,12 @@ export function CustomModeCard({
           )}
           <View style={styles.addVarRow}>
             <TextInput
-              style={styles.addVarInput}
+              style={[styles.addVarInput, inp]}
               value={novaVariacao}
               onChangeText={onChangeNovaVariacao}
               onSubmitEditing={onAddVariacao}
               placeholder="Ex: Azul, G, 500ml…"
-              placeholderTextColor={colors.n500}
+              placeholderTextColor={theme.textMut}
               returnKeyType="done"
             />
             <TouchableOpacity

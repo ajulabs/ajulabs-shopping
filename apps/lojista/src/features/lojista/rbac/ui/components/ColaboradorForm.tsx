@@ -12,6 +12,7 @@ import type { Colaborador } from '@ajulabs/types';
 import { colors } from '../../../../../theme';
 import { FormState } from '../../lib/colaboradores';
 import { RoleSelectMenu } from './RoleSelectMenu';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   visible: boolean;
@@ -34,12 +35,16 @@ export function ColaboradorForm({
   onSalvar,
   onFechar,
 }: Props) {
+  const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onFechar}>
       <Pressable style={styles.overlay} onPress={onFechar}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>
+        <Pressable
+          style={[styles.sheet, { backgroundColor: theme.surf }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[styles.handle, { backgroundColor: theme.border }]} />
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>
             {editando ? 'Editar colaborador' : 'Novo colaborador'}
           </Text>
 
@@ -84,8 +89,11 @@ export function ColaboradorForm({
               <Text style={styles.salvarBtnText}>Salvar</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelarBtn} onPress={onFechar}>
-            <Text style={styles.cancelarText}>Cancelar</Text>
+          <TouchableOpacity
+            style={[styles.cancelarBtn, { borderColor: theme.border }]}
+            onPress={onFechar}
+          >
+            <Text style={[styles.cancelarText, { color: theme.textSec }]}>Cancelar</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>
@@ -110,15 +118,20 @@ function CampoTexto({
   keyboardType?: 'default' | 'email-address';
   editable?: boolean;
 }) {
+  const theme = useTheme();
   return (
     <View style={styles.campo}>
-      <Text style={styles.campoLabel}>{label}</Text>
+      <Text style={[styles.campoLabel, { color: theme.textSec }]}>{label}</Text>
       <TextInput
-        style={[styles.campoInput, !editable && { opacity: 0.5 }]}
+        style={[
+          styles.campoInput,
+          { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+          !editable && { opacity: 0.5 },
+        ]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={colors.n300}
+        placeholderTextColor={theme.textMut}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType ?? 'default'}
         autoCapitalize="none"

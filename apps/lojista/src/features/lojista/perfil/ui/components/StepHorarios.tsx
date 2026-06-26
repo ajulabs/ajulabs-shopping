@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 import { formatarHora, type HorarioDia } from '../../lib/horarios';
 import { Toggle } from './Toggle';
 
@@ -15,10 +16,11 @@ export function StepHorarios({
   const [sel, setSel] = useState(0);
   const h = horarios[sel];
 
+  const theme = useTheme();
   return (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Horário de funcionamento</Text>
-      <Text style={styles.stepSub}>
+    <View style={[styles.stepContent]}>
+      <Text style={[styles.stepTitle, { color: theme.text }]}>Horário de funcionamento</Text>
+      <Text style={[styles.stepSub, { color: theme.textSec }]}>
         Configure quando sua loja estará aberta. Você pode alterar isso a qualquer momento em
         Perfil.
       </Text>
@@ -29,6 +31,7 @@ export function StepHorarios({
             key={day.dia}
             style={[
               styles.dayPill,
+              { backgroundColor: theme.surf2 },
               day.ativo && sel !== i && styles.dayPillActive,
               sel === i && styles.dayPillSelected,
             ]}
@@ -38,6 +41,7 @@ export function StepHorarios({
             <Text
               style={[
                 styles.dayPillText,
+                { color: theme.textMut },
                 day.ativo && sel !== i && styles.dayPillTextActive,
                 sel === i && styles.dayPillTextSelected,
               ]}
@@ -57,11 +61,13 @@ export function StepHorarios({
         ))}
       </View>
 
-      <View style={styles.dayPanel}>
+      <View style={[styles.dayPanel, { backgroundColor: theme.surf2 }]}>
         <View style={styles.dayPanelHead}>
           <View>
-            <Text style={styles.dayPanelName}>{h.dia}</Text>
-            <Text style={[styles.dayPanelStatus, { color: h.ativo ? colors.orange : colors.n500 }]}>
+            <Text style={[styles.dayPanelName, { color: theme.text }]}>{h.dia}</Text>
+            <Text
+              style={[styles.dayPanelStatus, { color: h.ativo ? colors.orange : theme.textMut }]}
+            >
               {h.ativo ? 'Aberto neste dia' : 'Fechado neste dia'}
             </Text>
           </View>
@@ -81,40 +87,48 @@ export function StepHorarios({
         {h.ativo ? (
           <View style={styles.dayTimes}>
             <View style={styles.dayTimeSlot}>
-              <Text style={styles.dayTimeLabel}>ABERTURA</Text>
+              <Text style={[styles.dayTimeLabel, { color: theme.textMut }]}>ABERTURA</Text>
               <TextInput
-                style={styles.dayTimeInput}
+                style={[
+                  styles.dayTimeInput,
+                  { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+                ]}
                 value={h.abertura}
                 onChangeText={(v) => onChange(sel, { ...h, abertura: formatarHora(v) })}
                 keyboardType="numeric"
                 maxLength={5}
                 placeholder="00:00"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={theme.textMut}
               />
             </View>
             <Ionicons
               name="arrow-forward-outline"
               size={18}
-              color={colors.n500}
+              color={theme.textMut}
               style={{ marginTop: 24 }}
             />
             <View style={styles.dayTimeSlot}>
-              <Text style={styles.dayTimeLabel}>FECHAMENTO</Text>
+              <Text style={[styles.dayTimeLabel, { color: theme.textMut }]}>FECHAMENTO</Text>
               <TextInput
-                style={styles.dayTimeInput}
+                style={[
+                  styles.dayTimeInput,
+                  { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+                ]}
                 value={h.fechamento}
                 onChangeText={(v) => onChange(sel, { ...h, fechamento: formatarHora(v) })}
                 keyboardType="numeric"
                 maxLength={5}
                 placeholder="00:00"
-                placeholderTextColor={colors.n500}
+                placeholderTextColor={theme.textMut}
               />
             </View>
           </View>
         ) : (
           <View style={styles.dayClosed}>
-            <Ionicons name="moon-outline" size={20} color={colors.n500} />
-            <Text style={styles.dayClosedText}>Sem horário configurado para este dia</Text>
+            <Ionicons name="moon-outline" size={20} color={theme.textMut} />
+            <Text style={[styles.dayClosedText, { color: theme.textMut }]}>
+              Sem horário configurado para este dia
+            </Text>
           </View>
         )}
       </View>

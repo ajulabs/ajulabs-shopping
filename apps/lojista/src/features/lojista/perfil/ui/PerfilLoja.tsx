@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
 import { useAuthLojistaStore } from '../../../../store';
+import { useThemeStore } from '../../../../store';
+import { useTheme } from '../../../../shared/hooks';
 import type { CategoriaItem } from '../lib/horarios';
 import { PAPEL_CFG } from '../lib/equipe';
 import { usePerfilLoja } from '../model/usePerfilLoja';
@@ -71,11 +73,13 @@ const SECTION_TITLES: Record<Exclude<Section, null>, string> = {
   equipe: 'Equipe',
 };
 
-export function PerfilLoja({ dark = false }: PerfilLojaProps) {
+export function PerfilLoja(_props: PerfilLojaProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const logout = useAuthLojistaStore((s) => s.logout);
   const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleDark = useThemeStore((s) => s.toggleDark);
 
   const {
     loja,
@@ -120,11 +124,13 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
     alternarAtivoColaborador,
   } = useEquipe();
 
-  const textColor = dark ? colors.n0 : colors.navy;
-  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const bgMain = dark ? '#0B0F22' : colors.n50;
-  const surface = dark ? '#111638' : colors.n0;
-  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const theme = useTheme();
+  const dark = theme.isDark;
+  const textColor = theme.text;
+  const subColor = theme.textSec;
+  const bgMain = theme.bg;
+  const surface = theme.surf;
+  const border = theme.border;
 
   const [section, setSection] = useState<Section>(null);
 
@@ -547,6 +553,20 @@ export function PerfilLoja({ dark = false }: PerfilLojaProps) {
           </TouchableOpacity>
         ))}
 
+        <Text style={[styles.sectionLabel, { color: subColor }]}>PREFERÊNCIAS</Text>
+        <View style={[styles.prefRow, { backgroundColor: surface, borderColor: border }]}>
+          <View style={[styles.prefIcon, { backgroundColor: theme.iconBg }]}>
+            <Ionicons name={isDark ? 'moon' : 'sunny'} size={17} color={colors.orange} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.menuLabel, { color: textColor }]}>Modo escuro</Text>
+            <Text style={[styles.prefHint, { color: subColor }]}>
+              {isDark ? 'Ativado' : 'Desativado'}
+            </Text>
+          </View>
+          <Toggle value={isDark} onValueChange={toggleDark} />
+        </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
           <Ionicons name="log-out-outline" size={18} color="#E24B4A" />
           <Text style={styles.logoutBtnText}>Sair da conta</Text>
@@ -790,6 +810,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 10,
   },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  prefIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prefHint: { fontSize: 12, marginTop: 1 },
   menuIconBox: {
     width: 34,
     height: 34,

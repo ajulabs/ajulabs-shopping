@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import { useTheme } from '../../../../../shared/hooks';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
 import { usePasswordRecovery } from '../../model/usePasswordRecovery';
@@ -18,6 +19,8 @@ interface PasswordRecoveryModalProps {
 }
 
 export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModalProps) {
+  const theme = useTheme();
+  const inp = { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text };
   const {
     step,
     setStep,
@@ -45,27 +48,30 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={styles.modalOverlay} onPress={handleClose}>
-        <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modalHandle} />
+        <Pressable
+          style={[styles.modalSheet, { backgroundColor: theme.surf }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
 
           {/* ETAPA 1 — EMAIL */}
           {step === 'form' && (
             <>
-              <Text style={styles.modalTitle}>Recuperar senha</Text>
-              <Text style={styles.modalSub}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Recuperar senha</Text>
+              <Text style={[styles.modalSub, { color: theme.textSec }]}>
                 Informe o email cadastrado na sua conta. Enviaremos um código de verificação.
               </Text>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>EMAIL CADASTRADO</Text>
+                <Text style={[styles.fieldLabel, { color: theme.textSec }]}>EMAIL CADASTRADO</Text>
                 <TextInput
-                  style={[styles.fieldInput, error ? styles.fieldInputError : undefined]}
+                  style={[styles.fieldInput, inp, error ? styles.fieldInputError : undefined]}
                   value={email}
                   onChangeText={(v) => {
                     setEmail(v);
                     setError('');
                   }}
                   placeholder="loja@email.com"
-                  placeholderTextColor={colors.n600}
+                  placeholderTextColor={theme.textMut}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -96,23 +102,23 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
           {/* ETAPA 2 — CÓDIGO */}
           {step === 'codigo' && (
             <>
-              <Text style={styles.modalTitle}>Digite o código</Text>
-              <Text style={styles.modalSub}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Digite o código</Text>
+              <Text style={[styles.modalSub, { color: theme.textSec }]}>
                 Enviamos um código de 6 dígitos para{' '}
                 <Text style={{ fontWeight: '700', color: colors.navy }}>{email}</Text>.{'\n'}
                 Verifique sua caixa de entrada.
               </Text>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Código</Text>
+                <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Código</Text>
                 <TextInput
-                  style={[styles.fieldInput, error ? styles.fieldInputError : undefined]}
+                  style={[styles.fieldInput, inp, error ? styles.fieldInputError : undefined]}
                   value={codigo}
                   onChangeText={(v) => {
                     setCodigo(v.replace(/\D/g, '').slice(0, 6));
                     setError('');
                   }}
                   placeholder="000000"
-                  placeholderTextColor={colors.n600}
+                  placeholderTextColor={theme.textMut}
                   keyboardType="numeric"
                   maxLength={6}
                 />
@@ -142,16 +148,17 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
           {/* ETAPA 3 — NOVA SENHA */}
           {step === 'senha' && (
             <>
-              <Text style={styles.modalTitle}>Nova senha</Text>
-              <Text style={styles.modalSub}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Nova senha</Text>
+              <Text style={[styles.modalSub, { color: theme.textSec }]}>
                 Crie uma nova senha com pelo menos 8 caracteres, 1 maiúscula e 1 número.
               </Text>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Nova senha</Text>
+                <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Nova senha</Text>
                 <View style={styles.pwRow}>
                   <TextInput
                     style={[
                       styles.fieldInput,
+                      inp,
                       styles.fieldInputFlex,
                       error ? styles.fieldInputError : undefined,
                     ]}
@@ -161,7 +168,7 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
                       setError('');
                     }}
                     placeholder="••••••••"
-                    placeholderTextColor={colors.n600}
+                    placeholderTextColor={theme.textMut}
                     secureTextEntry={!showNovaSenha}
                   />
                   <TouchableOpacity
@@ -172,17 +179,18 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
                     <Ionicons
                       name={showNovaSenha ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color={colors.n600}
+                      color={theme.textMut}
                     />
                   </TouchableOpacity>
                 </View>
               </View>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Confirmar senha</Text>
+                <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Confirmar senha</Text>
                 <View style={styles.pwRow}>
                   <TextInput
                     style={[
                       styles.fieldInput,
+                      inp,
                       styles.fieldInputFlex,
                       error ? styles.fieldInputError : undefined,
                     ]}
@@ -192,7 +200,7 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
                       setError('');
                     }}
                     placeholder="••••••••"
-                    placeholderTextColor={colors.n600}
+                    placeholderTextColor={theme.textMut}
                     secureTextEntry={!showConfirmar}
                   />
                   <TouchableOpacity
@@ -203,7 +211,7 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
                     <Ionicons
                       name={showConfirmar ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color={colors.n600}
+                      color={theme.textMut}
                     />
                   </TouchableOpacity>
                 </View>
@@ -240,7 +248,7 @@ export function PasswordRecoveryModal({ visible, onClose }: PasswordRecoveryModa
               <View style={styles.successIconWrap}>
                 <Ionicons name="checkmark" size={32} color="#046C2E" />
               </View>
-              <Text style={styles.successTitle}>Senha redefinida!</Text>
+              <Text style={[styles.successTitle, { color: theme.text }]}>Senha redefinida!</Text>
               <Text style={styles.successSub}>
                 Sua senha foi atualizada com sucesso.{'\n'}Faça login com sua nova senha.
               </Text>
