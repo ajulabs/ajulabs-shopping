@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Produto } from '@ajulabs/types';
@@ -21,7 +22,14 @@ function ProductImg({ uri, alt }: { uri: string; alt: string }) {
     );
   }
   return (
-    <Image source={{ uri }} style={styles.img} resizeMode="cover" onError={() => setError(true)} />
+    <Image
+      source={uri}
+      style={styles.img}
+      contentFit="cover"
+      transition={150}
+      cachePolicy="memory-disk"
+      onError={() => setError(true)}
+    />
   );
 }
 
