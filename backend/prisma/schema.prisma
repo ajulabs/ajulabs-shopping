@@ -1019,3 +1019,21 @@ model AuditLog {
   @@index([actorId])
   @@map("audit_logs")
 }
+
+/// Log de buscas de produto feitas pelo usuário (via Aju).
+/// Alimenta o futuro insight de "demanda reprimida" do lojista:
+/// termos muito buscados que retornam poucos/nenhum produto.
+model BuscaProduto {
+  id               String   @id @default(uuid())
+  termo            String
+  termoNormalizado String   @map("termo_normalizado")
+  usuarioId        String?  @map("usuario_id")
+  lojaId           String?  @map("loja_id")
+  resultados       Int      @default(0)
+  criadoEm         DateTime @default(now()) @map("criado_em")
+
+  @@index([termoNormalizado])
+  @@index([lojaId])
+  @@index([criadoEm])
+  @@map("buscas_produto")
+}
