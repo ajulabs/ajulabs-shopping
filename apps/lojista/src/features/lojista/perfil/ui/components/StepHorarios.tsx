@@ -95,7 +95,7 @@ export function StepHorarios({
             <Ionicons
               name="arrow-forward-outline"
               size={18}
-              color={colors.n400}
+              color={colors.n500}
               style={{ marginTop: 24 }}
             />
             <View style={styles.dayTimeSlot}>

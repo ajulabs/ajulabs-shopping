@@ -46,7 +46,7 @@ export function useImageSlots(produto: Produto) {
     setSlots((prev) => {
       const next = [...prev];
       next[index] = { type: 'empty' };
-      const filled = next.filter((s) => s.type !== 'empty');
+      const filled: ImageSlot[] = next.filter((s) => s.type !== 'empty');
       while (filled.length < 4) filled.push({ type: 'empty' });
       return filled;
     });

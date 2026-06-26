@@ -44,7 +44,7 @@ export default function RootLayout() {
     } else if (isLoggedIn && inAuthGroup) {
       // When coming from register the screen itself navigates to onboarding —
       // let it handle navigation instead of overriding with pedidos.
-      const currentScreen = segments[1];
+      const currentScreen = (segments as string[])[1];
       if (currentScreen !== 'register') {
         router.replace('/(lojista)/pedidos');
       }

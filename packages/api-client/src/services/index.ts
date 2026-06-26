@@ -16,6 +16,7 @@
   SolicitacaoPreco,
   StatusSolicitacaoPreco,
   AuditLogEntry,
+  Insight,
 } from '@ajulabs/types';
 import { Platform } from 'react-native';
 export {
@@ -486,6 +487,15 @@ export const LojistaService = {
     });
     if (!res.ok) return null;
     return res.json();
+  },
+
+  buscarInsights: async (lojaId: string, token: string): Promise<Insight[]> => {
+    const res = await fetch(`${API_URL}/lojista/lojas/${lojaId}/insights`, {
+      headers: authHeader(token),
+    });
+    if (!res.ok) return [];
+    const { insights } = await res.json();
+    return insights ?? [];
   },
 
   buscarLojaDetalhes: async (lojaId: string, token: string): Promise<any | null> => {

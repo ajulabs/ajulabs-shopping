@@ -538,3 +538,17 @@ export interface AvaliacaoDetalhada {
     avatarUrl?: string | null;
   };
 }
+
+// ─── Insights do lojista (análise determinística sobre dados reais) ───────────
+export type InsightSeveridade = 'critico' | 'atencao' | 'positivo' | 'info';
+export type InsightTipo = 'ruptura' | 'faturamento' | 'cancelamento' | 'encalhe' | 'avaliacao';
+
+export interface Insight {
+  id: string;
+  tipo: InsightTipo;
+  severidade: InsightSeveridade;
+  titulo: string;
+  detalhe: string;
+  /** Valor curto pra destacar (ex.: "+38%", "3 un.", "4.1"). */
+  valor?: string;
+}

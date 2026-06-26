@@ -9,6 +9,7 @@ import {
   AuthRequest,
 } from '../middleware/auth';
 import * as svc from '../services/lojista.service';
+import { gerarInsights } from '../services/insights.service';
 import { specValidatorMiddleware } from '../lib/spec-validator';
 
 const upload = multer({
@@ -206,6 +207,12 @@ router.get('/lojas/:id/dashboard', authMiddleware, authLojista, async (req: Auth
   await svc.verificarDonoLoja(req.params.id, req.user!.id);
   const data = await svc.getDashboard(req.params.id);
   res.json(data);
+});
+
+router.get('/lojas/:id/insights', authMiddleware, authLojista, async (req: AuthRequest, res) => {
+  await svc.verificarDonoLoja(req.params.id, req.user!.id);
+  const insights = await gerarInsights(req.params.id);
+  res.json({ insights });
 });
 
 // ── Loja ──────────────────────────────────────────────────────────────────────
