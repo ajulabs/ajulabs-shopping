@@ -1294,7 +1294,7 @@ router.post(
           { role: 'system', content: SYSTEM_RESPOSTA },
           ...historicoParsed,
           { role: 'user', content: texto },
-          { role: 'assistant', content: null, tool_calls: mensagemAgente.tool_calls },
+          { role: 'assistant', content: null, tool_calls: [toolCall] },
           {
             role: 'tool',
             tool_call_id: toolCall.id,
