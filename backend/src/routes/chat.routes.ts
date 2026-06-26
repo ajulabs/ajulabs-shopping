@@ -175,10 +175,15 @@ const mensagemSchema = z.object({
   texto: z.string().min(1).max(1000),
   historico: z
     .array(
-      z.object({
-        remetente: z.enum(['usuario', 'aju']),
-        conteudo: z.string(),
-      }),
+      // Resiliente: um item de histórico malformado (ex.: conteudo vazio/undefined
+      // de uma mensagem-card antiga) NÃO pode derrubar a conversa inteira.
+      // Cada item coage para um valor seguro em vez de falhar o .parse().
+      z
+        .object({
+          remetente: z.enum(['usuario', 'aju']).catch('usuario'),
+          conteudo: z.string().catch(''),
+        })
+        .catch({ remetente: 'usuario', conteudo: '' }),
     )
     .default([]),
   conversaId: z.string().uuid().optional(),
