@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Produto } from '@ajulabs/types';
 import { calcNivel } from '../../../../../entities/produto';
-import { C, NIVEL_CFG } from '../../lib/dashboardTheme';
+import { C, NIVEL_CFG, useDashboardC, type DashboardC } from '../../lib/dashboardTheme';
 
 export function ProdutoRow({
   produto,
@@ -19,6 +20,8 @@ export function ProdutoRow({
   onEditar: () => void;
   onDelete: () => void;
 }) {
+  const c = useDashboardC();
+  const s = useMemo(() => makeStyles(c), [c]);
   const nivel = calcNivel(produto.estoque ?? 0, produto.estoqueMinimo ?? 0);
   const cfg = NIVEL_CFG[nivel];
   const hasImg = produto.imagem && !hasImgError;
@@ -52,7 +55,7 @@ export function ProdutoRow({
           <Text style={s.stockBadgeText}>{produto.estoque ?? 0}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.prodAction} onPress={onEditar} activeOpacity={0.7}>
-          <Ionicons name="pencil-outline" size={15} color={C.sub} />
+          <Ionicons name="pencil-outline" size={15} color={c.sub} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.prodAction, { backgroundColor: '#FEE2E2' }]}
@@ -66,50 +69,52 @@ export function ProdutoRow({
   );
 }
 
-const s = StyleSheet.create({
-  prodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  prodThumb: { width: 46, height: 46, borderRadius: 12 },
-  prodThumbFallback: {
-    backgroundColor: C.orange + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  prodThumbLetter: { fontSize: 18, fontWeight: '800', color: C.orange },
-  prodInfo: { flex: 1 },
-  prodNome: { fontSize: 14, fontWeight: '700', color: C.text },
-  prodPreco: { fontSize: 13, color: C.orange, fontWeight: '700', marginTop: 2 },
-  prodRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  stockBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stockBadgeText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  prodAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: C.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-});
+function makeStyles(c: DashboardC) {
+  return StyleSheet.create({
+    prodRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    prodThumb: { width: 46, height: 46, borderRadius: 12 },
+    prodThumbFallback: {
+      backgroundColor: C.orange + '20',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    prodThumbLetter: { fontSize: 18, fontWeight: '800', color: C.orange },
+    prodInfo: { flex: 1 },
+    prodNome: { fontSize: 14, fontWeight: '700', color: c.text },
+    prodPreco: { fontSize: 13, color: C.orange, fontWeight: '700', marginTop: 2 },
+    prodRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    stockBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stockBadgeText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    prodAction: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      backgroundColor: c.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+  });
+}

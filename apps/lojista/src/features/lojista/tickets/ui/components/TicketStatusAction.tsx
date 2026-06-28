@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Ticket, TicketStatus, STATUS_META } from '../../model/data';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   ticket: Ticket;
@@ -20,8 +21,9 @@ export function TicketStatusAction({
   saving,
   onAvancar,
 }: Props) {
+  const theme = useTheme();
   return (
-    <View style={s.section}>
+    <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
       <View style={s.statusRow}>
         <View style={[s.badge, { backgroundColor: meta.bg }]}>
           <Ionicons
@@ -42,7 +44,7 @@ export function TicketStatusAction({
 
       {proximoStatus && (
         <TouchableOpacity
-          style={s.avancarBtn}
+          style={[s.avancarBtn, theme.isDark && { backgroundColor: '#3A4170' }]}
           onPress={onAvancar}
           disabled={saving}
           activeOpacity={0.85}

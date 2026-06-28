@@ -1,4 +1,5 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../../shared/hooks';
 import {
   View,
   Text,
@@ -49,6 +50,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
     formatCNPJ,
   } = useCadastro(onCadastroSuccess);
 
+  const theme = useTheme();
   return (
     <View style={styles.container}>
       <KeyboardAvoidingView
@@ -65,13 +67,15 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
 
         <ScrollView
           ref={scrollRef}
-          style={styles.card}
+          style={[styles.card, { backgroundColor: theme.surf }]}
           contentContainerStyle={styles.cardContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.cardTitle}>Criar conta</Text>
-          <Text style={styles.cardSub}>Preencha os dados da sua loja para começar</Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Criar conta</Text>
+          <Text style={[styles.cardSub, { color: theme.textMut }]}>
+            Preencha os dados da sua loja para começar
+          </Text>
 
           <View
             onLayout={(e) => {
@@ -114,7 +118,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
               fieldPositions.current.telefone = e.nativeEvent.layout.y;
             }}
           >
-            <Text style={styles.fieldLabel}>TELEFONE / WHATSAPP</Text>
+            <Text style={[styles.fieldLabel, { color: theme.textSec }]}>TELEFONE / WHATSAPP</Text>
             <PhoneInput
               value={form.telefone}
               onChange={setTelefone}
@@ -225,7 +229,7 @@ export function CadastroLojista({ onCadastroSuccess }: CadastroLojistaProps) {
           </TouchableOpacity>
 
           <View style={styles.loginRow}>
-            <Text style={styles.loginText}>Já tem conta? </Text>
+            <Text style={[styles.loginText, { color: theme.textSec }]}>Já tem conta? </Text>
             <TouchableOpacity onPress={confirmarSaida} activeOpacity={0.8}>
               <Text style={styles.loginLink}>Entrar no painel</Text>
             </TouchableOpacity>

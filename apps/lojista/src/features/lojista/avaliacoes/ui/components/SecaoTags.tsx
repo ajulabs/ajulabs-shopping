@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type TagAgregada } from '@ajulabs/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function SecaoTags({
   titulo,
@@ -17,23 +18,24 @@ export function SecaoTags({
   tags: TagAgregada[];
   vazio: string;
 }) {
+  const theme = useTheme();
   return (
-    <View style={s.section}>
+    <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
       <View style={s.sectionHeader}>
         <View style={[s.sectionIcon, { backgroundColor: bgIcone }]}>
           <Ionicons name={iconName} size={14} color={iconColor} />
         </View>
-        <Text style={s.sectionTitle}>{titulo}</Text>
+        <Text style={[s.sectionTitle, { color: theme.text }]}>{titulo}</Text>
       </View>
       {tags.length === 0 ? (
-        <Text style={s.sectionEmpty}>{vazio}</Text>
+        <Text style={[s.sectionEmpty, { color: theme.textMut }]}>{vazio}</Text>
       ) : (
         <View style={{ gap: 8 }}>
           {tags.map((t) => (
             <View key={t.tag.id} style={s.tagRow}>
-              <Text style={s.tagLabel}>{t.tag.label}</Text>
-              <View style={s.tagBadge}>
-                <Text style={s.tagBadgeText}>
+              <Text style={[s.tagLabel, { color: theme.text }]}>{t.tag.label}</Text>
+              <View style={[s.tagBadge, { backgroundColor: theme.surf2 }]}>
+                <Text style={[s.tagBadgeText, { color: theme.text }]}>
                   {t.count} mençã{t.count === 1 ? 'o' : 'ões'}
                 </Text>
               </View>

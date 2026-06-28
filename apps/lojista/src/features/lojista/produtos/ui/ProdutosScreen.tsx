@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
 import { useProdutosScreen } from '../model/useProdutosScreen';
-import { useHardwareBack } from '../../../../shared/hooks';
+import { useHardwareBack, useTheme } from '../../../../shared/hooks';
 import { GerenciarColaboradoresScreen } from '../../rbac/ui/GerenciarColaboradoresScreen';
 import { SolicitacoesPrecoScreen } from '../../rbac/ui/SolicitacoesPrecoScreen';
 import { AuditLogScreen } from '../../rbac/ui/AuditLogScreen';
@@ -17,6 +17,7 @@ import { MovimentacoesScreen } from './MovimentacoesScreen';
 
 export function ProdutosScreen() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const {
     token,
     mode,
@@ -132,12 +133,24 @@ export function ProdutosScreen() {
   return (
     <View style={{ flex: 1 }}>
       {showRbacBar && (
-        <View style={[styles.rbacBar, { paddingTop: insets.top + 8 }]}>
+        <View
+          style={[
+            styles.rbacBar,
+            {
+              backgroundColor: theme.surf,
+              borderBottomColor: theme.border,
+              paddingTop: insets.top + 8,
+            },
+          ]}
+        >
           {(canApprovePrice || isFuncionario) && (
-            <TouchableOpacity style={styles.rbacBtn} onPress={() => setMode('solicitacoes')}>
+            <TouchableOpacity
+              style={[styles.rbacBtn, { backgroundColor: theme.surf2, borderColor: theme.border }]}
+              onPress={() => setMode('solicitacoes')}
+            >
               <View style={styles.rbacBtnContent}>
                 <Ionicons name="pricetag-outline" size={16} color={colors.orange} />
-                <Text style={styles.rbacBtnText}>Preços</Text>
+                <Text style={[styles.rbacBtnText, { color: theme.text }]}>Preços</Text>
                 {pendentesCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
@@ -149,18 +162,24 @@ export function ProdutosScreen() {
             </TouchableOpacity>
           )}
           {canManageUsers && (
-            <TouchableOpacity style={styles.rbacBtn} onPress={() => setMode('colaboradores')}>
+            <TouchableOpacity
+              style={[styles.rbacBtn, { backgroundColor: theme.surf2, borderColor: theme.border }]}
+              onPress={() => setMode('colaboradores')}
+            >
               <View style={styles.rbacBtnContent}>
-                <Ionicons name="people-outline" size={16} color={colors.navy} />
-                <Text style={styles.rbacBtnText}>Equipe</Text>
+                <Ionicons name="people-outline" size={16} color={theme.text} />
+                <Text style={[styles.rbacBtnText, { color: theme.text }]}>Equipe</Text>
               </View>
             </TouchableOpacity>
           )}
           {canViewAuditLog && (
-            <TouchableOpacity style={styles.rbacBtn} onPress={() => setMode('auditoria')}>
+            <TouchableOpacity
+              style={[styles.rbacBtn, { backgroundColor: theme.surf2, borderColor: theme.border }]}
+              onPress={() => setMode('auditoria')}
+            >
               <View style={styles.rbacBtnContent}>
-                <Ionicons name="document-text-outline" size={16} color={colors.navy} />
-                <Text style={styles.rbacBtnText}>Auditoria</Text>
+                <Ionicons name="document-text-outline" size={16} color={theme.text} />
+                <Text style={[styles.rbacBtnText, { color: theme.text }]}>Auditoria</Text>
               </View>
             </TouchableOpacity>
           )}

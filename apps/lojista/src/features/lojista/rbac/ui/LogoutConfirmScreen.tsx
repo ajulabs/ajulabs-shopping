@@ -2,30 +2,32 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthLojistaStore } from '../../../../store';
+import { useTheme } from '../../../../shared/hooks';
 
 export function LogoutConfirmScreen() {
   const router = useRouter();
   const logout = useAuthLojistaStore((s) => s.logout);
+  const theme = useTheme();
 
   return (
     <View style={s.overlay}>
-      <View style={s.box}>
+      <View style={[s.box, { backgroundColor: theme.surf }]}>
         <View style={s.iconWrap}>
           <Ionicons name="log-out-outline" size={28} color="#E24B4A" />
         </View>
-        <Text style={s.title}>Sair da conta</Text>
-        <Text style={s.msg}>
+        <Text style={[s.title, { color: theme.text }]}>Sair da conta</Text>
+        <Text style={[s.msg, { color: theme.textSec }]}>
           Tem certeza que deseja sair? Você precisará fazer login novamente para acessar sua conta.
         </Text>
         <TouchableOpacity style={s.btnSair} onPress={logout} activeOpacity={0.85}>
           <Text style={s.btnSairText}>Sim, quero sair</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.btnCancel}
+          style={[s.btnCancel, { borderColor: theme.border }]}
           onPress={() => router.navigate('/(lojista)/pedidos')}
           activeOpacity={0.85}
         >
-          <Text style={s.btnCancelText}>Cancelar</Text>
+          <Text style={[s.btnCancelText, { color: theme.textSec }]}>Cancelar</Text>
         </TouchableOpacity>
       </View>
     </View>

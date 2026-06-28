@@ -1,5 +1,6 @@
 import { View, Text } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import { useDashboardC } from '../../lib/dashboardTheme';
 
 const C = {
   border: '#E2E8F0',
@@ -28,6 +29,7 @@ export function DonutChart({
   size?: number;
   strokeWidth?: number;
 }) {
+  const c = useDashboardC();
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2 - strokeWidth / 2;
@@ -44,11 +46,11 @@ export function DonutChart({
     return (
       <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
         <Svg width={size} height={size}>
-          <Circle cx={cx} cy={cy} r={r} fill="none" stroke={C.border} strokeWidth={strokeWidth} />
+          <Circle cx={cx} cy={cy} r={r} fill="none" stroke={c.border} strokeWidth={strokeWidth} />
         </Svg>
         <View style={{ position: 'absolute', alignItems: 'center' }}>
-          <Text style={{ fontSize: 32, fontWeight: '800', color: C.text }}>0</Text>
-          <Text style={{ fontSize: 12, color: C.sub, fontWeight: '600' }}>produtos</Text>
+          <Text style={{ fontSize: 32, fontWeight: '800', color: c.text }}>0</Text>
+          <Text style={{ fontSize: 12, color: c.sub, fontWeight: '600' }}>produtos</Text>
         </View>
       </View>
     );
@@ -92,14 +94,14 @@ export function DonutChart({
           justifyContent: 'center',
         }}
       >
-        <Text style={{ fontSize: 38, fontWeight: '900', color: C.text, letterSpacing: -2 }}>
+        <Text style={{ fontSize: 38, fontWeight: '900', color: c.text, letterSpacing: -2 }}>
           {total}
         </Text>
         <Text
           style={{
             fontSize: 11,
             fontWeight: '700',
-            color: C.sub,
+            color: c.sub,
             letterSpacing: 1,
             textTransform: 'uppercase',
           }}

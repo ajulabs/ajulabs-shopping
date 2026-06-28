@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Modal, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 import type { CategoriaItem } from '../../lib/horarios';
 
 const CATEGORIAS: CategoriaItem[] = [
@@ -40,41 +41,45 @@ export function StepInfo({
   const [catOpen, setCatOpen] = useState(false);
   const selected = CATEGORIAS.find((c) => c.label === categoria);
 
+  const theme = useTheme();
   return (
     <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Sobre sua loja</Text>
-      <Text style={styles.stepSub}>
+      <Text style={[styles.stepTitle, { color: theme.text }]}>Sobre sua loja</Text>
+      <Text style={[styles.stepSub, { color: theme.textSec }]}>
         Escolha a categoria e descreva o que sua loja vende para os clientes encontrarem você.
       </Text>
 
-      <Text style={styles.fieldLabel}>CATEGORIA</Text>
+      <Text style={[styles.fieldLabel, { color: theme.textMut }]}>CATEGORIA</Text>
       <TouchableOpacity
-        style={styles.catSelector}
+        style={[styles.catSelector, { backgroundColor: theme.surf, borderColor: theme.border }]}
         onPress={() => setCatOpen(true)}
         activeOpacity={0.8}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
           {selected ? (
             <>
-              <Ionicons name={selected.icone as any} size={18} color={colors.navy} />
-              <Text style={styles.catSelectorText}>{selected.label}</Text>
+              <Ionicons name={selected.icone as any} size={18} color={theme.text} />
+              <Text style={[styles.catSelectorText, { color: theme.text }]}>{selected.label}</Text>
             </>
           ) : (
-            <Text style={[styles.catSelectorText, { color: colors.n600 }]}>
+            <Text style={[styles.catSelectorText, { color: theme.textMut }]}>
               Selecione uma categoria
             </Text>
           )}
         </View>
-        <Ionicons name="chevron-down" size={16} color={colors.n600} />
+        <Ionicons name="chevron-down" size={16} color={theme.textMut} />
       </TouchableOpacity>
 
-      <Text style={[styles.fieldLabel, { marginTop: 18 }]}>DESCRIÇÃO</Text>
+      <Text style={[styles.fieldLabel, { color: theme.textMut, marginTop: 18 }]}>DESCRIÇÃO</Text>
       <TextInput
-        style={styles.textarea}
+        style={[
+          styles.textarea,
+          { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+        ]}
         value={descricao}
         onChangeText={onDescricao}
         placeholder="Ex: Loja de calçados com as melhores marcas nacionais e importadas. Atendemos Aracaju e região."
-        placeholderTextColor={colors.n600}
+        placeholderTextColor={theme.textMut}
         multiline
         numberOfLines={4}
         textAlignVertical="top"
@@ -86,11 +91,16 @@ export function StepInfo({
         presentationStyle="pageSheet"
         onRequestClose={() => setCatOpen(false)}
       >
-        <View style={styles.catModal}>
-          <View style={styles.catModalHeader}>
-            <Text style={styles.catModalTitle}>Categoria da loja</Text>
+        <View style={[styles.catModal, { backgroundColor: theme.bg }]}>
+          <View
+            style={[
+              styles.catModalHeader,
+              { backgroundColor: theme.surf, borderBottomColor: theme.border },
+            ]}
+          >
+            <Text style={[styles.catModalTitle, { color: theme.text }]}>Categoria da loja</Text>
             <TouchableOpacity onPress={() => setCatOpen(false)}>
-              <Ionicons name="close" size={22} color={colors.navy} />
+              <Ionicons name="close" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -99,7 +109,11 @@ export function StepInfo({
             contentContainerStyle={{ paddingBottom: 32 }}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.catItem, item.label === categoria && styles.catItemSelected]}
+                style={[
+                  styles.catItem,
+                  { borderBottomColor: theme.border },
+                  item.label === categoria && styles.catItemSelected,
+                ]}
                 onPress={() => {
                   onCategoria(item.label);
                   setCatOpen(false);
@@ -109,12 +123,13 @@ export function StepInfo({
                 <Ionicons
                   name={item.icone as any}
                   size={20}
-                  color={item.label === categoria ? colors.orange : colors.n600}
+                  color={item.label === categoria ? colors.orange : theme.textMut}
                   style={styles.catItemIcone}
                 />
                 <Text
                   style={[
                     styles.catItemLabel,
+                    { color: theme.text },
                     item.label === categoria && { color: colors.orange, fontWeight: '700' },
                   ]}
                 >

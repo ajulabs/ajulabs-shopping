@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AuditLogEntry } from '@ajulabs/types';
 import { colors } from '../../../../theme';
+import { useTheme } from '../../../../shared/hooks';
 import {
   ACTION_LABEL,
   ACTION_ICON,
@@ -29,6 +30,7 @@ interface Props {
 
 export function AuditLogScreen({ onVoltar }: Props) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const {
     logs,
     loading,
@@ -48,7 +50,7 @@ export function AuditLogScreen({ onVoltar }: Props) {
       const label = ACTION_LABEL[item.action] ?? item.action;
       return (
         <TouchableOpacity
-          style={styles.logItem}
+          style={[styles.logItem, { backgroundColor: theme.surf, borderColor: theme.border }]}
           onPress={() => setDetalhe(item)}
           activeOpacity={0.75}
         >
@@ -56,33 +58,46 @@ export function AuditLogScreen({ onVoltar }: Props) {
             <Ionicons name={icon as any} size={20} color={cor} />
           </View>
           <View style={styles.logInfo}>
-            <Text style={styles.logAction}>{label}</Text>
-            <Text style={styles.logEntity} numberOfLines={1}>
+            <Text style={[styles.logAction, { color: theme.text }]}>{label}</Text>
+            <Text style={[styles.logEntity, { color: theme.textMut }]} numberOfLines={1}>
               {item.entityName}
             </Text>
             <View style={styles.logMeta}>
-              <Text style={styles.logActor}>{item.actorNome}</Text>
+              <Text style={[styles.logActor, { color: theme.textSec }]}>{item.actorNome}</Text>
               <Text style={styles.logDot}>·</Text>
-              <Text style={styles.logPapel}>{PAPEL_LABEL[item.actorPapel] ?? item.actorPapel}</Text>
+              <Text style={[styles.logPapel, { color: theme.textMut }]}>
+                {PAPEL_LABEL[item.actorPapel] ?? item.actorPapel}
+              </Text>
               <Text style={styles.logDot}>·</Text>
-              <Text style={styles.logData}>{formatarData(item.timestamp)}</Text>
+              <Text style={[styles.logData, { color: theme.textMut }]}>
+                {formatarData(item.timestamp)}
+              </Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.n300} />
+          <Ionicons name="chevron-forward" size={16} color={theme.textMut} />
         </TouchableOpacity>
       );
     },
-    [setDetalhe],
+    [setDetalhe, theme],
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.surf,
+            borderBottomColor: theme.border,
+            paddingTop: insets.top + 12,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={onVoltar} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.navy} />
+          <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Log de auditoria</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Log de auditoria</Text>
       </View>
 
       {loading ? (
@@ -95,7 +110,9 @@ export function AuditLogScreen({ onVoltar }: Props) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.lista}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => (
+            <View style={[styles.separator, { backgroundColor: theme.borderL }]} />
+          )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -107,7 +124,11 @@ export function AuditLogScreen({ onVoltar }: Props) {
           }
           onEndReached={carregarMais}
           onEndReachedThreshold={0.3}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nenhum registro encontrado.</Text>}
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: theme.textMut }]}>
+              Nenhum registro encontrado.
+            </Text>
+          }
           ListFooterComponent={
             carregandoMais ? (
               <View style={{ padding: 16 }}>
@@ -126,11 +147,14 @@ export function AuditLogScreen({ onVoltar }: Props) {
         onRequestClose={() => setDetalhe(null)}
       >
         <Pressable style={styles.overlay} onPress={() => setDetalhe(null)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.handle} />
+          <Pressable
+            style={[styles.sheet, { backgroundColor: theme.surf }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.handle, { backgroundColor: theme.border }]} />
             {detalhe && (
               <>
-                <Text style={styles.sheetTitle}>
+                <Text style={[styles.sheetTitle, { color: theme.text }]}>
                   {ACTION_LABEL[detalhe.action] ?? detalhe.action}
                 </Text>
 
@@ -147,16 +171,16 @@ export function AuditLogScreen({ onVoltar }: Props) {
 
                 {detalhe.changes && Object.keys(detalhe.changes).length > 0 && (
                   <>
-                    <Text style={styles.changesTitle}>Alterações</Text>
+                    <Text style={[styles.changesTitle, { color: theme.text }]}>Alterações</Text>
                     {Object.entries(detalhe.changes).map(([campo, { before, after }]) => (
                       <View key={campo} style={styles.changeRow}>
-                        <Text style={styles.changeCampo}>{campo}</Text>
+                        <Text style={[styles.changeCampo, { color: theme.textMut }]}>{campo}</Text>
                         <View style={styles.changeValues}>
                           <Text style={styles.changeBefore}>{JSON.stringify(before)}</Text>
                           <Ionicons
                             name="arrow-forward"
                             size={14}
-                            color={colors.n300}
+                            color={theme.textMut}
                             style={{ marginHorizontal: 6 }}
                           />
                           <Text style={styles.changeAfter}>{JSON.stringify(after)}</Text>
@@ -166,8 +190,11 @@ export function AuditLogScreen({ onVoltar }: Props) {
                   </>
                 )}
 
-                <TouchableOpacity style={styles.fecharBtn} onPress={() => setDetalhe(null)}>
-                  <Text style={styles.fecharText}>Fechar</Text>
+                <TouchableOpacity
+                  style={[styles.fecharBtn, { borderColor: theme.border }]}
+                  onPress={() => setDetalhe(null)}
+                >
+                  <Text style={[styles.fecharText, { color: theme.textSec }]}>Fechar</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -179,10 +206,11 @@ export function AuditLogScreen({ onVoltar }: Props) {
 }
 
 function DetalheRow({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
   return (
     <View style={styles.detalheRow}>
-      <Text style={styles.detalheLabel}>{label}</Text>
-      <Text style={styles.detalheValue}>{value}</Text>
+      <Text style={[styles.detalheLabel, { color: theme.textMut }]}>{label}</Text>
+      <Text style={[styles.detalheValue, { color: theme.text }]}>{value}</Text>
     </View>
   );
 }

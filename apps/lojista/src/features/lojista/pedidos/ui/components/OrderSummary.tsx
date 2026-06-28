@@ -1,31 +1,35 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { brl, type Order } from '../../lib';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   order: Order;
 }
 
 export function OrderSummary({ order }: Props) {
+  const theme = useTheme();
   return (
-    <View style={[s.card, { marginTop: 16 }]}>
+    <View
+      style={[s.card, { backgroundColor: theme.surf, borderColor: theme.border, marginTop: 16 }]}
+    >
       <View style={s.summaryRow}>
-        <Text style={s.summaryLabel}>Subtotal</Text>
-        <Text style={s.summaryValue}>{brl(order.total - 8.9)}</Text>
-      </View>
-      <View style={s.summaryRow}>
-        <Text style={s.summaryLabel}>Taxa de entrega</Text>
-        <Text style={s.summaryValue}>R$ 8,90</Text>
+        <Text style={[s.summaryLabel, { color: theme.textMut }]}>Subtotal</Text>
+        <Text style={[s.summaryValue, { color: theme.text }]}>{brl(order.total - 8.9)}</Text>
       </View>
       <View style={s.summaryRow}>
-        <Text style={s.summaryLabel}>Pagamento</Text>
-        <Text style={[s.summaryValue, { fontWeight: '600' }]}>Pix · pago</Text>
+        <Text style={[s.summaryLabel, { color: theme.textMut }]}>Taxa de entrega</Text>
+        <Text style={[s.summaryValue, { color: theme.text }]}>R$ 8,90</Text>
       </View>
-      <View style={s.totalRow}>
-        <Text style={s.totalLabel}>Total</Text>
-        <Text style={s.totalValue}>{brl(order.total)}</Text>
+      <View style={s.summaryRow}>
+        <Text style={[s.summaryLabel, { color: theme.textMut }]}>Pagamento</Text>
+        <Text style={[s.summaryValue, { color: theme.text, fontWeight: '600' }]}>Pix · pago</Text>
       </View>
-      <Text style={s.platformFee}>
+      <View style={[s.totalRow, { borderTopColor: theme.border }]}>
+        <Text style={[s.totalLabel, { color: theme.text }]}>Total</Text>
+        <Text style={[s.totalValue, { color: theme.text }]}>{brl(order.total)}</Text>
+      </View>
+      <Text style={[s.platformFee, { color: theme.textMut }]}>
         Você recebe{' '}
         <Text style={{ color: '#046C2E', fontWeight: '700' }}>{brl(order.total * 0.88)}</Text>{' '}
         depois da taxa da plataforma (12%).

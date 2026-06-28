@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { TicketStatus, FILTERS } from '../../model/data';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   filter: 'todos' | TicketStatus;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function TicketFilterTabs({ filter, onSelect, countFor }: Props) {
+  const theme = useTheme();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll}>
       {FILTERS.map((f) => {
@@ -18,9 +20,15 @@ export function TicketFilterTabs({ filter, onSelect, countFor }: Props) {
           <TouchableOpacity
             key={f.id}
             onPress={() => onSelect(f.id)}
-            style={[s.filterBtn, active && s.filterBtnActive]}
+            style={[
+              s.filterBtn,
+              { backgroundColor: theme.surf2, borderColor: theme.border },
+              active && s.filterBtnActive,
+            ]}
           >
-            <Text style={[s.filterLabel, active && s.filterLabelActive]}>{f.label}</Text>
+            <Text style={[s.filterLabel, { color: theme.text }, active && s.filterLabelActive]}>
+              {f.label}
+            </Text>
             <View style={[s.filterCount, active && s.filterCountActive]}>
               <Text style={[s.filterCountText, active && s.filterCountTextActive]}>{count}</Text>
             </View>

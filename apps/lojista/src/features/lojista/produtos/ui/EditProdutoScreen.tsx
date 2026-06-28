@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Produto } from '@ajulabs/types';
 import { colors } from '../../../../theme';
+import { useTheme } from '../../../../shared/hooks';
 import { VariacoesSection } from '../../../../entities/produto';
 import { useEditProdutoForm } from '../model/useEditProdutoForm';
 import { TipoProdutoSelector } from './TipoProdutoSelector';
@@ -58,16 +59,37 @@ export function EditProdutoScreen({
     enviandoSolicitacao,
     handleSubmeterSolicitacao,
   } = useEditProdutoForm({ produto, token, onVoltar, onSalvo });
+  const theme = useTheme();
+  const inp = { backgroundColor: theme.surf, borderColor: theme.border, color: theme.text };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleVoltar} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={22} color={colors.navy} />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.surf,
+            borderBottomColor: theme.border,
+            paddingTop: insets.top + 12,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: theme.backBtn }]}
+          onPress={handleVoltar}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Editar produto</Text>
-          <Text style={[styles.headerSub, hasChanges && { color: colors.orange }]}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Editar produto</Text>
+          <Text
+            style={[
+              styles.headerSub,
+              { color: theme.textMut },
+              hasChanges && { color: colors.orange },
+            ]}
+          >
             {hasChanges ? '● Alterações não salvas' : 'Altere os dados e salve'}
           </Text>
         </View>
@@ -77,9 +99,9 @@ export function EditProdutoScreen({
         <FotoGrid slots={slots} onPick={pickImage} onRemove={removeSlot} />
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Nome</Text>
+          <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Nome</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, inp]}
             value={form.nome}
             onChangeText={(v) => set('nome', v)}
             placeholder="Nome do produto"
@@ -87,11 +109,11 @@ export function EditProdutoScreen({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Tipo de produto</Text>
+          <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Tipo de produto</Text>
           <TipoProdutoSelector value={form.tipoProduto} onChange={(v) => set('tipoProduto', v)} />
           {!form.tipoProduto && (
             <TextInput
-              style={[styles.input, { marginTop: 8 }]}
+              style={[styles.input, inp, { marginTop: 8 }]}
               value={form.categoria}
               onChangeText={(v) => set('categoria', v)}
               placeholder="Ou informe a categoria manualmente"
@@ -110,9 +132,9 @@ export function EditProdutoScreen({
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Descrição</Text>
+          <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Descrição</Text>
           <TextInput
-            style={[styles.input, styles.inputMultiline]}
+            style={[styles.input, inp, styles.inputMultiline]}
             value={form.descricao}
             onChangeText={(v) => set('descricao', v)}
             placeholder="Descrição do produto"
@@ -133,7 +155,7 @@ export function EditProdutoScreen({
 
         {form.variacoesEstoque.length > 0 && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Variações</Text>
+            <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Variações</Text>
             <VariacoesSection
               variacoes={form.variacoesEstoque}
               precoBase={form.preco}
@@ -145,7 +167,7 @@ export function EditProdutoScreen({
 
         <View style={styles.switchRow}>
           <View>
-            <Text style={styles.fieldLabel}>Disponível</Text>
+            <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Disponível</Text>
             <Text style={styles.switchSub}>Produto aparece na vitrine</Text>
           </View>
           <OrangeToggle value={form.disponivel} onValueChange={(v) => set('disponivel', v)} />

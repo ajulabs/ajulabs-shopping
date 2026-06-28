@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Ticket, STATUS_META } from '../../model/data';
 import { dataCurta } from '../../lib/format';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   ticket: Ticket;
@@ -10,14 +11,21 @@ interface Props {
 }
 
 export function TicketCard({ ticket, onPress }: Props) {
+  const theme = useTheme();
   const meta = STATUS_META[ticket.status];
   return (
     <TouchableOpacity onPress={() => onPress(ticket)} activeOpacity={0.85}>
-      <View style={[s.card, ticket.urgente && s.cardUrgente]}>
+      <View
+        style={[
+          s.card,
+          { backgroundColor: theme.surf, borderColor: theme.border },
+          ticket.urgente && s.cardUrgente,
+        ]}
+      >
         <View style={s.cardTop}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <View style={s.protocolRow}>
-              <Text style={s.protocolo}>{ticket.protocolo}</Text>
+              <Text style={[s.protocolo, { color: theme.text }]}>{ticket.protocolo}</Text>
               {ticket.urgente && (
                 <View style={s.urgenteBadge}>
                   <Ionicons name="flame" size={10} color="#fff" />
@@ -25,7 +33,7 @@ export function TicketCard({ ticket, onPress }: Props) {
                 </View>
               )}
             </View>
-            <Text style={s.consumidor} numberOfLines={1}>
+            <Text style={[s.consumidor, { color: theme.textMut }]} numberOfLines={1}>
               {ticket.consumidor.nome} · {ticket.consumidor.telefone}
             </Text>
           </View>
@@ -34,13 +42,13 @@ export function TicketCard({ ticket, onPress }: Props) {
           </View>
         </View>
 
-        <Text style={s.motivo} numberOfLines={2}>
+        <Text style={[s.motivo, { color: theme.text }]} numberOfLines={2}>
           {ticket.motivo}
         </Text>
 
         <View style={s.cardBottom}>
           {ticket.pedido && (
-            <Text style={s.pedidoInfo}>
+            <Text style={[s.pedidoInfo, { color: theme.textMut }]}>
               Pedido ·{' '}
               {ticket.pedido.itens
                 .slice(0, 2)
@@ -51,7 +59,7 @@ export function TicketCard({ ticket, onPress }: Props) {
               {ticket.pedido.itens.length > 2 ? ` +${ticket.pedido.itens.length - 2}` : ''}
             </Text>
           )}
-          <Text style={s.data}>{dataCurta(ticket.criadoEm)}</Text>
+          <Text style={[s.data, { color: theme.textMut }]}>{dataCurta(ticket.criadoEm)}</Text>
         </View>
       </View>
     </TouchableOpacity>

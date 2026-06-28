@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { STATUS_META, brl, type Order } from '../../lib';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   order: Order;
@@ -12,16 +13,23 @@ interface Props {
 }
 
 export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel }: Props) {
+  const theme = useTheme();
   const meta = STATUS_META[o.status];
   const isNew = o.status === 'novo';
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
-      <Animated.View style={[s.card, isNew && { borderColor, borderWidth: 2 }]}>
+      <Animated.View
+        style={[
+          s.card,
+          { backgroundColor: theme.surf, borderColor: theme.border },
+          isNew && { borderColor, borderWidth: 2 },
+        ]}
+      >
         <View style={s.cardTop}>
           <View>
-            <Text style={s.orderId}>{o.id}</Text>
-            <Text style={s.orderMeta}>
+            <Text style={[s.orderId, { color: theme.text }]}>{o.id}</Text>
+            <Text style={[s.orderMeta, { color: theme.textMut }]}>
               {o.hora} · {o.cliente} · {o.distancia}
             </Text>
           </View>
@@ -47,10 +55,10 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
         </View>
         {o.itens.map((it, i) => (
           <View key={i} style={s.itemRow}>
-            <Text style={s.itemName}>
+            <Text style={[s.itemName, { color: theme.text }]}>
               <Text style={s.itemQty}>{it.qtd}×</Text> {it.nome}
             </Text>
-            <Text style={s.itemPrice}>{brl(it.preco * it.qtd)}</Text>
+            <Text style={[s.itemPrice, { color: theme.textMut }]}>{brl(it.preco * it.qtd)}</Text>
           </View>
         ))}
         {o.obs && (
@@ -61,10 +69,13 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
           </View>
         )}
         <View style={s.cardBottom}>
-          <Text style={s.total}>{brl(o.total)}</Text>
+          <Text style={[s.total, { color: theme.text }]}>{brl(o.total)}</Text>
           {meta.next && (
             <TouchableOpacity
-              style={[s.actionBtn, { backgroundColor: isNew ? '#DE6708' : '#000933' }]}
+              style={[
+                s.actionBtn,
+                { backgroundColor: isNew ? '#DE6708' : theme.isDark ? '#3A4170' : '#000933' },
+              ]}
               onPress={onAdvance}
               activeOpacity={0.8}
             >
@@ -108,7 +119,11 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
           )}
         </View>
         {['novo', 'preparando', 'pronto'].includes(o.status) && (
-          <TouchableOpacity style={s.cancelLink} onPress={onCancel} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={[s.cancelLink, { borderTopColor: theme.borderL }]}
+            onPress={onCancel}
+            activeOpacity={0.7}
+          >
             <Ionicons name="close-circle-outline" size={13} color="#9B2727" />
             <Text style={s.cancelLinkTxt}>
               {o.status === 'novo' ? 'Recusar pedido' : 'Cancelar pedido'}

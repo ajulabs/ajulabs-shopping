@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthLojistaStore } from '../../../../store';
+import { useTheme } from '../../../../shared/hooks';
 import { usePedidos } from '../model/usePedidos';
 import { OrderDetail } from './OrderDetail';
 import { DeliveryScreen } from './DeliveryScreen';
@@ -26,6 +27,8 @@ import {
 } from './components';
 
 export function PedidosScreen() {
+  const theme = useTheme();
+  const barStyle = theme.isDark ? 'light-content' : 'dark-content';
   const {
     lojaNome,
     orders,
@@ -62,8 +65,8 @@ export function PedidosScreen() {
 
   if (!loading && error === 'loja_null') {
     return (
-      <SafeAreaView style={s.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+        <StatusBar barStyle={barStyle} backgroundColor={theme.surf} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Ionicons name="storefront-outline" size={56} color="#9099B3" />
           <Text
@@ -137,26 +140,26 @@ export function PedidosScreen() {
   }
 
   return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+      <StatusBar barStyle={barStyle} backgroundColor={theme.surf} />
 
-      <View style={s.header}>
+      <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
         <View style={s.headerTop}>
           <View>
-            <Text style={s.headerSub}>{lojaNome ?? 'Minha Loja'}</Text>
-            <Text style={s.headerTitle}>Pedidos hoje</Text>
+            <Text style={[s.headerSub, { color: theme.textMut }]}>{lojaNome ?? 'Minha Loja'}</Text>
+            <Text style={[s.headerTitle, { color: theme.text }]}>Pedidos hoje</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
               onPress={() => setShowSomModal(true)}
-              style={s.refreshBtn}
+              style={[s.refreshBtn, { backgroundColor: theme.backBtn }]}
               activeOpacity={0.7}
             >
-              <Ionicons name="musical-notes" size={18} color="#9099B3" />
+              <Ionicons name="musical-notes" size={18} color={theme.textMut} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleRefresh}
-              style={s.refreshBtn}
+              style={[s.refreshBtn, { backgroundColor: theme.backBtn }]}
               activeOpacity={0.7}
               disabled={recarregando}
             >
@@ -172,7 +175,11 @@ export function PedidosScreen() {
                   ],
                 }}
               >
-                <Ionicons name="refresh" size={18} color={recarregando ? '#DE6708' : '#9099B3'} />
+                <Ionicons
+                  name="refresh"
+                  size={18}
+                  color={recarregando ? '#DE6708' : theme.textMut}
+                />
               </Animated.View>
             </TouchableOpacity>
           </View>
@@ -225,7 +232,7 @@ export function PedidosScreen() {
       ) : (
         <ScrollView style={s.list} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
           <TouchableOpacity
-            style={s.ticketCard}
+            style={[s.ticketCard, { backgroundColor: theme.surf, borderColor: theme.border }]}
             onPress={() => setScreen('tickets')}
             activeOpacity={0.8}
           >
@@ -234,8 +241,8 @@ export function PedidosScreen() {
                 <Ionicons name="ticket-outline" size={18} color="#DE6708" />
               </View>
               <View>
-                <Text style={s.ticketCardTitle}>Tickets de Suporte</Text>
-                <Text style={s.ticketCardSub}>
+                <Text style={[s.ticketCardTitle, { color: theme.text }]}>Tickets de Suporte</Text>
+                <Text style={[s.ticketCardSub, { color: theme.textMut }]}>
                   {openTickets > 0
                     ? `${openTickets} ticket${openTickets > 1 ? 's' : ''} aberto${openTickets > 1 ? 's' : ''}`
                     : 'Visualize os tickets dos seus clientes'}
@@ -248,11 +255,15 @@ export function PedidosScreen() {
                   <Text style={s.ticketCardBadgeTxt}>{openTickets > 9 ? '9+' : openTickets}</Text>
                 </View>
               )}
-              <Ionicons name="chevron-forward" size={16} color="#9099B3" />
+              <Ionicons name="chevron-forward" size={16} color={theme.textMut} />
             </View>
           </TouchableOpacity>
 
-          {list.length === 0 && <Text style={s.empty}>Nenhum pedido nesse filtro agora.</Text>}
+          {list.length === 0 && (
+            <Text style={[s.empty, { color: theme.textMut }]}>
+              Nenhum pedido nesse filtro agora.
+            </Text>
+          )}
           {list.map((o) => (
             <OrderCard
               key={o.id}

@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { SolicitacaoPreco } from '@ajulabs/types';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 import { moeda } from '../../lib/solicitacoes';
 import { StatusBadge } from './StatusBadge';
 
@@ -20,10 +21,11 @@ export function SolicitacaoCard({
   onAprovar,
   onRejeitar,
 }: Props) {
+  const theme = useTheme();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.surf, borderColor: theme.border }]}>
       <View style={styles.cardTop}>
-        <Text style={styles.produtoNome} numberOfLines={1}>
+        <Text style={[styles.produtoNome, { color: theme.text }]} numberOfLines={1}>
           {sol.produto.nome}
         </Text>
         <StatusBadge status={sol.status} />
@@ -31,33 +33,35 @@ export function SolicitacaoCard({
 
       <View style={styles.precoRow}>
         <View style={styles.precoBox}>
-          <Text style={styles.precoLabel}>Preço atual</Text>
-          <Text style={styles.precoValor}>{moeda(sol.precoAtual)}</Text>
+          <Text style={[styles.precoLabel, { color: theme.textMut }]}>Preço atual</Text>
+          <Text style={[styles.precoValor, { color: theme.text }]}>{moeda(sol.precoAtual)}</Text>
         </View>
         <Ionicons name="arrow-forward" size={16} color={colors.n300} />
         <View style={styles.precoBox}>
-          <Text style={styles.precoLabel}>Solicitado</Text>
+          <Text style={[styles.precoLabel, { color: theme.textMut }]}>Solicitado</Text>
           <Text style={[styles.precoValor, { color: colors.orange }]}>
             {moeda(sol.precoSolicitado)}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.justLabel}>Justificativa</Text>
-      <Text style={styles.justText}>{sol.justificativa}</Text>
+      <Text style={[styles.justLabel, { color: theme.textMut }]}>Justificativa</Text>
+      <Text style={[styles.justText, { color: theme.text }]}>{sol.justificativa}</Text>
 
       {!isFuncionario && (
-        <Text style={styles.solicitanteText}>
+        <Text style={[styles.solicitanteText, { color: theme.textMut }]}>
           Solicitado por: <Text style={{ fontWeight: '600' }}>{sol.solicitante.nome}</Text>
         </Text>
       )}
 
       {sol.status !== 'pendente' && sol.revisadoPorNome && (
-        <View style={styles.revisaoBox}>
-          <Text style={styles.revisaoBy}>
+        <View style={[styles.revisaoBox, { backgroundColor: theme.surf2 }]}>
+          <Text style={[styles.revisaoBy, { color: theme.textSec }]}>
             {sol.status === 'aprovado' ? 'Aprovado' : 'Rejeitado'} por {sol.revisadoPorNome}
           </Text>
-          {sol.notaRevisao && <Text style={styles.revisaoNota}>"{sol.notaRevisao}"</Text>}
+          {sol.notaRevisao && (
+            <Text style={[styles.revisaoNota, { color: theme.textSec }]}>"{sol.notaRevisao}"</Text>
+          )}
         </View>
       )}
 

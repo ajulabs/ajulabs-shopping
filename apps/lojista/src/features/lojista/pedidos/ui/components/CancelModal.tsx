@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MOTIVOS_CANCELAMENTO, type OrderStatus } from '../../lib';
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function CancelModal({ data, loading = false, onClose, onConfirm }: Props) {
+  const theme = useTheme();
   const [step, setStep] = useState<'motivo' | 'confirmar'>('motivo');
   const [motivo, setMotivo] = useState<string | null>(null);
 
@@ -39,7 +41,7 @@ export function CancelModal({ data, loading = false, onClose, onConfirm }: Props
   return (
     <Modal visible transparent animationType="slide" onRequestClose={loading ? undefined : onClose}>
       <View style={s.modalOverlay}>
-        <View style={s.modalBox}>
+        <View style={[s.modalBox, { backgroundColor: theme.surf }]}>
           <View style={s.modalHeader}>
             <View style={s.headerLeft}>
               {step === 'confirmar' && (
@@ -51,17 +53,17 @@ export function CancelModal({ data, loading = false, onClose, onConfirm }: Props
                   style={s.backBtn}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-back" size={18} color="#000933" />
+                  <Ionicons name="chevron-back" size={18} color={theme.text} />
                 </TouchableOpacity>
               )}
-              <Text style={s.modalTitulo}>Cancelar pedido</Text>
+              <Text style={[s.modalTitulo, { color: theme.text }]}>Cancelar pedido</Text>
             </View>
             <TouchableOpacity onPress={onClose} disabled={loading} activeOpacity={0.7}>
-              <Ionicons name="close" size={22} color="#000933" />
+              <Ionicons name="close" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          <Text style={s.modalSub}>{data.orderId}</Text>
+          <Text style={[s.modalSub, { color: theme.textMut }]}>{data.orderId}</Text>
 
           {penaliza && (
             <View style={s.penaltyWarn}>
@@ -74,18 +76,18 @@ export function CancelModal({ data, loading = false, onClose, onConfirm }: Props
 
           {step === 'motivo' && (
             <>
-              <Text style={[s.modalSub, { marginTop: 14, marginBottom: 12 }]}>
+              <Text style={[s.modalSub, { color: theme.textMut, marginTop: 14, marginBottom: 12 }]}>
                 Selecione o motivo:
               </Text>
               {MOTIVOS_CANCELAMENTO.map((m) => (
                 <TouchableOpacity
                   key={m.value}
-                  style={s.motivoItem}
+                  style={[s.motivoItem, { borderColor: theme.border }]}
                   onPress={() => handleSelectMotivo(m.value)}
                   activeOpacity={0.8}
                 >
-                  <Text style={s.motivoLabel}>{m.label}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#9099B3" />
+                  <Text style={[s.motivoLabel, { color: theme.text }]}>{m.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={theme.textMut} />
                 </TouchableOpacity>
               ))}
             </>
@@ -93,26 +95,34 @@ export function CancelModal({ data, loading = false, onClose, onConfirm }: Props
 
           {step === 'confirmar' && (
             <>
-              <View style={s.confirmBox}>
-                <Text style={s.confirmTitulo}>Tem certeza que deseja cancelar?</Text>
-                <Text style={s.confirmDesc}>
+              <View style={[s.confirmBox, { backgroundColor: theme.surf2 }]}>
+                <Text style={[s.confirmTitulo, { color: theme.text }]}>
+                  Tem certeza que deseja cancelar?
+                </Text>
+                <Text style={[s.confirmDesc, { color: theme.textSec }]}>
                   Esta ação não pode ser desfeita. O consumidor será avisado e o estoque dos itens
                   voltará para o catálogo.
                 </Text>
-                <View style={s.motivoChip}>
-                  <Text style={s.motivoChipLabel}>Motivo</Text>
-                  <Text style={s.motivoChipValue}>{motivoLabel}</Text>
+                <View
+                  style={[s.motivoChip, { backgroundColor: theme.surf, borderColor: theme.border }]}
+                >
+                  <Text style={[s.motivoChipLabel, { color: theme.textMut }]}>Motivo</Text>
+                  <Text style={[s.motivoChipValue, { color: theme.text }]}>{motivoLabel}</Text>
                 </View>
               </View>
 
               <View style={s.actionsRow}>
                 <TouchableOpacity
-                  style={[s.btnSecundario, loading && { opacity: 0.5 }]}
+                  style={[
+                    s.btnSecundario,
+                    { borderColor: theme.border },
+                    loading && { opacity: 0.5 },
+                  ]}
                   onPress={onClose}
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <Text style={s.btnSecundarioTxt}>Voltar</Text>
+                  <Text style={[s.btnSecundarioTxt, { color: theme.text }]}>Voltar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[s.btnConfirmar, loading && { opacity: 0.6 }]}

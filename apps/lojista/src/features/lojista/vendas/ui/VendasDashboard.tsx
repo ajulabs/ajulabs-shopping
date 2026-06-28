@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../../../theme';
+import { useTheme } from '../../../../shared/hooks';
 import { useVendas } from '../model/useVendas';
 import { PERIODS } from '../lib/constants';
 import { BarChart, MetricCard, InsightCard } from './components';
@@ -10,8 +11,9 @@ interface VendasDashboardProps {
   nomeLoja?: string;
 }
 
-export function VendasDashboard({ dark = false }: VendasDashboardProps) {
+export function VendasDashboard(_props: VendasDashboardProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const {
     lojaNome,
     period,
@@ -25,11 +27,11 @@ export function VendasDashboard({ dark = false }: VendasDashboardProps) {
     bars,
   } = useVendas();
 
-  const textColor = dark ? colors.n0 : colors.navy;
-  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const bgMain = dark ? '#0B0F22' : colors.n50;
-  const surface = dark ? '#111638' : colors.n0;
-  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const textColor = theme.text;
+  const subColor = theme.textSec;
+  const bgMain = theme.bg;
+  const surface = theme.surf;
+  const border = theme.border;
 
   return (
     <View style={[styles.container, { backgroundColor: bgMain }]}>
@@ -77,8 +79,8 @@ export function VendasDashboard({ dark = false }: VendasDashboardProps) {
           </View>
 
           <View style={styles.metricsGrid}>
-            <MetricCard label="PEDIDOS" value={pedidos} trend="" dark={dark} />
-            <MetricCard label="TICKET MÉDIO" value={ticket} trend="" dark={dark} />
+            <MetricCard label="PEDIDOS" value={pedidos} trend="" dark={theme.isDark} />
+            <MetricCard label="TICKET MÉDIO" value={ticket} trend="" dark={theme.isDark} />
           </View>
 
           {topProduto !== '–' && (

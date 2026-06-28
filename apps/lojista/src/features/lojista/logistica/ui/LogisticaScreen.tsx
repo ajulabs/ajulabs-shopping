@@ -15,20 +15,23 @@ import { useEntregas } from '../model/useEntregas';
 import { EntregaCard } from './components/EntregaCard';
 import { RastreamentoModal } from './components/RastreamentoModal';
 import type { EntregaDisplay } from '../model/types';
+import { useTheme } from '../../../../shared/hooks';
 
 export function LogisticaScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const barStyle = theme.isDark ? 'light-content' : 'dark-content';
   const { token, lojaId, loading, refreshing, emAndamento, concluidas, handleRefresh } =
     useEntregas();
 
   const [selectedEntrega, setSelectedEntrega] = useState<EntregaDisplay | null>(null);
 
   return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
+    <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+      <StatusBar barStyle={barStyle} backgroundColor={theme.surf} />
 
-      <View style={s.header}>
-        <Text style={s.headerTitle}>Logística</Text>
+      <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
+        <Text style={[s.headerTitle, { color: theme.text }]}>Logística</Text>
         <View style={s.headerStats}>
           <View style={s.statPill}>
             <View style={s.dotOrange} />
@@ -54,12 +57,22 @@ export function LogisticaScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#DE6708" />
           }
         >
-          <Text style={s.sectionLabel}>Em andamento</Text>
+          <Text style={[s.sectionLabel, { color: theme.textMut }]}>Em andamento</Text>
 
           {emAndamento.length === 0 ? (
-            <View style={[s.card, { alignItems: 'center', paddingVertical: 28 }]}>
+            <View
+              style={[
+                s.card,
+                {
+                  backgroundColor: theme.surf,
+                  borderColor: theme.border,
+                  alignItems: 'center',
+                  paddingVertical: 28,
+                },
+              ]}
+            >
               <Ionicons name="bicycle-outline" size={32} color="#9099B3" />
-              <Text style={{ fontSize: 13, color: '#9099B3', marginTop: 8 }}>
+              <Text style={{ fontSize: 13, color: theme.textMut, marginTop: 8 }}>
                 Nenhuma entrega em andamento
               </Text>
             </View>
@@ -69,11 +82,21 @@ export function LogisticaScreen() {
             ))
           )}
 
-          <Text style={[s.sectionLabel, { marginTop: 8 }]}>Concluídas</Text>
+          <Text style={[s.sectionLabel, { color: theme.textMut, marginTop: 8 }]}>Concluídas</Text>
 
           {concluidas.length === 0 ? (
-            <View style={[s.card, { alignItems: 'center', paddingVertical: 24 }]}>
-              <Text style={{ fontSize: 13, color: '#9099B3' }}>Nenhuma entrega concluída</Text>
+            <View
+              style={[
+                s.card,
+                {
+                  backgroundColor: theme.surf,
+                  borderColor: theme.border,
+                  alignItems: 'center',
+                  paddingVertical: 24,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 13, color: theme.textMut }}>Nenhuma entrega concluída</Text>
             </View>
           ) : (
             concluidas.map((e) => <EntregaCard key={e.id} entrega={e} />)

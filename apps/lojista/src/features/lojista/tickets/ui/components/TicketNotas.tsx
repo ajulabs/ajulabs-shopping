@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Ticket } from '../../model/data';
 import { dataCompleta } from '../../lib/format';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   ticket: Ticket;
@@ -21,29 +22,39 @@ interface Props {
 }
 
 export function TicketNotas({ ticket, nota, setNota, addingNota, onEnviar, onInputFocus }: Props) {
+  const theme = useTheme();
   return (
-    <View style={s.section}>
-      <Text style={s.sectionTitle}>Notas internas</Text>
-      {ticket.notas.length === 0 && <Text style={s.semNotas}>Nenhuma nota ainda.</Text>}
+    <View style={[s.section, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+      <Text style={[s.sectionTitle, { color: theme.textMut }]}>Notas internas</Text>
+      {ticket.notas.length === 0 && (
+        <Text style={[s.semNotas, { color: theme.textMut }]}>Nenhuma nota ainda.</Text>
+      )}
       {ticket.notas.map((n) => (
-        <View key={n.id} style={s.notaCard}>
-          <Text style={s.notaTexto}>{n.texto}</Text>
-          <Text style={s.notaData}>{dataCompleta(n.criadoEm)}</Text>
+        <View key={n.id} style={[s.notaCard, { backgroundColor: theme.surf2 }]}>
+          <Text style={[s.notaTexto, { color: theme.text }]}>{n.texto}</Text>
+          <Text style={[s.notaData, { color: theme.textMut }]}>{dataCompleta(n.criadoEm)}</Text>
         </View>
       ))}
 
       <View style={s.notaInputRow}>
         <TextInput
-          style={s.notaInput}
+          style={[
+            s.notaInput,
+            { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text },
+          ]}
           value={nota}
           onChangeText={setNota}
           onFocus={onInputFocus}
           placeholder="Adicionar nota interna..."
-          placeholderTextColor="#C8CDE0"
+          placeholderTextColor={theme.textMut}
           multiline
         />
         <TouchableOpacity
-          style={[s.notaEnviarBtn, (!nota.trim() || addingNota) && { opacity: 0.4 }]}
+          style={[
+            s.notaEnviarBtn,
+            theme.isDark && { backgroundColor: '#3A4170' },
+            (!nota.trim() || addingNota) && { opacity: 0.4 },
+          ]}
           onPress={onEnviar}
           disabled={!nota.trim() || addingNota}
           activeOpacity={0.8}

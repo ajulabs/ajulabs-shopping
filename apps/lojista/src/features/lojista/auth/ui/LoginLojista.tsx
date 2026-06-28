@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '../../../../shared/hooks';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
     useLogin(onLoginSuccess);
   const [showRecovery, setShowRecovery] = useState(false);
 
+  const theme = useTheme();
   return (
     <View style={styles.container}>
       <KeyboardAvoidingView
@@ -44,13 +46,13 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
 
         {/* Card branco */}
         <ScrollView
-          style={styles.card}
+          style={[styles.card, { backgroundColor: theme.surf }]}
           contentContainerStyle={styles.cardContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.cardTitle}>Entrar</Text>
-          <Text style={styles.cardSub}>Use seu CNPJ cadastrado</Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Entrar</Text>
+          <Text style={[styles.cardSub, { color: theme.textMut }]}>Use seu CNPJ cadastrado</Text>
 
           <LoginField
             label="CNPJ"
@@ -91,7 +93,7 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
           </TouchableOpacity>
 
           <View style={styles.registerRow}>
-            <Text style={styles.registerText}>Primeira vez? </Text>
+            <Text style={[styles.registerText, { color: theme.textSec }]}>Primeira vez? </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/register')} activeOpacity={0.8}>
               <Text style={styles.registerLink}>Cadastre sua loja</Text>
             </TouchableOpacity>
@@ -102,7 +104,9 @@ export function LoginLojista({ onLoginSuccess }: LoginLojistaProps) {
               onPress={() => router.push('/(auth)/colaborador-login')}
               activeOpacity={0.8}
             >
-              <Text style={styles.colaboradorLink}>Entrar como colaborador</Text>
+              <Text style={[styles.colaboradorLink, { color: theme.textSec }]}>
+                Entrar como colaborador
+              </Text>
             </TouchableOpacity>
           </View>
 

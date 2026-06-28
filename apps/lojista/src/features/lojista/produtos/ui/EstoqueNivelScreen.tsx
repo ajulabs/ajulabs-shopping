@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../../shared/hooks';
 import { Produto, NivelEstoque } from '@ajulabs/types';
 import { useEstoqueNivel } from '../model/useEstoqueNivel';
 import { AjusteRapidoModal } from './AjusteRapidoModal';
@@ -67,6 +69,17 @@ interface Props {
 
 export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const c = {
+    ...C,
+    bg: theme.bg,
+    card: theme.surf,
+    border: theme.border,
+    text: theme.text,
+    sub: theme.textSec,
+    mute: theme.textMut,
+  };
+  const s = useMemo(() => makeStyles(c), [theme]);
   const {
     lojaId,
     token,
@@ -131,7 +144,7 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
             onPress={() => onEditarProduto(produto)}
             activeOpacity={0.7}
           >
-            <Ionicons name="pencil-outline" size={15} color={C.sub} />
+            <Ionicons name="pencil-outline" size={15} color={c.sub} />
           </TouchableOpacity>
         </View>
       </View>
@@ -207,92 +220,94 @@ export function EstoqueNivelScreen({ nivel, onVoltar, onEditarProduto }: Props) 
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+function makeStyles(c: any) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  /* Header colorido */
-  header: {
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerMid: { flex: 1, gap: 3 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
-  headerDesc: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
-  countBadge: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  countText: { fontSize: 16, fontWeight: '900' },
+    /* Header colorido */
+    header: {
+      paddingBottom: 20,
+      paddingHorizontal: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerMid: { flex: 1, gap: 3 },
+    headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+    headerDesc: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+    countBadge: {
+      backgroundColor: '#fff',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
+    countText: { fontSize: 16, fontWeight: '900' },
 
-  /* Lista */
-  list: { paddingHorizontal: 16, paddingBottom: 56 },
-  listHeader: { paddingVertical: 16, gap: 2 },
-  listHeaderText: { fontSize: 13, fontWeight: '700', color: C.text },
-  listHeaderHint: { fontSize: 11, color: C.sub },
+    /* Lista */
+    list: { paddingHorizontal: 16, paddingBottom: 56 },
+    listHeader: { paddingVertical: 16, gap: 2 },
+    listHeaderText: { fontSize: 13, fontWeight: '700', color: c.text },
+    listHeaderHint: { fontSize: 11, color: c.sub },
 
-  /* Card de produto */
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  thumb: { width: 50, height: 50, borderRadius: 13 },
-  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
-  thumbLetter: { fontSize: 20, fontWeight: '800' },
-  info: { flex: 1, gap: 2 },
-  nome: { fontSize: 14, fontWeight: '700', color: C.text },
-  preco: { fontSize: 13, fontWeight: '700', color: C.orange },
-  categoria: { fontSize: 11, color: C.sub },
-  right: { alignItems: 'center', gap: 6 },
-  badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, alignItems: 'center' },
-  badgeText: { color: '#fff', fontSize: 16, fontWeight: '900', lineHeight: 18 },
-  badgeUnit: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
-  editBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    /* Card de produto */
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    thumb: { width: 50, height: 50, borderRadius: 13 },
+    thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+    thumbLetter: { fontSize: 20, fontWeight: '800' },
+    info: { flex: 1, gap: 2 },
+    nome: { fontSize: 14, fontWeight: '700', color: c.text },
+    preco: { fontSize: 13, fontWeight: '700', color: C.orange },
+    categoria: { fontSize: 11, color: c.sub },
+    right: { alignItems: 'center', gap: 6 },
+    badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, alignItems: 'center' },
+    badgeText: { color: '#fff', fontSize: 16, fontWeight: '900', lineHeight: 18 },
+    badgeUnit: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
+    editBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  /* Empty */
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: { fontSize: 17, fontWeight: '800', color: C.text },
-  emptySub: { fontSize: 13, color: C.sub, textAlign: 'center', lineHeight: 20 },
-});
+    /* Empty */
+    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
+    emptyIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyTitle: { fontSize: 17, fontWeight: '800', color: c.text },
+    emptySub: { fontSize: 13, color: c.sub, textAlign: 'center', lineHeight: 20 },
+  });
+}

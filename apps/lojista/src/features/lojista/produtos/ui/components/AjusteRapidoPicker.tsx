@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Produto } from '@ajulabs/types';
 import { calcNivel } from '../../../../../entities/produto';
-import { C, NIVEL_CFG } from '../../lib/dashboardTheme';
+import { C, NIVEL_CFG, useDashboardC, type DashboardC } from '../../lib/dashboardTheme';
 
 export function AjusteRapidoPicker({
   visible,
@@ -15,6 +16,8 @@ export function AjusteRapidoPicker({
   onClose: () => void;
   onSelect: (p: Produto) => void;
 }) {
+  const c = useDashboardC();
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.pickerOverlay}>
@@ -23,7 +26,7 @@ export function AjusteRapidoPicker({
           <View style={s.pickerHead}>
             <Text style={s.pickerTitle}>Qual produto ajustar?</Text>
             <TouchableOpacity style={s.pickerClose} onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close" size={16} color={C.sub} />
+              <Ionicons name="close" size={16} color={c.sub} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -50,7 +53,7 @@ export function AjusteRapidoPicker({
                     <Text style={s.pickerItemQty}>{p.estoque ?? 0}</Text>
                     <Text style={s.pickerItemUnit}>un</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={14} color={C.mute} />
+                  <Ionicons name="chevron-forward" size={14} color={c.mute} />
                 </TouchableOpacity>
               );
             }}
@@ -61,71 +64,73 @@ export function AjusteRapidoPicker({
   );
 }
 
-const s = StyleSheet.create({
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  pickerSheet: {
-    backgroundColor: C.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingBottom: 44,
-    maxHeight: '80%',
-    borderTopWidth: 1,
-    borderColor: C.border,
-  },
-  pickerHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 18,
-  },
-  pickerHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  pickerTitle: { fontSize: 18, fontWeight: '800', color: C.text },
-  pickerClose: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerList: { gap: 8, paddingBottom: 8 },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.bg,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  pickerItemIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerItemNome: { flex: 1, fontSize: 14, fontWeight: '600', color: C.text },
-  pickerItemBadge: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  pickerItemQty: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  pickerItemUnit: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
-});
+function makeStyles(c: DashboardC) {
+  return StyleSheet.create({
+    pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    pickerSheet: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 20,
+      paddingBottom: 44,
+      maxHeight: '80%',
+      borderTopWidth: 1,
+      borderColor: c.border,
+    },
+    pickerHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      alignSelf: 'center',
+      marginTop: 12,
+      marginBottom: 18,
+    },
+    pickerHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    pickerTitle: { fontSize: 18, fontWeight: '800', color: c.text },
+    pickerClose: {
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pickerList: { gap: 8, paddingBottom: 8 },
+    pickerItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.bg,
+      borderRadius: 14,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    pickerItemIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pickerItemNome: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text },
+    pickerItemBadge: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 2,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+    },
+    pickerItemQty: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    pickerItemUnit: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '600' },
+  });
+}

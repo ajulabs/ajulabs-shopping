@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function TagsInput({
   tags,
@@ -14,9 +15,10 @@ export function TagsInput({
   onAddTag: () => void;
   onRemoveTag: (tag: string) => void;
 }) {
+  const theme = useTheme();
   return (
     <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>Tags sugeridas</Text>
+      <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Tags sugeridas</Text>
       <View style={styles.tagsWrap}>
         {tags.map((tag) => (
           <TouchableOpacity
@@ -29,14 +31,14 @@ export function TagsInput({
             <Text style={styles.tagRemove}>×</Text>
           </TouchableOpacity>
         ))}
-        <View style={styles.tagInput}>
+        <View style={[styles.tagInput, { borderColor: theme.border }]}>
           <TextInput
-            style={styles.tagInputField}
+            style={[styles.tagInputField, { color: theme.text }]}
             value={newTag}
             onChangeText={onChangeNewTag}
             onSubmitEditing={onAddTag}
             placeholder="+ tag"
-            placeholderTextColor={colors.n600}
+            placeholderTextColor={theme.textMut}
             returnKeyType="done"
           />
         </View>

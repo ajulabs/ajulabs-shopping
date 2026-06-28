@@ -1,4 +1,5 @@
 import { TipoAjuste } from '../model/useAjusteEstoque';
+import { useTheme } from '../../../../shared/hooks';
 
 /** Paleta local do modal de ajuste de estoque. */
 export const C = {
@@ -56,3 +57,18 @@ export const TIPOS: {
     color: '#60A5FA',
   },
 ];
+
+/** Versão sensível ao tema da paleta do modal de ajuste. */
+export function useAjusteC() {
+  const t = useTheme();
+  return {
+    ...C,
+    bg: t.bg,
+    card: t.surf,
+    border: t.border,
+    text: t.text,
+    sub: t.textSec,
+    mute: t.textMut,
+  };
+}
+export type AjusteC = ReturnType<typeof useAjusteC>;

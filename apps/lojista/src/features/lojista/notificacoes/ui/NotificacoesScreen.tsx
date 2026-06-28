@@ -12,22 +12,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotificationPreferences } from '../model/useNotificationPreferences';
 import { PreferenceToggle } from './components/PreferenceToggle';
+import { useTheme } from '../../../../shared/hooks';
 
 export function NotificacoesScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const { preferencias, loading, salvando, erro, saved, toggle } = useNotificationPreferences();
 
   return (
-    <SafeAreaView style={s.safe}>
-      <View style={s.header}>
+    <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+      <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
         <TouchableOpacity
-          style={s.backBtn}
+          style={[s.backBtn, { backgroundColor: theme.backBtn }]}
           onPress={() => router.navigate('/(lojista)/perfil' as any)}
           activeOpacity={0.8}
         >
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Notificações</Text>
+        <Text style={[s.headerTitle, { color: theme.text }]}>Notificações</Text>
         {saved && (
           <View style={s.savedBadge}>
             <Ionicons name="checkmark" size={12} color="#039855" />
@@ -42,7 +44,9 @@ export function NotificacoesScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          <Text style={s.desc}>Escolha quais notificações você quer receber sobre sua loja.</Text>
+          <Text style={[s.desc, { color: theme.textMut }]}>
+            Escolha quais notificações você quer receber sobre sua loja.
+          </Text>
 
           {!!erro && (
             <View style={s.erroBox}>
@@ -54,7 +58,7 @@ export function NotificacoesScreen() {
           {preferencias.length === 0 && !erro ? (
             <Text style={[s.desc, { textAlign: 'center' }]}>Nenhuma preferência disponível.</Text>
           ) : (
-            <View style={s.card}>
+            <View style={[s.card, { backgroundColor: theme.surf, borderColor: theme.border }]}>
               {preferencias.map((p, i) => (
                 <View
                   key={p.categoria}
@@ -62,7 +66,7 @@ export function NotificacoesScreen() {
                     s.row,
                     i < preferencias.length - 1 && {
                       borderBottomWidth: 1,
-                      borderBottomColor: '#F0F1F5',
+                      borderBottomColor: theme.borderL,
                     },
                   ]}
                 >
@@ -70,8 +74,8 @@ export function NotificacoesScreen() {
                     <Ionicons name="notifications" size={18} color="#DE6708" />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={s.rowTitle}>{p.label}</Text>
-                    <Text style={s.rowSub}>{p.descricao}</Text>
+                    <Text style={[s.rowTitle, { color: theme.text }]}>{p.label}</Text>
+                    <Text style={[s.rowSub, { color: theme.textMut }]}>{p.descricao}</Text>
                   </View>
                   <PreferenceToggle
                     value={p.ativo}

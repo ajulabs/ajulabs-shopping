@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthLojistaStore } from '../../src/store';
+import { useTheme } from '../../src/shared/hooks';
 import { NotificationToast } from '../../src/shared/ui/NotificationToast';
 import { useTicketToasts } from '../../src/features/lojista/tickets';
 
@@ -11,6 +12,7 @@ export default function LojistaLayout() {
   const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
   const isFuncionario = !isLojistaDono && papel === 'funcionario';
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   const { toast, setToast } = useTicketToasts();
 
@@ -21,10 +23,10 @@ export default function LojistaLayout() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#DE6708',
-          tabBarInactiveTintColor: '#9099B3',
+          tabBarInactiveTintColor: theme.textMut,
           tabBarStyle: {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#E4E7F1',
+            backgroundColor: theme.surf,
+            borderTopColor: theme.border,
             borderTopWidth: 1,
             height: 64 + insets.bottom,
             paddingBottom: insets.bottom + 8,

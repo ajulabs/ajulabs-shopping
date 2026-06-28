@@ -15,8 +15,11 @@ import { useHardwareBack } from '../../../../shared/hooks';
 import { TicketDetail } from './TicketDetail';
 import { TicketCard } from './components/TicketCard';
 import { TicketFilterTabs } from './components/TicketFilterTabs';
+import { useTheme } from '../../../../shared/hooks';
 
 export function TicketsScreen({ onBack }: { onBack?: () => void }) {
+  const theme = useTheme();
+  const barStyle = theme.isDark ? 'light-content' : 'dark-content';
   const {
     token,
     lojaNome,
@@ -54,24 +57,32 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+      <StatusBar barStyle={barStyle} backgroundColor={theme.surf} />
 
-      <View style={s.header}>
+      <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
         <View style={s.headerTop}>
           <View>
-            <Text style={s.headerSub}>{lojaNome ?? 'Minha Loja'}</Text>
+            <Text style={[s.headerSub, { color: theme.textMut }]}>{lojaNome ?? 'Minha Loja'}</Text>
             <View style={s.tituloRow}>
               {onBack && (
-                <TouchableOpacity onPress={onBack} style={s.backBtn} activeOpacity={0.7}>
-                  <Ionicons name="chevron-back" size={22} color="#000933" />
+                <TouchableOpacity
+                  onPress={onBack}
+                  style={[s.backBtn, { backgroundColor: theme.backBtn }]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={22} color={theme.text} />
                 </TouchableOpacity>
               )}
-              <Text style={s.headerTitle}>Tickets</Text>
+              <Text style={[s.headerTitle, { color: theme.text }]}>Tickets</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={fetchTickets} style={s.refreshBtn} activeOpacity={0.7}>
-            <Ionicons name="refresh" size={18} color="#9099B3" />
+          <TouchableOpacity
+            onPress={fetchTickets}
+            style={[s.refreshBtn, { backgroundColor: theme.backBtn }]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={18} color={theme.textMut} />
           </TouchableOpacity>
         </View>
 
@@ -116,7 +127,7 @@ export function TicketsScreen({ onBack }: { onBack?: () => void }) {
           {list.length === 0 && (
             <View style={s.emptyWrap}>
               <Ionicons name="checkmark-circle-outline" size={48} color="#C8CDE0" />
-              <Text style={s.empty}>Nenhum ticket nesse filtro</Text>
+              <Text style={[s.empty, { color: theme.textMut }]}>Nenhum ticket nesse filtro</Text>
             </View>
           )}
           {list.map((ticket) => (

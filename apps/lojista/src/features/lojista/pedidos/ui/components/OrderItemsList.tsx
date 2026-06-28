@@ -1,24 +1,32 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { brl, type OrderItem } from '../../lib';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   itens: OrderItem[];
 }
 
 export function OrderItemsList({ itens }: Props) {
+  const theme = useTheme();
   return (
-    <View style={s.card}>
+    <View style={[s.card, { backgroundColor: theme.surf, borderColor: theme.border }]}>
       {itens.map((it, i) => (
-        <View key={i} style={[s.itemRow, i < itens.length - 1 && s.itemBorder]}>
+        <View
+          key={i}
+          style={[
+            s.itemRow,
+            i < itens.length - 1 && [s.itemBorder, { borderBottomColor: theme.borderL }],
+          ]}
+        >
           <View style={s.qtyBadge}>
             <Text style={s.qtyText}>{it.qtd}×</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.itemName}>{it.nome}</Text>
-            <Text style={s.itemEach}>{brl(it.preco)} cada</Text>
+            <Text style={[s.itemName, { color: theme.text }]}>{it.nome}</Text>
+            <Text style={[s.itemEach, { color: theme.textMut }]}>{brl(it.preco)} cada</Text>
           </View>
-          <Text style={s.itemTotal}>{brl(it.preco * it.qtd)}</Text>
+          <Text style={[s.itemTotal, { color: theme.text }]}>{brl(it.preco * it.qtd)}</Text>
         </View>
       ))}
     </View>

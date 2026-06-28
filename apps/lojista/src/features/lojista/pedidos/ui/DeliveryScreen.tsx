@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { type Order } from '../lib';
 import { useDeliveryTracking, iniciais } from '../model/useDeliveryTracking';
 import { DeliveryTimeline } from './components';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   order?: Order | null;
@@ -20,23 +21,27 @@ interface Props {
 }
 
 export function DeliveryScreen({ order, onBack }: Props) {
+  const theme = useTheme();
   const { stepIdx, procurando, steps } = useDeliveryTracking(order);
 
   if (!order) {
     return (
-      <SafeAreaView style={s.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
-        <View style={s.header}>
+      <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+        <StatusBar
+          barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.bg}
+        />
+        <View style={[s.header, { backgroundColor: theme.bg }]}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Logística</Text>
+            <Text style={[s.headerTitle, { color: theme.text }]}>Logística</Text>
           </View>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Ionicons name="bicycle-outline" size={32} color="#000933" />
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#000933', marginTop: 8 }}>
+          <Ionicons name="bicycle-outline" size={32} color={theme.text} />
+          <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, marginTop: 8 }}>
             Nenhum pedido para despachar
           </Text>
-          <Text style={{ fontSize: 13, color: '#9099B3', marginTop: 4 }}>
+          <Text style={{ fontSize: 13, color: theme.textMut, marginTop: 4 }}>
             Pedidos prontos aparecerão aqui
           </Text>
         </View>
@@ -48,13 +53,13 @@ export function DeliveryScreen({ order, onBack }: Props) {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
 
-      <View style={s.header}>
-        <TouchableOpacity onPress={onBack} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+      <View style={[s.header, { backgroundColor: theme.bg }]}>
+        <TouchableOpacity onPress={onBack} style={[s.backBtn, { backgroundColor: theme.backBtn }]}>
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Despachar pedido</Text>
-          <Text style={s.headerSub}>
+          <Text style={[s.headerTitle, { color: theme.text }]}>Despachar pedido</Text>
+          <Text style={[s.headerSub, { color: theme.textMut }]}>
             {order.id} · {order.cliente}
           </Text>
         </View>
@@ -66,14 +71,14 @@ export function DeliveryScreen({ order, onBack }: Props) {
             <View style={s.loadingIcon}>
               <ActivityIndicator size="large" color="#fff" />
             </View>
-            <Text style={s.loadingTitle}>Procurando entregador…</Text>
-            <Text style={s.loadingSub}>
+            <Text style={[s.loadingTitle, { color: theme.text }]}>Procurando entregador…</Text>
+            <Text style={[s.loadingSub, { color: theme.textMut }]}>
               Avisamos os entregadores próximos. Assim que alguém aceitar, ele aparece aqui.
             </Text>
           </View>
         ) : (
           <>
-            <View style={s.courierCard}>
+            <View style={[s.courierCard, theme.isDark && { backgroundColor: '#1C2348' }]}>
               <View style={s.courierRow}>
                 <View style={s.courierAvatar}>
                   <Text style={s.courierInitials}>{iniciais(order.entregadorNome)}</Text>
@@ -96,14 +101,18 @@ export function DeliveryScreen({ order, onBack }: Props) {
 
             <DeliveryTimeline steps={steps} stepIdx={stepIdx} />
 
-            <Text style={s.disclaimer}>
+            <Text style={[s.disclaimer, { color: theme.textMut }]}>
               O entregador é alocado automaticamente pela plataforma. Entregue o pedido a ele quando
               chegar — a retirada e a entrega são confirmadas pelo próprio entregador no app dele.
             </Text>
           </>
         )}
 
-        <TouchableOpacity style={s.ctaBtn} onPress={onBack} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[s.ctaBtn, theme.isDark && { backgroundColor: '#3A4170' }]}
+          onPress={onBack}
+          activeOpacity={0.85}
+        >
           <Text style={s.ctaBtnText}>Voltar aos pedidos</Text>
         </TouchableOpacity>
       </ScrollView>

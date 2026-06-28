@@ -5,6 +5,7 @@ import { TipoProdutoValue, getCatNome, getSubcatNome } from '../model/tipoProdut
 import { useTipoProdutoState } from '../model/useTipoProdutoState';
 import { CategoriaGrid } from './components/CategoriaGrid';
 import { CustomModeCard } from './components/CustomModeCard';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   value: TipoProdutoValue | null;
@@ -36,6 +37,7 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
     isCustom,
     hasSelection,
   } = useTipoProdutoState({ value, onChange, onSpecLayout });
+  const theme = useTheme();
 
   return (
     <View style={styles.container}>
@@ -58,7 +60,7 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
             </Text>
           </View>
           <TouchableOpacity onPress={() => onChange(null)} activeOpacity={0.7}>
-            <Ionicons name="close-circle" size={18} color={colors.n300} />
+            <Ionicons name="close-circle" size={18} color={theme.textMut} />
           </TouchableOpacity>
         </View>
       )}
@@ -69,7 +71,7 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
       {/* Subcategorias — categorias normais */}
       {cat && !isCustom && (
         <View style={styles.subcatSection}>
-          <Text style={styles.sectionLabel}>Subcategoria</Text>
+          <Text style={[styles.sectionLabel, { color: theme.textMut }]}>Subcategoria</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -80,11 +82,21 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
               return (
                 <TouchableOpacity
                   key={s.id}
-                  style={[styles.subcatChip, selected && styles.subcatChipSelected]}
+                  style={[
+                    styles.subcatChip,
+                    { backgroundColor: theme.surf, borderColor: theme.border },
+                    selected && styles.subcatChipSelected,
+                  ]}
                   onPress={() => selectSubcat(s.id)}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.subcatText, selected && styles.subcatTextSelected]}>
+                  <Text
+                    style={[
+                      styles.subcatText,
+                      { color: theme.textSec },
+                      selected && styles.subcatTextSelected,
+                    ]}
+                  >
                     {s.nome}
                   </Text>
                 </TouchableOpacity>
@@ -139,13 +151,14 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                   <Text
                     style={[
                       styles.sectionLabel,
+                      { color: theme.textMut },
                       missingSpecs.includes(spec.id) && styles.sectionLabelError,
                     ]}
                   >
                     {spec.label}
                     {missingSpecs.includes(spec.id) ? ' *' : ''}
                   </Text>
-                  <Text style={styles.specHint}>
+                  <Text style={[styles.specHint, { color: theme.textMut }]}>
                     {spec.multiplo ? 'Selecione um ou mais' : 'Escolha um'}
                   </Text>
                 </View>
@@ -155,11 +168,21 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                     return (
                       <TouchableOpacity
                         key={opt}
-                        style={[styles.chip, isSelected && styles.chipSelected]}
+                        style={[
+                          styles.chip,
+                          { backgroundColor: theme.surf2, borderColor: theme.border },
+                          isSelected && styles.chipSelected,
+                        ]}
                         onPress={() => toggleSpec(spec.id, opt)}
                         activeOpacity={0.75}
                       >
-                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            { color: theme.text },
+                            isSelected && styles.chipTextSelected,
+                          ]}
+                        >
                           {opt}
                         </Text>
                       </TouchableOpacity>
@@ -182,14 +205,19 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                     <TextInput
                       style={[
                         styles.chipInput,
-                        { width: Math.max(68, (customInputs[spec.id]?.length ?? 0) * 9 + 28) },
+                        {
+                          width: Math.max(68, (customInputs[spec.id]?.length ?? 0) * 9 + 28),
+                          backgroundColor: theme.surf,
+                          borderColor: theme.border,
+                          color: theme.text,
+                        },
                       ]}
                       value={customInputs[spec.id] ?? ''}
                       onChangeText={(v) => setCustomInputs((prev) => ({ ...prev, [spec.id]: v }))}
                       onSubmitEditing={() => addCustomSpec(spec.id)}
                       onBlur={() => addCustomSpec(spec.id)}
                       placeholder="+ outro"
-                      placeholderTextColor={colors.n500}
+                      placeholderTextColor={theme.textMut}
                       returnKeyType="done"
                       blurOnSubmit={false}
                     />

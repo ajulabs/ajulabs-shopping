@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { type DashboardAvaliacoes } from '@ajulabs/types';
 import { StarRow } from './StarRow';
 import type { TagCatalog } from '../../lib/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function DashboardHeader({
   data,
@@ -13,15 +14,16 @@ export function DashboardHeader({
   accentColor: string;
   tagCatalog: TagCatalog;
 }) {
+  const theme = useTheme();
   void tagCatalog;
   const maxBar = Math.max(...Object.values(data.distribuicao));
   return (
-    <View style={s.headerCard}>
+    <View style={[s.headerCard, { backgroundColor: theme.surf, borderColor: theme.border }]}>
       <View style={s.headerCardTop}>
         <View style={{ alignItems: 'center' }}>
           <Text style={[s.mediaNum, { color: accentColor }]}>{data.media.toFixed(1)}</Text>
           <StarRow nota={Math.round(data.media)} size={18} />
-          <Text style={s.totalText}>
+          <Text style={[s.totalText, { color: theme.textMut }]}>
             {data.total} avaliaç{data.total === 1 ? 'ão' : 'ões'}
           </Text>
         </View>
@@ -31,12 +33,12 @@ export function DashboardHeader({
             const pct = maxBar > 0 ? (count / maxBar) * 100 : 0;
             return (
               <View key={nota} style={s.barRow}>
-                <Text style={s.barNota}>{nota}</Text>
+                <Text style={[s.barNota, { color: theme.textMut }]}>{nota}</Text>
                 <Ionicons name="star" size={11} color="#F59E0B" />
-                <View style={s.barTrack}>
+                <View style={[s.barTrack, { backgroundColor: theme.borderL }]}>
                   <View style={[s.barFill, { width: `${pct}%`, backgroundColor: accentColor }]} />
                 </View>
-                <Text style={s.barCount}>{count}</Text>
+                <Text style={[s.barCount, { color: theme.textMut }]}>{count}</Text>
               </View>
             );
           })}

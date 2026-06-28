@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../theme';
+import { useTheme } from '../../../../shared/hooks';
 import { useNovoProduto } from '../model/useNovoProduto';
 import { ProductData } from '../lib/types';
 import { Stepper } from './NovoProdutoStepper';
@@ -14,7 +15,9 @@ interface NovoProdutoProps {
   onVoltar?: () => void;
 }
 
-export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoProps) {
+export function NovoProduto({ onPublicar, onVoltar }: NovoProdutoProps) {
+  const theme = useTheme();
+  const dark = theme.isDark;
   const {
     stage,
     stepIndex,
@@ -33,11 +36,11 @@ export function NovoProduto({ dark = false, onPublicar, onVoltar }: NovoProdutoP
     handleSuccessOk,
   } = useNovoProduto({ onPublicar, onVoltar });
 
-  const textColor = dark ? colors.n0 : colors.navy;
-  const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
-  const bgMain = dark ? '#0B0F22' : colors.n50;
-  const surface = dark ? '#111638' : colors.n0;
-  const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  const textColor = theme.text;
+  const subColor = theme.textSec;
+  const bgMain = theme.bg;
+  const surface = theme.surf;
+  const border = theme.border;
 
   const isEdit = stage === 'edit';
 

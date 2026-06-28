@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { Colaborador } from '@ajulabs/types';
 import { colors } from '../../../../../theme';
 import { PAPEL_LABEL, PAPEL_COLOR } from '../../lib/colaboradores';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   colaborador: Colaborador;
@@ -11,8 +12,15 @@ interface Props {
 }
 
 export function ColaboradorCard({ colaborador: col, onEditar, onAlternarAtivo }: Props) {
+  const theme = useTheme();
   return (
-    <View style={[styles.card, !col.ativo && styles.cardInativo]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.surf, borderColor: theme.border },
+        !col.ativo && styles.cardInativo,
+      ]}
+    >
       <View style={styles.cardMain}>
         <View style={[styles.avatarCircle, { backgroundColor: PAPEL_COLOR[col.papel] + '22' }]}>
           <Text style={[styles.avatarLetter, { color: PAPEL_COLOR[col.papel] }]}>
@@ -20,8 +28,8 @@ export function ColaboradorCard({ colaborador: col, onEditar, onAlternarAtivo }:
           </Text>
         </View>
         <View style={styles.cardInfo}>
-          <Text style={styles.cardNome}>{col.nome}</Text>
-          <Text style={styles.cardEmail}>{col.email}</Text>
+          <Text style={[styles.cardNome, { color: theme.text }]}>{col.nome}</Text>
+          <Text style={[styles.cardEmail, { color: theme.textMut }]}>{col.email}</Text>
           <View style={[styles.papelBadge, { backgroundColor: PAPEL_COLOR[col.papel] + '18' }]}>
             <Text style={[styles.papelText, { color: PAPEL_COLOR[col.papel] }]}>
               {PAPEL_LABEL[col.papel]}
@@ -31,7 +39,7 @@ export function ColaboradorCard({ colaborador: col, onEditar, onAlternarAtivo }:
       </View>
       <View style={styles.cardActions}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => onEditar(col)}>
-          <Ionicons name="pencil-outline" size={18} color={colors.n600} />
+          <Ionicons name="pencil-outline" size={18} color={theme.textMut} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, { marginLeft: 6 }]}

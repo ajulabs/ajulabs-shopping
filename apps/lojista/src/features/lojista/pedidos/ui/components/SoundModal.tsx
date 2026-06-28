@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
 import { SONS, type SomTipo } from '../../model/usePedidoSound';
 
 interface Props {
@@ -11,29 +12,42 @@ interface Props {
 }
 
 export function SoundModal({ visible, somAtual, onClose, onSelect }: Props) {
+  const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.modalOverlay}>
-        <View style={s.modalBox}>
+        <View style={[s.modalBox, { backgroundColor: theme.surf }]}>
           <View style={s.modalHeader}>
-            <Text style={s.modalTitulo}>Som de notificação</Text>
+            <Text style={[s.modalTitulo, { color: theme.text }]}>Som de notificação</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={22} color="#000933" />
+              <Ionicons name="close" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
-          <Text style={s.modalSub}>Toque em cada opção para ouvir um preview</Text>
+          <Text style={[s.modalSub, { color: theme.textMut }]}>
+            Toque em cada opção para ouvir um preview
+          </Text>
           {SONS.map((som) => (
             <TouchableOpacity
               key={som.id}
-              style={[s.somItem, somAtual === som.id && s.somItemAtivo]}
+              style={[
+                s.somItem,
+                { borderColor: theme.border },
+                somAtual === som.id && s.somItemAtivo,
+              ]}
               onPress={() => onSelect(som.id)}
               activeOpacity={0.8}
             >
               <View style={{ flex: 1 }}>
-                <Text style={[s.somLabel, somAtual === som.id && { color: '#DE6708' }]}>
+                <Text
+                  style={[
+                    s.somLabel,
+                    { color: theme.text },
+                    somAtual === som.id && { color: '#DE6708' },
+                  ]}
+                >
                   {som.label}
                 </Text>
-                <Text style={s.somDesc}>{som.descricao}</Text>
+                <Text style={[s.somDesc, { color: theme.textMut }]}>{som.descricao}</Text>
               </View>
               {somAtual === som.id && (
                 <Ionicons name="checkmark-circle" size={22} color="#DE6708" />

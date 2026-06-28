@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Destinatario } from '../../model/useChatPedido';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   destinatario: Destinatario;
@@ -9,8 +10,9 @@ interface Props {
 }
 
 export function DestinatarioToggle({ destinatario, onChange }: Props) {
+  const theme = useTheme();
   return (
-    <View style={s.seletor}>
+    <View style={[s.seletor, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
       {(['CONSUMER', 'ENTREGADOR'] as Destinatario[]).map((p) => (
         <TouchableOpacity
           key={p}
@@ -20,9 +22,9 @@ export function DestinatarioToggle({ destinatario, onChange }: Props) {
           <Ionicons
             name={p === 'CONSUMER' ? 'person-outline' : 'bicycle-outline'}
             size={14}
-            color={destinatario === p ? '#fff' : '#000933'}
+            color={destinatario === p ? '#fff' : theme.text}
           />
-          <Text style={[s.seletorTxt, { color: destinatario === p ? '#fff' : '#000933' }]}>
+          <Text style={[s.seletorTxt, { color: destinatario === p ? '#fff' : theme.text }]}>
             {p === 'CONSUMER' ? 'Cliente' : 'Entregador'}
           </Text>
         </TouchableOpacity>

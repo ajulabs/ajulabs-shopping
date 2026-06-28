@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { type Order } from '../lib';
 import { useOrderDetail } from '../model/useOrderDetail';
 import { OrderItemsList, OrderSummary } from './components';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   order: Order;
@@ -16,24 +17,28 @@ interface Props {
 }
 
 export function OrderDetail({ order, onBack, onAdvance, onDispatch, onChatConsumer }: Props) {
+  const theme = useTheme();
   const { meta, initials, statusIcon, statusSubtitle } = useOrderDetail(order);
 
   return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
+    <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+      <StatusBar
+        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.bg}
+      />
 
-      <View style={s.header}>
-        <TouchableOpacity onPress={onBack} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+      <View style={[s.header, { backgroundColor: theme.bg }]}>
+        <TouchableOpacity onPress={onBack} style={[s.backBtn, { backgroundColor: theme.backBtn }]}>
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>{order.id}</Text>
-          <Text style={s.headerSub}>
+          <Text style={[s.headerTitle, { color: theme.text }]}>{order.id}</Text>
+          <Text style={[s.headerSub, { color: theme.textMut }]}>
             {order.hora} · {order.cliente}
           </Text>
         </View>
-        <TouchableOpacity style={s.phoneBtn}>
-          <Ionicons name="call-outline" size={18} color="#000933" />
+        <TouchableOpacity style={[s.phoneBtn, { backgroundColor: theme.backBtn }]}>
+          <Ionicons name="call-outline" size={18} color={theme.text} />
         </TouchableOpacity>
       </View>
 
@@ -48,30 +53,35 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch, onChatConsum
           </View>
         </View>
 
-        <Text style={s.sectionLabel}>Cliente</Text>
-        <View style={s.card}>
+        <Text style={[s.sectionLabel, { color: theme.textMut }]}>Cliente</Text>
+        <View style={[s.card, { backgroundColor: theme.surf, borderColor: theme.border }]}>
           <View style={s.clientRow}>
             <View style={s.avatar}>
               <Text style={s.avatarText}>{initials}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.clientName}>{order.cliente}</Text>
-              <Text style={s.clientDist}>{order.distancia} de distância</Text>
+              <Text style={[s.clientName, { color: theme.text }]}>{order.cliente}</Text>
+              <Text style={[s.clientDist, { color: theme.textMut }]}>
+                {order.distancia} de distância
+              </Text>
             </View>
-            <TouchableOpacity style={s.iconBtnGray} onPress={onChatConsumer}>
-              <Ionicons name="chatbubble-outline" size={16} color="#000933" />
+            <TouchableOpacity
+              style={[s.iconBtnGray, { backgroundColor: theme.surf2 }]}
+              onPress={onChatConsumer}
+            >
+              <Ionicons name="chatbubble-outline" size={16} color={theme.text} />
             </TouchableOpacity>
             <TouchableOpacity style={s.iconBtnGreen}>
               <Ionicons name="call" size={16} color="#002B12" />
             </TouchableOpacity>
           </View>
-          <View style={s.addressRow}>
+          <View style={[s.addressRow, { borderTopColor: theme.borderL }]}>
             <Ionicons name="home-outline" size={16} color="#209CEF" style={{ marginTop: 2 }} />
-            <Text style={s.addressText}>{order.endereco}</Text>
+            <Text style={[s.addressText, { color: theme.text }]}>{order.endereco}</Text>
           </View>
         </View>
 
-        <Text style={s.sectionLabel}>Itens do pedido</Text>
+        <Text style={[s.sectionLabel, { color: theme.textMut }]}>Itens do pedido</Text>
         <OrderItemsList itens={order.itens} />
 
         {order.obs && (
@@ -88,7 +98,7 @@ export function OrderDetail({ order, onBack, onAdvance, onDispatch, onChatConsum
       </ScrollView>
 
       {meta.next && (
-        <View style={s.stickyBtn}>
+        <View style={[s.stickyBtn, { backgroundColor: theme.surf, borderTopColor: theme.border }]}>
           <TouchableOpacity
             style={s.ctaBtn}
             onPress={() => (order.status === 'pronto' ? onDispatch() : onAdvance())}

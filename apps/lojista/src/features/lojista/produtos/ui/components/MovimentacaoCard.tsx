@@ -1,15 +1,18 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MovimentacaoEstoque } from '@ajulabs/types';
 import { TIPO_META } from '../../../../../entities/produto';
-import { C } from '../../lib/movimentacoesTheme';
+import { useMovimentacoesC, type MovimentacoesC } from '../../lib/movimentacoesTheme';
 
 export function MovimentacaoCard({ m }: { m: MovimentacaoEstoque }) {
+  const c = useMovimentacoesC();
+  const s = useMemo(() => makeStyles(c), [c]);
   const meta = TIPO_META[m.tipo] ?? {
     label: m.tipo,
     icon: 'ellipse',
     positive: true,
-    color: C.sub,
+    color: c.sub,
   };
   const hora = new Date(m.criadoEm).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -49,7 +52,7 @@ export function MovimentacaoCard({ m }: { m: MovimentacaoEstoque }) {
           {m.quantidade}
         </Text>
         <View style={s.cardStockRow}>
-          <Ionicons name="cube-outline" size={10} color={C.mute} />
+          <Ionicons name="cube-outline" size={10} color={c.mute} />
           <Text style={s.cardStock}>{m.estoqueDepois}</Text>
         </View>
         <Text style={s.cardHora}>{hora}</Text>
@@ -58,43 +61,45 @@ export function MovimentacaoCard({ m }: { m: MovimentacaoEstoque }) {
   );
 }
 
-const s = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  cardIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  cardBody: { flex: 1, gap: 2 },
-  cardNome: { fontSize: 14, fontWeight: '700', color: C.text },
-  cardTipoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  cardTipo: { fontSize: 12, color: C.sub },
-  varTag: {
-    backgroundColor: C.bg,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  varTagText: { fontSize: 10, fontWeight: '700', color: C.sub, maxWidth: 160 },
-  cardMotivo: { fontSize: 11, color: C.mute, fontStyle: 'italic' },
-  cardRight: { alignItems: 'flex-end', gap: 3 },
-  cardQty: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  cardStockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  cardStock: { fontSize: 11, color: C.mute, fontWeight: '600' },
-  cardHora: { fontSize: 10, color: C.mute },
-});
+function makeStyles(c: MovimentacoesC) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 6,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    cardIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    cardBody: { flex: 1, gap: 2 },
+    cardNome: { fontSize: 14, fontWeight: '700', color: c.text },
+    cardTipoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+    cardTipo: { fontSize: 12, color: c.sub },
+    varTag: {
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    varTagText: { fontSize: 10, fontWeight: '700', color: c.sub, maxWidth: 160 },
+    cardMotivo: { fontSize: 11, color: c.mute, fontStyle: 'italic' },
+    cardRight: { alignItems: 'flex-end', gap: 3 },
+    cardQty: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+    cardStockRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    cardStock: { fontSize: 11, color: c.mute, fontWeight: '600' },
+    cardHora: { fontSize: 10, color: c.mute },
+  });
+}

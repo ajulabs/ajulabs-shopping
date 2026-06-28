@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { colors } from '../../../../../theme';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function OrangeToggle({
   value,
@@ -9,6 +10,7 @@ export function OrangeToggle({
   value: boolean;
   onValueChange: (v: boolean) => void;
 }) {
+  const theme = useTheme();
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
   useEffect(() => {
     Animated.spring(anim, { toValue: value ? 1 : 0, useNativeDriver: true, bounciness: 4 }).start();
@@ -18,7 +20,7 @@ export function OrangeToggle({
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={() => onValueChange(!value)}
-      style={[toggleStyles.track, { backgroundColor: value ? colors.orange : colors.n200 }]}
+      style={[toggleStyles.track, { backgroundColor: value ? colors.orange : theme.border }]}
     >
       <Animated.View style={[toggleStyles.thumb, { transform: [{ translateX }] }]} />
     </TouchableOpacity>

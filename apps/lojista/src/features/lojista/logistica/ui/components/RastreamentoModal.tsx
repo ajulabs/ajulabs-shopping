@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EntregaMap } from './EntregaMap';
 import { useRastreamento } from '../../model/useRastreamento';
 import type { EntregaDisplay } from '../../model/types';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
   entrega: EntregaDisplay;
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat }: Props) {
+  const theme = useTheme();
   const { entregadorLocation, connected } = useRastreamento({
     entregaId: entrega.id,
     lojaId,
@@ -41,15 +43,19 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={s.safe}>
-        <StatusBar barStyle="dark-content" />
+      <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
+        <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
 
-        <View style={s.header}>
-          <TouchableOpacity onPress={onClose} style={s.closeBtn} activeOpacity={0.8}>
-            <Ionicons name="chevron-down" size={22} color="#000933" />
+        <View style={[s.header, { backgroundColor: theme.surf, borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={[s.closeBtn, { backgroundColor: theme.surf2 }]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chevron-down" size={22} color={theme.text} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>{entrega.pedidoId}</Text>
+            <Text style={[s.title, { color: theme.text }]}>{entrega.pedidoId}</Text>
             <View style={s.statusRow}>
               <View style={[s.statusDot, { backgroundColor: statusColor }]} />
               <Text style={[s.statusTxt, { color: statusColor }]}>{statusLabel}</Text>
@@ -68,8 +74,8 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
 
           {!entregadorLocation && (
             <View style={s.mapPlaceholder}>
-              <Ionicons name="location-outline" size={36} color="#9099B3" />
-              <Text style={s.mapPlaceholderTxt}>
+              <Ionicons name="location-outline" size={36} color={theme.textMut} />
+              <Text style={[s.mapPlaceholderTxt, { color: theme.textMut }]}>
                 {connected
                   ? 'Aguardando localização do entregador...'
                   : 'Conectando ao rastreamento...'}
@@ -92,7 +98,7 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
         </View>
 
         <ScrollView style={s.infoScroll} contentContainerStyle={{ padding: 16, gap: 10 }}>
-          <View style={s.infoCard}>
+          <View style={[s.infoCard, { backgroundColor: theme.surf, borderColor: theme.border }]}>
             <View style={s.infoCardIcon}>
               {entrega.motoboyFotoUrl ? (
                 <Image
@@ -105,9 +111,9 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.infoCardLabel}>Entregador</Text>
-              <Text style={s.infoCardValue}>{entrega.motoboy}</Text>
-              <Text style={s.infoCardSub}>Placa: {entrega.placa}</Text>
+              <Text style={[s.infoCardLabel, { color: theme.textMut }]}>Entregador</Text>
+              <Text style={[s.infoCardValue, { color: theme.text }]}>{entrega.motoboy}</Text>
+              <Text style={[s.infoCardSub, { color: theme.textMut }]}>Placa: {entrega.placa}</Text>
             </View>
             {entrega.status === 'andamento' && (
               <TouchableOpacity style={s.chatBtn} onPress={() => onOpenChat(entrega.id)}>
@@ -121,7 +127,7 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
             )}
           </View>
 
-          <View style={s.infoCard}>
+          <View style={[s.infoCard, { backgroundColor: theme.surf, borderColor: theme.border }]}>
             <View style={[s.infoCardIcon, { backgroundColor: '#E8F4FF' }]}>
               {entrega.clienteAvatarUrl ? (
                 <Image
@@ -134,9 +140,9 @@ export function RastreamentoModal({ entrega, lojaId, token, onClose, onOpenChat 
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.infoCardLabel}>Cliente</Text>
-              <Text style={s.infoCardValue}>{entrega.cliente}</Text>
-              <Text style={s.infoCardSub} numberOfLines={1}>
+              <Text style={[s.infoCardLabel, { color: theme.textMut }]}>Cliente</Text>
+              <Text style={[s.infoCardValue, { color: theme.text }]}>{entrega.cliente}</Text>
+              <Text style={[s.infoCardSub, { color: theme.textMut }]} numberOfLines={1}>
                 {entrega.endereco}
               </Text>
             </View>

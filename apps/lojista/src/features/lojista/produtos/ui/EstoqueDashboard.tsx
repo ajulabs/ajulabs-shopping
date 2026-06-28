@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { NivelEstoque, Produto } from '@ajulabs/types';
 import { usePermissions } from '../../../../shared/hooks/usePermissions';
 import { TIPO_LABEL } from '../../../../entities/produto';
-import { C, NIVEL_CFG } from '../lib/dashboardTheme';
+import { C, NIVEL_CFG, useDashboardC, type DashboardC } from '../lib/dashboardTheme';
 import { useEstoqueDashboard } from '../model/useEstoqueDashboard';
+import { useTheme } from '../../../../shared/hooks';
 import { DonutChart } from './components/DonutChart';
 import { EstoqueStatsGrid, StatCard } from './components/EstoqueStatsGrid';
 import { ProdutoRow } from './components/ProdutoRow';
@@ -40,6 +42,9 @@ export function EstoqueDashboard({
   skipTopInset = false,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const c = useDashboardC();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { canViewStockValue } = usePermissions();
   const {
     lojaId,
@@ -116,14 +121,25 @@ export function EstoqueDashboard({
   ];
 
   return (
-    <View style={s.root}>
-      <View style={[s.header, { paddingTop: (skipTopInset ? 0 : insets.top) + 12 }]}>
+    <View style={[s.root, { backgroundColor: theme.bg }]}>
+      <View
+        style={[
+          s.header,
+          {
+            backgroundColor: theme.surf,
+            borderBottomColor: theme.border,
+            paddingTop: (skipTopInset ? 0 : insets.top) + 12,
+          },
+        ]}
+      >
         {onVoltar ? (
           <TouchableOpacity style={s.iconBtn} onPress={onVoltar} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={20} color={C.text} />
+            <Ionicons name="chevron-back" size={20} color={c.text} />
           </TouchableOpacity>
         ) : null}
-        <Text style={[s.headerTitle, !onVoltar && s.headerTitleMain]}>Produtos</Text>
+        <Text style={[s.headerTitle, !onVoltar && s.headerTitleMain, { color: theme.text }]}>
+          Produtos
+        </Text>
         <TouchableOpacity style={s.histBtn} onPress={onVerMovimentacoes} activeOpacity={0.7}>
           <Ionicons name="time-outline" size={15} color={C.orange} />
           <Text style={s.histBtnText}>Histórico</Text>
@@ -215,7 +231,7 @@ export function EstoqueDashboard({
                         />
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={14} color={C.mute} />
+                    <Ionicons name="chevron-forward" size={14} color={c.mute} />
                   </TouchableOpacity>
                 );
               })}
@@ -243,7 +259,7 @@ export function EstoqueDashboard({
             </View>
             {produtos.length === 0 ? (
               <View style={s.emptyCard}>
-                <Ionicons name="bag-outline" size={28} color={C.mute} />
+                <Ionicons name="bag-outline" size={28} color={c.mute} />
                 <Text style={s.emptyText}>Nenhum produto cadastrado</Text>
               </View>
             ) : (
@@ -349,175 +365,177 @@ export function EstoqueDashboard({
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+function makeStyles(c: DashboardC) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    backgroundColor: C.card,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: C.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  histBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.orange + '15',
-    borderWidth: 1,
-    borderColor: C.orange + '40',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  histBtnText: { fontSize: 13, fontWeight: '700', color: C.orange },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: C.text },
-  headerTitleMain: { fontSize: 26, letterSpacing: -0.5 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingBottom: 14,
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    iconBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: c.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    histBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: C.orange + '15',
+      borderWidth: 1,
+      borderColor: C.orange + '40',
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 10,
+    },
+    histBtnText: { fontSize: 13, fontWeight: '700', color: C.orange },
+    headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text },
+    headerTitleMain: { fontSize: 26, letterSpacing: -0.5 },
 
-  scroll: { paddingBottom: 56 },
+    scroll: { paddingBottom: 56 },
 
-  donutCard: {
-    backgroundColor: C.card,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  donutWrap: { marginBottom: 20 },
-  donutLegend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 12, color: C.sub, fontWeight: '500' },
-  legendPct: { fontSize: 12, fontWeight: '800' },
+    donutCard: {
+      backgroundColor: c.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      borderRadius: 24,
+      paddingVertical: 28,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    donutWrap: { marginBottom: 20 },
+    donutLegend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    legendDot: { width: 8, height: 8, borderRadius: 4 },
+    legendLabel: { fontSize: 12, color: c.sub, fontWeight: '500' },
+    legendPct: { fontSize: 12, fontWeight: '800' },
 
-  section: { paddingHorizontal: 16, marginTop: 24 },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-    justifyContent: 'space-between',
-  },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: C.text },
-  sectionSub: { fontSize: 12, color: C.sub },
-  sectionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  sectionBadgeText: { fontSize: 12, fontWeight: '700' },
-  sectionLink: { fontSize: 13, fontWeight: '700', color: C.orange },
-  adjustBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.orange + '15',
-    borderWidth: 1,
-    borderColor: C.orange + '40',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  adjustBtnText: { color: C.orange, fontSize: 13, fontWeight: '700' },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.orange,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    section: { paddingHorizontal: 16, marginTop: 24 },
+    sectionHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+      justifyContent: 'space-between',
+    },
+    sectionTitle: { fontSize: 15, fontWeight: '800', color: c.text },
+    sectionSub: { fontSize: 12, color: c.sub },
+    sectionBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+    },
+    sectionBadgeText: { fontSize: 12, fontWeight: '700' },
+    sectionLink: { fontSize: 13, fontWeight: '700', color: C.orange },
+    adjustBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: C.orange + '15',
+      borderWidth: 1,
+      borderColor: C.orange + '40',
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 10,
+    },
+    adjustBtnText: { color: C.orange, fontSize: 13, fontWeight: '700' },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: C.orange,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 10,
+    },
+    addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
-  alertItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  alertNum: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  alertNumText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  alertBody: { flex: 1, gap: 8 },
-  alertTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  alertName: { flex: 1, fontSize: 14, fontWeight: '700', color: C.text },
-  alertQty: { fontSize: 13, fontWeight: '800' },
-  barTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: 5, borderRadius: 3 },
+    alertItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 1,
+    },
+    alertNum: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    alertNumText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    alertBody: { flex: 1, gap: 8 },
+    alertTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    alertName: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text },
+    alertQty: { fontSize: 13, fontWeight: '800' },
+    barTrack: { height: 5, backgroundColor: c.border, borderRadius: 3, overflow: 'hidden' },
+    barFill: { height: 5, borderRadius: 3 },
 
-  emptyCard: {
-    backgroundColor: C.card,
-    borderRadius: 14,
-    padding: 24,
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  emptyText: { fontSize: 13, color: C.sub },
+    emptyCard: {
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 24,
+      alignItems: 'center',
+      gap: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    emptyText: { fontSize: 13, color: c.sub },
 
-  movRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  movIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  movInfo: { flex: 1 },
-  movNome: { fontSize: 13, fontWeight: '700', color: C.text },
-  movTipo: { fontSize: 11, color: C.sub, marginTop: 2 },
-  movRight: { alignItems: 'flex-end', gap: 2 },
-  movQty: { fontSize: 16, fontWeight: '800' },
-  movData: { fontSize: 10, color: C.mute },
-});
+    movRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    movIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    movInfo: { flex: 1 },
+    movNome: { fontSize: 13, fontWeight: '700', color: c.text },
+    movTipo: { fontSize: 11, color: c.sub, marginTop: 2 },
+    movRight: { alignItems: 'flex-end', gap: 2 },
+    movQty: { fontSize: 16, fontWeight: '800' },
+    movData: { fontSize: 10, color: c.mute },
+  });
+}
