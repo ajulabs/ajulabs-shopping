@@ -6,6 +6,7 @@ import {
   ProdutoRAG,
 } from '../utils/ragSearch';
 import { logger } from '../lib/logger';
+import { registrarBusca } from '../services/buscas.service';
 
 // ─── Result types ────────────────────────────────────────────────────────────
 
@@ -311,12 +312,21 @@ export async function executarTool(
     case 'buscar_produtos': {
       const precoMax = parsePreco(args.precoMax);
       const precoMin = parsePreco(args.precoMin);
-      return executarBuscarProdutos(args.query ?? '', {
+      const resultado = await executarBuscarProdutos(args.query ?? '', {
         lojaId: args.lojaId,
         lojaNome: args.lojaNome,
         precoMax,
         precoMin,
       });
+      // Log da busca (demanda): termo + nº de resultados (0 = demanda reprimida).
+      const qtd = resultado.tipo === 'produtos' ? resultado.dados.length : 0;
+      void registrarBusca({
+        termo: args.query ?? '',
+        usuarioId,
+        lojaId: args.lojaId,
+        resultados: qtd,
+      });
+      return resultado;
     }
     case 'listar_pedidos':
       return executarListarPedidos(usuarioId, args.lojaNome);
