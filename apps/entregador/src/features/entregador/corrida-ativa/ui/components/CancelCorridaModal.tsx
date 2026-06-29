@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export type MotivoCancelamento = 'area_risco' | 'pneu_furou' | 'acidente';
 
@@ -64,6 +67,8 @@ export function CancelCorridaModal({ visible, loading, onConfirm, onClose }: Pro
     if (motivo && fotoUri) onConfirm(motivo, fotoUri);
   }, [motivo, fotoUri, onConfirm]);
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={resetAndClose}>
       <View style={s.overlay}>
@@ -80,13 +85,13 @@ export function CancelCorridaModal({ visible, loading, onConfirm, onClose }: Pro
                   style={s.backBtn}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-back" size={18} color="#000933" />
+                  <Ionicons name="chevron-back" size={18} color={theme.text} />
                 </TouchableOpacity>
               )}
               <Text style={s.title}>Cancelar corrida</Text>
             </View>
             <TouchableOpacity onPress={resetAndClose} disabled={loading} activeOpacity={0.7}>
-              <Ionicons name="close" size={22} color="#000933" />
+              <Ionicons name="close" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -112,7 +117,7 @@ export function CancelCorridaModal({ visible, loading, onConfirm, onClose }: Pro
                     <Ionicons name={m.icon as any} size={20} color="#9B2727" />
                   </View>
                   <Text style={s.motivoLabel}>{m.label}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#9099B3" />
+                  <Ionicons name="chevron-forward" size={16} color={theme.textMut} />
                 </TouchableOpacity>
               ))}
             </>
@@ -174,103 +179,105 @@ export function CancelCorridaModal({ visible, loading, onConfirm, onClose }: Pro
   );
 }
 
-const s = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  backBtn: { padding: 2 },
-  title: { fontSize: 18, fontWeight: '700', color: '#000933' },
-  warningBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 20,
-  },
-  warningText: { flex: 1, fontSize: 12.5, color: '#92400E', lineHeight: 18 },
-  stepLabel: { fontSize: 13, fontWeight: '600', color: '#9099B3', marginBottom: 14 },
-  motivoSelected: { color: '#9B2727', fontWeight: '700' },
-  motivoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    marginBottom: 10,
-  },
-  motivoIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#FEF2F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  motivoLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: '#000933' },
-  fotoHint: { fontSize: 12.5, color: '#9099B3', lineHeight: 18, marginBottom: 16 },
-  fotoBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#9B2727',
-    backgroundColor: '#FEF2F2',
-    marginBottom: 16,
-  },
-  fotoBtnText: { fontSize: 15, fontWeight: '700', color: '#9B2727' },
-  fotoBtnSub: { fontSize: 11, color: '#9099B3' },
-  fotoPreview: {
-    height: 180,
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 16,
-    position: 'relative',
-  },
-  fotoImg: { width: '100%', height: '100%' },
-  fotoRetake: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 99,
-  },
-  fotoRetakeTxt: { fontSize: 11, color: '#fff', fontWeight: '600' },
-  confirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#9B2727',
-    borderRadius: 14,
-    paddingVertical: 16,
-  },
-  confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: theme.surf,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    backBtn: { padding: 2 },
+    title: { fontSize: 18, fontWeight: '700', color: theme.text },
+    warningBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: '#FEF3C7',
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 20,
+    },
+    warningText: { flex: 1, fontSize: 12.5, color: '#92400E', lineHeight: 18 },
+    stepLabel: { fontSize: 13, fontWeight: '600', color: theme.textMut, marginBottom: 14 },
+    motivoSelected: { color: '#9B2727', fontWeight: '700' },
+    motivoItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      marginBottom: 10,
+    },
+    motivoIconWrap: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      backgroundColor: '#FEF2F2',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    motivoLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: theme.text },
+    fotoHint: { fontSize: 12.5, color: theme.textMut, lineHeight: 18, marginBottom: 16 },
+    fotoBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 28,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: '#9B2727',
+      backgroundColor: '#FEF2F2',
+      marginBottom: 16,
+    },
+    fotoBtnText: { fontSize: 15, fontWeight: '700', color: '#9B2727' },
+    fotoBtnSub: { fontSize: 11, color: theme.textMut },
+    fotoPreview: {
+      height: 180,
+      borderRadius: 14,
+      overflow: 'hidden',
+      marginBottom: 16,
+      position: 'relative',
+    },
+    fotoImg: { width: '100%', height: '100%' },
+    fotoRetake: {
+      position: 'absolute',
+      bottom: 8,
+      right: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 99,
+    },
+    fotoRetakeTxt: { fontSize: 11, color: '#fff', fontWeight: '600' },
+    confirmBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#9B2727',
+      borderRadius: 14,
+      paddingVertical: 16,
+    },
+    confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  });
+}

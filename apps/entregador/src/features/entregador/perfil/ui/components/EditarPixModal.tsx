@@ -9,6 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PIX_TIPOS, type PixTipo } from '../../model/useDadosBancarios';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 interface EditarPixModalProps {
   visible: boolean;
@@ -39,6 +42,8 @@ export function EditarPixModal({
   onChangePix,
   onSalvar,
 }: EditarPixModalProps) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={onClose}>
@@ -79,7 +84,7 @@ export function EditarPixModal({
               value={pixValor}
               onChangeText={onChangePix}
               placeholder={tipoSel.placeholder}
-              placeholderTextColor="#9099B3"
+              placeholderTextColor={theme.textMut}
               keyboardType={tipoSel.keyboard}
               autoCapitalize="none"
               autoFocus
@@ -118,81 +123,83 @@ export function EditarPixModal({
   );
 }
 
-const s = StyleSheet.create({
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 99,
-    backgroundColor: '#E4E7F1',
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  modalFieldLabel: { fontSize: 12, fontWeight: '600', color: '#2A3156', marginBottom: 8 },
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    modalSheet: {
+      backgroundColor: theme.surf,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 20,
+      paddingBottom: 36,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 99,
+      backgroundColor: theme.border,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    modalFieldLabel: { fontSize: 12, fontWeight: '600', color: theme.text, marginBottom: 8 },
 
-  pixHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    backgroundColor: 'rgba(57,255,137,0.15)',
-    borderRadius: 12,
-    marginBottom: 18,
-  },
-  pixHintTitle: { fontSize: 13, fontWeight: '700', color: '#046C2E' },
-  pixHintSub: { fontSize: 11, color: '#046C2E', opacity: 0.85 },
+    pixHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      backgroundColor: 'rgba(57,255,137,0.15)',
+      borderRadius: 12,
+      marginBottom: 18,
+    },
+    pixHintTitle: { fontSize: 13, fontWeight: '700', color: '#046C2E' },
+    pixHintSub: { fontSize: 11, color: '#046C2E', opacity: 0.85 },
 
-  tipoRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  tipoBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 99,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  tipoBtnActive: { borderColor: '#F2760F', backgroundColor: 'rgba(242,118,15,0.08)' },
-  tipoBtnText: { fontSize: 13, fontWeight: '600', color: '#9099B3' },
-  tipoBtnTextActive: { color: '#F2760F' },
+    tipoRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+    tipoBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 99,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
+    },
+    tipoBtnActive: { borderColor: '#F2760F', backgroundColor: 'rgba(242,118,15,0.08)' },
+    tipoBtnText: { fontSize: 13, fontWeight: '600', color: theme.textMut },
+    tipoBtnTextActive: { color: '#F2760F' },
 
-  pixInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  pixInputFocused: { borderColor: '#F2760F' },
-  pixInputInner: { flex: 1, fontSize: 15, color: '#000933' },
+    pixInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
+    },
+    pixInputFocused: { borderColor: '#F2760F' },
+    pixInputInner: { flex: 1, fontSize: 15, color: theme.text },
 
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#F2760F',
-    borderRadius: 14,
-    paddingVertical: 15,
-    marginTop: 18,
-  },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  cancelBtn: {
-    marginTop: 10,
-    padding: 14,
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  cancelBtnText: { fontSize: 14, fontWeight: '600', color: '#9099B3' },
-});
+    saveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#F2760F',
+      borderRadius: 14,
+      paddingVertical: 15,
+      marginTop: 18,
+    },
+    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+    cancelBtn: {
+      marginTop: 10,
+      padding: 14,
+      alignItems: 'center',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    cancelBtnText: { fontSize: 14, fontWeight: '600', color: theme.textMut },
+  });
+}

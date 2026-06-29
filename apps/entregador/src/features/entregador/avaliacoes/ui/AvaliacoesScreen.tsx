@@ -14,6 +14,9 @@ import { DashboardHeader } from './components/DashboardHeader';
 import { SecaoTags } from './components/SecaoTags';
 import { ListaAvaliacoes } from './components/ListaAvaliacoes';
 import { EmptyState } from './components/EmptyState';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
 
 interface Props {
   onBack: () => void;
@@ -22,11 +25,13 @@ interface Props {
 export function AvaliacoesScreen({ onBack }: Props) {
   const { data, loading, refreshing, erro, carregar, onRefresh } = useAvaliacoes();
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Avaliações</Text>
         <View style={{ width: 36 }} />
@@ -76,39 +81,41 @@ export function AvaliacoesScreen({ onBack }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-    gap: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933', flex: 1 },
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      backgroundColor: theme.surf,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+      gap: 12,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.text, flex: 1 },
 
-  centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  errBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
-  errTxt: { fontSize: 14, color: '#A32D2D', textAlign: 'center' },
-  errBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 99,
-    backgroundColor: ACCENT,
-    marginTop: 8,
-  },
-  errBtnTxt: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+    errBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
+    errTxt: { fontSize: 14, color: '#A32D2D', textAlign: 'center' },
+    errBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 99,
+      backgroundColor: ACCENT,
+      marginTop: 8,
+    },
+    errBtnTxt: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 
-  content: { padding: 16, paddingBottom: 40 },
-});
+    content: { padding: 16, paddingBottom: 40 },
+  });
+}

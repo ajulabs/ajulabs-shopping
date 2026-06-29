@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
 
 const ORANGE = '#F2760F';
 const NAVY = '#000933';
@@ -48,9 +51,9 @@ const COUNTRIES: Country[] = [
 ];
 
 function Flag({ code }: { code: string }) {
-  // Bandeira via CDN remoto. Se a imagem falhar (rede/CDN indisponível no
-  // celular), cai para um selo com a sigla do país em vez de ficar em branco.
   const [failed, setFailed] = useState(false);
+  const theme = useTheme();
+  const st = useMemo(() => makeStyles(theme), [theme]);
   if (failed) {
     return (
       <View style={st.flagFallback}>
@@ -99,6 +102,9 @@ export function PhoneInput({ value, onChange, onBlur, error }: PhoneInputProps) 
     const local = c.dial === '+55' ? formatBR(digits) : digits;
     onChange(local, `${c.dial}${digits}`);
   };
+
+  const theme = useTheme();
+  const st = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <>
@@ -155,59 +161,61 @@ export function PhoneInput({ value, onChange, onBlur, error }: PhoneInputProps) 
   );
 }
 
-const st = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: BORDER,
-    backgroundColor: BG,
-  },
-  containerError: { borderColor: '#E24B4A' },
-  prefix: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 13,
-  },
-  flag: { width: 26, height: 18, borderRadius: 2 },
-  flagFallback: {
-    width: 26,
-    height: 18,
-    borderRadius: 2,
-    backgroundColor: BORDER,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flagFallbackText: { fontSize: 9, fontWeight: '800', color: N600 },
-  dial: { fontSize: 13, fontWeight: '600', color: NAVY },
-  divider: { width: 1, height: 24, backgroundColor: BORDER },
-  input: { flex: 1, paddingHorizontal: 12, fontSize: 15, color: NAVY },
-  errorText: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: BORDER,
+      backgroundColor: BG,
+    },
+    containerError: { borderColor: '#E24B4A' },
+    prefix: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 13,
+    },
+    flag: { width: 26, height: 18, borderRadius: 2 },
+    flagFallback: {
+      width: 26,
+      height: 18,
+      borderRadius: 2,
+      backgroundColor: BORDER,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    flagFallbackText: { fontSize: 9, fontWeight: '800', color: N600 },
+    dial: { fontSize: 13, fontWeight: '600', color: NAVY },
+    divider: { width: 1, height: 24, backgroundColor: BORDER },
+    input: { flex: 1, paddingHorizontal: 12, fontSize: 15, color: NAVY },
+    errorText: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
 
-  modal: { flex: 1, backgroundColor: WHITE },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: NAVY },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  itemSelected: { backgroundColor: 'rgba(242,118,15,0.08)' },
-  itemName: { flex: 1, fontSize: 15, color: NAVY },
-  itemDial: { fontSize: 13, color: N600, fontWeight: '500' },
-});
+    modal: { flex: 1, backgroundColor: WHITE },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: BORDER,
+    },
+    modalTitle: { fontSize: 17, fontWeight: '700', color: NAVY },
+    item: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: BORDER,
+    },
+    itemSelected: { backgroundColor: 'rgba(242,118,15,0.08)' },
+    itemName: { flex: 1, fontSize: 15, color: NAVY },
+    itemDial: { fontSize: 13, color: N600, fontWeight: '500' },
+  });
+}

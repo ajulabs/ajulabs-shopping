@@ -14,6 +14,9 @@ import { EarningsChart } from './components/EarningsChart';
 import { DeliveryHistory } from './components/DeliveryHistory';
 
 import { brl } from '../../../../shared/lib/format';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
 
 export function EarningsScreen() {
   const {
@@ -35,6 +38,8 @@ export function EarningsScreen() {
     selectedDate,
   } = useEarnings();
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   if (loading) {
     return (
       <SafeAreaView style={[s.safeArea, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -96,55 +101,57 @@ export function EarningsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F6F7FB' },
-  scroll: { flex: 1 },
-  content: { paddingBottom: 32 },
-  header: {
-    padding: 16,
-    paddingTop: 18,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#000933' },
-  headerSub: { fontSize: 13, color: '#9099B3', marginTop: 2 },
-  heroCard: {
-    margin: 16,
-    padding: 18,
-    borderRadius: 18,
-    backgroundColor: '#000933',
-  },
-  heroTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  heroLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  heroAmount: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -1,
-    marginBottom: 16,
-  },
-  heroBtns: { flexDirection: 'row', gap: 10 },
-  heroBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#F2760F',
-  },
-  heroBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.bg },
+    scroll: { flex: 1 },
+    content: { paddingBottom: 32 },
+    header: {
+      padding: 16,
+      paddingTop: 18,
+      backgroundColor: theme.surf,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: { fontSize: 22, fontWeight: '800', color: theme.text },
+    headerSub: { fontSize: 13, color: theme.textMut, marginTop: 2 },
+    heroCard: {
+      margin: 16,
+      padding: 18,
+      borderRadius: 18,
+      backgroundColor: theme.isDark ? '#1C2348' : '#000933',
+    },
+    heroTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    heroLabel: {
+      fontSize: 12,
+      color: 'rgba(255,255,255,0.8)',
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    heroAmount: {
+      fontSize: 40,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: -1,
+      marginBottom: 16,
+    },
+    heroBtns: { flexDirection: 'row', gap: 10 },
+    heroBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: '#F2760F',
+    },
+    heroBtnText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  });
+}

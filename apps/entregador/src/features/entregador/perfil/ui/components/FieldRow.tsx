@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function FieldRow({
   label,
@@ -15,6 +18,8 @@ export function FieldRow({
   keyboard?: any;
 }) {
   const [focused, setFocused] = useState(false);
+  const theme = useTheme();
+  const sr = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View
       style={{
@@ -29,7 +34,7 @@ export function FieldRow({
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#9099B3"
+        placeholderTextColor={theme.textMut}
         keyboardType={keyboard}
         style={[sr.input, focused && sr.inputFocused]}
         onFocus={() => setFocused(true)}
@@ -39,16 +44,18 @@ export function FieldRow({
   );
 }
 
-const sr = StyleSheet.create({
-  label: { width: 70, fontSize: 13, fontWeight: '600', color: '#9099B3' },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: '#000933',
-    textAlign: 'right',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  inputFocused: { backgroundColor: 'rgba(242,118,15,0.06)' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    label: { width: 70, fontSize: 13, fontWeight: '600', color: theme.textMut },
+    input: {
+      flex: 1,
+      fontSize: 14,
+      color: theme.text,
+      textAlign: 'right',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+    },
+    inputFocused: { backgroundColor: 'rgba(242,118,15,0.06)' },
+  });
+}

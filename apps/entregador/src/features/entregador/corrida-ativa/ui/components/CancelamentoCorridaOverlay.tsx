@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MotivoCancelamento } from './CancelCorridaModal';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 const MOTIVO_LABELS: Record<MotivoCancelamento, string> = {
   area_risco: 'Área de risco',
@@ -42,6 +45,8 @@ export function CancelamentoCorridaOverlay({ visible, motivo, onClose }: Props) 
     ]).start();
   }, [visible, cardOpacity, cardScale, iconScale]);
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={s.backdrop}>
@@ -73,73 +78,75 @@ export function CancelamentoCorridaOverlay({ visible, motivo, onClose }: Props) 
   );
 }
 
-const s = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,9,51,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    padding: 26,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
-    elevation: 14,
-  },
-  iconWrap: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#9B1C1C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#9B1C1C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  title: { fontSize: 20, fontWeight: '800', color: '#000933', textAlign: 'center' },
-  subtitle: {
-    fontSize: 13,
-    color: '#6B7390',
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 19,
-  },
-  motivoBox: {
-    width: '100%',
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  motivoLabel: {
-    fontSize: 10,
-    color: '#9B1C1C',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  motivoValue: { fontSize: 14, fontWeight: '700', color: '#000933', marginTop: 4 },
-  btn: {
-    marginTop: 20,
-    backgroundColor: '#F2760F',
-    borderRadius: 12,
-    paddingVertical: 14,
-    width: '100%',
-    alignItems: 'center',
-  },
-  btnTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,9,51,0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+    card: {
+      width: '100%',
+      backgroundColor: theme.surf,
+      borderRadius: 22,
+      padding: 26,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.25,
+      shadowRadius: 30,
+      elevation: 14,
+    },
+    iconWrap: {
+      width: 84,
+      height: 84,
+      borderRadius: 42,
+      backgroundColor: '#9B1C1C',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      shadowColor: '#9B1C1C',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.45,
+      shadowRadius: 18,
+      elevation: 10,
+    },
+    title: { fontSize: 20, fontWeight: '800', color: theme.text, textAlign: 'center' },
+    subtitle: {
+      fontSize: 13,
+      color: theme.textSec,
+      textAlign: 'center',
+      marginTop: 6,
+      lineHeight: 19,
+    },
+    motivoBox: {
+      width: '100%',
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: '#FEF2F2',
+      borderWidth: 1,
+      borderColor: '#FCA5A5',
+    },
+    motivoLabel: {
+      fontSize: 10,
+      color: '#9B1C1C',
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    motivoValue: { fontSize: 14, fontWeight: '700', color: theme.text, marginTop: 4 },
+    btn: {
+      marginTop: 20,
+      backgroundColor: '#F2760F',
+      borderRadius: 12,
+      paddingVertical: 14,
+      width: '100%',
+      alignItems: 'center',
+    },
+    btnTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  });
+}

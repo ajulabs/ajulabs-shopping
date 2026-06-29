@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { useAuthEntregadorStore } from '../src/store';
+import { StatusBar } from 'expo-status-bar';
+import { useAuthEntregadorStore, useThemeStore } from '../src/store';
 import { usePushRegistrationEntregador } from '../src/shared/hooks';
 import { setupNotificationChannels } from '../src/shared/lib/notificationChannels';
 import { SplashEntregador } from '../src/features/entregador/splash';
@@ -9,6 +10,7 @@ import { SplashEntregador } from '../src/features/entregador/splash';
 export default function RootLayout() {
   const router = useRouter();
   const isLoggedIn = useAuthEntregadorStore((s) => s.isLoggedIn);
+  const isDark = useThemeStore((s) => s.isDark);
   const hasHydrated = useAuthEntregadorStore((s) => s.hasHydrated);
   const refreshAccessToken = useAuthEntregadorStore((s) => s.refreshAccessToken);
   const segments = useSegments();
@@ -52,6 +54,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {isLoggedIn && showSplash ? (
         <SplashEntregador onDone={() => setShowSplash(false)} />
       ) : (

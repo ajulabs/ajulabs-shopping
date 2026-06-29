@@ -1,6 +1,9 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 import { brl } from '../../../../../shared/lib/format';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 interface EarningsChartProps {
   SALES_7D: number[];
@@ -27,6 +30,8 @@ export function EarningsChart({
   selectedCorridas,
   selectedValue,
 }: EarningsChartProps) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={s.card}>
       <View style={s.cardHeader}>
@@ -90,40 +95,42 @@ export function EarningsChart({
   );
 }
 
-const s = StyleSheet.create({
-  card: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 16,
-  },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  chartTotal: { fontSize: 16, fontWeight: '700', color: '#F2760F' },
-  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 130 },
-  chartCol: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  chartBarVal: { fontSize: 10, color: '#9099B3', fontWeight: '600', marginBottom: 4 },
-  chartBarTrack: { flex: 1, width: '100%', justifyContent: 'flex-end' },
-  chartBar: { width: '100%', borderRadius: 6, minHeight: 4 },
-  chartDay: { fontSize: 10, marginTop: 6 },
-  chartSelDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#F2760F', marginTop: 3 },
-  dayDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#E4E7F1',
-  },
-  dayDetailLabel: { fontSize: 13, fontWeight: '700', color: '#000933' },
-  dayDetailSub: { fontSize: 11, color: '#9099B3', marginTop: 2 },
-  dayDetailAmount: { fontSize: 18, fontWeight: '800' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    card: {
+      marginHorizontal: 16,
+      marginBottom: 12,
+      padding: 16,
+      backgroundColor: theme.surf,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      marginBottom: 16,
+    },
+    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    chartTotal: { fontSize: 16, fontWeight: '700', color: '#F2760F' },
+    chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 130 },
+    chartCol: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
+    chartBarVal: { fontSize: 10, color: theme.textMut, fontWeight: '600', marginBottom: 4 },
+    chartBarTrack: { flex: 1, width: '100%', justifyContent: 'flex-end' },
+    chartBar: { width: '100%', borderRadius: 6, minHeight: 4 },
+    chartDay: { fontSize: 10, marginTop: 6 },
+    chartSelDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#F2760F', marginTop: 3 },
+    dayDetail: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 14,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    dayDetailLabel: { fontSize: 13, fontWeight: '700', color: theme.text },
+    dayDetailSub: { fontSize: 11, color: theme.textMut, marginTop: 2 },
+    dayDetailAmount: { fontSize: 18, fontWeight: '800' },
+  });
+}

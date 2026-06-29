@@ -7,6 +7,9 @@ import { StepProps, PIX_TIPOS, BANCOS } from '../../model/constants';
 import { formatTel } from '../../model/format';
 import { Input } from './Input';
 import { Field } from './Field';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function StepBancario({ data, up, erros }: StepProps & { erros: Record<string, string> }) {
   const [bancoModal, setBancoModal] = useState(false);
@@ -27,6 +30,8 @@ export function StepBancario({ data, up, erros }: StepProps & { erros: Record<st
 
   const bancoSelecionado = BANCOS.find((b) => data.banco === `${b.codigo} - ${b.nome}`);
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View>
       <View style={s.pixHint}>
@@ -84,7 +89,7 @@ export function StepBancario({ data, up, erros }: StepProps & { erros: Record<st
           ) : (
             <Text style={s.bankSelectorPlaceholder}>Selecione um banco</Text>
           )}
-          <Ionicons name="chevron-down" size={16} color="#9099B3" />
+          <Ionicons name="chevron-down" size={16} color={theme.textMut} />
         </TouchableOpacity>
       </Field>
 
@@ -111,7 +116,7 @@ export function StepBancario({ data, up, erros }: StepProps & { erros: Record<st
       </View>
 
       <Modal visible={bancoModal} animationType="slide" onRequestClose={() => setBancoModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.surf }}>
           <View style={s.bankModalHeader}>
             <TouchableOpacity
               onPress={() => {
@@ -120,23 +125,23 @@ export function StepBancario({ data, up, erros }: StepProps & { erros: Record<st
               }}
               style={s.bankModalClose}
             >
-              <Ionicons name="close" size={22} color="#000933" />
+              <Ionicons name="close" size={22} color={theme.text} />
             </TouchableOpacity>
             <Text style={s.bankModalTitle}>Selecionar banco</Text>
           </View>
           <View style={s.bankSearchBox}>
-            <Ionicons name="search" size={16} color="#9099B3" />
+            <Ionicons name="search" size={16} color={theme.textMut} />
             <TextInput
               value={busca}
               onChangeText={setBusca}
               placeholder="Buscar por nome ou código..."
-              placeholderTextColor="#9099B3"
+              placeholderTextColor={theme.textMut}
               style={s.bankSearchInput}
               autoFocus
             />
             {busca.length > 0 && (
               <TouchableOpacity onPress={() => setBusca('')} hitSlop={10}>
-                <Ionicons name="close-circle" size={16} color="#9099B3" />
+                <Ionicons name="close-circle" size={16} color={theme.textMut} />
               </TouchableOpacity>
             )}
           </View>
@@ -169,7 +174,7 @@ export function StepBancario({ data, up, erros }: StepProps & { erros: Record<st
               );
             }}
             ItemSeparatorComponent={() => (
-              <View style={{ height: 1, backgroundColor: '#F0F1F5', marginLeft: 66 }} />
+              <View style={{ height: 1, backgroundColor: theme.surf2, marginLeft: 66 }} />
             )}
           />
         </SafeAreaView>
@@ -178,96 +183,98 @@ export function StepBancario({ data, up, erros }: StepProps & { erros: Record<st
   );
 }
 
-const s = StyleSheet.create({
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: '#2A3156', marginBottom: 6 },
-  pixHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    backgroundColor: 'rgba(57,255,137,0.15)',
-    borderRadius: 12,
-    marginBottom: 18,
-  },
-  pixHintTitle: { fontSize: 13, fontWeight: '700', color: '#046C2E' },
-  pixHintSub: { fontSize: 11, color: '#046C2E', opacity: 0.85 },
-  orLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9099B3',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 10,
-    marginTop: 6,
-  },
-  pixTipos: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  pixTipoBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 99,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  pixTipoBtnActive: { borderColor: '#F2760F', backgroundColor: 'rgba(242,118,15,0.08)' },
-  pixTipoText: { fontSize: 13, fontWeight: '600', color: '#9099B3' },
-  pixTipoTextActive: { color: '#F2760F' },
-  bankSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  bankSelectorValue: { flex: 1, fontSize: 15, color: '#000933', fontWeight: '500' },
-  bankSelectorPlaceholder: { flex: 1, fontSize: 15, color: '#9099B3' },
-  bankCodigoBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#E4E7F1',
-  },
-  bankCodigoBadgeText: { fontSize: 11, fontWeight: '700', color: '#2A3156' },
-  bankModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  bankModalClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bankModalTitle: { fontSize: 17, fontWeight: '700', color: '#000933' },
-  bankSearchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    margin: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  bankSearchInput: { flex: 1, fontSize: 15, color: '#000933' },
-  bankItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  bankItemActive: { backgroundColor: 'rgba(242,118,15,0.05)' },
-  bankItemNome: { flex: 1, fontSize: 14, color: '#000933', fontWeight: '500' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    fieldLabel: { fontSize: 12, fontWeight: '600', color: theme.text, marginBottom: 6 },
+    pixHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      backgroundColor: 'rgba(57,255,137,0.15)',
+      borderRadius: 12,
+      marginBottom: 18,
+    },
+    pixHintTitle: { fontSize: 13, fontWeight: '700', color: '#046C2E' },
+    pixHintSub: { fontSize: 11, color: '#046C2E', opacity: 0.85 },
+    orLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.textMut,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginBottom: 10,
+      marginTop: 6,
+    },
+    pixTipos: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+    pixTipoBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 99,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
+    },
+    pixTipoBtnActive: { borderColor: '#F2760F', backgroundColor: 'rgba(242,118,15,0.08)' },
+    pixTipoText: { fontSize: 13, fontWeight: '600', color: theme.textMut },
+    pixTipoTextActive: { color: '#F2760F' },
+    bankSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
+    },
+    bankSelectorValue: { flex: 1, fontSize: 15, color: theme.text, fontWeight: '500' },
+    bankSelectorPlaceholder: { flex: 1, fontSize: 15, color: theme.textMut },
+    bankCodigoBadge: {
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 6,
+      backgroundColor: theme.border,
+    },
+    bankCodigoBadgeText: { fontSize: 11, fontWeight: '700', color: theme.text },
+    bankModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    bankModalClose: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bankModalTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
+    bankSearchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      margin: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
+    },
+    bankSearchInput: { flex: 1, fontSize: 15, color: theme.text },
+    bankItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    bankItemActive: { backgroundColor: 'rgba(242,118,15,0.05)' },
+    bankItemNome: { flex: 1, fontSize: 14, color: theme.text, fontWeight: '500' },
+  });
+}

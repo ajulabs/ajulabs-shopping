@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 interface Props {
   icon: string;
@@ -23,6 +26,8 @@ export function StageCard({
   codigoEntrega,
   logoUrl,
 }: Props) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View>
       <View style={s.row}>
@@ -55,38 +60,40 @@ export function StageCard({
   );
 }
 
-const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImg: { width: 44, height: 44, borderRadius: 12 },
-  primary: { fontSize: 15, fontWeight: '600', color: '#000933', lineHeight: 20 },
-  secondary: { fontSize: 12, color: '#9099B3', marginTop: 2 },
-  codeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF0E3',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  codeLabel: { fontSize: 12, color: '#9099B3', fontWeight: '600', flex: 1 },
-  codeValue: { fontSize: 18, fontWeight: '800', color: '#000933', letterSpacing: 6 },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#F2760F',
-    borderRadius: 12,
-    paddingVertical: 16,
-  },
-  ctaTxt: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    iconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    logoImg: { width: 44, height: 44, borderRadius: 12 },
+    primary: { fontSize: 15, fontWeight: '600', color: theme.text, lineHeight: 20 },
+    secondary: { fontSize: 12, color: theme.textMut, marginTop: 2 },
+    codeBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#FEF0E3',
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 10,
+    },
+    codeLabel: { fontSize: 12, color: theme.textMut, fontWeight: '600', flex: 1 },
+    codeValue: { fontSize: 18, fontWeight: '800', color: theme.text, letterSpacing: 6 },
+    cta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#F2760F',
+      borderRadius: 12,
+      paddingVertical: 16,
+    },
+    ctaTxt: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  });
+}

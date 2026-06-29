@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Tab } from '../../model/useCourierShell';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function CourierNav({
   tab,
@@ -13,6 +14,7 @@ export function CourierNav({
   activeCount: number;
 }) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const items = [
     { id: 'home' as Tab, icon: 'map', label: 'Corridas' },
     { id: 'entregas' as Tab, icon: 'bicycle', label: 'Entregas' },
@@ -21,7 +23,16 @@ export function CourierNav({
   ] as const;
 
   return (
-    <View style={[nav.bar, { paddingBottom: insets.bottom + 10 }]}>
+    <View
+      style={[
+        nav.bar,
+        {
+          backgroundColor: theme.surf,
+          borderTopColor: theme.border,
+          paddingBottom: insets.bottom + 10,
+        },
+      ]}
+    >
       {items.map((it) => {
         const active = tab === it.id;
         const showBadge = it.id === 'entregas' && activeCount > 0;
@@ -36,7 +47,7 @@ export function CourierNav({
               <Ionicons
                 name={active ? (it.icon as any) : (`${it.icon}-outline` as any)}
                 size={22}
-                color={active ? '#F2760F' : '#9099B3'}
+                color={active ? '#F2760F' : theme.textMut}
               />
               {showBadge && (
                 <View style={nav.badge}>
@@ -44,7 +55,13 @@ export function CourierNav({
                 </View>
               )}
             </View>
-            <Text style={[nav.label, active && { color: '#F2760F', fontWeight: '600' }]}>
+            <Text
+              style={[
+                nav.label,
+                { color: theme.textMut },
+                active && { color: '#F2760F', fontWeight: '600' },
+              ]}
+            >
               {it.label}
             </Text>
           </TouchableOpacity>

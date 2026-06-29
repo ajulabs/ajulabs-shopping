@@ -1,4 +1,7 @@
 import React from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,11 +25,13 @@ export function DocumentosScreen({ onBack }: Props) {
   const { loading, preview, setPreview, docIdentidade, statusId, docVeiculo, statusVei } =
     useDocumentos();
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Meus documentos</Text>
       </View>
@@ -145,76 +150,78 @@ export function DocumentosScreen({ onBack }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933' },
-  content: { padding: 16, paddingBottom: 48 },
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      backgroundColor: theme.surf,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+    content: { padding: 16, paddingBottom: 48 },
 
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 20,
-  },
-  bannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  bannerSub: { fontSize: 12, color: '#5A6480', lineHeight: 17 },
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: 14,
+      borderRadius: 14,
+      marginBottom: 20,
+    },
+    bannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+    bannerSub: { fontSize: 12, color: '#5A6480', lineHeight: 17 },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9099B3',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    marginBottom: 10,
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    overflow: 'hidden',
-  },
-  cardDivider: { height: 1, backgroundColor: '#E4E7F1', marginHorizontal: 16 },
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textMut,
+      textTransform: 'uppercase',
+      letterSpacing: 0.7,
+      marginBottom: 10,
+    },
+    section: {
+      backgroundColor: theme.surf,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+    },
+    cardDivider: { height: 1, backgroundColor: theme.border, marginHorizontal: 16 },
 
-  emptyBox: { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#000933' },
-  emptyText: { fontSize: 13, color: '#9099B3', textAlign: 'center' },
+    emptyBox: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+    emptyTitle: { fontSize: 16, fontWeight: '700', color: theme.text },
+    emptyText: { fontSize: 13, color: theme.textMut, textAlign: 'center' },
 
-  previewModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewClose: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewImage: { width: '90%', height: '70%' },
-});
+    previewModal: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.92)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    previewClose: {
+      position: 'absolute',
+      top: 50,
+      right: 20,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    previewImage: { width: '90%', height: '70%' },
+  });
+}
