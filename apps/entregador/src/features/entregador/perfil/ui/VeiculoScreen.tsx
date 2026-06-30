@@ -1,4 +1,7 @@
 import React from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -47,6 +50,8 @@ export function VeiculoScreen({ onBack }: Props) {
     pickImage,
     handleSubmit,
   } = useVeiculo(onBack);
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
 
   if (loading) {
     return (
@@ -97,7 +102,7 @@ export function VeiculoScreen({ onBack }: Props) {
                 ]}
               >
                 <VehicleIcon tipo={currentTipo} size={32} color="#9099B3" />
-                <Text style={{ fontSize: 13, color: '#9099B3', textAlign: 'center' }}>
+                <Text style={{ fontSize: 13, color: theme.textMut, textAlign: 'center' }}>
                   Nenhum veículo cadastrado
                 </Text>
               </View>
@@ -177,13 +182,13 @@ export function VeiculoScreen({ onBack }: Props) {
                       <MaterialCommunityIcons
                         name={t.icon as any}
                         size={22}
-                        color={ativo ? '#F2760F' : '#9099B3'}
+                        color={ativo ? '#F2760F' : theme.textMut}
                       />
                     ) : (
                       <Ionicons
                         name={t.icon as any}
                         size={22}
-                        color={ativo ? '#F2760F' : '#9099B3'}
+                        color={ativo ? '#F2760F' : theme.textMut}
                       />
                     )}
                     <Text style={[s.tipoBtnText, ativo && s.tipoBtnTextActive]}>{t.label}</Text>
@@ -284,122 +289,124 @@ export function VeiculoScreen({ onBack }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  content: { padding: 16, paddingBottom: 48 },
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: 16, paddingBottom: 48 },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9099B3',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    marginBottom: 10,
-    marginTop: 6,
-  },
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textMut,
+      textTransform: 'uppercase',
+      letterSpacing: 0.7,
+      marginBottom: 10,
+      marginTop: 6,
+    },
 
-  vehicleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    padding: 16,
-  },
-  vehicleIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: 'rgba(242,118,15,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vehicleModel: { fontSize: 16, fontWeight: '700', color: '#000933' },
-  vehiclePlate: { fontSize: 13, color: '#F2760F', fontWeight: '600', marginTop: 2 },
-  vehicleMeta: { fontSize: 12, color: '#9099B3', marginTop: 2 },
-  activeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 99,
-    backgroundColor: 'rgba(3,152,85,0.1)',
-  },
-  activeBadgeText: { fontSize: 11, fontWeight: '700', color: '#039855' },
+    vehicleCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: theme.surf,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 16,
+    },
+    vehicleIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: 'rgba(242,118,15,0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    vehicleModel: { fontSize: 16, fontWeight: '700', color: theme.text },
+    vehiclePlate: { fontSize: 13, color: '#F2760F', fontWeight: '600', marginTop: 2 },
+    vehicleMeta: { fontSize: 12, color: theme.textMut, marginTop: 2 },
+    activeBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 99,
+      backgroundColor: 'rgba(3,152,85,0.1)',
+    },
+    activeBadgeText: { fontSize: 11, fontWeight: '700', color: '#039855' },
 
-  pendingCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(242,118,15,0.3)',
-    padding: 16,
-    marginTop: 6,
-  },
-  pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  pendingTitle: { fontSize: 14, fontWeight: '700', color: '#F2760F' },
-  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  pendingModel: { fontSize: 14, fontWeight: '600', color: '#000933', flex: 1 },
-  pendingPlate: { fontSize: 13, color: '#9099B3', fontWeight: '500' },
-  pendingInfo: { fontSize: 12, color: '#9099B3', lineHeight: 18 },
-  pendingNote: { fontSize: 11, color: '#9099B3', textAlign: 'center', marginTop: 10 },
+    pendingCard: {
+      backgroundColor: theme.surf,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: 'rgba(242,118,15,0.3)',
+      padding: 16,
+      marginTop: 6,
+    },
+    pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    pendingTitle: { fontSize: 14, fontWeight: '700', color: '#F2760F' },
+    pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    pendingModel: { fontSize: 14, fontWeight: '600', color: theme.text, flex: 1 },
+    pendingPlate: { fontSize: 13, color: theme.textMut, fontWeight: '500' },
+    pendingInfo: { fontSize: 12, color: theme.textMut, lineHeight: 18 },
+    pendingNote: { fontSize: 11, color: theme.textMut, textAlign: 'center', marginTop: 10 },
 
-  requestBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 16,
-    padding: 15,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(242,118,15,0.4)',
-    backgroundColor: 'rgba(242,118,15,0.06)',
-  },
-  requestBtnText: { fontSize: 14, fontWeight: '700', color: '#F2760F' },
+    requestBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 16,
+      padding: 15,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: 'rgba(242,118,15,0.4)',
+      backgroundColor: 'rgba(242,118,15,0.06)',
+    },
+    requestBtnText: { fontSize: 14, fontWeight: '700', color: '#F2760F' },
 
-  tipoRow: { flexDirection: 'row', gap: 10 },
-  tipoBtn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#FFFFFF',
-  },
-  tipoBtnActive: { borderColor: '#F2760F', backgroundColor: 'rgba(242,118,15,0.06)' },
-  tipoBtnText: { fontSize: 12, fontWeight: '600', color: '#9099B3' },
-  tipoBtnTextActive: { color: '#F2760F' },
+    tipoRow: { flexDirection: 'row', gap: 10 },
+    tipoBtn: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.surf,
+    },
+    tipoBtnActive: { borderColor: '#F2760F', backgroundColor: 'rgba(242,118,15,0.06)' },
+    tipoBtnText: { fontSize: 12, fontWeight: '600', color: theme.textMut },
+    tipoBtnTextActive: { color: '#F2760F' },
 
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  divider: { height: 1, backgroundColor: '#E4E7F1', marginHorizontal: 14 },
+    card: {
+      backgroundColor: theme.surf,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+      marginTop: 6,
+    },
+    divider: { height: 1, backgroundColor: theme.border, marginHorizontal: 14 },
 
-  docsHint: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: 12,
-    backgroundColor: 'rgba(32,156,239,0.08)',
-    borderRadius: 12,
-    marginTop: 6,
-    marginBottom: 10,
-  },
-  docsHintText: { flex: 1, fontSize: 12, color: '#209CEF', lineHeight: 18 },
+    docsHint: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      padding: 12,
+      backgroundColor: 'rgba(32,156,239,0.08)',
+      borderRadius: 12,
+      marginTop: 6,
+      marginBottom: 10,
+    },
+    docsHintText: { flex: 1, fontSize: 12, color: '#209CEF', lineHeight: 18 },
 
-  submitBtn: {
-    backgroundColor: '#F2760F',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  submitBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-});
+    submitBtn: {
+      backgroundColor: '#F2760F',
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    submitBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  });
+}

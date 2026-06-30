@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
 
 interface ProfileHeroProps {
   loading: boolean;
@@ -28,8 +29,9 @@ export function ProfileHero({
   onTrocarFoto,
   onExpandPhoto,
 }: ProfileHeroProps) {
+  const theme = useTheme();
   return (
-    <View style={s.hero}>
+    <View style={[s.hero, theme.isDark && { backgroundColor: '#1C2348' }]}>
       <View style={s.heroRow}>
         <TouchableOpacity
           style={s.avatar}

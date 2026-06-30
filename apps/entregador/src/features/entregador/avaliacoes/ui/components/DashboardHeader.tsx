@@ -3,9 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { type DashboardAvaliacoes } from '@ajulabs/types';
 import { ACCENT } from '../../model/useAvaliacoes';
 import { StarRow } from './StarRow';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function DashboardHeader({ data }: { data: DashboardAvaliacoes }) {
   const maxBar = Math.max(...Object.values(data.distribuicao));
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={s.headerCard}>
       <View style={s.headerCardTop}>
@@ -37,27 +42,29 @@ export function DashboardHeader({ data }: { data: DashboardAvaliacoes }) {
   );
 }
 
-const s = StyleSheet.create({
-  headerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    marginBottom: 16,
-  },
-  headerCardTop: { flexDirection: 'row', gap: 20, alignItems: 'center' },
-  mediaNum: { fontSize: 40, fontWeight: '800', lineHeight: 44, color: ACCENT },
-  totalText: { fontSize: 11, color: '#9099B3', marginTop: 4 },
-  barRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  barNota: { fontSize: 11, color: '#9099B3', width: 10, textAlign: 'right' },
-  barTrack: {
-    flex: 1,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#F0F1F5',
-    overflow: 'hidden',
-  },
-  barFill: { height: 7, borderRadius: 4, backgroundColor: ACCENT },
-  barCount: { fontSize: 10, color: '#9099B3', width: 22, textAlign: 'right' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    headerCard: {
+      backgroundColor: theme.surf,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginBottom: 16,
+    },
+    headerCardTop: { flexDirection: 'row', gap: 20, alignItems: 'center' },
+    mediaNum: { fontSize: 40, fontWeight: '800', lineHeight: 44, color: ACCENT },
+    totalText: { fontSize: 11, color: theme.textMut, marginTop: 4 },
+    barRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    barNota: { fontSize: 11, color: theme.textMut, width: 10, textAlign: 'right' },
+    barTrack: {
+      flex: 1,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: theme.surf2,
+      overflow: 'hidden',
+    },
+    barFill: { height: 7, borderRadius: 4, backgroundColor: ACCENT },
+    barCount: { fontSize: 10, color: theme.textMut, width: 22, textAlign: 'right' },
+  });
+}

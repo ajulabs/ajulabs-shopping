@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function PlainInput({
   value,
@@ -21,13 +24,15 @@ export function PlainInput({
   hasError?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={[s.input, focused && s.inputFocused, hasError && s.inputError]}>
       <TextInput
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#9099B3"
+        placeholderTextColor={theme.textMut}
         keyboardType={keyboard}
         maxLength={maxLength}
         autoCapitalize={autoCapitalize}
@@ -40,18 +45,20 @@ export function PlainInput({
   );
 }
 
-const s = StyleSheet.create({
-  input: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-    backgroundColor: '#F6F7FB',
-  },
-  inputInner: { flex: 1, fontSize: 15, color: '#000933' },
-  inputFocused: { borderColor: '#F2760F' },
-  inputError: { borderColor: '#E14B3C', backgroundColor: '#FFF5F5' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    input: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.bg,
+    },
+    inputInner: { flex: 1, fontSize: 15, color: theme.text },
+    inputFocused: { borderColor: '#F2760F' },
+    inputError: { borderColor: '#E14B3C', backgroundColor: '#FFF5F5' },
+  });
+}

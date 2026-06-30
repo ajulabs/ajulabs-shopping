@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, Modal, Alert } from 'react-native';
+import { useTheme } from '../../../../../shared/hooks';
 
 export function PixModal({
   visible,
@@ -9,12 +10,13 @@ export function PixModal({
   ganho: number;
   onClose: () => void;
 }) {
+  const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,9,51,0.6)', justifyContent: 'flex-end' }}>
         <View
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: theme.surf,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             padding: 28,
@@ -26,15 +28,15 @@ export function PixModal({
               width: 36,
               height: 4,
               borderRadius: 2,
-              backgroundColor: '#E4E7F1',
+              backgroundColor: theme.border,
               alignSelf: 'center',
               marginBottom: 20,
             }}
           />
-          <Text style={{ fontSize: 20, fontWeight: '700', color: '#000933', marginBottom: 6 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 6 }}>
             Sacar via Pix
           </Text>
-          <Text style={{ fontSize: 13, color: '#9099B3', marginBottom: 20, lineHeight: 19 }}>
+          <Text style={{ fontSize: 13, color: theme.textMut, marginBottom: 20, lineHeight: 19 }}>
             O valor disponível para saque será transferido para a chave Pix cadastrada nos seus
             dados bancários.
           </Text>
@@ -50,7 +52,7 @@ export function PixModal({
             <Text
               style={{
                 fontSize: 12,
-                color: '#9099B3',
+                color: theme.textMut,
                 fontWeight: '600',
                 textTransform: 'uppercase',
                 letterSpacing: 0.5,
@@ -90,14 +92,14 @@ export function PixModal({
               height: 44,
               borderRadius: 12,
               borderWidth: 1.5,
-              borderColor: '#E4E7F1',
+              borderColor: theme.border,
               alignItems: 'center',
               justifyContent: 'center',
             }}
             onPress={onClose}
             activeOpacity={0.8}
           >
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#9099B3' }}>Cancelar</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.textMut }}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       </View>

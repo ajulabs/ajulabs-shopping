@@ -2,8 +2,13 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { brl } from '../../../../../shared/lib/format';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function DeliveryHistory({ entregas }: { entregas: any[] }) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <>
       <View style={s.sectionHeader}>
@@ -12,7 +17,7 @@ export function DeliveryHistory({ entregas }: { entregas: any[] }) {
 
       {entregas.length === 0 ? (
         <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-          <Text style={{ fontSize: 13, color: '#9099B3' }}>Nenhuma entrega ainda</Text>
+          <Text style={{ fontSize: 13, color: theme.textMut }}>Nenhuma entrega ainda</Text>
         </View>
       ) : (
         entregas.slice(0, 10).map((e: any) => {
@@ -47,36 +52,38 @@ export function DeliveryHistory({ entregas }: { entregas: any[] }) {
   );
 }
 
-const s = StyleSheet.create({
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 10,
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  historyIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  historyTrajeto: { fontSize: 13, fontWeight: '600', color: '#000933' },
-  historyData: { fontSize: 11, color: '#9099B3' },
-  historyValor: { fontSize: 14, fontWeight: '700', color: '#000933' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginTop: 8,
+      marginBottom: 10,
+    },
+    sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    historyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginBottom: 10,
+      padding: 12,
+      backgroundColor: theme.surf,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    historyIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      backgroundColor: theme.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    historyTrajeto: { fontSize: 13, fontWeight: '600', color: theme.text },
+    historyData: { fontSize: 11, color: theme.textMut },
+    historyValor: { fontSize: 14, fontWeight: '700', color: theme.text },
+  });
+}

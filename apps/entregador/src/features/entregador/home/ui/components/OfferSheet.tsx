@@ -1,9 +1,12 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { haversine } from '@ajulabs/maps';
 import type { Ride } from '../../../../../entities/corrida';
 
 import { brl, fmtKm } from '../../../../../shared/lib/format';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function OfferSheet({
   ride,
@@ -24,17 +27,15 @@ export function OfferSheet({
 }) {
   const expirado = countdown <= 0;
   const pct = expirado ? 100 : (countdown / 15) * 100;
-  // Distância do entregador até a loja (coleta) e da loja até o cliente (entrega).
-  // Em km; null enquanto as coordenadas ainda estão sendo resolvidas/geocodificadas.
   const pickupKm = userLocation && lojaCoords ? haversine(userLocation, lojaCoords) / 1000 : null;
   const deliveryKm =
     lojaCoords && clienteCoords ? haversine(lojaCoords, clienteCoords) / 1000 : null;
-  // Total exibido: soma dos dois trechos quando ambos conhecidos; senão usa o que
-  // houver (entrega calculada ou a distância vinda do backend).
   const totalKm =
     pickupKm != null && deliveryKm != null
       ? pickupKm + deliveryKm
       : (deliveryKm ?? (ride.distancia > 0 ? ride.distancia : null));
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={s.offerSheet}>
       <View style={s.timerTrack}>
@@ -142,149 +143,156 @@ export function OfferSheet({
   );
 }
 
-const s = StyleSheet.create({
-  offerSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 40,
-    elevation: 20,
-    paddingBottom: 8,
-    zIndex: 20,
-  },
-  timerTrack: {
-    height: 4,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: '#E4E7F1',
-    overflow: 'hidden',
-  },
-  timerBar: { height: '100%' },
-  offerContent: { padding: 20, paddingTop: 16 },
-  offerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  offerTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FEF0E3',
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 99,
-  },
-  offerTagText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#F2760F',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  countPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#000933',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 99,
-    minWidth: 58,
-    justifyContent: 'center',
-  },
-  countPillExpired: { backgroundColor: '#E6F7ED' },
-  countDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#39FF89' },
-  countPillText: { fontSize: 12.5, fontWeight: '800', color: '#FFFFFF' },
-  countPillTextExpired: { fontSize: 12.5, fontWeight: '800', color: '#046C2E' },
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    offerSheet: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.surf,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -12 },
+      shadowOpacity: 0.4,
+      shadowRadius: 40,
+      elevation: 20,
+      paddingBottom: 8,
+      zIndex: 20,
+    },
+    timerTrack: {
+      height: 4,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      backgroundColor: theme.border,
+      overflow: 'hidden',
+    },
+    timerBar: { height: '100%' },
+    offerContent: { padding: 20, paddingTop: 16 },
+    offerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    offerTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: '#FEF0E3',
+      paddingHorizontal: 11,
+      paddingVertical: 5,
+      borderRadius: 99,
+    },
+    offerTagText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: '#F2760F',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    countPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#000933',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 99,
+      minWidth: 58,
+      justifyContent: 'center',
+    },
+    countPillExpired: { backgroundColor: '#E6F7ED' },
+    countDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#39FF89' },
+    countPillText: { fontSize: 12.5, fontWeight: '800', color: '#FFFFFF' },
+    countPillTextExpired: { fontSize: 12.5, fontWeight: '800', color: '#046C2E' },
 
-  valueLabel: { fontSize: 12.5, fontWeight: '600', color: '#9099B3', textAlign: 'center' },
-  valueAmount: {
-    fontSize: 46,
-    fontWeight: '900',
-    color: '#000933',
-    textAlign: 'center',
-    letterSpacing: -1.2,
-    marginTop: 2,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 14,
-    marginBottom: 20,
-  },
-  statPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F6F7FB',
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 99,
-  },
-  statPillText: { fontSize: 13, fontWeight: '700', color: '#5A6079' },
+    valueLabel: { fontSize: 12.5, fontWeight: '600', color: theme.textMut, textAlign: 'center' },
+    valueAmount: {
+      fontSize: 46,
+      fontWeight: '900',
+      color: theme.text,
+      textAlign: 'center',
+      letterSpacing: -1.2,
+      marginTop: 2,
+    },
+    statRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 14,
+      marginBottom: 20,
+    },
+    statPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: theme.surf2,
+      paddingHorizontal: 13,
+      paddingVertical: 8,
+      borderRadius: 99,
+    },
+    statPillText: { fontSize: 13, fontWeight: '700', color: theme.textSec },
 
-  routeCard: { backgroundColor: '#F8F9FC', borderRadius: 16, padding: 16, marginBottom: 18 },
-  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  routeLogo: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFFFFF' },
-  routeLogoFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  dropPin: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#209CEF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  routeConnector: {
-    width: 2,
-    height: 18,
-    backgroundColor: '#D7DBEA',
-    marginLeft: 21,
-    marginVertical: 5,
-    borderRadius: 1,
-  },
-  routeLabel: {
-    fontSize: 10.5,
-    color: '#9099B3',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  routeMain: { fontSize: 14.5, fontWeight: '700', color: '#000933', marginTop: 1 },
-  routeSub: { fontSize: 12, color: '#9099B3', marginTop: 1 },
-  legDist: { alignItems: 'flex-end', marginLeft: 8 },
-  legDistVal: { fontSize: 13, fontWeight: '800', color: '#000933' },
-  legDistLabel: { fontSize: 10, color: '#9099B3', marginTop: 1 },
-  btnAccept: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#F2760F',
-    borderRadius: 14,
-    paddingVertical: 17,
-    shadowColor: '#F2760F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  btnAcceptText: { fontSize: 15.5, fontWeight: '800', color: '#FFFFFF' },
-  btnReject: { alignItems: 'center', justifyContent: 'center', paddingVertical: 14, marginTop: 6 },
-  btnRejectText: { fontSize: 14, fontWeight: '700', color: '#9099B3' },
-});
+    routeCard: { backgroundColor: theme.surf2, borderRadius: 16, padding: 16, marginBottom: 18 },
+    routeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    routeLogo: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.surf },
+    routeLogoFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    dropPin: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#209CEF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    routeConnector: {
+      width: 2,
+      height: 18,
+      backgroundColor: theme.border,
+      marginLeft: 21,
+      marginVertical: 5,
+      borderRadius: 1,
+    },
+    routeLabel: {
+      fontSize: 10.5,
+      color: theme.textMut,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    routeMain: { fontSize: 14.5, fontWeight: '700', color: theme.text, marginTop: 1 },
+    routeSub: { fontSize: 12, color: theme.textMut, marginTop: 1 },
+    legDist: { alignItems: 'flex-end', marginLeft: 8 },
+    legDistVal: { fontSize: 13, fontWeight: '800', color: theme.text },
+    legDistLabel: { fontSize: 10, color: theme.textMut, marginTop: 1 },
+    btnAccept: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#F2760F',
+      borderRadius: 14,
+      paddingVertical: 17,
+      shadowColor: '#F2760F',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 14,
+      elevation: 4,
+    },
+    btnAcceptText: { fontSize: 15.5, fontWeight: '800', color: '#FFFFFF' },
+    btnReject: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      marginTop: 6,
+    },
+    btnRejectText: { fontSize: 14, fontWeight: '700', color: theme.textMut },
+  });
+}

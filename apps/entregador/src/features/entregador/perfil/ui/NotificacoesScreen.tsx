@@ -1,4 +1,7 @@
 import React from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,11 +22,13 @@ interface Props {
 export function NotificacoesScreen({ onBack }: Props) {
   const { preferencias, loading, salvando, erro, saved, toggle } = useNotificacoes();
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Notificações</Text>
         {saved && (
@@ -62,7 +67,7 @@ export function NotificacoesScreen({ onBack }: Props) {
                     s.row,
                     i < preferencias.length - 1 && {
                       borderBottomWidth: 1,
-                      borderBottomColor: '#F0F1F5',
+                      borderBottomColor: theme.border,
                     },
                   ]}
                 >
@@ -77,7 +82,7 @@ export function NotificacoesScreen({ onBack }: Props) {
                     value={p.ativo}
                     disabled={salvando.has(p.categoria)}
                     onValueChange={(v) => toggle(p.categoria, v)}
-                    trackColor={{ false: '#E4E7F1', true: 'rgba(242,118,15,0.35)' }}
+                    trackColor={{ false: theme.border, true: 'rgba(242,118,15,0.35)' }}
                     thumbColor={p.ativo ? '#F2760F' : '#FFFFFF'}
                   />
                 </View>
@@ -97,74 +102,76 @@ export function NotificacoesScreen({ onBack }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933', flex: 1 },
-  savedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(3,152,85,0.1)',
-    borderRadius: 99,
-  },
-  savedText: { fontSize: 11, fontWeight: '700', color: '#039855' },
-  centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, paddingBottom: 40 },
-  desc: { fontSize: 13, color: '#9099B3', lineHeight: 19, marginBottom: 16 },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14 },
-  rowIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#FEF0E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowTitle: { fontSize: 14, fontWeight: '600', color: '#000933', marginBottom: 2 },
-  rowSub: { fontSize: 11, color: '#9099B3', lineHeight: 15 },
-  erroBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 14,
-    padding: 12,
-    backgroundColor: '#FCEBEB',
-    borderRadius: 10,
-  },
-  erroTxt: { flex: 1, fontSize: 13, color: '#A32D2D' },
-  infoBox: {
-    flexDirection: 'row',
-    gap: 8,
-    padding: 14,
-    backgroundColor: 'rgba(32,156,239,0.08)',
-    borderRadius: 12,
-  },
-  infoText: { flex: 1, fontSize: 12, color: '#2A3156', lineHeight: 18 },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      backgroundColor: theme.surf,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.text, flex: 1 },
+    savedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      backgroundColor: 'rgba(3,152,85,0.1)',
+      borderRadius: 99,
+    },
+    savedText: { fontSize: 11, fontWeight: '700', color: '#039855' },
+    centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    content: { padding: 16, paddingBottom: 40 },
+    desc: { fontSize: 13, color: theme.textMut, lineHeight: 19, marginBottom: 16 },
+    card: {
+      backgroundColor: theme.surf,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+      marginBottom: 16,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+    rowIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      backgroundColor: '#FEF0E3',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowTitle: { fontSize: 14, fontWeight: '600', color: theme.text, marginBottom: 2 },
+    rowSub: { fontSize: 11, color: theme.textMut, lineHeight: 15 },
+    erroBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 14,
+      padding: 12,
+      backgroundColor: '#FCEBEB',
+      borderRadius: 10,
+    },
+    erroTxt: { flex: 1, fontSize: 13, color: '#A32D2D' },
+    infoBox: {
+      flexDirection: 'row',
+      gap: 8,
+      padding: 14,
+      backgroundColor: 'rgba(32,156,239,0.08)',
+      borderRadius: 12,
+    },
+    infoText: { flex: 1, fontSize: 12, color: theme.text, lineHeight: 18 },
+  });
+}

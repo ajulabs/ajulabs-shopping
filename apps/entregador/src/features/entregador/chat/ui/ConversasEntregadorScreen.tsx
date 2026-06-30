@@ -10,6 +10,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConversasEntregador, tempoRelativo } from '../model/useConversasEntregador';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
 
 interface Props {
   onBack: () => void;
@@ -19,11 +22,13 @@ interface Props {
 export function ConversasEntregadorScreen({ onBack, onAbrirChat }: Props) {
   const { chats, loading } = useConversasEntregador();
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity onPress={onBack} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text style={s.titulo}>Conversas</Text>
       </View>
@@ -76,59 +81,61 @@ export function ConversasEntregadorScreen({ onBack, onAbrirChat }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#F6F7FB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#E4E7F1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titulo: { fontSize: 20, fontWeight: '700', color: '#000933' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  emptyTxt: { fontSize: 16, fontWeight: '600', color: '#000933', marginTop: 12 },
-  emptyHint: { fontSize: 13, color: '#9099B3', textAlign: 'center', paddingHorizontal: 32 },
-  scroll: { padding: 16, gap: 10, paddingBottom: 40 },
-  chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 14,
-    padding: 14,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FEF0E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  lojaNome: { fontSize: 14, fontWeight: '700', color: '#000933', flex: 1 },
-  tempo: { fontSize: 11, color: '#9099B3' },
-  ultimaMsg: { fontSize: 13, color: '#9099B3', marginTop: 2 },
-  badge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#F2760F',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      backgroundColor: theme.bg,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    backBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    titulo: { fontSize: 20, fontWeight: '700', color: theme.text },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+    emptyTxt: { fontSize: 16, fontWeight: '600', color: theme.text, marginTop: 12 },
+    emptyHint: { fontSize: 13, color: theme.textMut, textAlign: 'center', paddingHorizontal: 32 },
+    scroll: { padding: 16, gap: 10, paddingBottom: 40 },
+    chatItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderRadius: 14,
+      padding: 14,
+      backgroundColor: theme.surf,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#FEF0E3',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    lojaNome: { fontSize: 14, fontWeight: '700', color: theme.text, flex: 1 },
+    tempo: { fontSize: 11, color: theme.textMut },
+    ultimaMsg: { fontSize: 13, color: theme.textMut, marginTop: 2 },
+    badge: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#F2760F',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    badgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  });
+}

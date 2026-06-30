@@ -6,6 +6,9 @@ import { StepProps } from '../../model/constants';
 import { PhoneInput } from '../PhoneInput';
 import { Input } from './Input';
 import { Field } from './Field';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function StepPessoal({
   data,
@@ -32,6 +35,8 @@ export function StepPessoal({
   onBlurCpf?: () => void;
   onBlurEmail?: () => void;
 }) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View>
       <TouchableOpacity
@@ -156,7 +161,7 @@ export function StepPessoal({
 
           {!!gpsCoords && !locLoading && (
             <TouchableOpacity style={s.clearBtn} onPress={onClearGps} activeOpacity={0.8}>
-              <Ionicons name="close-circle-outline" size={15} color="#9099B3" />
+              <Ionicons name="close-circle-outline" size={15} color={theme.textMut} />
               <Text style={s.clearBtnText}>Limpar</Text>
             </TouchableOpacity>
           )}
@@ -225,66 +230,68 @@ export function StepPessoal({
   );
 }
 
-const s = StyleSheet.create({
-  fieldError: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
-  photoBtn: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 2,
-    borderColor: '#F2760F',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    backgroundColor: '#FEF0E3',
-    marginBottom: 20,
-    gap: 4,
-  },
-  photoBtnText: { fontSize: 11, color: '#F2760F', fontWeight: '600' },
-  photoBtnError: { borderColor: '#E24B4A', backgroundColor: 'rgba(226,75,74,0.06)' },
-  photoHint: {
-    fontSize: 11,
-    color: '#9099B3',
-    textAlign: 'center',
-    marginTop: -12,
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
-  gpsSection: { marginTop: 6, marginBottom: 4 },
-  gpsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  gpsSectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9099B3',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  gpsSectionOpcional: { fontSize: 11, color: '#B0B8CC', fontStyle: 'italic' },
-  gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  gpsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#F2760F',
-    backgroundColor: '#FEF0E3',
-  },
-  gpsBtnDone: { borderColor: '#039855', backgroundColor: 'rgba(3,152,85,0.07)' },
-  gpsBtnText: { fontSize: 13, fontWeight: '600', color: '#F2760F' },
-  clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-  },
-  clearBtnText: { fontSize: 13, fontWeight: '600', color: '#9099B3' },
-  mapBox: { height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    fieldError: { fontSize: 11, color: '#E24B4A', marginTop: 4, fontWeight: '500' },
+    photoBtn: {
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      borderWidth: 2,
+      borderColor: '#F2760F',
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+      backgroundColor: '#FEF0E3',
+      marginBottom: 20,
+      gap: 4,
+    },
+    photoBtnText: { fontSize: 11, color: '#F2760F', fontWeight: '600' },
+    photoBtnError: { borderColor: '#E24B4A', backgroundColor: 'rgba(226,75,74,0.06)' },
+    photoHint: {
+      fontSize: 11,
+      color: theme.textMut,
+      textAlign: 'center',
+      marginTop: -12,
+      marginBottom: 16,
+      fontStyle: 'italic',
+    },
+    gpsSection: { marginTop: 6, marginBottom: 4 },
+    gpsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    gpsSectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textMut,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    gpsSectionOpcional: { fontSize: 11, color: theme.textMut, fontStyle: 'italic' },
+    gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    gpsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: '#F2760F',
+      backgroundColor: '#FEF0E3',
+    },
+    gpsBtnDone: { borderColor: '#039855', backgroundColor: 'rgba(3,152,85,0.07)' },
+    gpsBtnText: { fontSize: 13, fontWeight: '600', color: '#F2760F' },
+    clearBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+    },
+    clearBtnText: { fontSize: 13, fontWeight: '600', color: theme.textMut },
+    mapBox: { height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
+  });
+}

@@ -16,6 +16,9 @@ import { StepVeiculo } from './components/StepVeiculo';
 import { StepBancario } from './components/StepBancario';
 import { StepRevisao } from './components/StepRevisao';
 import { DocPickerModal } from './components/DocPickerModal';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
 
 interface OnboardingScreenProps {
   onDone: (result: 'submitted' | 'cancel') => void;
@@ -53,12 +56,14 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     onClearGps,
   } = useOnboarding({ onDone });
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.safeArea}>
       <View style={s.header}>
         <View style={s.headerRow}>
           <TouchableOpacity style={s.backBtn} onPress={prev} activeOpacity={0.8}>
-            <Ionicons name="chevron-back" size={18} color="#000933" />
+            <Ionicons name="chevron-back" size={18} color={theme.text} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={s.headerStep}>
@@ -143,52 +148,59 @@ export function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   );
 }
 
-const s = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { padding: 16, paddingBottom: 0, borderBottomWidth: 1, borderBottomColor: '#E4E7F1' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerStep: {
-    fontSize: 11,
-    color: '#9099B3',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933', letterSpacing: -0.3 },
-  progressBars: { flexDirection: 'row', gap: 4, paddingBottom: 14 },
-  progressBar: { flex: 1, height: 4, borderRadius: 99 },
-  scroll: { flex: 1 },
-  content: { padding: 22, paddingBottom: 20 },
-  footer: {
-    padding: 16,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E4E7F1',
-    backgroundColor: '#FFFFFF',
-  },
-  submitError: {
-    fontSize: 12,
-    color: '#E24B4A',
-    textAlign: 'center',
-    marginBottom: 10,
-    fontWeight: '500',
-  },
-  ctaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#F2760F',
-    borderRadius: 14,
-    paddingVertical: 16,
-  },
-  ctaBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: theme.surf },
+    header: {
+      padding: 16,
+      paddingBottom: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerStep: {
+      fontSize: 11,
+      color: theme.textMut,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.text, letterSpacing: -0.3 },
+    progressBars: { flexDirection: 'row', gap: 4, paddingBottom: 14 },
+    progressBar: { flex: 1, height: 4, borderRadius: 99 },
+    scroll: { flex: 1 },
+    content: { padding: 22, paddingBottom: 20 },
+    footer: {
+      padding: 16,
+      paddingBottom: 24,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      backgroundColor: theme.surf,
+    },
+    submitError: {
+      fontSize: 12,
+      color: '#E24B4A',
+      textAlign: 'center',
+      marginBottom: 10,
+      fontWeight: '500',
+    },
+    ctaBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#F2760F',
+      borderRadius: 14,
+      paddingVertical: 16,
+    },
+    ctaBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  });
+}

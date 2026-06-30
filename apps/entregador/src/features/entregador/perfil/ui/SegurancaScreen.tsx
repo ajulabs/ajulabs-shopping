@@ -1,4 +1,7 @@
 import React from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,11 +42,13 @@ export function SegurancaScreen({ onBack }: Props) {
     alterarSenha,
   } = useSeguranca();
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Segurança</Text>
       </View>
@@ -147,53 +152,55 @@ export function SegurancaScreen({ onBack }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933' },
-  content: { padding: 16, paddingBottom: 40 },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  sectionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: '#FEF0E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-    backgroundColor: '#F2760F',
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      backgroundColor: theme.surf,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+    content: { padding: 16, paddingBottom: 40 },
+    section: {
+      backgroundColor: theme.surf,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 16,
+      marginBottom: 16,
+    },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+    sectionIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      backgroundColor: '#FEF0E3',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    saveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+      backgroundColor: '#F2760F',
+      borderRadius: 12,
+      paddingVertical: 14,
+    },
+    saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  });
+}

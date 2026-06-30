@@ -1,4 +1,7 @@
 import React from 'react';
+import { useTheme } from '../../../../shared/hooks';
+import type { Theme } from '../../../../shared/hooks/useTheme';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -54,11 +57,13 @@ export function EnderecoScreen({ onBack }: Props) {
     salvar,
   } = useEndereco(onBack);
 
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={tentarVoltar} activeOpacity={0.8}>
-          <Ionicons name="chevron-back" size={20} color="#000933" />
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Endereço</Text>
       </View>
@@ -283,115 +288,117 @@ export function EnderecoScreen({ onBack }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F7FB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E4E7F1',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F6F7FB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000933' },
-  content: { padding: 16, paddingBottom: 40 },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    padding: 16,
-  },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  sectionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: '#FEF0E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  row: { flexDirection: 'row' },
-  gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  gpsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#F2760F',
-    backgroundColor: '#FEF0E3',
-  },
-  gpsBtnDone: { borderColor: '#039855', backgroundColor: 'rgba(3,152,85,0.07)' },
-  gpsBtnText: { fontSize: 13, fontWeight: '600', color: '#F2760F' },
-  clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E4E7F1',
-  },
-  clearBtnText: { fontSize: 13, fontWeight: '600', color: '#9099B3' },
-  locError: { fontSize: 11, color: '#E24B4A', marginBottom: 8, fontWeight: '500' },
-  mapBox: { height: 200, borderRadius: 12, overflow: 'hidden', marginTop: 4 },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-    backgroundColor: '#F2760F',
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  saveBtnDisabled: { backgroundColor: '#C8CDD8' },
-  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  unsavedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#FEF0E3',
-    borderWidth: 1,
-    borderColor: '#F2760F33',
-  },
-  unsavedTxt: { flex: 1, fontSize: 12, fontWeight: '600', color: '#F2760F' },
-  discardBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#F2760F',
-  },
-  discardTxt: { fontSize: 12, fontWeight: '700', color: '#F2760F' },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(225,75,60,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(225,75,60,0.25)',
-  },
-  errorBannerTxt: { fontSize: 13, fontWeight: '600', color: '#E14B3C', flex: 1 },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      backgroundColor: theme.surf,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+    content: { padding: 16, paddingBottom: 40 },
+    section: {
+      backgroundColor: theme.surf,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 16,
+    },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+    sectionIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      backgroundColor: '#FEF0E3',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    row: { flexDirection: 'row' },
+    gpsBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    gpsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: '#F2760F',
+      backgroundColor: '#FEF0E3',
+    },
+    gpsBtnDone: { borderColor: '#039855', backgroundColor: 'rgba(3,152,85,0.07)' },
+    gpsBtnText: { fontSize: 13, fontWeight: '600', color: '#F2760F' },
+    clearBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+    },
+    clearBtnText: { fontSize: 13, fontWeight: '600', color: theme.textMut },
+    locError: { fontSize: 11, color: '#E24B4A', marginBottom: 8, fontWeight: '500' },
+    mapBox: { height: 200, borderRadius: 12, overflow: 'hidden', marginTop: 4 },
+    saveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+      backgroundColor: '#F2760F',
+      borderRadius: 12,
+      paddingVertical: 14,
+    },
+    saveBtnDisabled: { backgroundColor: '#C8CDD8' },
+    saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+    unsavedBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderRadius: 10,
+      backgroundColor: '#FEF0E3',
+      borderWidth: 1,
+      borderColor: '#F2760F33',
+    },
+    unsavedTxt: { flex: 1, fontSize: 12, fontWeight: '600', color: '#F2760F' },
+    discardBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: '#F2760F',
+    },
+    discardTxt: { fontSize: 12, fontWeight: '700', color: '#F2760F' },
+    errorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: 'rgba(225,75,60,0.07)',
+      borderWidth: 1,
+      borderColor: 'rgba(225,75,60,0.25)',
+    },
+    errorBannerTxt: { fontSize: 13, fontWeight: '600', color: '#E14B3C', flex: 1 },
+  });
+}

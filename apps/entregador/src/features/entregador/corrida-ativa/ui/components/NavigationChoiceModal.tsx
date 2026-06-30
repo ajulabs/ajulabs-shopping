@@ -1,17 +1,18 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Image, Pressable } from 'react-native';
+import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 interface Props {
   visible: boolean;
   destinationName: string;
   destinationAddress: string;
-  /** Rótulo do destino da etapa (ex.: "a loja", "o cliente") para o título. */
   destinationLabel?: string;
   onInternal: () => void;
   onGoogleMaps: () => void;
   onWaze: () => void;
-  /** When provided, the sheet can be dismissed (e.g. when changing a previous choice). */
   onClose?: () => void;
 }
 
@@ -25,6 +26,8 @@ export function NavigationChoiceModal({
   onWaze,
   onClose,
 }: Props) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <Modal
       visible={visible}
@@ -50,7 +53,7 @@ export function NavigationChoiceModal({
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="close" size={22} color="#9099B3" />
+                <Ionicons name="close" size={22} color={theme.textMut} />
               </TouchableOpacity>
             )}
           </View>
@@ -95,8 +98,6 @@ export function NavigationChoiceModal({
   );
 }
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
 function MapInternalIcon() {
   return <Ionicons name="map" size={26} color="#209CEF" />;
 }
@@ -121,9 +122,9 @@ function WazeIcon() {
   );
 }
 
-// ── External nav badge (used in ActiveScreen bottom sheet) ─────────────────────
-
 export function ExternalNavBadge({ type }: { type: 'gmaps' | 'waze' }) {
+  const theme = useTheme();
+  const bs = useMemo(() => makeStylesBadge(theme), [theme]);
   return (
     <View style={bs.badge}>
       <View style={bs.iconWrap}>{type === 'gmaps' ? <GoogleMapsIcon /> : <WazeIcon />}</View>
@@ -132,13 +133,13 @@ export function ExternalNavBadge({ type }: { type: 'gmaps' | 'waze' }) {
   );
 }
 
-const bs = StyleSheet.create({
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconWrap: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: 13, fontWeight: '700', color: '#000933' },
-});
-
-// ── Option row ─────────────────────────────────────────────────────────────────
+function makeStylesBadge(theme: Theme) {
+  return StyleSheet.create({
+    badge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    iconWrap: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+    badgeText: { fontSize: 13, fontWeight: '700', color: theme.text },
+  });
+}
 
 function OptionRow({
   icon,
@@ -153,6 +154,8 @@ function OptionRow({
   sub: string;
   onPress: () => void;
 }) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <TouchableOpacity style={s.option} onPress={onPress} activeOpacity={0.7}>
       <View style={[s.optionIcon, { backgroundColor: bg }]}>{icon}</View>
@@ -160,60 +163,60 @@ function OptionRow({
         <Text style={s.optionTitle}>{title}</Text>
         <Text style={s.optionSub}>{sub}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#C4C9D8" />
+      <Ionicons name="chevron-forward" size={18} color={theme.textMut} />
     </TouchableOpacity>
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,9,51,0.55)', justifyContent: 'flex-end' },
+    backdrop: { ...StyleSheet.absoluteFillObject },
+    sheet: {
+      backgroundColor: theme.surf,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 20,
+      paddingBottom: 40,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.border,
+      alignSelf: 'center',
+      marginBottom: 18,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    closeBtn: { marginLeft: 12 },
+    title: { fontSize: 18, fontWeight: '800', color: theme.text, flex: 1 },
+    destRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+    destName: { fontSize: 14, fontWeight: '700', color: theme.text, flex: 1 },
+    destAddr: { fontSize: 12, color: theme.textMut, marginBottom: 20 },
 
-const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,9,51,0.55)', justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject },
-  sheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E4E7F1',
-    alignSelf: 'center',
-    marginBottom: 18,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  closeBtn: { marginLeft: 12 },
-  title: { fontSize: 18, fontWeight: '800', color: '#000933', flex: 1 },
-  destRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  destName: { fontSize: 14, fontWeight: '700', color: '#000933', flex: 1 },
-  destAddr: { fontSize: 12, color: '#9099B3', marginBottom: 20 },
-
-  options: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#F0F1F6' },
-  divider: { height: 1, backgroundColor: '#F0F1F6' },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 14,
-    backgroundColor: '#FFFFFF',
-  },
-  optionIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionLabels: { flex: 1 },
-  optionTitle: { fontSize: 15, fontWeight: '700', color: '#000933' },
-  optionSub: { fontSize: 12, color: '#9099B3', marginTop: 1 },
-});
+    options: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: theme.border },
+    divider: { height: 1, backgroundColor: theme.border },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 14,
+      backgroundColor: theme.surf,
+    },
+    optionIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    optionLabels: { flex: 1 },
+    optionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    optionSub: { fontSize: 12, color: theme.textMut, marginTop: 1 },
+  });
+}

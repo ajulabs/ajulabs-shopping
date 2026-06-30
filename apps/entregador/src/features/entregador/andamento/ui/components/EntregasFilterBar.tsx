@@ -1,4 +1,7 @@
 import { ScrollView, TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export type EntregaFilter = 'todos' | 'em_andamento' | 'entregue' | 'cancelado';
 
@@ -10,6 +13,8 @@ interface Props {
 }
 
 export function EntregasFilterBar({ filters, filter, counts, onSelect }: Props) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <ScrollView
       horizontal
@@ -40,31 +45,33 @@ export function EntregasFilterBar({ filters, filter, counts, onSelect }: Props) 
   );
 }
 
-const s = StyleSheet.create({
-  scroll: { marginTop: 14, marginBottom: 14 },
-  row: { gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 99,
-    backgroundColor: '#F0F1F7',
-  },
-  chipActive: { backgroundColor: '#000933' },
-  label: { fontSize: 12.5, fontWeight: '600', color: '#000933' },
-  labelActive: { color: '#fff' },
-  count: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    borderRadius: 99,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  countText: { fontSize: 10, fontWeight: '700', color: '#9099B3' },
-  countTextActive: { color: '#fff' },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    scroll: { marginTop: 14, marginBottom: 14 },
+    row: { gap: 8 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 99,
+      backgroundColor: theme.surf2,
+    },
+    chipActive: { backgroundColor: theme.isDark ? '#3A4170' : '#000933' },
+    label: { fontSize: 12.5, fontWeight: '600', color: theme.text },
+    labelActive: { color: '#fff' },
+    count: {
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 5,
+      borderRadius: 99,
+      backgroundColor: theme.surf,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    countActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+    countText: { fontSize: 10, fontWeight: '700', color: theme.textMut },
+    countTextActive: { color: '#fff' },
+  });
+}

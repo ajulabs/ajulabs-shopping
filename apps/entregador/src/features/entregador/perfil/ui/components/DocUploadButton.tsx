@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../../../shared/hooks';
+import type { Theme } from '../../../../../shared/hooks/useTheme';
 
 export function DocUploadButton({
   label,
@@ -11,6 +14,8 @@ export function DocUploadButton({
   uri: string | null;
   onPick: () => void;
 }) {
+  const theme = useTheme();
+  const s = useMemo(() => makeStyles(theme), [theme]);
   return (
     <TouchableOpacity style={s.docBtn} onPress={onPick} activeOpacity={0.85}>
       {uri ? (
@@ -22,39 +27,41 @@ export function DocUploadButton({
       )}
       <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={s.docLabel}>{label}</Text>
-        <Text style={[s.docStatus, uri ? { color: '#039855' } : { color: '#9099B3' }]}>
+        <Text style={[s.docStatus, uri ? { color: '#039855' } : { color: theme.textMut }]}>
           {uri ? 'Foto selecionada' : 'Toque para selecionar'}
         </Text>
       </View>
       <Ionicons
         name={uri ? 'checkmark-circle' : 'chevron-forward'}
         size={18}
-        color={uri ? '#039855' : '#9099B3'}
+        color={uri ? '#039855' : theme.textMut}
       />
     </TouchableOpacity>
   );
 }
 
-const s = StyleSheet.create({
-  docBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E4E7F1',
-    padding: 14,
-    marginBottom: 8,
-  },
-  docThumb: { width: 48, height: 48, borderRadius: 10 },
-  docPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: 'rgba(242,118,15,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  docLabel: { fontSize: 14, fontWeight: '600', color: '#000933' },
-  docStatus: { fontSize: 12, marginTop: 2 },
-});
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    docBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.surf,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 14,
+      marginBottom: 8,
+    },
+    docThumb: { width: 48, height: 48, borderRadius: 10 },
+    docPlaceholder: {
+      width: 48,
+      height: 48,
+      borderRadius: 10,
+      backgroundColor: 'rgba(242,118,15,0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    docLabel: { fontSize: 14, fontWeight: '600', color: theme.text },
+    docStatus: { fontSize: 12, marginTop: 2 },
+  });
+}
