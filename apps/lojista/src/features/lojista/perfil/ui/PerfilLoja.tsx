@@ -62,14 +62,10 @@ const CATEGORIAS: CategoriaItem[] = [
   { label: 'Outros', icone: 'storefront-outline' },
 ];
 
-type Section = null | 'visual' | 'info' | 'endereco' | 'horarios' | 'agendamento' | 'equipe';
+type Section = null | 'loja' | 'equipe';
 
 const SECTION_TITLES: Record<Exclude<Section, null>, string> = {
-  visual: 'Identidade visual',
-  info: 'Informações',
-  endereco: 'Endereço',
-  horarios: 'Horário de funcionamento',
-  agendamento: 'Agendamento',
+  loja: 'Informações da loja',
   equipe: 'Equipe',
 };
 
@@ -162,7 +158,7 @@ export function PerfilLoja(_props: PerfilLojaProps) {
           <View style={styles.headerRow}>
             <TouchableOpacity
               onPress={() => setSection(null)}
-              style={styles.headerBackBtn}
+              style={[styles.headerBackBtn, { backgroundColor: theme.backBtn }]}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-back" size={22} color={textColor} />
@@ -186,255 +182,313 @@ export function PerfilLoja(_props: PerfilLojaProps) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.sectionLabel, { color: subColor }]}>IDENTIDADE VISUAL</Text>
-        <View style={[styles.card, { borderColor: border }]}>
-          {/* Banner */}
-          <View style={[styles.banner, { backgroundColor: colors.navy }]}>
-            {bannerUri ? (
-              <Image
-                source={{ uri: bannerUri }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
-              />
-            ) : null}
+        {section === null && (
+          <>
             <TouchableOpacity
-              style={styles.bannerEditBtn}
-              onPress={() => pickAndUpload('banner')}
-              activeOpacity={0.8}
-              disabled={uploading !== null}
+              style={[styles.menuItemBtn, { backgroundColor: surface, borderColor: border }]}
+              onPress={() => setSection('loja')}
+              activeOpacity={0.7}
             >
-              {uploading === 'banner' ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="pencil" size={12} color="#fff" />
-              )}
+              <View style={[styles.menuIconBox, { backgroundColor: colors.orange + '18' }]}>
+                <Ionicons name="storefront-outline" size={17} color={colors.orange} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.menuLabel, { color: textColor }]}>
+                  {loja.nome || 'Minha loja'}
+                </Text>
+                <Text style={[styles.prefHint, { color: subColor }]}>
+                  {abertaAgora ? 'Aberta agora' : 'Fechada'} · toque para gerenciar
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={subColor} />
             </TouchableOpacity>
 
-            {/* Logo sobre o banner */}
-            <View style={styles.avatarWrap}>
+            <Text style={[styles.sectionLabel, { color: subColor }]}>CONFIGURAÇÃO</Text>
+            <TouchableOpacity
+              style={[styles.menuItemBtn, { backgroundColor: surface, borderColor: border }]}
+              onPress={() => setSection('loja')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconBox, { backgroundColor: colors.orange + '18' }]}>
+                <Ionicons name="information-circle-outline" size={17} color={colors.orange} />
+              </View>
+              <Text style={[styles.menuLabel, { color: textColor }]}>Informações da loja</Text>
+              <Ionicons name="chevron-forward" size={16} color={subColor} />
+            </TouchableOpacity>
+            {isLojistaDono && (
               <TouchableOpacity
-                style={styles.avatarTouchable}
-                onPress={() => pickAndUpload('logo')}
-                activeOpacity={0.8}
-                disabled={uploading !== null}
+                style={[styles.menuItemBtn, { backgroundColor: surface, borderColor: border }]}
+                onPress={() => setSection('equipe')}
+                activeOpacity={0.7}
               >
-                {logoUri ? (
-                  <Image source={{ uri: logoUri }} style={styles.logoImg} />
-                ) : (
-                  <StoreAvatar nome={loja.nome || 'Loja'} size={58} />
-                )}
-                <View style={styles.avatarEditBtn}>
-                  {uploading === 'logo' ? (
+                <View style={[styles.menuIconBox, { backgroundColor: colors.orange + '18' }]}>
+                  <Ionicons name="people-outline" size={17} color={colors.orange} />
+                </View>
+                <Text style={[styles.menuLabel, { color: textColor }]}>Equipe</Text>
+                <Ionicons name="chevron-forward" size={16} color={subColor} />
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {section === 'loja' && (
+          <>
+            <Text style={[styles.sectionLabel, { color: subColor }]}>IDENTIDADE VISUAL</Text>
+            <View style={[styles.card, { borderColor: border }]}>
+              {/* Banner */}
+              <View style={[styles.banner, { backgroundColor: colors.navy }]}>
+                {bannerUri ? (
+                  <Image
+                    source={{ uri: bannerUri }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                ) : null}
+                <TouchableOpacity
+                  style={styles.bannerEditBtn}
+                  onPress={() => pickAndUpload('banner')}
+                  activeOpacity={0.8}
+                  disabled={uploading !== null}
+                >
+                  {uploading === 'banner' ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Ionicons name="camera-outline" size={10} color="#fff" />
+                    <Ionicons name="pencil" size={12} color="#fff" />
                   )}
+                </TouchableOpacity>
+
+                {/* Logo sobre o banner */}
+                <View style={styles.avatarWrap}>
+                  <TouchableOpacity
+                    style={styles.avatarTouchable}
+                    onPress={() => pickAndUpload('logo')}
+                    activeOpacity={0.8}
+                    disabled={uploading !== null}
+                  >
+                    {logoUri ? (
+                      <Image source={{ uri: logoUri }} style={styles.logoImg} />
+                    ) : (
+                      <StoreAvatar nome={loja.nome || 'Loja'} size={58} />
+                    )}
+                    <View style={styles.avatarEditBtn}>
+                      {uploading === 'logo' ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Ionicons name="camera-outline" size={10} color="#fff" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </View>
+
+              <View style={styles.storeInfo}>
+                <Text style={[styles.storeName, { color: textColor }]}>{loja.nome}</Text>
+                <Text style={[styles.storeCat, { color: subColor }]}>
+                  {loja.categoria} · {loja.bairro}
+                </Text>
+                <View style={styles.statusRow}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: abertaAgora ? '#046C2E' : colors.n600 },
+                    ]}
+                  />
+                  <Text
+                    style={[styles.statusText, { color: abertaAgora ? '#046C2E' : colors.n600 }]}
+                  >
+                    {abertaAgora ? 'Aberta agora' : 'Fechada agora'}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.storeInfo}>
-            <Text style={[styles.storeName, { color: textColor }]}>{loja.nome}</Text>
-            <Text style={[styles.storeCat, { color: subColor }]}>
-              {loja.categoria} · {loja.bairro}
-            </Text>
-            <View style={styles.statusRow}>
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: abertaAgora ? '#046C2E' : colors.n600 },
-                ]}
-              />
-              <Text style={[styles.statusText, { color: abertaAgora ? '#046C2E' : colors.n600 }]}>
-                {abertaAgora ? 'Aberta agora' : 'Fechada agora'}
-              </Text>
+            <Text style={[styles.sectionLabel, { color: subColor }]}>INFORMAÇÕES DA LOJA</Text>
+            <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
+              <View style={styles.fieldGroup}>
+                <FormField
+                  label="NOME DA LOJA"
+                  value={loja.nome}
+                  onChange={(v) => updateLoja('nome', v)}
+                  dark={dark}
+                />
+                <CategoriaPicker
+                  value={loja.categoria}
+                  onChange={(v) => updateLoja('categoria', v)}
+                  dark={dark}
+                  categorias={CATEGORIAS}
+                />
+                <FormField
+                  label="DESCRIÇÃO"
+                  value={loja.descricao}
+                  onChange={(v) => updateLoja('descricao', v)}
+                  multiline
+                  dark={dark}
+                />
+                <FormField
+                  label="TELEFONE / WHATSAPP"
+                  value={loja.telefone}
+                  onChange={(v) => updateLoja('telefone', v.replace(/[^0-9+()\s-]/g, ''))}
+                  keyboardType="phone-pad"
+                  dark={dark}
+                />
+              </View>
             </View>
-          </View>
-        </View>
 
-        <Text style={[styles.sectionLabel, { color: subColor }]}>INFORMAÇÕES DA LOJA</Text>
-        <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
-          <View style={styles.fieldGroup}>
-            <FormField
-              label="NOME DA LOJA"
-              value={loja.nome}
-              onChange={(v) => updateLoja('nome', v)}
-              dark={dark}
-            />
-            <CategoriaPicker
-              value={loja.categoria}
-              onChange={(v) => updateLoja('categoria', v)}
-              dark={dark}
-              categorias={CATEGORIAS}
-            />
-            <FormField
-              label="DESCRIÇÃO"
-              value={loja.descricao}
-              onChange={(v) => updateLoja('descricao', v)}
-              multiline
-              dark={dark}
-            />
-            <FormField
-              label="TELEFONE / WHATSAPP"
-              value={loja.telefone}
-              onChange={(v) => updateLoja('telefone', v.replace(/[^0-9+()\s-]/g, ''))}
-              keyboardType="phone-pad"
-              dark={dark}
-            />
-          </View>
-        </View>
+            <Text style={[styles.sectionLabel, { color: subColor }]}>ENDEREÇO</Text>
+            <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
+              <View style={styles.fieldGroup}>
+                {/* Botão localização */}
+                <TouchableOpacity
+                  style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
+                  onPress={usarLocalizacao}
+                  disabled={buscandoLoc}
+                  activeOpacity={0.8}
+                >
+                  {buscandoLoc ? (
+                    <ActivityIndicator size="small" color={colors.orange} />
+                  ) : (
+                    <Ionicons name="navigate-outline" size={15} color={colors.orange} />
+                  )}
+                  <Text style={styles.locBtnTxt}>
+                    {buscandoLoc ? 'Buscando...' : 'Usar minha localização'}
+                  </Text>
+                </TouchableOpacity>
+                {!!erroLoc && <Text style={styles.locErro}>{erroLoc}</Text>}
 
-        <Text style={[styles.sectionLabel, { color: subColor }]}>ENDEREÇO</Text>
-        <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
-          <View style={styles.fieldGroup}>
-            {/* Botão localização */}
-            <TouchableOpacity
-              style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
-              onPress={usarLocalizacao}
-              disabled={buscandoLoc}
-              activeOpacity={0.8}
-            >
-              {buscandoLoc ? (
-                <ActivityIndicator size="small" color={colors.orange} />
-              ) : (
-                <Ionicons name="navigate-outline" size={15} color={colors.orange} />
+                {/* CEP com autofill */}
+                <View style={styles.field}>
+                  <Text style={[styles.fieldLabel, { color: subColor }]}>CEP</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TextInput
+                      style={[
+                        styles.fieldInput,
+                        {
+                          backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50,
+                          borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.n200,
+                          color: textColor,
+                          flex: 1,
+                        },
+                      ]}
+                      value={loja.cep}
+                      onChangeText={(v) => {
+                        const d = v.replace(/\D/g, '').slice(0, 8);
+                        updateLoja('cep', d);
+                        if (d.length === 8) buscarCep(d);
+                      }}
+                      placeholder="00000000"
+                      placeholderTextColor={subColor}
+                      keyboardType="numeric"
+                      maxLength={8}
+                    />
+                    {buscandoCep && (
+                      <ActivityIndicator
+                        size="small"
+                        color={colors.orange}
+                        style={{ marginLeft: 8 }}
+                      />
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.fieldRow}>
+                  <View style={{ flex: 2 }}>
+                    <FormField
+                      label="RUA"
+                      value={loja.rua}
+                      onChange={(v) => updateLoja('rua', v)}
+                      placeholder="Nome da rua"
+                      dark={dark}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormField
+                      label="NÚMERO"
+                      value={loja.numero}
+                      onChange={(v) => updateLoja('numero', v.replace(/[^0-9]/g, ''))}
+                      placeholder="Nº"
+                      keyboardType="numeric"
+                      dark={dark}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.fieldRow}>
+                  <View style={{ flex: 1 }}>
+                    <FormField
+                      label="BAIRRO"
+                      value={loja.bairro}
+                      onChange={(v) => updateLoja('bairro', v)}
+                      dark={dark}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormField
+                      label="CIDADE"
+                      value={loja.cidade}
+                      onChange={(v) => updateLoja('cidade', v)}
+                      dark={dark}
+                    />
+                  </View>
+                </View>
+
+                <FormField
+                  label="COMPLEMENTO"
+                  value={loja.complemento}
+                  onChange={(v) => updateLoja('complemento', v)}
+                  placeholder="Nº da loja, Box, Sala, Apto..."
+                  dark={dark}
+                />
+              </View>
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: subColor }]}>HORÁRIO DE FUNCIONAMENTO</Text>
+            <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
+              <HorarioGrid horarios={horarios} onChange={updateHorario} dark={dark} />
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: subColor }]}>AGENDAMENTO</Text>
+            <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
+              <View style={styles.agendRow}>
+                <View style={styles.agendInfo}>
+                  <Text style={[styles.agendTitle, { color: textColor }]}>
+                    Aceitar pedidos agendados
+                  </Text>
+                  <Text style={[styles.agendSub, { color: subColor }]}>
+                    Cliente escolhe data e hora fora do horário
+                  </Text>
+                </View>
+                <Toggle
+                  value={loja.aceitaAgendamento}
+                  onValueChange={(v) => updateLoja('aceitaAgendamento', v)}
+                />
+              </View>
+              {loja.aceitaAgendamento && (
+                <View style={[styles.agendRow, { borderTopWidth: 1, borderTopColor: border }]}>
+                  <View style={styles.agendInfo}>
+                    <Text style={[styles.agendTitle, { color: textColor }]}>
+                      Antecedência mínima (minutos)
+                    </Text>
+                    <Text style={[styles.agendSub, { color: subColor }]}>
+                      Ex: 60 = 1 hora, 120 = 2 horas
+                    </Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.antecedenciaInput,
+                      { borderColor: border, color: textColor, backgroundColor: colors.n50 },
+                    ]}
+                    value={loja.antecedenciaMinima}
+                    onChangeText={(v) => updateLoja('antecedenciaMinima', v.replace(/[^0-9]/g, ''))}
+                    keyboardType="numeric"
+                    placeholder="120"
+                  />
+                </View>
               )}
-              <Text style={styles.locBtnTxt}>
-                {buscandoLoc ? 'Buscando...' : 'Usar minha localização'}
-              </Text>
-            </TouchableOpacity>
-            {!!erroLoc && <Text style={styles.locErro}>{erroLoc}</Text>}
-
-            {/* CEP com autofill */}
-            <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: subColor }]}>CEP</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TextInput
-                  style={[
-                    styles.fieldInput,
-                    {
-                      backgroundColor: dark ? 'rgba(255,255,255,0.05)' : colors.n50,
-                      borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.n200,
-                      color: textColor,
-                      flex: 1,
-                    },
-                  ]}
-                  value={loja.cep}
-                  onChangeText={(v) => {
-                    const d = v.replace(/\D/g, '').slice(0, 8);
-                    updateLoja('cep', d);
-                    if (d.length === 8) buscarCep(d);
-                  }}
-                  placeholder="00000000"
-                  placeholderTextColor={subColor}
-                  keyboardType="numeric"
-                  maxLength={8}
-                />
-                {buscandoCep && (
-                  <ActivityIndicator size="small" color={colors.orange} style={{ marginLeft: 8 }} />
-                )}
-              </View>
             </View>
+          </>
+        )}
 
-            <View style={styles.fieldRow}>
-              <View style={{ flex: 2 }}>
-                <FormField
-                  label="RUA"
-                  value={loja.rua}
-                  onChange={(v) => updateLoja('rua', v)}
-                  placeholder="Nome da rua"
-                  dark={dark}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <FormField
-                  label="NÚMERO"
-                  value={loja.numero}
-                  onChange={(v) => updateLoja('numero', v.replace(/[^0-9]/g, ''))}
-                  placeholder="Nº"
-                  keyboardType="numeric"
-                  dark={dark}
-                />
-              </View>
-            </View>
-
-            <View style={styles.fieldRow}>
-              <View style={{ flex: 1 }}>
-                <FormField
-                  label="BAIRRO"
-                  value={loja.bairro}
-                  onChange={(v) => updateLoja('bairro', v)}
-                  dark={dark}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <FormField
-                  label="CIDADE"
-                  value={loja.cidade}
-                  onChange={(v) => updateLoja('cidade', v)}
-                  dark={dark}
-                />
-              </View>
-            </View>
-
-            <FormField
-              label="COMPLEMENTO"
-              value={loja.complemento}
-              onChange={(v) => updateLoja('complemento', v)}
-              placeholder="Nº da loja, Box, Sala, Apto..."
-              dark={dark}
-            />
-          </View>
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: subColor }]}>HORÁRIO DE FUNCIONAMENTO</Text>
-        <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
-          <HorarioGrid horarios={horarios} onChange={updateHorario} dark={dark} />
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: subColor }]}>AGENDAMENTO</Text>
-        <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
-          <View style={styles.agendRow}>
-            <View style={styles.agendInfo}>
-              <Text style={[styles.agendTitle, { color: textColor }]}>
-                Aceitar pedidos agendados
-              </Text>
-              <Text style={[styles.agendSub, { color: subColor }]}>
-                Cliente escolhe data e hora fora do horário
-              </Text>
-            </View>
-            <Toggle
-              value={loja.aceitaAgendamento}
-              onValueChange={(v) => updateLoja('aceitaAgendamento', v)}
-            />
-          </View>
-          {loja.aceitaAgendamento && (
-            <View style={[styles.agendRow, { borderTopWidth: 1, borderTopColor: border }]}>
-              <View style={styles.agendInfo}>
-                <Text style={[styles.agendTitle, { color: textColor }]}>
-                  Antecedência mínima (minutos)
-                </Text>
-                <Text style={[styles.agendSub, { color: subColor }]}>
-                  Ex: 60 = 1 hora, 120 = 2 horas
-                </Text>
-              </View>
-              <TextInput
-                style={[
-                  styles.antecedenciaInput,
-                  { borderColor: border, color: textColor, backgroundColor: colors.n50 },
-                ]}
-                value={loja.antecedenciaMinima}
-                onChangeText={(v) => updateLoja('antecedenciaMinima', v.replace(/[^0-9]/g, ''))}
-                keyboardType="numeric"
-                placeholder="120"
-              />
-            </View>
-          )}
-        </View>
-
-        {/* ── Seção EQUIPE (só para o dono) ── */}
-        {isLojistaDono && (
+        {section === 'equipe' && isLojistaDono && (
           <>
             <Text style={[styles.sectionLabel, { color: subColor }]}>EQUIPE</Text>
             <View style={[styles.card, { borderColor: border, backgroundColor: surface }]}>
@@ -520,57 +574,62 @@ export function PerfilLoja(_props: PerfilLojaProps) {
           </>
         )}
 
-        {(
-          [
-            {
-              icon: 'chatbubbles-outline',
-              label: 'Conversas',
-              onPress: () => router.navigate('/(lojista)/conversas' as any),
-            },
-            {
-              icon: 'star-outline',
-              label: 'Avaliações',
-              onPress: () => router.navigate('/(lojista)/avaliacoes' as any),
-            },
-            {
-              icon: 'notifications-outline',
-              label: 'Notificações',
-              onPress: () => router.navigate('/(lojista)/notificacoes' as any),
-            },
-          ] as { icon: string; label: string; onPress: () => void }[]
-        ).map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={[styles.menuItemBtn, { backgroundColor: surface, borderColor: border }]}
-            onPress={item.onPress}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconBox, { backgroundColor: colors.orange + '18' }]}>
-              <Ionicons name={item.icon as any} size={17} color={colors.orange} />
+        {section === null && (
+          <>
+            <Text style={[styles.sectionLabel, { color: subColor }]}>ATIVIDADE</Text>
+            {(
+              [
+                {
+                  icon: 'chatbubbles-outline',
+                  label: 'Conversas',
+                  onPress: () => router.navigate('/(lojista)/conversas' as any),
+                },
+                {
+                  icon: 'star-outline',
+                  label: 'Avaliações',
+                  onPress: () => router.navigate('/(lojista)/avaliacoes' as any),
+                },
+                {
+                  icon: 'notifications-outline',
+                  label: 'Notificações',
+                  onPress: () => router.navigate('/(lojista)/notificacoes' as any),
+                },
+              ] as { icon: string; label: string; onPress: () => void }[]
+            ).map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[styles.menuItemBtn, { backgroundColor: surface, borderColor: border }]}
+                onPress={item.onPress}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: colors.orange + '18' }]}>
+                  <Ionicons name={item.icon as any} size={17} color={colors.orange} />
+                </View>
+                <Text style={[styles.menuLabel, { color: textColor }]}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={16} color={subColor} />
+              </TouchableOpacity>
+            ))}
+
+            <Text style={[styles.sectionLabel, { color: subColor }]}>PREFERÊNCIAS</Text>
+            <View style={[styles.prefRow, { backgroundColor: surface, borderColor: border }]}>
+              <View style={[styles.prefIcon, { backgroundColor: theme.iconBg }]}>
+                <Ionicons name={isDark ? 'moon' : 'sunny'} size={17} color={colors.orange} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.menuLabel, { color: textColor }]}>Modo escuro</Text>
+                <Text style={[styles.prefHint, { color: subColor }]}>
+                  {isDark ? 'Ativado' : 'Desativado'}
+                </Text>
+              </View>
+              <Toggle value={isDark} onValueChange={toggleDark} />
             </View>
-            <Text style={[styles.menuLabel, { color: textColor }]}>{item.label}</Text>
-            <Ionicons name="chevron-forward" size={16} color={subColor} />
-          </TouchableOpacity>
-        ))}
 
-        <Text style={[styles.sectionLabel, { color: subColor }]}>PREFERÊNCIAS</Text>
-        <View style={[styles.prefRow, { backgroundColor: surface, borderColor: border }]}>
-          <View style={[styles.prefIcon, { backgroundColor: theme.iconBg }]}>
-            <Ionicons name={isDark ? 'moon' : 'sunny'} size={17} color={colors.orange} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.menuLabel, { color: textColor }]}>Modo escuro</Text>
-            <Text style={[styles.prefHint, { color: subColor }]}>
-              {isDark ? 'Ativado' : 'Desativado'}
-            </Text>
-          </View>
-          <Toggle value={isDark} onValueChange={toggleDark} />
-        </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
-          <Ionicons name="log-out-outline" size={18} color="#E24B4A" />
-          <Text style={styles.logoutBtnText}>Sair da conta</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
+              <Ionicons name="log-out-outline" size={18} color="#E24B4A" />
+              <Text style={styles.logoutBtnText}>Sair da conta</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={{ height: isDirty ? 96 : 24 }} />
       </ScrollView>

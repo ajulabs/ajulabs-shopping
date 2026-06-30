@@ -12,6 +12,7 @@ export default function LojistaLayout() {
   const isLojistaDono = useAuthLojistaStore((s) => s.isLojistaDono);
   const isFuncionario = !isLojistaDono && papel === 'funcionario';
   const insets = useSafeAreaInsets();
+  const tabBottom = insets.bottom > 0 ? insets.bottom : 14;
   const theme = useTheme();
 
   const { toast, setToast } = useTicketToasts();
@@ -28,14 +29,15 @@ export default function LojistaLayout() {
             backgroundColor: theme.surf,
             borderTopColor: theme.border,
             borderTopWidth: 1,
-            height: 64 + insets.bottom,
-            paddingBottom: insets.bottom + 8,
+            height: 62 + tabBottom,
+            paddingBottom: tabBottom,
             paddingTop: 8,
           },
           tabBarLabelStyle: {
             fontSize: 10.5,
             fontWeight: '600',
             letterSpacing: 0.1,
+            marginBottom: 2,
           },
         }}
       >
