@@ -161,7 +161,7 @@ export function LeafletMap({
         <Marker id="user" lngLat={[userLocation.lng, userLocation.lat]} anchor="center">
           <Animated.View style={[styles.userMarkerWrap, { transform: [{ rotate: spin }] }]}>
             <Image
-              source={require('../../assets/entregador-marker.png')}
+              source={require('../../../assets/entregador-marker.png')}
               style={styles.userMarker}
               resizeMode="contain"
             />
