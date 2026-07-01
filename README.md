@@ -1,108 +1,108 @@
 # AjuLabs — Monorepo
 
-Marketplace local de Aracaju conectando consumidores e lojistas com entrega rápida e assistente de compras com IA (Aju).
+Local marketplace from Aracaju connecting consumers and store owners with fast delivery and an AI-powered shopping assistant (Aju).
 
-Três apps mobile independentes + backend Node.js, compartilhando código via packages internos.
+Three independent mobile apps + Node.js backend, sharing code via internal packages.
 
 ---
 
 ## Stack
 
-| Tecnologia | Versão | Função |
+| Technology | Version | Role |
 |---|---|---|
-| React Native | 0.81 | Framework mobile |
+| React Native | 0.81 | Mobile framework |
 | Expo SDK | 54 | Build, dev tools, OTA updates |
-| Expo Router | 6 | Roteamento file-based |
-| NativeWind | 4 | Tailwind CSS no React Native |
-| Zustand | 5 | Estado global |
-| TanStack Query | 5 | Cache e sincronização de dados |
-| React Hook Form + Zod | 7 / 4 | Formulários e validação |
-| OpenAI API | — | Assistente de compras Aju |
-| pnpm | 10+ | Gerenciador de pacotes (workspaces) |
-| TypeScript | 5.9 | Tipagem estática |
+| Expo Router | 6 | File-based routing |
+| NativeWind | 4 | Tailwind CSS for React Native |
+| Zustand | 5 | Global state management |
+| TanStack Query | 5 | Data fetching and cache |
+| React Hook Form + Zod | 7 / 4 | Forms and validation |
+| Claude API (Anthropic) | — | Aju shopping assistant |
+| pnpm | 10+ | Package manager (workspaces) |
+| TypeScript | 5.9 | Static typing |
 | Node.js + Express | — | Backend REST API |
-| Prisma | — | ORM + migrações |
-| PostgreSQL | — | Banco de dados |
+| Prisma | — | ORM + migrations |
+| PostgreSQL | — | Database |
 
 ---
 
-## Estrutura do monorepo
+## Monorepo structure
 
 ```
 ajulabs/
 ├── apps/
-│   ├── consumer/              App do consumidor (marketplace, chat Aju, carrinho)
-│   ├── lojista/               App do lojista (dashboard, pedidos, produtos)
-│   └── entregador/            App do entregador (rotas, GPS, entregas)
+│   ├── consumer/              Consumer app (marketplace, Aju chat, cart)
+│   ├── lojista/               Store owner app (dashboard, orders, products)
+│   └── entregador/            Delivery driver app (routes, GPS, deliveries)
 │
 ├── packages/
-│   ├── types/                 Interfaces TypeScript compartilhadas (Loja, Pedido, etc.)
-│   ├── theme/                 Cores e tokens de design
-│   └── api-client/            Services + mock de dados (vira API real no futuro)
+│   ├── types/                 Shared TypeScript interfaces (Loja, Pedido, etc.)
+│   ├── theme/                 Color palette and design tokens
+│   └── api-client/            HTTP services + Aju chat client
 │
-├── backend/                   API Node.js + Express + Prisma
+├── backend/                   Node.js + Express + Prisma API
 │
-├── pnpm-workspace.yaml        Define os workspaces
-├── tsconfig.base.json         Config TypeScript compartilhada
-├── .npmrc                     Config do pnpm (hoisting pro Expo)
-└── package.json               Scripts globais
+├── pnpm-workspace.yaml        Workspace definitions
+├── tsconfig.base.json         Shared TypeScript config
+├── .npmrc                     pnpm config (hoisting for Expo)
+└── package.json               Global scripts
 ```
 
 ---
 
-## Pré-requisitos
+## Prerequisites
 
 - **Node.js 20+** — [nodejs.org](https://nodejs.org)
 - **pnpm 10+** — `npm install -g pnpm`
 - **Git** — [git-scm.com](https://git-scm.com)
-- **Expo Go** no celular — [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779)
+- **Expo Go** on your phone — [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779)
 
-> **Importante:** usamos `pnpm`, não `npm` nem `yarn`. Os workspaces só funcionam com pnpm.
+> **Important:** use `pnpm`, not `npm` or `yarn`. Workspaces only work with pnpm.
 
 ---
 
-## Setup — Frontend (apps mobile)
+## Setup — Frontend (mobile apps)
 
-### 1. Instalar dependências
+### 1. Install dependencies
 
 ```bash
-git clone https://github.com/SEU_USUARIO/ajulabs-shopping-frontend.git
-cd ajulabs-shopping-frontend
+git clone https://github.com/ajulabs/ajulabs-shopping.git
+cd ajulabs-shopping
 pnpm install
 ```
 
-### 2. Variáveis de ambiente
+### 2. Environment variables
 
-Crie `apps/consumer/.env` com:
+Create `apps/consumer/.env`:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:3000/
 ```
 
-O `.env` nunca é commitado.
+`.env` files are never committed.
 
-### 3. Rodar os apps
+### 3. Run the apps
 
-Da **raiz do monorepo**:
+From the **monorepo root**:
 
 ```bash
-pnpm consumer      # App do consumidor (marketplace)
-pnpm lojista       # App do lojista (gestão de pedidos/produtos)
-pnpm entregador    # App do entregador (rastreamento)
+pnpm consumer      # Consumer app (marketplace)
+pnpm lojista       # Store owner app (orders and products)
+pnpm entregador    # Delivery driver app (tracking)
 ```
 
-Cada comando abre o Metro Bundler com um QR code. Escaneie com o Expo Go no celular.
+Each command opens Metro Bundler with a QR code. Scan it with Expo Go on your phone.
 
-> Só é possível rodar 1 app por vez (cada um ocupa a porta 8081). Para trocar, faça `Ctrl+C` e rode o outro.
+> Only 1 app can run at a time (each uses port 8081). To switch, press `Ctrl+C` and start the other.
 
-### Outros comandos úteis
+### Other useful commands
 
 ```bash
-pnpm typecheck          # Verificar tipos em todos os workspaces
-pnpm consumer:android   # Rodar direto no Android
-pnpm consumer:ios       # Rodar direto no iOS
+pnpm typecheck          # Type-check all workspaces
+pnpm consumer:android   # Run directly on Android
+pnpm consumer:ios       # Run directly on iOS
 
-# Limpar cache do Metro (quando der erro estranho)
+# Clear Metro cache (when you get a weird error)
 cd apps/consumer && npx expo start --clear
 ```
 
@@ -110,16 +110,16 @@ cd apps/consumer && npx expo start --clear
 
 ## Setup — Backend
 
-### 1. Entrar na pasta e instalar dependências
+### 1. Install dependencies
 
 ```bash
 cd backend
 pnpm install
 ```
 
-### 2. Variáveis de ambiente
+### 2. Environment variables
 
-Copie o exemplo e preencha com as credenciais:
+Copy the example and fill in the credentials:
 
 ```bash
 cp backend/.env.example backend/.env
@@ -127,120 +127,107 @@ cp backend/.env.example backend/.env
 
 ```bash
 DATABASE_URL=postgresql://...        # Supabase (pooler)
-DIRECT_URL=postgresql://...          # Supabase (direto, usado pelo Prisma)
+DIRECT_URL=postgresql://...          # Supabase (direct, used by Prisma)
 SUPABASE_URL=https://....supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_KEY=eyJ...
 
 PORT=3000
 NODE_ENV=development
-JWT_SECRET=segredo-longo-aleatorio
-JWT_REFRESH_SECRET=outro-segredo-longo
-OPENAI_API_KEY=sk-...                # Chave da OpenAI (chat da Aju)
+JWT_SECRET=long-random-secret
+JWT_REFRESH_SECRET=another-long-secret
+OPENAI_API_KEY=sk-...                # OpenAI key (Aju chat)
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-ALLOWED_ORIGINS=                     # Vazio em dev (aceita qualquer origem)
+ALLOWED_ORIGINS=                     # Empty in dev (accepts any origin)
 ```
 
-O `.env` nunca vai pro Git.
+`.env` is never committed to Git.
 
-### 3. Configurar o banco de dados
+### 3. Set up the database
 
 ```bash
-pnpm prisma:generate   # Gera o Prisma Client
-pnpm prisma:push       # Sincroniza o schema com o banco
+pnpm prisma:generate   # Generate Prisma Client
+pnpm prisma:push       # Sync schema to the database
 ```
 
-> Rode `pnpm prisma:generate` sempre que alterar o `schema.prisma`.
+> Run `pnpm prisma:generate` whenever you change `schema.prisma`.
 
-### 4. Rodar o servidor
+### 4. Start the server
 
 ```bash
 pnpm dev
 ```
 
-O servidor sobe em `http://localhost:3000`.
+The server starts at `http://localhost:3000`.
 
-### Scripts disponíveis do backend
-
-```bash
-pnpm dev              # Servidor em modo watch (desenvolvimento)
-pnpm build            # Compilar TypeScript
-pnpm start            # Rodar build de produção
-pnpm prisma:studio    # Interface visual do banco (Prisma Studio)
-pnpm prisma:seed      # Popular o banco com dados iniciais
-pnpm db:reset         # Resetar o banco
-```
-
-### Testar rotas com curl
+### Available backend scripts
 
 ```bash
-# Fazer login e salvar o token
-curl.exe -X POST http://localhost:3000/auth/usuario/login \
-  -H "Content-Type: application/json" \
-  -d "{\"telefone\":\"+5579999991234\",\"senha\":\"123456\"}"
-
-# Usar o token nas rotas protegidas
-curl.exe http://localhost:3000/perfil \
-  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+pnpm dev              # Dev server with watch mode
+pnpm build            # Compile TypeScript
+pnpm start            # Run production build
+pnpm prisma:studio    # Visual database browser (Prisma Studio)
+pnpm prisma:seed      # Seed the database with initial data
+pnpm db:reset         # Reset the database
 ```
 
 ---
 
-## Specs do backend (Spec Kit)
+## Backend specs (Spec Kit)
 
-Em `backend/specs/` mantemos a **especificação** de cada endpoint REST, evento WebSocket, tool da Aju e validação crítica — arquivos `.spec.ts` tipados que descrevem entrada, saída, exemplos reais, erros, pré-condições e efeitos colaterais.
+`backend/specs/` holds the **specification** for every REST endpoint, WebSocket event, Aju tool and critical validation — typed `.spec.ts` files describing inputs, outputs, real examples, errors, preconditions and side effects.
 
-### O que são
+### What they are
 
-Não são testes nem código de produção: são a **fonte única da verdade** do contrato da API. Cada spec é um objeto TypeScript validado em tempo de compilação (`satisfies EndpointSpec`).
+Not tests, not production code: the **single source of truth** for the API contract. Each spec is a TypeScript object validated at compile time (`satisfies EndpointSpec`).
 
 ```
 backend/specs/
-├── endpoints/      Contrato de cada rota REST (POST_pedidos, POST_lojista_produtos, …)
-├── websocket/      Contrato dos eventos realtime (pedido:novo, estoque:alerta, …)
-├── tools/          Tools que o agente Aju pode chamar (buscar_produtos, …)
-└── validations/    Regras de validação críticas (checkout, estoque, …)
+├── endpoints/      REST route contracts (POST_pedidos, POST_lojista_produtos, …)
+├── websocket/      Realtime event contracts (pedido:novo, estoque:alerta, …)
+├── tools/          Tools the Aju agent can call (buscar_produtos, …)
+└── validations/    Critical validation rules (checkout, stock, …)
 ```
 
-### Por que usar
+### Why use them
 
-A partir de **uma** edição de spec, três artefatos são regenerados em sincronia — sem precisar ajustar cada um à mão:
+From **one** spec edit, three artifacts are regenerated in sync — no manual updates needed:
 
-| Gerado a partir da spec | Para quê |
+| Generated from spec | Purpose |
 |---|---|
-| Testes Vitest (`src/__tests__/generated/`) | Validam campos obrigatórios e contratos automaticamente |
-| `openapi.json` | Documentação da API (abre no Swagger UI) |
-| `src/lib/agent-context.ts` | Diz ao agente Aju quais endpoints existem e como chamá-los (evita alucinação de API) |
+| Vitest tests (`src/__tests__/generated/`) | Automatically validate required fields and contracts |
+| `openapi.json` | API documentation (opens in Swagger UI) |
+| `src/lib/agent-context.ts` | Tells the Aju agent which endpoints exist and how to call them (prevents API hallucination) |
 
-Endpoints com corpo obrigatório também ganham validação em runtime via `specValidatorMiddleware` (estrito em dev/test, não-bloqueante em produção).
+Endpoints with required bodies also get runtime validation via `specValidatorMiddleware` (strict in dev/test, non-blocking in production).
 
-### Quando usar
+### When to use
 
-- **Toda rota/evento novo nasce com sua spec** (de preferência antes da implementação).
-- **Ao alterar** entrada, saída ou erros de um endpoint existente, atualize a spec e **regenere**.
-- Depois de editar qualquer spec, rode `pnpm spec:gen` e **commite os arquivos gerados junto** — eles são versionados.
+- **Every new route or event must have a spec** (written before the implementation, ideally).
+- **When changing** inputs, outputs or errors of an existing endpoint, update the spec and **regenerate**.
+- After editing any spec, run `pnpm spec:gen` and **commit the generated files together** — they are versioned.
 
-> **O CI trava o merge se os specs e os arquivos gerados estiverem fora de sincronia** (passo `Spec drift check` → `pnpm spec:check`). Se esquecer de regenerar, o build falha. Rode `pnpm spec:gen` e commite o resultado.
+> **CI blocks the merge if specs and generated files are out of sync** (`Spec drift check` → `pnpm spec:check`). If you forget to regenerate, the build fails. Run `pnpm spec:gen` and commit the result.
 
-### Comandos
+### Commands
 
-Da pasta `backend/`:
+From the `backend/` folder:
 
 ```bash
-pnpm spec:gen-tests          # Gera só os testes a partir dos specs
-pnpm spec:gen-openapi        # Gera só o openapi.json (doc da API)
-pnpm spec:gen-agent-context  # Gera só o contexto do agente Aju
+pnpm spec:gen-tests          # Generate only tests from specs
+pnpm spec:gen-openapi        # Generate only openapi.json (API docs)
+pnpm spec:gen-agent-context  # Generate only the Aju agent context
 
-pnpm spec:gen                # Roda os três geradores de uma vez
-pnpm spec:check              # Regenera e falha se houver drift (usado no CI)
-pnpm test                    # Roda os testes (inclui os gerados)
+pnpm spec:gen                # Run all three generators at once
+pnpm spec:check              # Regenerate and fail if there is drift (used in CI)
+pnpm test                    # Run tests (includes generated ones)
 ```
 
 ---
 
-## Arquitetura dos apps
+## App architecture
 
-Cada app segue **Feature-Sliced Design** adaptado para React Native, em camadas com direção de dependência única (cada camada só importa das de baixo):
+Each app follows **Feature-Sliced Design** adapted for React Native, with a single dependency direction (each layer only imports from layers below):
 
 ```
 app → features → entities → shared
@@ -248,7 +235,7 @@ app → features → entities → shared
 
 ```
 apps/consumer/
-├── app/                          Rotas (Expo Router) — wrappers finos que só renderizam a feature
+├── app/                          Routes (Expo Router) — thin wrappers that render feature components
 │   ├── (consumer)/
 │   │   ├── _layout.tsx           Tab navigator
 │   │   ├── chat.tsx              → <ChatIA />
@@ -257,125 +244,139 @@ apps/consumer/
 │   └── _layout.tsx               Root layout
 │
 ├── src/
-│   ├── features/consumer/        Funcionalidades por domínio
+│   ├── features/consumer/        Features by domain
 │   │   └── <feature>/            (cart, chat, produto-detail, tickets, …)
-│   │       ├── model/            Lógica e estado: hooks useX, stores Zustand
-│   │       ├── lib/              Helpers puros do domínio da feature
-│   │       ├── ui/               Componentes de apresentação (a tela)
-│   │       │   └── components/   Sub-componentes da feature
-│   │       └── index.ts          API pública da feature
+│   │       ├── model/            Logic and state: useX hooks, Zustand stores
+│   │       ├── lib/              Pure helpers scoped to the feature
+│   │       ├── ui/               Presentation components (the screen)
+│   │       │   └── components/   Feature sub-components
+│   │       └── index.ts          Public API of the feature
 │   │
-│   ├── entities/                 Modelos de negócio reutilizados por várias features
-│   │   ├── produto/             ({model}: variações · {ui}: VariacoesSelector)
+│   ├── entities/                 Business models reused across multiple features
+│   │   ├── produto/             ({model}: variations · {ui}: VariacoesSelector)
 │   │   └── endereco/            ({model}: useEnderecoForm · {ui}: EnderecoFormModal)
 │   │
-│   ├── shared/                   Base reutilizável, sem regra de negócio
-│   │   ├── ui/                   Componentes genéricos (mapas, toast)
-│   │   ├── hooks/                Hooks genéricos (useTheme, useHardwareBack)
-│   │   └── lib/                  Helpers genéricos (enrichRateLimit, …)
+│   ├── shared/                   Reusable base, no business logic
+│   │   ├── ui/                   Generic components (maps, toast)
+│   │   ├── hooks/                Generic hooks (useTheme, useHardwareBack)
+│   │   └── lib/                  Generic helpers
 │   │
-│   └── store/                    Estado global (Zustand: auth, cart, theme)
+│   └── store/                    Global state (Zustand: auth, cart, theme)
 │
-└── assets/                       Ícones, imagens, fontes
+└── assets/                       Icons, images, fonts
 ```
 
-> O app **consumer** é a implementação de referência dessa estrutura; **lojista** e **entregador** já seguem o mesmo padrão. No `entregador`, `entities/corrida` reúne o modelo de corrida (`Ride`/`RideWithStage`, `mapToRide`) compartilhado entre as features de home, andamento e corrida-ativa.
+> The **consumer** app is the reference implementation of this structure; **lojista** and **entregador** follow the same pattern. In `entregador`, `entities/corrida` holds the ride model (`Ride`/`RideWithStage`, `mapToRide`) shared between the home, andamento and corrida-ativa features.
 
-### Regras
+### Rules
 
-- **Direção de dependência:** `app → features → entities → shared`. Uma camada nunca importa de outra acima dela.
-- **`app/`** — só roteamento. Cada rota é um wrapper que renderiza um componente da feature.
-- **`features/`** — separar **lógica de apresentação**: `model/` (fetch, estado, handlers em hooks `useX`), `lib/` (helpers puros) e `ui/` (JSX e estilos). O componente da tela consome o hook; não busca dados direto.
-- **Features não importam de outras features.** Código compartilhado entre duas features sobe para `entities/` (se for do negócio) ou `shared/` (se for genérico).
-- **`entities/`** — modelos de negócio reutilizáveis (ex: `produto`, `endereco`), com seus próprios `model`/`ui`/`lib`.
-- **`shared/`** — base genérica que não conhece o negócio (UI kit, hooks utilitários, helpers). Não importa de `features` nem `entities`.
-- **`store/`** — estado global em Zustand.
+- **Dependency direction:** `app → features → entities → shared`. A layer never imports from a layer above it.
+- **`app/`** — routing only. Each route is a thin wrapper that renders a feature component.
+- **`features/`** — separate **logic from presentation**: `model/` (fetch, state, handlers in `useX` hooks), `lib/` (pure helpers) and `ui/` (JSX and styles). Screen components consume hooks — they never fetch data directly.
+- **Features do not import from other features.** Code shared between two features moves to `entities/` (if business-related) or `shared/` (if generic).
+- **`entities/`** — reusable business models (e.g. `produto`, `endereco`), with their own `model`/`ui`/`lib`.
+- **`shared/`** — generic base with no business knowledge (UI kit, utility hooks, helpers). Never imports from `features` or `entities`.
+- **`store/`** — global state in Zustand.
 
-### Packages compartilhados
+### Shared packages
 
-| Package | Import | O que contém |
+| Package | Import | Contains |
 |---|---|---|
 | `@ajulabs/types` | `import { Loja } from '@ajulabs/types'` | Interfaces: Loja, Produto, Pedido, Usuario, etc. |
-| `@ajulabs/theme` | `import { colors } from '@ajulabs/theme'` | Paleta de cores e tokens de design |
-| `@ajulabs/api-client` | `import { LojaService } from '@ajulabs/api-client'` | Services + mock data + chat Aju |
+| `@ajulabs/theme` | `import { colors } from '@ajulabs/theme'` | Color palette and design tokens |
+| `@ajulabs/api-client` | `import { LojaService } from '@ajulabs/api-client'` | Services + mock data + Aju chat |
 
-> **Regra:** nunca importe com path relativo. Sempre use `@ajulabs/*`.
+> **Rule:** never use relative paths for packages. Always use `@ajulabs/*`.
 
 ---
 
-## Fluxo Git
+## Git workflow
 
 ```bash
-# Antes de começar qualquer tarefa
+# Always start from an up-to-date main
 git checkout main && git pull origin main
 
-# Criar branch
+# Create a branch
 git checkout -b feat/consumer-checkout
 git checkout -b fix/cart-total-bug
 
-# Commitar
+# Commit
 git add .
 git commit -m "feat(consumer): add checkout screen with address form"
 
-# Subir e abrir PR
+# Push and open a PR
 git push origin feat/consumer-checkout
 ```
 
-### Padrão de commits (Conventional Commits)
+### Branch naming
 
-| Prefixo | Quando usar | Exemplo |
+| Prefix | When to use | Example |
 |---|---|---|
-| `feat` | Nova funcionalidade | `feat(consumer): add cart screen` |
-| `fix` | Correção de bug | `fix(cart): total not updating on remove` |
-| `refactor` | Refatoração sem mudança funcional | `refactor(checkout): extract AddressCard` |
-| `style` | Ajuste visual sem lógica | `style(vitrine): fix card border radius` |
-| `chore` | Config, deps, estrutura | `chore(lojista): add expo-camera dependency` |
+| `feat/` | New feature | `feat/consumer-dark-mode` |
+| `fix/` | Bug fix | `fix/cart-total-calculation` |
+| `refactor/` | Refactor without functional change | `refactor/lojista-app-structure` |
+| `perf/` | Performance improvement | `perf/consumer-image-loading` |
+| `style/` | Visual adjustment only | `style/vitrine-card-spacing` |
+| `docs/` | Documentation | `docs/add-claude-md` |
+| `chore/` | Config, deps, tooling | `chore/upgrade-expo-sdk` |
+| `ci/` | Pipeline and CI/CD | `ci/add-spec-drift-check` |
 
-### Escopos comuns
+Always use lowercase and hyphens. No underscores, no camelCase.
 
-`consumer` · `lojista` · `entregador` · `types` · `api-client` · `theme` · `monorepo` · `backend`
+### Commit messages (Conventional Commits)
 
-> **Nunca faça push direto na main.** Todo código entra via Pull Request.
+Format: `<type>(<scope>): <short description in English>`
+
+| Type | When to use |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Refactor without functional change |
+| `perf` | Performance improvement |
+| `style` | Visual change with no logic |
+| `docs` | Documentation |
+| `chore` | Config, deps, tooling |
+| `ci` | Pipeline and CI/CD |
+
+**Common scopes:** `consumer` · `lojista` · `entregador` · `types` · `api-client` · `theme` · `monorepo` · `backend`
+
+> **Never push directly to main.** All code enters via Pull Request.
 
 ---
 
-## Trabalhando com packages
+## Working with packages
 
-### Adicionar uma dependência
+### Adding a dependency
 
 ```bash
-# No consumer
-cd apps/consumer && pnpm add nome-do-pacote
+# Inside an app
+cd apps/consumer && pnpm add package-name
 
-# Num package compartilhado
-cd packages/api-client && pnpm add nome-do-pacote
+# Inside a shared package
+cd packages/api-client && pnpm add package-name
 ```
 
-### Mudar um tipo
+### Changing a type
 
-1. Edite `packages/types/src/index.ts`
-2. Rode `pnpm typecheck` — mostra todos os arquivos afetados
-3. Corrija nos apps afetados
-4. Commite tudo no mesmo PR
-
-### Quando o backend estiver pronto
-
-Só mude `packages/api-client/`. Os services já têm a interface certa — troque o mock por `fetch` real. Os 3 apps continuam funcionando sem nenhuma mudança.
+1. Edit `packages/types/src/index.ts`
+2. Run `pnpm typecheck` — shows all affected files
+3. Fix all affected apps
+4. Commit everything in the same PR
 
 ---
 
 ## Troubleshooting
 
-**"Unable to resolve module" ao rodar o app**
+**"Unable to resolve module" when running the app**
 ```bash
 cd apps/consumer && npx expo start --clear
 ```
 
-**Erros vermelhos no VS Code mas o app roda**
+**Red errors in VS Code but the app runs fine**
 `Ctrl+Shift+P` → "TypeScript: Restart TS Server"
 
-**`pnpm install` dá erro de peer dependency**
-Verifique que o `.npmrc` na raiz tem:
+**`pnpm install` fails with peer dependency errors**
+Make sure `.npmrc` at the root contains:
 ```
 auto-install-peers=true
 strict-peer-dependencies=false
@@ -383,12 +384,12 @@ node-linker=hoisted
 shamefully-hoist=true
 ```
 
-**Metro não encontra mudanças nos packages**
-Pare o Metro (`Ctrl+C`) e rode com `--clear`:
+**Metro does not pick up changes from packages**
+Stop Metro (`Ctrl+C`) and restart with `--clear`:
 ```bash
 cd apps/consumer && npx expo start --clear
 ```
 
 ---
 
-*Desenvolvendo soluções, criando futuros · AjuLabs 2025*
+*Building solutions, creating futures · AjuLabs 2025*
