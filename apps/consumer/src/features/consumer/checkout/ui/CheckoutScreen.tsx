@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useHardwareBack } from '../../../../shared/hooks';
+import { useHardwareBack, useTheme } from '../../../../shared/hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@ajulabs/theme';
 import { StepEndereco } from './StepEndereco';
@@ -20,6 +20,7 @@ const STEP_TITLES = ['Endereço', 'Pagamento', 'Confirmação'];
 
 export function CheckoutScreen() {
   const router = useRouter();
+  const theme = useTheme();
   useHardwareBack(() => {
     router.back();
     return true;
@@ -49,26 +50,35 @@ export function CheckoutScreen() {
   const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.btnBack} activeOpacity={0.85}>
-          <Ionicons name="chevron-back" size={20} color={colors.navy} />
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View style={[styles.header, { backgroundColor: theme.surf, paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={[styles.btnBack, { backgroundColor: theme.backBtn }]}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="chevron-back" size={20} color={theme.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitulo}>Finalizar pedido</Text>
-          <Text style={styles.headerSub}>
+          <Text style={[styles.headerTitulo, { color: theme.text }]}>Finalizar pedido</Text>
+          <Text style={[styles.headerSub, { color: theme.textSec }]}>
             Passo {step + 1} de 3 · {STEP_TITLES[step]}
           </Text>
         </View>
       </View>
 
-      <View style={styles.progressContainer}>
+      <View
+        style={[
+          styles.progressContainer,
+          { backgroundColor: theme.surf, borderBottomColor: theme.borderL },
+        ]}
+      >
         {[0, 1, 2].map((i) => (
           <View
             key={i}
             style={[
               styles.progressBar,
-              { backgroundColor: i <= step ? colors.orange : colors.n200 },
+              { backgroundColor: i <= step ? colors.orange : theme.border },
             ]}
           />
         ))}
@@ -98,12 +108,29 @@ export function CheckoutScreen() {
       </ScrollView>
 
       {step < 2 && (
-        <View style={styles.footer}>
+        <View
+          style={[styles.footer, { backgroundColor: theme.surf, borderTopColor: theme.borderL }]}
+        >
+          {step === 0 && !enderecoId && (
+            <View style={styles.avisoEndereco}>
+              <Ionicons
+                name="alert-circle"
+                size={15}
+                color={theme.isDark ? '#FDBA74' : colors.orange600}
+              />
+              <Text style={[styles.avisoEnderecoTxt, theme.isDark && { color: '#FDBA74' }]}>
+                Cadastre um endereço de entrega para continuar.
+              </Text>
+            </View>
+          )}
           <TouchableOpacity
-            style={[styles.btnContinuar, placing && { opacity: 0.7 }]}
+            style={[
+              styles.btnContinuar,
+              (placing || (step === 0 && !enderecoId)) && { opacity: 0.5 },
+            ]}
             onPress={handleNext}
             activeOpacity={0.9}
-            disabled={placing}
+            disabled={placing || (step === 0 && !enderecoId)}
           >
             {placing ? (
               <ActivityIndicator color={colors.n0} />
@@ -179,4 +206,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnContinuarTxt: { color: colors.n0, fontSize: 15, fontWeight: '700' },
+  avisoEndereco: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  avisoEnderecoTxt: { color: colors.orange600, fontSize: 12.5, fontWeight: '600', flex: 1 },
 });

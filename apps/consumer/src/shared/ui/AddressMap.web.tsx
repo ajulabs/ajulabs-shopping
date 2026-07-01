@@ -25,18 +25,26 @@ function loadLeaflet(cb: () => void) {
   document.head.appendChild(script);
 }
 
-const ARACAJU = [-10.9167, -37.05];
+const ARACAJU: [number, number] = [-10.9167, -37.05];
 
 async function geocode(address: string): Promise<[number, number] | null> {
-  try {
-    const q = encodeURIComponent(`${address}, Aracaju, SE, Brasil`);
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-      { headers: { 'User-Agent': 'AjuLabs-Consumer/1.0' } },
-    );
-    const data = await res.json();
-    if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-  } catch {}
+  // Tenta o endereço completo; se não achar, tenta só o bairro (parte após a
+  // última vírgula) + cidade. Nominatim limita ~1 req/s e é sensível ao formato.
+  const bairro = address.split(',').pop()?.trim();
+  const queries = [
+    `${address}, Aracaju, SE, Brasil`,
+    ...(bairro && bairro !== address ? [`${bairro}, Aracaju, SE, Brasil`] : []),
+  ];
+  for (const q of queries) {
+    try {
+      // Sem header User-Agent: no browser é um header proibido e é ignorado/bloqueado.
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=br`,
+      );
+      const data = await res.json();
+      if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    } catch {}
+  }
   return null;
 }
 
@@ -46,24 +54,23 @@ export function AddressMap({ address, style, zoom = 15 }: AddressMapProps) {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [aproximado, setAproximado] = useState(false);
 
   useEffect(() => {
     if (!address) return;
     setLoading(true);
-    setNotFound(false);
+    setAproximado(false);
 
     loadLeaflet(async () => {
-      const coords = await geocode(address);
+      const exato = await geocode(address);
+      // Nunca deixa a preview "quebrada": sem ponto exato, centraliza em Aracaju
+      // e sinaliza que a localização é aproximada.
+      const coords = exato ?? ARACAJU;
+      setAproximado(!exato);
       setLoading(false);
 
       const el = document.getElementById(mapId);
       if (!el) return;
-
-      if (!coords) {
-        setNotFound(true);
-        return;
-      }
 
       if (mapRef.current) {
         mapRef.current.setView(coords, zoom);
@@ -133,22 +140,24 @@ export function AddressMap({ address, style, zoom = 15 }: AddressMapProps) {
           <div style={{ fontSize: 12, color: '#9099B3' }}>Carregando mapa...</div>
         </div>
       )}
-      {notFound && !loading && (
+      {aproximado && !loading && (
         <div
           style={{
             position: 'absolute',
-            inset: 0,
+            top: 8,
+            left: 8,
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            background: '#F6F7FB',
-            borderRadius: 'inherit',
-            gap: 6,
+            gap: 4,
+            background: 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            borderRadius: 8,
+            padding: '4px 8px',
+            fontSize: 11,
+            fontWeight: 600,
           }}
         >
-          <div style={{ fontSize: 20 }}>📍</div>
-          <div style={{ fontSize: 12, color: '#9099B3' }}>Endereço não localizado</div>
+          📍 Localização aproximada
         </div>
       )}
     </div>

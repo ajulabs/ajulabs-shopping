@@ -35,12 +35,16 @@ export function CartScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const enderecoForm = useEnderecoForm(token, async (novo) => {
-    setShowForm(false);
-    setShowPicker(true);
-    await carregarEnderecos();
-    setEnderecoId(novo.id);
-  });
+  const enderecoForm = useEnderecoForm(
+    token,
+    async (novo) => {
+      setShowForm(false);
+      setShowPicker(true);
+      await carregarEnderecos();
+      setEnderecoId(novo.id);
+    },
+    enderecos,
+  );
 
   const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 

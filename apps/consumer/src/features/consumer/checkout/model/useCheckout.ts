@@ -59,6 +59,15 @@ export function useCheckout() {
   }, [step, router]);
 
   const handleNext = useCallback(async () => {
+    // Passo 0 (Endereço): não avança sem um endereço cadastrado/selecionado.
+    if (step === 0) {
+      if (!enderecoId) {
+        Alert.alert('Endereço', 'Adicione ou selecione um endereço de entrega para continuar.');
+        return;
+      }
+      setStep((s) => s + 1);
+      return;
+    }
     if (step === 1) {
       if (!token) {
         Alert.alert('Erro', 'Faça login para continuar.');
