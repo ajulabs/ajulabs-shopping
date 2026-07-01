@@ -1,10 +1,33 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { brl } from '../../../../../shared/lib/format';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTheme } from '../../../../../shared/hooks';
 import type { Theme } from '../../../../../shared/hooks/useTheme';
+
+/** Logo da loja com fallback para ícone quando não há URL ou a imagem falha. */
+function LojaLogo({
+  uri,
+  imgStyle,
+  fallbackStyle,
+}: {
+  uri?: string;
+  imgStyle: object;
+  fallbackStyle: object;
+}) {
+  const [erro, setErro] = useState(false);
+  if (!uri || erro) {
+    return (
+      <View style={fallbackStyle}>
+        <Ionicons name="storefront" size={17} color="#9099B3" />
+      </View>
+    );
+  }
+  return (
+    <Image source={{ uri }} style={imgStyle} resizeMode="cover" onError={() => setErro(true)} />
+  );
+}
 
 export function DeliveryHistory({ entregas }: { entregas: any[] }) {
   const theme = useTheme();
@@ -34,9 +57,11 @@ export function DeliveryHistory({ entregas }: { entregas: any[] }) {
             : '–';
           return (
             <View key={e.id} style={s.historyRow}>
-              <View style={s.historyIcon}>
-                <Ionicons name="swap-horizontal" size={17} color="#9099B3" />
-              </View>
+              <LojaLogo
+                uri={e.pedido?.loja?.logoUrl}
+                imgStyle={s.historyLogo}
+                fallbackStyle={s.historyIcon}
+              />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={s.historyTrajeto} numberOfLines={1}>
                   {loja} → {bairro}
@@ -81,6 +106,12 @@ function makeStyles(theme: Theme) {
       backgroundColor: theme.bg,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    historyLogo: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      backgroundColor: theme.bg,
     },
     historyTrajeto: { fontSize: 13, fontWeight: '600', color: theme.text },
     historyData: { fontSize: 11, color: theme.textMut },

@@ -27,6 +27,19 @@ const STATUS_CONFIG: Record<
   cancelado: { label: 'Cancelado', icon: 'close-circle', color: '#A32D2D', bg: '#FCEBEB' },
 };
 
+// Variante escura: o fundo pastel claro "estoura" sobre a superfície escura e o
+// texto saturado perde contraste. Trocamos por um tint translúcido da própria cor
+// e por um texto/ícone mais claro e legível.
+const STATUS_DARK: Record<StatusPedido, { color: string; bg: string }> = {
+  aguardando: { color: 'rgba(255,255,255,0.60)', bg: 'rgba(255,255,255,0.08)' },
+  confirmado: { color: '#7DD3FC', bg: 'rgba(24,95,165,0.24)' },
+  preparando: { color: '#FCD34D', bg: 'rgba(245,158,11,0.20)' },
+  pronto: { color: '#86EFAC', bg: 'rgba(45,106,45,0.28)' },
+  saiu_entrega: { color: '#FDBA74', bg: 'rgba(222,103,8,0.22)' },
+  entregue: { color: '#6EE7B7', bg: 'rgba(57,255,137,0.15)' },
+  cancelado: { color: '#FCA5A5', bg: 'rgba(163,45,45,0.26)' },
+};
+
 function tempoRelativo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
@@ -46,22 +59,16 @@ interface Props {
 }
 
 export function PedidoCard({ pedido, onPress }: Props) {
-  const cfg = STATUS_CONFIG[pedido.status];
+  const { isDark, surf, border, borderL, text, textSec } = useTheme();
+  const cfg = isDark
+    ? { ...STATUS_CONFIG[pedido.status], ...STATUS_DARK[pedido.status] }
+    : STATUS_CONFIG[pedido.status];
   const isAtivo = !['entregue', 'cancelado'].includes(pedido.status);
   const precisaAvaliar = pedido.status === 'entregue' && !pedido.avaliado;
 
-  const { surf, border, borderL, text, textSec } = useTheme();
-
   return (
     <TouchableOpacity
-      style={[
-        styles.card,
-        {
-          backgroundColor: surf,
-          borderColor: isAtivo ? colors.orange : precisaAvaliar ? '#F59E0B' : border,
-        },
-        isAtivo && styles.cardAtivo,
-      ]}
+      style={[styles.card, { backgroundColor: surf, borderColor: border }]}
       onPress={() => onPress(pedido.id)}
       activeOpacity={0.8}
     >
@@ -118,7 +125,6 @@ export function PedidoCard({ pedido, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
-  cardAtivo: { borderWidth: 1.5 },
 
   topo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   loja: { fontSize: 15, fontWeight: '700' },

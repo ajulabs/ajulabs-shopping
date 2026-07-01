@@ -58,27 +58,44 @@ export function reconstruirTipoProduto(produto: Produto): TipoProdutoValue | nul
   const base = inferirTipoProduto({ categoria: produto.categoria });
   if (!base) return null;
 
-  const variacoes = produto.variacoes ?? [];
-  if (!variacoes.length) return base;
-
   const cat = TIPOS_PRODUTO.find((c) => c.id === base.catId);
   const subcat = cat?.subcats.find((s) => s.id === base.subcatId);
-  const multiSpecs = (subcat?.specs ?? []).filter((s) => s.multiplo);
-  if (!multiSpecs.length) return base;
+  const specs: Record<string, string[]> = { ...base.specs };
 
-  const specsMap: Record<string, Set<string>> = {};
-  for (const v of variacoes) {
-    v.nome.split(' · ').forEach((parte, idx) => {
-      const spec = multiSpecs[idx];
-      if (!spec) return;
-      if (!specsMap[spec.id]) specsMap[spec.id] = new Set();
-      specsMap[spec.id].add(parte);
-    });
+  // 1) Specs multiplo (tamanho, cor): reconstruídos pelos nomes das variações,
+  // que usam ' · ' como separador entre eixos (ex.: "P · Preto").
+  const variacoes = produto.variacoes ?? [];
+  const multiSpecs = (subcat?.specs ?? []).filter((s) => s.multiplo);
+  if (variacoes.length && multiSpecs.length) {
+    const specsMap: Record<string, Set<string>> = {};
+    for (const v of variacoes) {
+      v.nome.split(' · ').forEach((parte, idx) => {
+        const spec = multiSpecs[idx];
+        if (!spec) return;
+        if (!specsMap[spec.id]) specsMap[spec.id] = new Set();
+        specsMap[spec.id].add(parte);
+      });
+    }
+    for (const [id, vals] of Object.entries(specsMap)) {
+      if (vals.size > 0) specs[id] = Array.from(vals);
+    }
   }
 
-  const specs: Record<string, string[]> = { ...base.specs };
-  for (const [id, vals] of Object.entries(specsMap)) {
-    if (vals.size > 0) specs[id] = Array.from(vals);
+  // 2) Specs single-select (ex.: "tipo" de peça) não viram variação e só existem
+  // na string de categoria. Quando não vieram de lá (dados legados ou categoria
+  // da IA em outro formato), tenta inferir pelo NOME do produto como reforço —
+  // ex.: "Camisa Polo Azul" → tipo "Camisa". O \b evita casar "Camisa" dentro de
+  // "Camiseta" e "Calça" dentro de "Calçado".
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const nomeNorm = norm(produto.nome ?? '');
+  if (nomeNorm) {
+    for (const spec of (subcat?.specs ?? []).filter((s) => !s.multiplo)) {
+      if (specs[spec.id]?.length) continue; // já resolvido pela categoria
+      const match = spec.opcoes.find(
+        (opt) => opt !== 'Outro' && new RegExp(`\\b${norm(opt)}\\b`).test(nomeNorm),
+      );
+      if (match) specs[spec.id] = [match];
+    }
   }
 
   return { ...base, specs };
