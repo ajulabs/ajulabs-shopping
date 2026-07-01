@@ -34,10 +34,14 @@ export function EnderecosScreen() {
   } = useEnderecos();
 
   const [showModal, setShowModal] = useState(false);
-  const enderecoForm = useEnderecoForm(token, () => {
-    setShowModal(false);
-    carregar();
-  });
+  const enderecoForm = useEnderecoForm(
+    token,
+    () => {
+      setShowModal(false);
+      carregar();
+    },
+    enderecos,
+  );
 
   const abrirNovo = () => {
     enderecoForm.resetar();
@@ -103,34 +107,30 @@ export function EnderecosScreen() {
               key={addr.id}
               style={[styles.card, { backgroundColor: surf, borderColor: border }]}
             >
-              <View style={[styles.cardIconBox, { backgroundColor: iconBg }]}>
-                <Ionicons
-                  name={iconeApelido(addr.apelido) as any}
-                  size={18}
-                  color={colors.orange}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardApelido, { color: text }]}>{addr.apelido}</Text>
-                  {addr.padrao && (
-                    <View style={styles.badgePadrao}>
-                      <Text style={styles.badgePadraoTxt}>Padrão</Text>
-                    </View>
-                  )}
+              <View style={styles.cardTop}>
+                <View style={[styles.cardIconBox, { backgroundColor: iconBg }]}>
+                  <Ionicons
+                    name={iconeApelido(addr.apelido) as any}
+                    size={18}
+                    color={colors.orange}
+                  />
                 </View>
-                <Text style={[styles.cardRua, { color: textSec as string }]}>{addr.rua}</Text>
-                <Text style={[styles.cardBairro, { color: textSec as string }]}>
-                  {addr.bairro} · CEP {addr.cep}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.cardTitleRow}>
+                    <Text style={[styles.cardApelido, { color: text }]}>{addr.apelido}</Text>
+                    {addr.padrao && (
+                      <View style={styles.badgePadrao}>
+                        <Text style={styles.badgePadraoTxt}>Padrão</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.cardRua, { color: textSec as string }]}>{addr.rua}</Text>
+                  <Text style={[styles.cardBairro, { color: textSec as string }]}>
+                    {addr.bairro} · CEP {addr.cep}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.cardActions}>
-                <TouchableOpacity
-                  onPress={() => handleEditar(addr)}
-                  style={[styles.actionBtn, { backgroundColor: backBtn }]}
-                >
-                  <Ionicons name="pencil-outline" size={17} color={colors.orange} />
-                </TouchableOpacity>
+              <View style={[styles.cardActions, { borderTopColor: borderL }]}>
                 <TouchableOpacity
                   onPress={() => !addr.padrao && handleDefinirPadrao(addr.id)}
                   style={[
@@ -141,9 +141,19 @@ export function EnderecosScreen() {
                 >
                   <Ionicons
                     name={addr.padrao ? 'star' : 'star-outline'}
-                    size={17}
+                    size={16}
                     color={colors.orange}
                   />
+                  <Text style={[styles.actionTxt, { color: colors.orange }]}>
+                    {addr.padrao ? 'Padrão' : 'Favoritar'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleEditar(addr)}
+                  style={[styles.actionBtn, { backgroundColor: backBtn }]}
+                >
+                  <Ionicons name="pencil-outline" size={16} color={colors.orange} />
+                  <Text style={[styles.actionTxt, { color: colors.orange }]}>Editar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleRemover(addr)}
@@ -152,7 +162,10 @@ export function EnderecosScreen() {
                     { backgroundColor: isDark ? 'rgba(163,45,45,0.18)' : '#FCEBEB' },
                   ]}
                 >
-                  <Ionicons name="trash-outline" size={17} color="#A32D2D" />
+                  <Ionicons name="trash-outline" size={16} color={isDark ? '#FCA5A5' : '#A32D2D'} />
+                  <Text style={[styles.actionTxt, { color: isDark ? '#FCA5A5' : '#A32D2D' }]}>
+                    Excluir
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -200,14 +213,12 @@ const styles = StyleSheet.create({
   vazioTitulo: { fontSize: 17, fontWeight: '700' },
   vazioTxt: { fontSize: 13, textAlign: 'center' },
   card: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
     padding: 14,
     borderRadius: 14,
     marginBottom: 12,
     borderWidth: 1,
   },
+  cardTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   cardIconBox: {
     width: 40,
     height: 40,
@@ -226,14 +237,23 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   badgePadraoTxt: { fontSize: 10, fontWeight: '600', color: colors.orange600 },
-  cardActions: { gap: 8 },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
   actionBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
+    height: 36,
+    borderRadius: 9,
   },
+  actionTxt: { fontSize: 12.5, fontWeight: '600' },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',

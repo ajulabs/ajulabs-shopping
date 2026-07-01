@@ -23,6 +23,7 @@ export function CategoriaGrid({
               styles.catCard,
               { backgroundColor: theme.surf, borderColor: theme.border },
               selected && styles.catCardSelected,
+              selected && theme.isDark && { backgroundColor: 'rgba(242,118,15,0.15)' },
             ]}
             onPress={() => onSelect(c.id)}
             activeOpacity={0.75}
@@ -33,7 +34,12 @@ export function CategoriaGrid({
               color={selected ? colors.orange : theme.textMut}
             />
             <Text
-              style={[styles.catNome, { color: theme.textSec }, selected && styles.catNomeSelected]}
+              style={[
+                styles.catNome,
+                { color: theme.textSec },
+                selected && styles.catNomeSelected,
+                selected && theme.isDark && { color: '#FDBA74' },
+              ]}
               numberOfLines={2}
             >
               {c.nome}

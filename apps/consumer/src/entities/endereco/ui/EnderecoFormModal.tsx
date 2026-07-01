@@ -72,7 +72,11 @@ export function EnderecoFormModal({ visible, controller, onClose, showMapPreview
             showsVerticalScrollIndicator={false}
           >
             <TouchableOpacity
-              style={[styles.locBtn, buscandoLoc && { opacity: 0.6 }]}
+              style={[
+                styles.locBtn,
+                isDark && { backgroundColor: 'rgba(242,118,15,0.15)' },
+                buscandoLoc && { opacity: 0.6 },
+              ]}
               onPress={usarLocalizacao}
               disabled={buscandoLoc}
               activeOpacity={0.8}

@@ -39,6 +39,10 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
   const subColor = dark ? 'rgba(255,255,255,0.6)' : colors.n600;
   const surface = dark ? colors.surfDark : colors.n0;
   const border = dark ? 'rgba(255,255,255,0.06)' : colors.n200;
+  // No dark o pastel claro "estoura" sobre o card escuro: troca por tint translúcido
+  // da laranja da marca + texto laranja claro para manter contraste.
+  const btnAddBg = dark ? 'rgba(242,118,15,0.18)' : colors.orange100;
+  const btnAddColor = dark ? '#FDBA74' : colors.orange600;
 
   const [added, setAdded] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -86,7 +90,7 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
           <TouchableOpacity
             style={[
               styles.btnAdd,
-              added && styles.btnAdded,
+              { backgroundColor: added ? colors.orange : btnAddBg },
               !produto.disponivel && { opacity: 0.4 },
             ]}
             onPress={handleAdd}
@@ -100,7 +104,7 @@ export function ProdutoCard({ produto, onAdd, dark = false }: ProdutoCardProps) 
                 <Ionicons name="chevron-forward" size={11} color={colors.n0} />
               </>
             ) : (
-              <Text style={styles.btnAddText}>+ Adicionar</Text>
+              <Text style={[styles.btnAddText, { color: btnAddColor }]}>+ Adicionar</Text>
             )}
           </TouchableOpacity>
         </Animated.View>
@@ -156,7 +160,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  btnAdded: { backgroundColor: colors.orange },
   btnAddText: { color: colors.orange600, fontSize: 12, fontWeight: '600' },
   btnAddedText: { color: colors.n0, fontSize: 12, fontWeight: '600' },
 });

@@ -38,7 +38,11 @@ const API_URL =
  * endereços: estado, busca por CEP (ViaCEP), geolocalização (GPS + geocode
  * reverso no backend), validação e persistência (criar/atualizar).
  */
-export function useEnderecoForm(token: string | null, onSaved?: (endereco: EnderecoSalvo) => void) {
+export function useEnderecoForm(
+  token: string | null,
+  onSaved?: (endereco: EnderecoSalvo) => void,
+  enderecosExistentes: EnderecoSalvo[] = [],
+) {
   const [form, setForm] = useState<EnderecoForm>(FORM_VAZIO);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -180,7 +184,16 @@ export function useEnderecoForm(token: string | null, onSaved?: (endereco: Ender
 
   const validar = () => {
     const newErrors: Record<string, string> = {};
-    if (!form.apelido.trim()) newErrors.apelido = 'Campo obrigatório.';
+    const apelidoNorm = form.apelido.trim().toLowerCase();
+    if (!form.apelido.trim()) {
+      newErrors.apelido = 'Campo obrigatório.';
+    } else if (
+      enderecosExistentes.some(
+        (e) => e.id !== editandoId && e.apelido.trim().toLowerCase() === apelidoNorm,
+      )
+    ) {
+      newErrors.apelido = 'Você já tem um endereço com esse apelido.';
+    }
     if (!form.rua.trim()) newErrors.rua = 'Campo obrigatório.';
     if (!form.numero.trim()) newErrors.numero = 'Campo obrigatório.';
     if (!form.bairro.trim()) newErrors.bairro = 'Campo obrigatório.';

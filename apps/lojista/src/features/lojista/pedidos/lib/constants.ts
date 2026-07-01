@@ -22,6 +22,36 @@ export const STATUS_META: Record<
   cancelado: { label: 'Cancelado', color: '#9B1C1C', bg: '#FCEBEB', next: null },
 };
 
+// Variante escura: no dark o fundo pastel "estoura" sobre a superfície escura e o
+// texto saturado perde contraste. Trocamos por um tint translúcido da própria cor
+// (deixa o badge integrado ao card) e por um texto/ícone mais claro e legível.
+const STATUS_DARK: Record<OrderStatus, { color: string; bg: string }> = {
+  novo: { color: '#FDBA74', bg: 'rgba(222,103,8,0.20)' },
+  preparando: { color: '#7DD3FC', bg: 'rgba(11,111,174,0.22)' },
+  pronto: { color: '#C4B5FD', bg: 'rgba(124,58,237,0.24)' },
+  despachado: { color: '#67E8F9', bg: 'rgba(3,105,161,0.22)' },
+  entregue: { color: '#6EE7B7', bg: 'rgba(4,108,46,0.26)' },
+  cancelado: { color: '#FCA5A5', bg: 'rgba(155,28,28,0.26)' },
+};
+
+// Realce "A caminho" (pedido pronto com entregador já designado) — cor própria,
+// distinta do roxo de "Aguardando motoboy".
+const CAMINHO_META = {
+  light: { color: '#0369A1', bg: '#E0F2FE' },
+  dark: { color: '#67E8F9', bg: 'rgba(3,105,161,0.22)' },
+};
+
+/** Cores do status sensíveis ao tema (label/next não mudam). */
+export function statusMeta(status: OrderStatus, isDark: boolean) {
+  const base = STATUS_META[status];
+  return isDark ? { ...base, ...STATUS_DARK[status] } : base;
+}
+
+/** Cores do realce "A caminho" sensíveis ao tema. */
+export function caminhoMeta(isDark: boolean) {
+  return isDark ? CAMINHO_META.dark : CAMINHO_META.light;
+}
+
 export const FLOW: OrderStatus[] = ['novo', 'preparando', 'pronto', 'despachado', 'entregue'];
 
 export const PEDIDOS_MOCK: Order[] = [];

@@ -121,9 +121,17 @@ export function EditProdutoScreen({
           )}
           {/* Hint variações: aparece quando há tipo selecionado mas ainda sem variações geradas */}
           {form.tipoProduto && form.variacoesEstoque.length === 0 && (
-            <View style={styles.varHint}>
+            <View
+              style={[
+                styles.varHint,
+                theme.isDark && {
+                  backgroundColor: 'rgba(242,118,15,0.15)',
+                  borderColor: 'rgba(242,118,15,0.40)',
+                },
+              ]}
+            >
               <Ionicons name="color-palette-outline" size={14} color={colors.orange} />
-              <Text style={styles.varHintText}>
+              <Text style={[styles.varHintText, theme.isDark && { color: '#FDBA74' }]}>
                 Para adicionar variações (cor, tamanho…), selecione{' '}
                 <Text style={styles.varHintBold}>2 ou mais valores</Text> nas opções acima.
               </Text>
@@ -165,10 +173,14 @@ export function EditProdutoScreen({
           </View>
         )}
 
-        <View style={styles.switchRow}>
+        <View
+          style={[styles.switchRow, { backgroundColor: theme.surf, borderColor: theme.border }]}
+        >
           <View>
             <Text style={[styles.fieldLabel, { color: theme.textSec }]}>Disponível</Text>
-            <Text style={styles.switchSub}>Produto aparece na vitrine</Text>
+            <Text style={[styles.switchSub, { color: theme.textMut }]}>
+              Produto aparece na vitrine
+            </Text>
           </View>
           <OrangeToggle value={form.disponivel} onValueChange={(v) => set('disponivel', v)} />
         </View>
@@ -188,12 +200,14 @@ export function EditProdutoScreen({
 
         {hasChanges && (
           <TouchableOpacity
-            style={styles.discardBtn}
+            style={[styles.discardBtn, { borderColor: theme.border }]}
             onPress={handleDescartar}
             activeOpacity={0.75}
             disabled={saving}
           >
-            <Text style={styles.discardBtnText}>Descartar alterações</Text>
+            <Text style={[styles.discardBtnText, { color: theme.textSec }]}>
+              Descartar alterações
+            </Text>
           </TouchableOpacity>
         )}
 

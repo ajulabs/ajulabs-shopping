@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@ajulabs/theme';
+import { useTheme } from '../../../../shared/hooks';
 
 interface Props {
   codigoPedido: string;
@@ -12,8 +13,14 @@ interface Props {
 }
 
 export function StepConfirmacao({
-  codigoPedido, tempoMin, tempoMax, numLojas, onAcompanhar, onVoltarHome,
+  codigoPedido,
+  tempoMin,
+  tempoMax,
+  numLojas,
+  onAcompanhar,
+  onVoltarHome,
 }: Props) {
+  const theme = useTheme();
   return (
     <View style={styles.container}>
       {/* Ícone de sucesso */}
@@ -21,19 +28,22 @@ export function StepConfirmacao({
         <Ionicons name="checkmark" size={44} color={colors.mintText} />
       </View>
 
-      <Text style={styles.titulo}>Pedido confirmado!</Text>
-      <Text style={styles.subtitulo}>
-        Código <Text style={styles.codigo}>{codigoPedido}</Text> · Aju já avisou as lojas
+      <Text style={[styles.titulo, { color: theme.text }]}>Pedido confirmado!</Text>
+      <Text style={[styles.subtitulo, { color: theme.textSec }]}>
+        Código <Text style={[styles.codigo, { color: theme.text }]}>{codigoPedido}</Text> · Aju já
+        avisou as lojas
       </Text>
 
       {/* Tempo estimado */}
-      <View style={styles.tempoCard}>
-        <Text style={styles.tempoLabel}>TEMPO ESTIMADO</Text>
+      <View style={[styles.tempoCard, { backgroundColor: theme.surf, borderColor: theme.border }]}>
+        <Text style={[styles.tempoLabel, { color: theme.textMut }]}>TEMPO ESTIMADO</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Ionicons name="time-outline" size={22} color={colors.orange} />
           <View>
-            <Text style={styles.tempoValue}>{tempoMin}–{tempoMax} min</Text>
-            <Text style={styles.tempoDesc}>
+            <Text style={[styles.tempoValue, { color: theme.text }]}>
+              {tempoMin}–{tempoMax} min
+            </Text>
+            <Text style={[styles.tempoDesc, { color: theme.textSec }]}>
               {numLojas > 1 ? 'Itens chegam separados por loja' : 'Entrega única'}
             </Text>
           </View>
@@ -47,30 +57,57 @@ export function StepConfirmacao({
       </TouchableOpacity>
 
       <TouchableOpacity onPress={onVoltarHome} activeOpacity={0.7}>
-        <Text style={styles.voltarTxt}>Voltar para a home</Text>
+        <Text style={[styles.voltarTxt, { color: theme.textMut }]}>Voltar para a home</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:       { alignItems: 'center', paddingTop: 20 },
-  checkCircle:     { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.mint,
-                     alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  titulo:          { fontSize: 22, fontWeight: '700', color: colors.navy },
-  subtitulo:       { fontSize: 13, color: colors.n600, marginTop: 8, textAlign: 'center' },
-  codigo:          { fontWeight: '700', color: colors.navy },
+  container: { alignItems: 'center', paddingTop: 20 },
+  checkCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.mint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  titulo: { fontSize: 22, fontWeight: '700', color: colors.navy },
+  subtitulo: { fontSize: 13, color: colors.n600, marginTop: 8, textAlign: 'center' },
+  codigo: { fontWeight: '700', color: colors.navy },
 
-  tempoCard:       { backgroundColor: colors.n0, borderRadius: 14, padding: 14,
-                     marginTop: 20, width: '100%', borderWidth: 1, borderColor: colors.n200 },
-  tempoLabel:      { fontSize: 11, fontWeight: '600', color: colors.n500, letterSpacing: 0.5,
-                     marginBottom: 8 },
-  tempoValue:      { fontSize: 22, fontWeight: '700', color: colors.navy },
-  tempoDesc:       { fontSize: 12, color: colors.n600 },
+  tempoCard: {
+    backgroundColor: colors.n0,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 20,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.n200,
+  },
+  tempoLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.n500,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  tempoValue: { fontSize: 22, fontWeight: '700', color: colors.navy },
+  tempoDesc: { fontSize: 12, color: colors.n600 },
 
-  btnAcompanhar:   { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
-                     backgroundColor: colors.orange, height: 52, borderRadius: 14,
-                     width: '100%', marginTop: 20 },
-  btnAcompanharTxt:{ color: colors.n0, fontSize: 15, fontWeight: '700' },
-  voltarTxt:       { color: colors.n500, fontSize: 13, fontWeight: '500', marginTop: 14 },
+  btnAcompanhar: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.orange,
+    height: 52,
+    borderRadius: 14,
+    width: '100%',
+    marginTop: 20,
+  },
+  btnAcompanharTxt: { color: colors.n0, fontSize: 15, fontWeight: '700' },
+  voltarTxt: { color: colors.n500, fontSize: 13, fontWeight: '500', marginTop: 14 },
 });
