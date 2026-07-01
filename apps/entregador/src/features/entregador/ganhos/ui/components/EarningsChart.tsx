@@ -87,7 +87,9 @@ export function EarningsChart({
               : 'Sem corridas'}
           </Text>
         </View>
-        <Text style={[s.dayDetailAmount, { color: selectedValue > 0 ? '#000933' : '#9099B3' }]}>
+        <Text
+          style={[s.dayDetailAmount, { color: selectedValue > 0 ? theme.text : theme.textMut }]}
+        >
           {brl(selectedValue)}
         </Text>
       </View>

@@ -44,14 +44,19 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
       {/* Summary quando selecionado */}
       {hasSelection && (
         <View style={styles.summaryRow}>
-          <View style={styles.summaryChip}>
+          <View
+            style={[
+              styles.summaryChip,
+              theme.isDark && { backgroundColor: 'rgba(242,118,15,0.18)' },
+            ]}
+          >
             <MaterialCommunityIcons
               name={cat?.icon as any}
               size={14}
-              color={colors.orange600}
+              color={theme.isDark ? '#FDBA74' : colors.orange600}
               style={{ marginRight: 6 }}
             />
-            <Text style={styles.summaryText}>
+            <Text style={[styles.summaryText, theme.isDark && { color: '#FDBA74' }]}>
               {getCatNome(value!.catId)}
               {isCustom && customTipo ? ` · ${customTipo}` : ''}
               {!isCustom && value!.subcatId
@@ -86,6 +91,7 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                     styles.subcatChip,
                     { backgroundColor: theme.surf, borderColor: theme.border },
                     selected && styles.subcatChipSelected,
+                    selected && theme.isDark && { backgroundColor: 'rgba(242,118,15,0.18)' },
                   ]}
                   onPress={() => selectSubcat(s.id)}
                   activeOpacity={0.75}
@@ -95,6 +101,7 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                       styles.subcatText,
                       { color: theme.textSec },
                       selected && styles.subcatTextSelected,
+                      selected && theme.isDark && { color: '#FDBA74' },
                     ]}
                   >
                     {s.nome}
@@ -172,6 +179,11 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
                           styles.chip,
                           { backgroundColor: theme.surf2, borderColor: theme.border },
                           isSelected && styles.chipSelected,
+                          isSelected &&
+                            theme.isDark && {
+                              backgroundColor: colors.orange,
+                              borderColor: colors.orange,
+                            },
                         ]}
                         onPress={() => toggleSpec(spec.id, opt)}
                         activeOpacity={0.75}
@@ -239,9 +251,15 @@ export function TipoProdutoSelector({ value, onChange, missingSpecs = [], onSpec
       )}
 
       {subcat && subcat.specs.length === 0 && (
-        <View style={styles.noSpecsHint}>
-          <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-          <Text style={styles.noSpecsText}>
+        <View
+          style={[styles.noSpecsHint, theme.isDark && { backgroundColor: 'rgba(22,163,74,0.18)' }]}
+        >
+          <Ionicons
+            name="checkmark-circle"
+            size={14}
+            color={theme.isDark ? '#6EE7B7' : '#16A34A'}
+          />
+          <Text style={[styles.noSpecsText, theme.isDark && { color: '#6EE7B7' }]}>
             Nenhuma especificação necessária para esta categoria
           </Text>
         </View>

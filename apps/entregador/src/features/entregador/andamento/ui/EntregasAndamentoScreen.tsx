@@ -109,7 +109,11 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
           <>
             {slots > 0 ? (
               <View style={s.slotBanner}>
-                <Ionicons name="add-circle-outline" size={16} color="#046C2E" />
+                <Ionicons
+                  name="add-circle-outline"
+                  size={16}
+                  color={theme.isDark ? '#6EE7B7' : '#046C2E'}
+                />
                 <Text style={s.slotBannerText}>
                   Você pode aceitar mais {slots} entrega{slots > 1 ? 's' : ''} simultânea
                   {slots > 1 ? 's' : ''}.
@@ -117,8 +121,12 @@ export function EntregasAndamentoScreen({ rides, onSelectRide }: Props) {
               </View>
             ) : (
               <View style={[s.slotBanner, s.slotBannerFull]}>
-                <Ionicons name="lock-closed-outline" size={16} color="#B34D00" />
-                <Text style={[s.slotBannerText, { color: '#B34D00' }]}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={16}
+                  color={theme.isDark ? '#FDBA74' : '#B34D00'}
+                />
+                <Text style={[s.slotBannerText, { color: theme.isDark ? '#FDBA74' : '#B34D00' }]}>
                   Limite de 2 entregas atingido. Finalize uma para aceitar outra.
                 </Text>
               </View>
@@ -295,13 +303,22 @@ function makeStyles(theme: Theme) {
       gap: 8,
       padding: 12,
       borderRadius: 12,
-      backgroundColor: '#E6F7ED',
+      // No dark o verde claro fixo vira mancha: usa tint translúcido + texto verde claro.
+      backgroundColor: theme.isDark ? 'rgba(4,108,46,0.20)' : '#E6F7ED',
       borderWidth: 1,
-      borderColor: '#046C2E',
+      borderColor: theme.isDark ? 'rgba(110,231,183,0.35)' : '#046C2E',
       marginBottom: 14,
     },
-    slotBannerFull: { backgroundColor: '#FFF0E6', borderColor: '#F2760F' },
-    slotBannerText: { fontSize: 12.5, color: '#046C2E', fontWeight: '600', flex: 1 },
+    slotBannerFull: {
+      backgroundColor: theme.isDark ? 'rgba(242,118,15,0.15)' : '#FFF0E6',
+      borderColor: '#F2760F',
+    },
+    slotBannerText: {
+      fontSize: 12.5,
+      color: theme.isDark ? '#6EE7B7' : '#046C2E',
+      fontWeight: '600',
+      flex: 1,
+    },
     card: {
       backgroundColor: theme.surf,
       borderRadius: 16,

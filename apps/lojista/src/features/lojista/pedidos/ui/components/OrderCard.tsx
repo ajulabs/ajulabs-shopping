@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { STATUS_META, brl, type Order } from '../../lib';
+import { statusMeta, caminhoMeta, brl, type Order } from '../../lib';
 import { useTheme } from '../../../../../shared/hooks';
 
 interface Props {
@@ -14,8 +14,11 @@ interface Props {
 
 export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel }: Props) {
   const theme = useTheme();
-  const meta = STATUS_META[o.status];
+  const meta = statusMeta(o.status, theme.isDark);
+  const caminho = caminhoMeta(theme.isDark);
   const isNew = o.status === 'novo';
+  const aCaminho = o.status === 'pronto' && !!o.entregadorId;
+  const cancelCor = theme.isDark ? '#FCA5A5' : '#9B2727';
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
@@ -37,7 +40,7 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
             style={[
               s.badge,
               {
-                backgroundColor: o.status === 'pronto' && o.entregadorId ? '#E0F2FE' : meta.bg,
+                backgroundColor: aCaminho ? caminho.bg : meta.bg,
               },
             ]}
           >
@@ -45,11 +48,11 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
               style={[
                 s.badgeText,
                 {
-                  color: o.status === 'pronto' && o.entregadorId ? '#0369A1' : meta.color,
+                  color: aCaminho ? caminho.color : meta.color,
                 },
               ]}
             >
-              {o.status === 'pronto' && o.entregadorId ? 'A caminho' : meta.label}
+              {aCaminho ? 'A caminho' : meta.label}
             </Text>
           </View>
         </View>
@@ -85,36 +88,38 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
           )}
           {!meta.next && o.status === 'pronto' && !o.entregadorId && (
             <View style={s.dispatched}>
-              <Ionicons name="time-outline" size={14} color="#7C3AED" />
-              <Text style={[s.dispatchedText, { color: '#7C3AED' }]}>Aguardando motoboy</Text>
+              <Ionicons name="time-outline" size={14} color={meta.color} />
+              <Text style={[s.dispatchedText, { color: meta.color }]}>Aguardando motoboy</Text>
             </View>
           )}
           {!meta.next && o.status === 'pronto' && o.entregadorId && (
             <View style={s.dispatched}>
-              <Ionicons name="bicycle" size={14} color="#0369A1" />
-              <Text style={[s.dispatchedText, { color: '#0369A1' }]}>
-                Entregador a caminho{o.entregadorNome ? ` · ${o.entregadorNome}` : ''}
+              <Ionicons name="bicycle" size={14} color={caminho.color} />
+              <Text style={[s.dispatchedText, { color: caminho.color }]} numberOfLines={1}>
+                {o.entregadorNome
+                  ? `${o.entregadorNome.trim().split(/\s+/)[0]} a caminho`
+                  : 'Entregador a caminho'}
               </Text>
             </View>
           )}
           {!meta.next && o.status === 'despachado' && (
             <View style={s.dispatched}>
-              <Ionicons name="bicycle" size={14} color="#0369A1" />
-              <Text style={[s.dispatchedText, { color: '#0369A1' }]}>
+              <Ionicons name="bicycle" size={14} color={meta.color} />
+              <Text style={[s.dispatchedText, { color: meta.color }]} numberOfLines={1}>
                 {(o as any).motoboy ?? 'Despachado'}
               </Text>
             </View>
           )}
           {!meta.next && o.status === 'entregue' && (
             <View style={s.dispatched}>
-              <Ionicons name="checkmark-circle" size={14} color="#046C2E" />
-              <Text style={[s.dispatchedText, { color: '#046C2E' }]}>Entrega concluída</Text>
+              <Ionicons name="checkmark-circle" size={14} color={meta.color} />
+              <Text style={[s.dispatchedText, { color: meta.color }]}>Entrega concluída</Text>
             </View>
           )}
           {!meta.next && o.status === 'cancelado' && (
             <View style={s.dispatched}>
-              <Ionicons name="close-circle" size={14} color="#9B1C1C" />
-              <Text style={[s.dispatchedText, { color: '#9B1C1C' }]}>Cancelado</Text>
+              <Ionicons name="close-circle" size={14} color={meta.color} />
+              <Text style={[s.dispatchedText, { color: meta.color }]}>Cancelado</Text>
             </View>
           )}
         </View>
@@ -124,8 +129,8 @@ export function OrderCard({ order: o, borderColor, onPress, onAdvance, onCancel 
             onPress={onCancel}
             activeOpacity={0.7}
           >
-            <Ionicons name="close-circle-outline" size={13} color="#9B2727" />
-            <Text style={s.cancelLinkTxt}>
+            <Ionicons name="close-circle-outline" size={13} color={cancelCor} />
+            <Text style={[s.cancelLinkTxt, { color: cancelCor }]}>
               {o.status === 'novo' ? 'Recusar pedido' : 'Cancelar pedido'}
             </Text>
           </TouchableOpacity>
@@ -166,7 +171,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
   },
-  total: { fontSize: 18, fontWeight: '700', color: '#000933' },
+  total: { fontSize: 18, fontWeight: '700', color: '#000933', flexShrink: 0 },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -176,8 +181,8 @@ const s = StyleSheet.create({
     borderRadius: 10,
   },
   actionBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
-  dispatched: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dispatchedText: { fontSize: 12, fontWeight: '600', color: '#046C2E' },
+  dispatched: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, marginLeft: 8 },
+  dispatchedText: { fontSize: 12, fontWeight: '600', color: '#046C2E', flexShrink: 1 },
   cancelLink: {
     flexDirection: 'row',
     alignItems: 'center',

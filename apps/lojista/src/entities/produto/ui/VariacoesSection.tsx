@@ -1,6 +1,7 @@
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../theme';
+import { useTheme } from '../../../shared/hooks';
 import { VariacaoEstoque } from '../model/variacoes';
 
 export function VariacoesSection({
@@ -15,6 +16,15 @@ export function VariacoesSection({
   /** No editar produto o estoque é gerenciado em "Ajustar estoque" (somente leitura aqui). */
   estoqueReadOnly?: boolean;
 }) {
+  const theme = useTheme();
+  const dark = theme.isDark;
+  // Card "laranja": no dark troca o creme claro por superfície escura + acentos laranja.
+  const containerBg = dark ? theme.surf : '#FFFAF5';
+  const containerBorder = dark ? 'rgba(242,118,15,0.35)' : '#FFD4A8';
+  const headerBg = dark ? 'rgba(242,118,15,0.15)' : colors.orange100;
+  const accentTxt = dark ? '#FDBA74' : colors.orange600;
+  const inp = { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text };
+
   const totalEstoque = variacoes.reduce((s, v) => s + (v.estoque || 0), 0);
 
   const updateEstoque = (nome: string, raw: string) => {
@@ -33,48 +43,71 @@ export function VariacoesSection({
   };
 
   return (
-    <View style={varStyles.container}>
-      <View style={varStyles.headerRow}>
+    <View
+      style={[varStyles.container, { backgroundColor: containerBg, borderColor: containerBorder }]}
+    >
+      <View
+        style={[
+          varStyles.headerRow,
+          { backgroundColor: headerBg, borderBottomColor: containerBorder },
+        ]}
+      >
         <View style={varStyles.headerLeft}>
-          <Ionicons name="grid-outline" size={14} color={colors.orange600} />
-          <Text style={varStyles.title}>Variações do produto</Text>
+          <Ionicons name="grid-outline" size={14} color={accentTxt} />
+          <Text style={[varStyles.title, { color: accentTxt }]}>Variações do produto</Text>
         </View>
         <View style={varStyles.totalBadge}>
           <Text style={varStyles.totalText}>Total: {totalEstoque} un.</Text>
         </View>
       </View>
 
-      <View style={varStyles.tableHeader}>
-        <Text style={[varStyles.colLabel, { flex: 1 }]}>Combinação</Text>
-        <Text style={[varStyles.colLabel, { width: 80, textAlign: 'center' }]}>Preço (R$)</Text>
-        <Text style={[varStyles.colLabel, { width: 72, textAlign: 'right' }]}>Estoque</Text>
+      <View style={[varStyles.tableHeader, { borderBottomColor: theme.border }]}>
+        <Text style={[varStyles.colLabel, { color: theme.textMut, flex: 1 }]}>Combinação</Text>
+        <Text
+          style={[varStyles.colLabel, { color: theme.textMut, width: 80, textAlign: 'center' }]}
+        >
+          Preço (R$)
+        </Text>
+        <Text style={[varStyles.colLabel, { color: theme.textMut, width: 72, textAlign: 'right' }]}>
+          Estoque
+        </Text>
       </View>
 
       {variacoes.map((v, idx) => (
-        <View key={v.nome} style={[varStyles.row, idx % 2 === 0 && varStyles.rowAlt]}>
-          <Text style={varStyles.nomeTxt} numberOfLines={1}>
+        <View
+          key={v.nome}
+          style={[
+            varStyles.row,
+            idx % 2 === 0 && {
+              backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)',
+            },
+          ]}
+        >
+          <Text style={[varStyles.nomeTxt, { color: theme.text }]} numberOfLines={1}>
             {v.nome}
           </Text>
           <TextInput
-            style={varStyles.precoInput}
+            style={[varStyles.precoInput, inp]}
             value={v.preco != null ? String(v.preco).replace('.', ',') : ''}
             onChangeText={(raw) => updatePreco(v.nome, raw)}
             placeholder={precoBase || '0,00'}
-            placeholderTextColor={colors.n300}
+            placeholderTextColor={theme.textMut}
             keyboardType="decimal-pad"
             maxLength={8}
           />
           {estoqueReadOnly ? (
-            <View style={varStyles.estoqueReadonly}>
-              <Text style={varStyles.estoqueReadonlyTxt}>{v.estoque}</Text>
+            <View style={[varStyles.estoqueReadonly, { backgroundColor: theme.surf2 }]}>
+              <Text style={[varStyles.estoqueReadonlyTxt, { color: theme.textSec }]}>
+                {v.estoque}
+              </Text>
             </View>
           ) : (
             <TextInput
-              style={varStyles.estoqueInput}
+              style={[varStyles.estoqueInput, inp]}
               value={v.estoque === 0 ? '' : String(v.estoque)}
               onChangeText={(raw) => updateEstoque(v.nome, raw)}
               placeholder="0"
-              placeholderTextColor={colors.n300}
+              placeholderTextColor={theme.textMut}
               keyboardType="number-pad"
               maxLength={5}
             />
@@ -82,7 +115,7 @@ export function VariacoesSection({
         </View>
       ))}
 
-      <Text style={varStyles.hint}>
+      <Text style={[varStyles.hint, { color: theme.textMut }]}>
         {estoqueReadOnly
           ? 'O estoque de cada variação é gerenciado em "Ajustar estoque".'
           : 'Preço vazio usa o preço base. Estoque 0 = sem estoque para esta variação.'}

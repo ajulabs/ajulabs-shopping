@@ -77,7 +77,8 @@ function makeStyles(theme: Theme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: '#FEF0E3',
+      // No dark o pêssego claro fixo deixava o texto (branco) ilegível: usa tint laranja.
+      backgroundColor: theme.isDark ? 'rgba(242,118,15,0.15)' : '#FEF0E3',
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 8,
