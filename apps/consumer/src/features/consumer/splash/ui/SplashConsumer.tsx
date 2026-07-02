@@ -1,11 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
 import { SplashLogo } from './SplashLogo';
 import { SplashLoader } from './SplashLoader';
 
@@ -16,9 +10,9 @@ interface SplashConsumerProps {
 }
 
 export function SplashConsumer({ onDone }: SplashConsumerProps) {
-  const logoOpacity   = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoTranslate = useRef(new Animated.Value(16)).current;
-  const textOpacity   = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
   const textTranslate = useRef(new Animated.Value(12)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
 
@@ -88,11 +82,9 @@ export function SplashConsumer({ onDone }: SplashConsumerProps) {
           ]}
         >
           <Text style={styles.title}>
-            Shopping <Text style={styles.titleOrange}>Digital</Text>
+            Aju<Text style={styles.titleOrange}>Go</Text>
           </Text>
-          <Text style={styles.subtitle}>
-            O comércio de Aracaju na palma da sua mão.
-          </Text>
+          <Text style={styles.subtitle}>O comércio de Aracaju na palma da sua mão.</Text>
         </Animated.View>
       </View>
 

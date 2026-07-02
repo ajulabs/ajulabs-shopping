@@ -82,7 +82,7 @@ export function SplashLojista({ onDone }: SplashLojistaProps) {
           ]}
         >
           <Text style={styles.title}>
-            AjuLabs <Text style={styles.titleOrange}>Lojista</Text>
+            AjuGo <Text style={styles.titleOrange}>Lojista</Text>
           </Text>
           <Text style={styles.subtitle}>Sua loja na palma da mão.</Text>
         </Animated.View>
