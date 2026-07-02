@@ -82,7 +82,7 @@ export function SplashEntregador({ onDone }: SplashEntregadorProps) {
           ]}
         >
           <Text style={styles.title}>
-            AjuLabs <Text style={styles.titleOrange}>Entregador</Text>
+            AjuGo <Text style={styles.titleOrange}>Entregador</Text>
           </Text>
           <Text style={styles.subtitle}>Sua renda na palma da mão.</Text>
         </Animated.View>
